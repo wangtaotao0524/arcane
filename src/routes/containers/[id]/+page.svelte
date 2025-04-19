@@ -3,12 +3,26 @@
   import * as Card from "$lib/components/ui/card/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import StatusBadge from "$lib/components/docker/StatusBadge.svelte";
-  import { ArrowLeft, Loader2, AlertCircle, RefreshCw } from "@lucide/svelte";
+  import {
+    ArrowLeft,
+    Loader2,
+    AlertCircle,
+    RefreshCw,
+    PlayCircle,
+    StopCircle,
+    RotateCw,
+    Trash2,
+    HardDrive,
+    Clock,
+    Network,
+    Terminal,
+  } from "@lucide/svelte";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { enhance } from "$app/forms";
   import { invalidateAll } from "$app/navigation";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let { container, logs } = $derived(data);
@@ -17,6 +31,7 @@
   let stopping = $state(false);
   let restarting = $state(false);
   let removing = $state(false);
+  let isRefreshing = $state(false);
 
   function formatDate(dateString: string | undefined | null): string {
     if (!dateString) return "Unknown";
@@ -63,31 +78,61 @@
       logsContainer.scrollTop = logsContainer.scrollHeight;
     }
   });
+
+  async function refreshData() {
+    isRefreshing = true;
+    await invalidateAll();
+    setTimeout(() => {
+      isRefreshing = false;
+    }, 500);
+  }
 </script>
 
-<div class="container mx-auto pb-8">
+<div class="space-y-6 pb-8">
   <!-- Breadcrumb Navigation -->
-  <div
-    class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 mb-6 gap-4"
-  >
-    <Breadcrumb.Root>
-      <Breadcrumb.List>
-        <Breadcrumb.Item>
-          <Breadcrumb.Link href="/">Dashboard</Breadcrumb.Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Separator />
-        <Breadcrumb.Item>
-          <Breadcrumb.Link href="/containers">Containers</Breadcrumb.Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Separator />
-        <Breadcrumb.Item>
-          <Breadcrumb.Page>{container?.name || "Loading..."}</Breadcrumb.Page>
-        </Breadcrumb.Item>
-      </Breadcrumb.List>
-    </Breadcrumb.Root>
+  <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+    <div>
+      <Breadcrumb.Root>
+        <Breadcrumb.List>
+          <Breadcrumb.Item>
+            <Breadcrumb.Link href="/">Dashboard</Breadcrumb.Link>
+          </Breadcrumb.Item>
+          <Breadcrumb.Separator />
+          <Breadcrumb.Item>
+            <Breadcrumb.Link href="/containers">Containers</Breadcrumb.Link>
+          </Breadcrumb.Item>
+          <Breadcrumb.Separator />
+          <Breadcrumb.Item>
+            <Breadcrumb.Page>{container?.name || "Loading..."}</Breadcrumb.Page>
+          </Breadcrumb.Item>
+        </Breadcrumb.List>
+      </Breadcrumb.Root>
+
+      <div class="mt-2 flex items-center gap-2">
+        <h1 class="text-2xl font-bold tracking-tight">
+          {container?.name || "Container Details"}
+        </h1>
+        {#if container}
+          <StatusBadge state={container.state?.Status ?? "unknown"} />
+        {/if}
+      </div>
+    </div>
 
     {#if container}
       <div class="flex gap-2 flex-wrap">
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={refreshData}
+          disabled={isRefreshing}
+          class="h-9"
+        >
+          <RefreshCw
+            class={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </Button>
+
         {#if container.state?.Running}
           <form
             method="POST"
@@ -104,10 +149,12 @@
               variant="secondary"
               disabled={stopping}
               size="sm"
-              class="font-medium"
+              class="font-medium h-9"
             >
               {#if stopping}
                 <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+              {:else}
+                <StopCircle class="w-4 h-4 mr-2" />
               {/if}
               Stop
             </Button>
@@ -124,13 +171,15 @@
           >
             <Button
               type="submit"
-              variant="secondary"
+              variant="outline"
               disabled={restarting}
               size="sm"
-              class="font-medium"
+              class="font-medium h-9"
             >
               {#if restarting}
                 <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+              {:else}
+                <RotateCw class="w-4 h-4 mr-2" />
               {/if}
               Restart
             </Button>
@@ -151,10 +200,12 @@
               variant="default"
               disabled={starting}
               size="sm"
-              class="font-medium"
+              class="font-medium h-9"
             >
               {#if starting}
                 <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+              {:else}
+                <PlayCircle class="w-4 h-4 mr-2" />
               {/if}
               Start
             </Button>
@@ -182,10 +233,12 @@
             variant="destructive"
             disabled={removing}
             size="sm"
-            class="font-medium"
+            class="font-medium h-9"
           >
             {#if removing}
               <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+            {:else}
+              <Trash2 class="w-4 h-4 mr-2" />
             {/if}
             Remove
           </Button>
@@ -196,7 +249,7 @@
 
   <!-- Error Alert -->
   {#if form?.error}
-    <Alert.Root variant="destructive" class="mb-6">
+    <Alert.Root variant="destructive">
       <AlertCircle class="h-4 w-4 mr-2" />
       <Alert.Title>Action Failed</Alert.Title>
       <Alert.Description>{form.error}</Alert.Description>
@@ -205,44 +258,162 @@
 
   {#if container}
     <!-- Container Details Section -->
-    <div class="mb-6">
-      <h2 class="text-xl font-bold mb-4">Container Details</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card.Root class="overflow-hidden">
-          <Card.Header class="pb-2 bg-muted/40">
-            <Card.Title class="text-sm font-medium">State</Card.Title>
-          </Card.Header>
-          <Card.Content class="pt-4">
-            <StatusBadge state={container.state?.Status ?? "unknown"} />
-          </Card.Content>
-        </Card.Root>
-
-        <Card.Root class="overflow-hidden">
-          <Card.Header class="pb-2 bg-muted/40">
-            <Card.Title class="text-sm font-medium">Image</Card.Title>
-          </Card.Header>
-          <Card.Content class="pt-4 text-sm font-medium break-all">
-            <div class="truncate" title={container.config?.Image || "N/A"}>
-              {container.config?.Image || "N/A"}
+    <div class="space-y-6">
+      <Card.Root class="border shadow-sm">
+        <Card.Header>
+          <Card.Title>Container Details</Card.Title>
+          <Card.Description
+            >Basic information about the container</Card.Description
+          >
+        </Card.Header>
+        <Card.Content>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Image -->
+            <div class="flex items-start gap-3">
+              <div
+                class="bg-blue-500/10 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0"
+              >
+                <HardDrive class="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">Image</p>
+                <p class="text-base font-semibold mt-1 break-all">
+                  <span
+                    class="truncate block"
+                    title={container.config?.Image || "N/A"}
+                  >
+                    {container.config?.Image || "N/A"}
+                  </span>
+                </p>
+              </div>
             </div>
+
+            <!-- Created -->
+            <div class="flex items-start gap-3">
+              <div
+                class="bg-green-500/10 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0"
+              >
+                <Clock class="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">Created</p>
+                <p class="text-base font-semibold mt-1">
+                  {formatDate(container.created)}
+                </p>
+              </div>
+            </div>
+
+            <!-- IP Address -->
+            <div class="flex items-start gap-3">
+              <div
+                class="bg-purple-500/10 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0"
+              >
+                <Network class="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">
+                  IP Address
+                </p>
+                <p class="text-base font-semibold mt-1">
+                  {container.networkSettings?.IPAddress || "N/A"}
+                </p>
+              </div>
+            </div>
+
+            <!-- State -->
+            <div class="flex items-start gap-3">
+              <div
+                class="bg-amber-500/10 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0"
+              >
+                <Terminal class="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">Command</p>
+                <p
+                  class="text-base font-semibold mt-1 truncate"
+                  title={container.config?.Cmd?.join(" ") || "N/A"}
+                >
+                  {container.config?.Cmd?.join(" ") || "N/A"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card.Content>
+      </Card.Root>
+
+      <!-- Advanced Details (Ports, Volumes, Env) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Ports -->
+        <Card.Root class="border shadow-sm">
+          <Card.Header>
+            <Card.Title>Ports</Card.Title>
+            <Card.Description>Container port mappings</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            {#if container.networkSettings?.Ports && Object.keys(container.networkSettings.Ports).length > 0}
+              <div class="space-y-2">
+                {#each Object.entries(container.networkSettings.Ports) as [containerPort, hostBindings], i}
+                  <div
+                    class="flex items-center justify-between rounded-md bg-muted/40 p-2 px-3"
+                  >
+                    <div class="font-mono text-sm">{containerPort}</div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-muted-foreground">→</span>
+                      {#if hostBindings && hostBindings.length > 0}
+                        {#each hostBindings as binding}
+                          <Badge variant="outline" class="font-mono">
+                            {binding.HostIp || "0.0.0.0"}:{binding.HostPort}
+                          </Badge>
+                        {/each}
+                      {:else}
+                        <span class="text-xs text-muted-foreground"
+                          >Not published</span
+                        >
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="text-sm text-muted-foreground italic">
+                No ports exposed
+              </div>
+            {/if}
           </Card.Content>
         </Card.Root>
 
-        <Card.Root class="overflow-hidden">
-          <Card.Header class="pb-2 bg-muted/40">
-            <Card.Title class="text-sm font-medium">Created</Card.Title>
+        <!-- Environment Variables -->
+        <Card.Root class="border shadow-sm">
+          <Card.Header>
+            <Card.Title>Environment Variables</Card.Title>
+            <Card.Description
+              >Container environment configuration</Card.Description
+            >
           </Card.Header>
-          <Card.Content class="pt-4 text-sm font-medium">
-            {formatDate(container.created)}
-          </Card.Content>
-        </Card.Root>
-
-        <Card.Root class="overflow-hidden">
-          <Card.Header class="pb-2 bg-muted/40">
-            <Card.Title class="text-sm font-medium">IP Address</Card.Title>
-          </Card.Header>
-          <Card.Content class="pt-4 text-sm font-medium">
-            {container.networkSettings?.IPAddress || "N/A"}
+          <Card.Content class="max-h-[180px] overflow-y-auto">
+            {#if container.config?.Env && container.config.Env.length > 0}
+              <div class="space-y-1">
+                {#each container.config.Env as env}
+                  <div class="text-xs flex">
+                    {#if env.includes("=")}
+                      {@const [key, ...valueParts] = env.split("=")}
+                      {@const value = valueParts.join("=")}
+                      <span
+                        class="font-semibold mr-2 min-w-[120px] max-w-[180px] truncate"
+                        title={key}>{key}:</span
+                      >
+                      <span class="truncate" title={value}>{value}</span>
+                    {:else}
+                      <span>{env}</span>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="text-sm text-muted-foreground italic">
+                No environment variables set
+              </div>
+            {/if}
           </Card.Content>
         </Card.Root>
       </div>
@@ -266,6 +437,17 @@
                 >Recent output from the container</Card.Description
               >
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={refreshData}
+              disabled={isRefreshing}
+            >
+              <RefreshCw
+                class={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              Refresh Logs
+            </Button>
           </div>
         </Card.Header>
 
@@ -278,29 +460,28 @@
             {#if logs}
               {@html formattedLogs}
             {:else}
-              <p class="text-muted-foreground italic">
-                No logs available. The container may not have started yet.
-              </p>
+              <div
+                class="flex flex-col items-center justify-center h-full text-center"
+              >
+                <Terminal
+                  class="h-8 w-8 text-muted-foreground mb-3 opacity-40"
+                />
+                <p class="text-muted-foreground italic">
+                  No logs available. The container may not have started yet.
+                </p>
+              </div>
             {/if}
           </div>
         </Card.Content>
 
-        <Card.Footer class="flex justify-between border-t pt-4">
+        <Card.Footer class="flex justify-end border-t pt-4">
           <Button
             variant="outline"
             size="sm"
             href="/containers/{container.id}/logs"
-            class="text-xs"
+            class="text-sm"
           >
             View full logs
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onclick={() => invalidateAll()}
-            class="text-xs"
-          >
-            <RefreshCw class="w-3.5 h-3.5 mr-1" /> Refresh
           </Button>
         </Card.Footer>
       </Card.Root>
@@ -340,29 +521,45 @@
               </div>
             </div>
 
-            <div class="pt-2 text-xs italic text-muted-foreground">
-              Stats fetching not implemented yet.
+            <div class="bg-muted/50 p-4 rounded-md text-center mt-4">
+              <p class="text-sm text-muted-foreground mb-2">
+                Stats fetching not implemented yet.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                href="/containers/{container.id}/stats"
+                class="text-sm w-full"
+              >
+                View detailed stats
+              </Button>
             </div>
           </div>
         </Card.Content>
-
-        <Card.Footer class="border-t pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            href="/containers/{container.id}/stats"
-            class="w-full text-xs"
-          >
-            View detailed stats
-          </Button>
-        </Card.Footer>
       </Card.Root>
     </div>
   {:else}
-    <div class="flex items-center justify-center h-48 border rounded-lg">
-      <p class="text-center text-muted-foreground">
-        Could not load container data.
+    <div
+      class="flex flex-col items-center justify-center py-12 border rounded-lg shadow-sm bg-card"
+    >
+      <div class="rounded-full bg-muted/50 p-4 mb-4">
+        <AlertCircle class="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h2 class="text-lg font-medium mb-2">Container Not Found</h2>
+      <p class="text-center text-muted-foreground max-w-md">
+        Could not load container data. It may have been removed or the Docker
+        engine is not accessible.
       </p>
+      <div class="flex gap-3 mt-6">
+        <Button variant="outline" href="/containers">
+          <ArrowLeft class="h-4 w-4 mr-2" />
+          Back to Containers
+        </Button>
+        <Button variant="default" onclick={refreshData}>
+          <RefreshCw class="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
     </div>
   {/if}
 </div>

@@ -8,21 +8,45 @@
     Settings,
     Menu,
     X,
+    ChevronRight,
+    ChevronLeft,
     type Icon as IconType,
   } from "@lucide/svelte";
   import { page } from "$app/stores";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
+  import { Separator } from "$lib/components/ui/separator/index.js";
+  import { cn } from "$lib/utils";
+  import { browser } from "$app/environment";
 
   // Define MenuItem type with proper IconType
   type MenuItem = {
     href: string;
     label: string;
     icon: typeof IconType;
+    badge?: string;
   };
 
   // State for mobile sidebar
   let isOpen = $state(false);
+
+  // State for sidebar collapse (desktop)
+  let isCollapsed = $state(false);
+
+  // Initialize from localStorage if available
+  if (browser) {
+    const savedState = localStorage.getItem("sidebarCollapsed");
+    isCollapsed = savedState === "true";
+  }
+
+  // Save collapsed state to localStorage
+  function toggleCollapse() {
+    isCollapsed = !isCollapsed;
+    if (browser) {
+      localStorage.setItem("sidebarCollapsed", isCollapsed.toString());
+    }
+  }
 
   // Menu items with proper typing
   let {
@@ -39,54 +63,146 @@
 
 <!-- Mobile menu button -->
 <Button
-  variant="default"
+  variant="ghost"
   size="icon"
-  class="md:hidden fixed top-4 right-4 z-50"
+  class="md:hidden fixed top-4 right-4 z-50 shadow-sm bg-background"
   onclick={() => (isOpen = !isOpen)}
+  aria-label={isOpen ? "Close menu" : "Open menu"}
 >
   {#if isOpen}
-    <X size={20} />
+    <X size={18} />
   {:else}
-    <Menu size={20} />
+    <Menu size={18} />
   {/if}
 </Button>
 
 <!-- Sidebar navigation -->
 <div
-  class={`
-  ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} 
-  fixed md:sticky top-0 left-0 h-screen w-64 
-  bg-card border-r border-border shadow-md 
-  z-40 transition-transform duration-200 ease-in-out
-`}
+  class={cn(
+    "fixed md:sticky top-0 left-0 h-screen md:h-[100dvh] transition-all duration-300 ease-in-out",
+    "bg-card border-r shadow-sm z-40",
+    "flex flex-col",
+    isCollapsed ? "w-[70px]" : "w-64",
+    isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+  )}
 >
   <!-- Logo/App name -->
-  <div class="flex items-center gap-2 p-4 border-b border-border">
-    <span class="text-2xl">🐳</span>
-    <span class="text-xl font-bold">Arcane</span>
+  <div
+    class={cn(
+      "flex items-center h-14 transition-all duration-300",
+      isCollapsed ? "justify-center px-2" : "gap-3 px-5 p-4"
+    )}
+  >
+    <div class="bg-primary/10 p-1.5 rounded-md flex-shrink-0">
+      <span class="text-xl">🐳</span>
+    </div>
+    {#if !isCollapsed}
+      <div>
+        <span class="text-lg font-bold tracking-tight">Arcane</span>
+        <span class="text-xs text-muted-foreground ml-1.5">v0.1.0</span>
+      </div>
+    {/if}
+  </div>
+
+  <Separator />
+
+  <!-- Collapse button (positioned between header and navigation) -->
+  <div class="hidden md:flex justify-end px-2 -mt-1 mb-1 relative">
+    <Button
+      variant="outline"
+      size="icon"
+      class="h-6 w-6 rounded-full bg-background absolute right-0 translate-x-1/2"
+      onclick={toggleCollapse}
+      aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+    >
+      {#if isCollapsed}
+        <ChevronRight size={14} />
+      {:else}
+        <ChevronLeft size={14} />
+      {/if}
+    </Button>
   </div>
 
   <!-- Navigation links -->
-  <nav class="p-2">
+  <nav
+    class={cn(
+      "p-2 flex-1 overflow-y-auto overflow-x-hidden",
+      isCollapsed && "py-2 px-1"
+    )}
+  >
     {#each items as item}
-      {@const isActive = $page.url.pathname === item.href}
+      {@const isActive =
+        $page.url.pathname === item.href ||
+        ($page.url.pathname.startsWith(item.href) && item.href !== "/")}
       {@const Icon = item.icon}
 
       <a
         href={item.href}
-        class={`flex items-center gap-3 px-3 py-2 my-1 rounded-md text-sm font-medium
-        ${
+        class={cn(
+          "flex items-center justify-between rounded-md text-sm font-medium transition-all",
+          isCollapsed ? "px-2 py-2 my-1 flex-col gap-1" : "px-3 py-2 my-0.5",
+          "transition-colors group",
           isActive
             ? "bg-primary/10 text-primary"
-            : "text-foreground hover:bg-accent hover:text-accent-foreground"
-        } 
-        transition-colors`}
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+        aria-current={isActive ? "page" : undefined}
+        title={isCollapsed ? item.label : undefined}
       >
-        <Icon size={18} />
-        <span>{item.label}</span>
+        <div
+          class={cn(
+            "flex items-center",
+            isCollapsed ? "justify-center" : "gap-3"
+          )}
+        >
+          <div
+            class={cn(
+              "p-1 rounded-md",
+              isActive
+                ? "bg-primary/10"
+                : "bg-transparent group-hover:bg-muted-foreground/10"
+            )}
+          >
+            <Icon
+              size={16}
+              class={cn(
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground group-hover:text-foreground"
+              )}
+            />
+          </div>
+          {#if !isCollapsed}
+            <span>{item.label}</span>
+          {/if}
+        </div>
+
+        {#if !isCollapsed}
+          {#if item.badge}
+            <Badge variant="outline" class="text-xs">{item.badge}</Badge>
+          {:else if isActive}
+            <ChevronRight size={16} class="text-primary opacity-60" />
+          {/if}
+        {:else if item.badge}
+          <Badge variant="outline" class="text-xs mt-1 px-1.5"
+            >{item.badge}</Badge
+          >
+        {/if}
       </a>
     {/each}
   </nav>
+
+  <Separator />
+
+  <!-- Footer section - simplified -->
+  <div class={cn("transition-all px-3 py-2", isCollapsed ? "text-center" : "")}>
+    <Badge
+      variant="secondary"
+      class="bg-green-500/10 text-green-600 hover:bg-green-500/20 w-full justify-center"
+    >
+      {isCollapsed ? "OK" : "Docker Connected"}
+    </Badge>
+  </div>
 </div>
 
 <!-- Overlay for mobile -->

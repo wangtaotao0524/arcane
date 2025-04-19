@@ -5,6 +5,8 @@
   let { children } = $props();
 </script>
 
+<svelte:head><title>Arcane</title></svelte:head>
+
 <ModeWatcher />
 
 <div class="flex min-h-screen bg-background">
