@@ -1,0 +1,37 @@
+services:
+  arcane:
+    # Build the image using the Dockerfile in the current directory (.)
+    image: ghcr.io/ofkm/arcane:latest
+    container_name: arcane
+    ports:
+      # Map host port 5173 to the container's exposed port 3000
+      - "3000:3000"
+    volumes:
+      # Mount the Docker socket to allow Arcane to interact with the Docker Engine
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Read-only is often safer if Arcane only needs to read info
+
+      # Optional: Mount a volume to persist the settings file outside the container
+      # Create a directory named 'arcane-data' in the same directory as this compose file
+      # The entrypoint script will ensure correct permissions if PUID/PGID are set
+      - ./arcane-data:/app # Mount the data directory to the app's root
+      # Note: If you mount /app, ensure app-settings.json is within this mount
+      # Or mount specifically the settings file:
+      # - ./arcane-data/app-settings.json:/app/app-settings.json
+
+    environment:
+      # Set the User and Group ID for file permissions.
+      # The entrypoint script will use these to set ownership.
+      # Use 'id -u' and 'id -g' on your host machine to find your user/group ID.
+      - PUID=1000
+      - PGID=1000
+      # NODE_ENV is already set in the Dockerfile, but can be overridden here if needed
+      # - NODE_ENV=production
+      # PORT is already set in the Dockerfile (defaults to 3000), override if needed
+      # - PORT=3000
+      # HOST is already set in the Dockerfile (0.0.0.0)
+      # - HOST=0.0.0.0
+    restart: unless-stopped
+
+# Optional: Define the volume if you want Docker to manage it
+# volumes:
+#   arcane-data:
