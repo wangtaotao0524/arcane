@@ -14,7 +14,7 @@
   type DataTableProps<TData, TValue> = {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
-    pageSize?: number; // Optional page size prop
+    pageSize?: number;
   };
 
   let {

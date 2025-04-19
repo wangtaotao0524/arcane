@@ -1,27 +1,26 @@
 import type { PageServerLoad } from "./$types";
+import { listNetworks } from "$lib/services/docker-service";
+import type { ServiceNetwork } from "$lib/services/docker-service";
 
-export const load: PageServerLoad = async ({ fetch }) => {
-  // Mock data until API is ready
-  const networks = [
-    {
-      name: "bridge",
-      driver: "bridge",
-      scope: "local",
-      subnet: "172.17.0.0/16",
-    },
-    {
-      name: "host",
-      driver: "host",
-      scope: "local",
-      subnet: null,
-    },
-    {
-      name: "web_backend",
-      driver: "bridge",
-      scope: "local",
-      subnet: "172.18.0.0/16",
-    },
-  ];
+// Define the shape of the data returned by the load function
+type NetworkPageData = {
+  networks: ServiceNetwork[];
+  error?: string;
+};
 
-  return { networks };
+export const load: PageServerLoad = async (): Promise<NetworkPageData> => {
+  try {
+    // Actually call the function to list networks
+    const networks = await listNetworks();
+    return {
+      networks,
+    };
+  } catch (err: any) {
+    console.error("Failed to load networks:", err);
+    // Return an empty array and the error message
+    return {
+      networks: [],
+      error: err.message || "Failed to connect to Docker or list networks.",
+    };
+  }
 };

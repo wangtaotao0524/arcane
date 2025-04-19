@@ -1,24 +1,23 @@
 import type { PageServerLoad } from "./$types";
+import { listVolumes } from "$lib/services/docker-service";
+import type { ServiceVolume } from "$lib/services/docker-service";
 
-export const load: PageServerLoad = async ({ fetch }) => {
-  // Mock data until API is ready
-  const volumes = [
-    {
-      name: "postgres_data",
-      driver: "local",
-      mountpoint: "/var/lib/docker/volumes/postgres_data/_data",
-    },
-    {
-      name: "nginx_config",
-      driver: "local",
-      mountpoint: "/var/lib/docker/volumes/nginx_config/_data",
-    },
-    {
-      name: "redis_data",
-      driver: "local",
-      mountpoint: "/var/lib/docker/volumes/redis_data/_data",
-    },
-  ];
+type VolumePageData = {
+  volumes: ServiceVolume[];
+  error?: string;
+};
 
-  return { volumes };
+export const load: PageServerLoad = async (): Promise<VolumePageData> => {
+  try {
+    const volumes = await listVolumes();
+    return {
+      volumes,
+    };
+  } catch (err: any) {
+    console.error("Failed to load volumes:", err);
+    return {
+      volumes: [],
+      error: err.message || "Failed to connect to Docker or list volumes.",
+    };
+  }
 };

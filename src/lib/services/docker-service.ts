@@ -201,4 +201,72 @@ export async function listImages(): Promise<ServiceImage[]> {
   }
 }
 
+// Define and export the type returned by listNetworks
+export type ServiceNetwork = {
+  id: string;
+  name: string;
+  driver: string;
+  scope: string;
+  subnet: string | null; // Extract the first subnet if available
+  gateway: string | null; // Extract the first gateway if available
+  created: string; // Dockerode returns date as string
+};
+
+/**
+ * Lists Docker networks.
+ */
+export async function listNetworks(): Promise<ServiceNetwork[]> {
+  try {
+    const networks = await defaultDocker.listNetworks();
+    return networks.map(
+      (net): ServiceNetwork => ({
+        id: net.Id,
+        name: net.Name,
+        driver: net.Driver,
+        scope: net.Scope,
+        // Safely access the first IPAM config and its subnet/gateway
+        subnet: net.IPAM?.Config?.[0]?.Subnet ?? null,
+        gateway: net.IPAM?.Config?.[0]?.Gateway ?? null,
+        created: net.Created, // Keep as string or parse if needed
+      })
+    );
+  } catch (error: any) {
+    console.error("Error listing networks:", error);
+    throw new Error("Failed to list Docker networks.");
+  }
+}
+
+// Define and export the type returned by listVolumes
+export type ServiceVolume = {
+  name: string;
+  driver: string;
+  scope: string; // Usually 'local' or 'global'
+  mountpoint: string;
+  labels: { [label: string]: string } | null;
+};
+
+/**
+ * Lists Docker volumes.
+ */
+export async function listVolumes(): Promise<ServiceVolume[]> {
+  try {
+    // The listVolumes response structure is slightly different
+    const volumeResponse = await defaultDocker.listVolumes();
+    const volumes = volumeResponse.Volumes || []; // Access the Volumes array
+
+    return volumes.map(
+      (vol): ServiceVolume => ({
+        name: vol.Name,
+        driver: vol.Driver,
+        scope: vol.Scope,
+        mountpoint: vol.Mountpoint,
+        labels: vol.Labels,
+      })
+    );
+  } catch (error: any) {
+    console.error("Error listing volumes:", error);
+    throw new Error("Failed to list Docker volumes.");
+  }
+}
+
 export default defaultDocker;
