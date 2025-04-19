@@ -143,6 +143,62 @@ export async function getContainer(containerId: string) {
   }
 }
 
-// Add more functions here as needed (e.g., startContainer, stopContainer, removeContainer, listImages, etc.)
+// Define and export the type returned by listImages
+export type ServiceImage = {
+  id: string;
+  repoTags: string[] | undefined;
+  repoDigests: string[] | undefined;
+  created: number;
+  size: number;
+  virtualSize: number;
+  labels: { [label: string]: string } | undefined;
+  // Add primary repo and tag for easier display
+  repo: string;
+  tag: string;
+};
+
+/**
+ * Lists Docker images.
+ */
+// Add the return type annotation
+export async function listImages(): Promise<ServiceImage[]> {
+  try {
+    const images = await defaultDocker.listImages({ all: false }); // Usually only show non-intermediate images
+
+    // Function to parse repo and tag
+    const parseRepoTag = (
+      tag: string | undefined
+    ): { repo: string; tag: string } => {
+      if (!tag || tag === "<none>:<none>") {
+        return { repo: "<none>", tag: "<none>" };
+      }
+      const parts = tag.split(":");
+      if (parts.length === 1) {
+        return { repo: parts[0], tag: "latest" }; // Assume latest if no tag
+      }
+      const tagPart = parts.pop() || "latest";
+      const repoPart = parts.join(":");
+      return { repo: repoPart, tag: tagPart };
+    };
+
+    return images.map((img): ServiceImage => {
+      const { repo, tag } = parseRepoTag(img.RepoTags?.[0]);
+      return {
+        id: img.Id,
+        repoTags: img.RepoTags,
+        repoDigests: img.RepoDigests,
+        created: img.Created,
+        size: img.Size,
+        virtualSize: img.VirtualSize,
+        labels: img.Labels,
+        repo: repo,
+        tag: tag,
+      };
+    });
+  } catch (error: any) {
+    console.error("Error listing images:", error);
+    throw new Error("Failed to list Docker images.");
+  }
+}
 
 export default defaultDocker;
