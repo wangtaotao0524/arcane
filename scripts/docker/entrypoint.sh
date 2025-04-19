@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
@@ -13,50 +13,66 @@ echo "Entrypoint: Running as root. Setting up user and permissions..."
 # Default PUID/PGID if not provided
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
+DOCKER_GID=${DOCKER_GID:-998}
 APP_USER="arcane"
-APP_GROUP="arcane-group"
+APP_GROUP="arcane"
 APP_DIR="/app"
-# Optional: Define a data directory if you mount volumes for settings/data
-# DATA_DIR="/app/data"
 
-echo "Entrypoint: Using PUID=${PUID}, PGID=${PGID}"
+echo "Entrypoint: Using PUID=${PUID}, PGID=${PGID}, DOCKER_GID=${DOCKER_GID}"
 
-# Create the group if it doesn't exist
+# Create the arcane group if it doesn't exist
 if ! getent group "$PGID" > /dev/null 2>&1; then
     echo "Entrypoint: Creating group ${APP_GROUP} with GID ${PGID}..."
     addgroup -g "$PGID" "$APP_GROUP"
 else
     # If group with PGID exists, find its name
-    APP_GROUP=$(getent group "$PGID" | cut -d: -f1)
-    echo "Entrypoint: Group with GID ${PGID} already exists: ${APP_GROUP}"
+    GROUP_NAME=$(getent group "$PGID" | cut -d: -f1)
+    echo "Entrypoint: Group with GID ${PGID} already exists: ${GROUP_NAME}"
 fi
 
-# Create the user if it doesn't exist
+# Ensure the docker group exists with correct GID
+if ! getent group docker > /dev/null 2>&1; then
+    echo "Entrypoint: Creating docker group with GID ${DOCKER_GID}..."
+    addgroup -g "$DOCKER_GID" docker
+else
+    CURRENT_DOCKER_GID=$(getent group docker | cut -d: -f3)
+    if [ "$CURRENT_DOCKER_GID" != "$DOCKER_GID" ]; then
+        echo "Entrypoint: Updating docker group from GID ${CURRENT_DOCKER_GID} to ${DOCKER_GID}..."
+        groupmod -g "$DOCKER_GID" docker
+    fi
+fi
+
+# Create the arcane user if it doesn't exist
 if ! getent passwd "$PUID" > /dev/null 2>&1; then
     echo "Entrypoint: Creating user ${APP_USER} with UID ${PUID}..."
-    adduser -D -u "$PUID" -G "$APP_GROUP" -h "$APP_DIR" -s /bin/bash "$APP_USER"
+    adduser -D -u "$PUID" -G "$APP_GROUP" "$APP_USER"
 else
     # If user with PUID exists, find their name
-    APP_USER=$(getent passwd "$PUID" | cut -d: -f1)
-    echo "Entrypoint: User with UID ${PUID} already exists: ${APP_USER}"
-    # Ensure the existing user is part of the target group
-    if ! id -nG "$APP_USER" | grep -qw "$APP_GROUP"; then
-        echo "Entrypoint: Adding existing user ${APP_USER} to group ${APP_GROUP}..."
-        addgroup "$APP_USER" "$APP_GROUP"
+    USERNAME=$(getent passwd "$PUID" | cut -d: -f1)
+    echo "Entrypoint: User with UID ${PUID} already exists: ${USERNAME}"
+    # Rename user if it's not the expected name
+    if [ "$USERNAME" != "$APP_USER" ]; then
+        echo "Entrypoint: Renaming user from ${USERNAME} to ${APP_USER}..."
+        usermod -l "$APP_USER" "$USERNAME"
     fi
+fi
+
+# Ensure arcane user is in the docker group
+if ! id -nG "$APP_USER" | grep -qw "docker"; then
+    echo "Entrypoint: Adding ${APP_USER} to the docker group..."
+    addgroup "$APP_USER" docker
+fi
+
+# Fix permissions for the Docker socket if it exists
+if [ -e "/var/run/docker.sock" ]; then
+    echo "Entrypoint: Setting permissions for Docker socket..."
+    chmod 666 /var/run/docker.sock
 fi
 
 # Change ownership of application directories
 echo "Entrypoint: Ensuring ownership of ${APP_DIR} for ${PUID}:${PGID}..."
-# Use chown -R for simplicity on the main app directory
 chown -R "$PUID":"$PGID" "$APP_DIR"
 
-# Optional: Change ownership of a separate data directory if used
-# if [ -d "$DATA_DIR" ]; then
-#   echo "Entrypoint: Ensuring ownership of ${DATA_DIR} for ${PUID}:${PGID}..."
-#   chown -R "$PUID":"$PGID" "$DATA_DIR"
-# fi
-
-# Execute the command passed to the script (CMD) as the specified user/group
+# Execute the command passed to the script (CMD) as the specified user
 echo "Entrypoint: Switching to user ${APP_USER} (${PUID}:${PGID}) and executing command: $@"
-exec su-exec "$PUID":"$PGID" "$@"
+exec su-exec "$APP_USER" "$@"

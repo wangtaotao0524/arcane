@@ -1,67 +1,54 @@
-# ---- Base Node ----
-# Use a specific Node.js version on Alpine for smaller images
-FROM node:22-alpine AS base
+# Stage 1: Build the application
+FROM node:22-alpine AS builder
 WORKDIR /app
-# Copy package.json and lock file separately to leverage Docker cache
-COPY package.json package-lock.json* ./
-
-# ---- Dependencies ----
-# Install only production dependencies first
-FROM base AS prod-deps
-RUN npm install --omit=dev
-
-# ---- Build ----
-# Install all dependencies (including dev) and build the app
-FROM base AS builder
-# Copy production node_modules from the previous stage
-COPY --from=prod-deps /app/node_modules ./node_modules
-# Install dev dependencies needed for build
+RUN mkdir -p /app/data && chown node:node /app/data
+COPY package*.json ./
 RUN npm install
-# Copy the rest of the application source code
 COPY . .
-# Run the SvelteKit build command
+RUN npm ci
 RUN npm run build
 
-# ---- Runner ----
-# Use a clean Node.js Alpine image for the final stage
-FROM node:22-alpine AS runner
+# Stage 2: Production image
+FROM node:22-alpine
+
+# Delete default node user
+RUN deluser --remove-home node
+
+# Install necessary packages
+RUN apk add --no-cache su-exec curl shadow
+
 WORKDIR /app
 
-# Install su-exec (needed by the entrypoint script) and bash (often useful for scripts)
-RUN apk add --no-cache su-exec bash
-
-# Set environment variables
-ENV NODE_ENV=production
-# Set HOST for adapter-node to listen on all interfaces within the container
-ENV HOST=0.0.0.0
-# Set PORT (optional, adapter-node defaults to 3000 if not set)
-# ENV PORT=3000
-# Default PUID/PGID (can be overridden in docker-compose.yml)
-ENV PUID=1000
-ENV PGID=1000
-
-# Copy necessary artifacts from previous stages
-# Copy production dependencies
-COPY --from=prod-deps /app/node_modules ./node_modules
-# Copy the built application output
-COPY --from=builder /app/build ./build
-# Copy package.json (needed by adapter-node runner)
-COPY --from=builder /app/package.json ./package.json
-# Copy the settings file if it exists at build time (optional, usually mounted as a volume)
-# COPY --from=builder /app/app-settings.json ./app-settings.json
-
-# Copy the entrypoint script and make it executable
+# Copy entrypoint script
 COPY scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# NOTE: User creation and ownership changes are now handled by the entrypoint script
-# We run as root initially, and the entrypoint script switches user
+# Copy application files
+COPY --from=builder /app/build ./build
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY --from=builder /app/static ./static
 
-# Expose the port the application runs on (default for adapter-node is 3000)
+# Create docker group with same GID as the host (typically 998 or 999)
+# We'll use 998 which is common, but this can be overridden at runtime
+ENV DOCKER_GID=998
+RUN addgroup -g ${DOCKER_GID} docker
+
+# Create arcane user/group
+ENV PUID=1000
+ENV PGID=1000
+RUN addgroup -g ${PGID} arcane && \
+    adduser -D -u ${PUID} -G arcane arcane && \
+    # Add arcane user to docker group to allow socket access
+    adduser arcane docker && \
+    # Set ownership of app files
+    chown -R arcane:arcane /app
+
 EXPOSE 3000
+LABEL org.opencontainers.image.authors="kmendell"
 
-# Set the entrypoint
+# Add volume for persistent data
+VOLUME ["/app/data"]
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# Command to start the Node.js server (passed as arguments to the entrypoint)
 CMD ["node", "build"]
