@@ -36,13 +36,13 @@
   let saving = $state(false);
   let isRefreshing = $state(false);
 
-  let name = $state(stack?.name || "");
-  let composeContent = $state(stack?.composeContent || "");
+  let name = $state("");
+  let composeContent = $state("");
 
   $effect(() => {
     if (stack) {
       name = stack.name;
-      composeContent = stack.composeContent;
+      composeContent = stack.composeContent ?? "";
     }
   });
 
@@ -90,9 +90,9 @@
         {#if stack}
           <Badge
             variant={stack.status === "running"
-              ? "success"
+              ? "default"
               : stack.status === "partially running"
-                ? "warning"
+                ? "secondary"
                 : "destructive"}
           >
             {stack.status}
@@ -106,7 +106,7 @@
         <Button
           variant="outline"
           size="sm"
-          on:click={refreshData}
+          onclick={refreshData}
           disabled={isRefreshing}
           class="h-9"
         >
@@ -203,7 +203,7 @@
                 `Are you sure you want to remove stack "${stack?.name}"?`
               )
             ) {
-              return { action: false };
+              return;
             }
             removing = true;
             return async ({ update }) => {
@@ -336,7 +336,7 @@
           <Button
             variant="outline"
             type="button"
-            on:click={() => window.history.back()}
+            onclick={() => window.history.back()}
           >
             <ArrowLeft class="w-4 h-4 mr-2" />
             Back
@@ -373,7 +373,7 @@
                   <div>
                     <p class="font-medium">{service.name}</p>
                     <p class="text-xs text-muted-foreground">
-                      {service.container?.Id?.substring(0, 12) || "Not created"}
+                      {service.id ? service.id.substring(0, 12) : "Not created"}
                     </p>
                   </div>
                 </div>
@@ -405,7 +405,7 @@
           <ArrowLeft class="h-4 w-4 mr-2" />
           Back to Stacks
         </Button>
-        <Button variant="default" on:click={refreshData}>
+        <Button variant="default" onclick={refreshData}>
           <RefreshCw class="h-4 w-4 mr-2" />
           Retry
         </Button>

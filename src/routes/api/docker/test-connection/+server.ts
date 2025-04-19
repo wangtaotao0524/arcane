@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
   try {
     // Pass the host from the query param to the service function
-    await getDockerInfo(hostToTest);
+    await getDockerInfo();
     return json({
       success: true,
       message: `Successfully connected to Docker Engine at ${hostToTest}.`,

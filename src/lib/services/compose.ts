@@ -378,9 +378,10 @@ export async function startStack(stackId: string): Promise<boolean> {
     const compose = await getComposeInstance(stackId);
     await compose.up();
     return true;
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(`Error starting stack ${stackId}:`, err);
-    throw new Error(`Failed to start stack: ${err.message}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to start stack: ${errorMessage}`);
   }
 }
 
@@ -393,9 +394,10 @@ export async function stopStack(stackId: string): Promise<boolean> {
     const compose = await getComposeInstance(stackId);
     await compose.down();
     return true;
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(`Error stopping stack ${stackId}:`, err);
-    throw new Error(`Failed to stop stack: ${err.message}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to stop stack: ${errorMessage}`);
   }
 }
 
@@ -411,9 +413,10 @@ export async function restartStack(stackId: string): Promise<boolean> {
     await compose.down();
     await compose.up();
     return true;
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(`Error restarting stack ${stackId}:`, err);
-    throw new Error(`Failed to restart stack: ${err.message}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to restart stack: ${errorMessage}`);
   }
 }
 
@@ -432,8 +435,9 @@ export async function removeStack(stackId: string): Promise<boolean> {
     await fs.rm(stackDir, { recursive: true, force: true });
 
     return true;
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(`Error removing stack ${stackId}:`, err);
-    throw new Error(`Failed to remove stack: ${err.message}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to remove stack: ${errorMessage}`);
   }
 }

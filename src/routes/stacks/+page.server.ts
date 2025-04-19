@@ -10,9 +10,10 @@ export async function load() {
     };
   } catch (err) {
     console.error("Failed to load stacks:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return {
       stacks: [],
-      error: "Failed to load Docker Compose stacks: " + err.message,
+      error: "Failed to load Docker Compose stacks: " + errorMessage,
     };
   }
 }

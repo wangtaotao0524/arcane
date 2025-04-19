@@ -32,7 +32,7 @@ export const actions = {
       console.error("Error creating stack:", err);
       return {
         success: false,
-        error: err.message || "Failed to create stack",
+        error: err instanceof Error ? err.message : "Failed to create stack",
       };
     }
   },

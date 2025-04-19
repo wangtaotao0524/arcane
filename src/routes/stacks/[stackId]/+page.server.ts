@@ -16,7 +16,8 @@ export async function load({ params }) {
     const stack = await getStack(stackId);
     return { stack };
   } catch (err) {
-    throw error(404, `Stack not found: ${err.message}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    throw error(404, `Stack not found: ${errorMessage}`);
   }
 }
 
@@ -39,7 +40,7 @@ export const actions = {
       console.error("Error updating stack:", err);
       return {
         success: false,
-        error: err.message || "Failed to update stack",
+        error: err instanceof Error ? err.message : "Failed to update stack",
       };
     }
   },
@@ -57,7 +58,7 @@ export const actions = {
       console.error("Error starting stack:", err);
       return {
         success: false,
-        error: err.message || "Failed to start stack",
+        error: err instanceof Error ? err.message : "Failed to start stack",
       };
     }
   },
@@ -75,7 +76,7 @@ export const actions = {
       console.error("Error stopping stack:", err);
       return {
         success: false,
-        error: err.message || "Failed to stop stack",
+        error: err instanceof Error ? err.message : "Failed to stop stack",
       };
     }
   },
@@ -93,7 +94,7 @@ export const actions = {
       console.error("Error restarting stack:", err);
       return {
         success: false,
-        error: err.message || "Failed to restart stack",
+        error: err instanceof Error ? err.message : "Failed to restart stack",
       };
     }
   },
@@ -110,7 +111,7 @@ export const actions = {
       console.error("Error removing stack:", err);
       return {
         success: false,
-        error: err.message || "Failed to remove stack",
+        error: err instanceof Error ? err.message : "Failed to remove stack",
       };
     }
   },

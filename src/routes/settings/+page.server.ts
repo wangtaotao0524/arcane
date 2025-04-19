@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from "./$types";
 import { fail } from "@sveltejs/kit";
-import updateDefaultDockerInstance from "$lib/services/docker-service";
+import { updateDockerConnection } from "$lib/services/docker-service";
 
 // Define a type for settings
 type SettingsData = {
@@ -96,7 +96,7 @@ export const actions: Actions = {
       await saveSettingsToFile(updatedSettings);
 
       // *** Optional: Update the running server's Docker instance immediately ***
-      updateDefaultDockerInstance(updatedSettings.dockerHost);
+      updateDockerConnection(updatedSettings.dockerHost);
 
       // Return success and the *updated* settings
       // This updates the `form.settings` prop in the page component

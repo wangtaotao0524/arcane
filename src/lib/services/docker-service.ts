@@ -69,6 +69,49 @@ export function initializeDocker(options: DockerConnectionOptions): Docker {
 }
 
 /**
+ * Update the Docker connection with a new host string
+ * @param dockerHost Docker host connection string
+ */
+export function updateDockerConnection(dockerHost: string): Docker {
+  // Reset the client
+  dockerClient = null;
+
+  // Parse the host string to determine connection type
+  let connectionOpts: any = {};
+
+  if (dockerHost.startsWith("unix://")) {
+    // Unix socket connection
+    connectionOpts.socketPath = dockerHost.replace("unix://", "");
+  } else if (dockerHost.startsWith("tcp://")) {
+    // TCP connection (no TLS)
+    const url = new URL(dockerHost);
+    connectionOpts.host = url.hostname;
+    connectionOpts.port = parseInt(url.port || "2375", 10);
+  } else if (dockerHost.startsWith("https://")) {
+    // HTTPS connection (TLS)
+    const url = new URL(dockerHost);
+    connectionOpts.host = url.hostname;
+    connectionOpts.port = parseInt(url.port || "2376", 10);
+    connectionOpts.protocol = "https";
+    // Note: For TLS, you would typically need to provide ca, cert, and key
+    // which should be handled separately
+  } else {
+    // Default to socket if format is unknown
+    const socketPath =
+      process.platform === "win32"
+        ? "//./pipe/docker_engine"
+        : "/var/run/docker.sock";
+    connectionOpts.socketPath = socketPath;
+  }
+
+  // Create new Docker client with updated connection
+  dockerClient = new Docker(connectionOpts);
+  console.log(`Docker connection updated to: ${dockerHost}`);
+
+  return dockerClient;
+}
+
+/**
  * Get the Docker client instance. Initialize with default options if not already initialized.
  */
 export function getDockerClient(): Docker {
@@ -309,13 +352,15 @@ export async function getContainerLogs(
       tail: options.tail === "all" ? undefined : options.tail || 100,
       stdout: options.stdout !== false,
       stderr: options.stderr !== false,
-      follow: false,
       timestamps: true,
       since: options.since || 0,
       until: options.until || undefined,
     };
 
-    const logsBuffer = await container.logs(logOptions);
+    const logsBuffer =
+      options.follow === true
+        ? await container.logs({ ...logOptions, follow: true })
+        : await container.logs({ ...logOptions, follow: false });
     let logString = logsBuffer.toString();
 
     if (logOptions.stdout || logOptions.stderr) {
