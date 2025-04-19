@@ -143,6 +143,151 @@ export async function getContainer(containerId: string) {
   }
 }
 
+/**
+ * Starts a specific container.
+ * @param containerId - The ID of the container.
+ */
+export async function startContainer(containerId: string): Promise<void> {
+  try {
+    const container = defaultDocker.getContainer(containerId);
+    await container.start();
+  } catch (error: any) {
+    console.error(`Error starting container ${containerId}:`, error);
+    // Provide more context if possible (e.g., container already started)
+    throw new Error(
+      `Failed to start container ${containerId}. ${error.message || ""}`
+    );
+  }
+}
+
+/**
+ * Stops a specific container.
+ * @param containerId - The ID of the container.
+ */
+export async function stopContainer(containerId: string): Promise<void> {
+  try {
+    const container = defaultDocker.getContainer(containerId);
+    await container.stop();
+  } catch (error: any) {
+    console.error(`Error stopping container ${containerId}:`, error);
+    // Provide more context (e.g., container not running)
+    throw new Error(
+      `Failed to stop container ${containerId}. ${error.message || ""}`
+    );
+  }
+}
+
+/**
+ * Restarts a specific container.
+ * @param containerId - The ID of the container.
+ */
+export async function restartContainer(containerId: string): Promise<void> {
+  try {
+    const container = defaultDocker.getContainer(containerId);
+    await container.restart();
+  } catch (error: any) {
+    console.error(`Error restarting container ${containerId}:`, error);
+    throw new Error(
+      `Failed to restart container ${containerId}. ${error.message || ""}`
+    );
+  }
+}
+
+/**
+ * Removes a specific container.
+ * @param containerId - The ID of the container.
+ * @param force - Force removal even if running (default: false).
+ */
+export async function removeContainer(
+  containerId: string,
+  force = false
+): Promise<void> {
+  try {
+    const container = defaultDocker.getContainer(containerId);
+    await container.remove({ force });
+  } catch (error: any) {
+    console.error(`Error removing container ${containerId}:`, error);
+    // Provide more context (e.g., conflict, container not found)
+    if (error.statusCode === 404) {
+      throw new Error(`Container ${containerId} not found.`);
+    }
+    if (error.statusCode === 409) {
+      throw new Error(
+        `Cannot remove running container ${containerId}. Stop it first or use force.`
+      );
+    }
+    throw new Error(
+      `Failed to remove container ${containerId}. ${error.message || ""}`
+    );
+  }
+}
+
+/**
+ * Gets logs for a specific container.
+ * @param containerId - The ID of the container.
+ * @param options - Optional parameters for log retrieval
+ */
+export async function getContainerLogs(
+  containerId: string,
+  options: {
+    tail?: number | "all"; // Number of lines to show from the end of logs (use undefined for all logs)
+    since?: number; // Timestamp (in seconds) to filter logs since
+    until?: number; // Timestamp (in seconds) to filter logs until
+    follow?: boolean; // Stream logs (not typically used in SSR)
+    stdout?: boolean; // Include stdout
+    stderr?: boolean; // Include stderr
+  } = {}
+): Promise<string> {
+  try {
+    const container = defaultDocker.getContainer(containerId);
+
+    // Set default options if not provided
+    const logOptions = {
+      tail: options.tail === "all" ? undefined : options.tail || 100, // Default to last 100 lines, undefined for 'all'
+      stdout: options.stdout !== false, // Include stdout by default
+      stderr: options.stderr !== false, // Include stderr by default
+      follow: false, // Don't stream by default (won't work well with SSR)
+      timestamps: true, // Include timestamps
+      since: options.since || 0, // Get all logs by default
+      until: options.until || undefined,
+    };
+
+    // Get the logs as a Buffer
+    const logsBuffer = await container.logs(logOptions);
+
+    // Convert the Buffer to a string and handle the format
+    let logString = logsBuffer.toString();
+
+    // Process the log string to handle Docker log format
+    // Docker prefixes each line with 8 bytes: first byte is 01 (stdout) or 02 (stderr),
+    // followed by 3 bytes of 0s, then 4 bytes for the size
+    if (logOptions.stdout || logOptions.stderr) {
+      // This is a simple approach - split by lines and remove Docker headers
+      const lines = logString.split("\n");
+      const processedLines = lines
+        .map((line) => {
+          // Skip empty lines
+          if (!line) return "";
+          // Remove the 8-byte header if present (check line length)
+          if (line.length > 8) {
+            return line.substring(8);
+          }
+          return line;
+        })
+        .filter(Boolean); // Remove empty lines
+
+      logString = processedLines.join("\n");
+    }
+
+    return logString;
+  } catch (error: any) {
+    console.error(`Error getting logs for container ${containerId}:`, error);
+    throw new Error(
+      `Failed to get logs for container ${containerId}. ${error.message || ""}`
+    );
+  }
+}
+
 // Define and export the type returned by listImages
 export type ServiceImage = {
   id: string;
