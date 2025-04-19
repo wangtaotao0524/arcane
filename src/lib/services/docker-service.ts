@@ -1,6 +1,7 @@
 import Docker from "dockerode";
 import fs from "fs"; // Use synchronous fs for initial load
 import path from "path";
+import type { DockerConnectionOptions } from "$lib/types/docker";
 
 // Define Settings Type (can be shared with +page.server.ts if moved to a types file)
 type SettingsData = {
@@ -40,96 +41,71 @@ function loadInitialSettings(): SettingsData {
 const initialSettings = loadInitialSettings();
 // --- End Load Initial Settings ---
 
-/**
- * Creates Dockerode options from a host string.
- */
-function getDockerOpts(host?: string): Docker.DockerOptions {
-  const targetHost = host || initialSettings.dockerHost; // Use provided host or loaded setting
-  const options: Docker.DockerOptions = {};
+let dockerClient: Docker | null = null;
 
-  if (targetHost.startsWith("unix://")) {
-    options.socketPath = targetHost.substring(7);
-  } else if (
-    targetHost.startsWith("tcp://") ||
-    targetHost.startsWith("http://") ||
-    targetHost.startsWith("https://")
-  ) {
-    try {
-      const url = new URL(targetHost);
-      options.host = url.hostname;
-      options.port = url.port || (url.protocol === "https:" ? "2376" : "2375");
-      options.protocol = url.protocol.slice(0, -1) as "https" | "http";
-      // TODO: Add TLS options if needed based on protocol or settings
-    } catch (e) {
-      console.error("Invalid Docker host URL format:", targetHost, e);
-      // Return options that will likely fail connection, signaling an issue
-      return { host: "invalid-host-format" };
+/**
+ * Initialize Docker connection with the given options
+ * @param options Docker connection options
+ */
+export function initializeDocker(options: DockerConnectionOptions): Docker {
+  let connectionOpts: any = {};
+
+  // Handle different connection types (socket, tcp, etc.)
+  if (options.socketPath) {
+    connectionOpts.socketPath = options.socketPath;
+  } else if (options.host && options.port) {
+    connectionOpts.host = options.host;
+    connectionOpts.port = options.port;
+
+    if (options.ca || options.cert || options.key) {
+      connectionOpts.ca = options.ca;
+      connectionOpts.cert = options.cert;
+      connectionOpts.key = options.key;
     }
-  } else {
-    // Assume it's a socket path if no protocol
-    options.socketPath = targetHost;
   }
-  return options;
+
+  dockerClient = new Docker(connectionOpts);
+  return dockerClient;
 }
 
-// --- Initialize the shared defaultDocker instance ---
-// Use let so it can be reassigned by updateDefaultDockerInstance
-let defaultDocker = new Docker(getDockerOpts());
-console.log(
-  `Docker Service: Initialized defaultDocker with options:`,
-  getDockerOpts()
-);
-// --- End Initialization ---
+/**
+ * Get the Docker client instance. Initialize with default options if not already initialized.
+ */
+export function getDockerClient(): Docker {
+  if (!dockerClient) {
+    // Default to socket path for local development
+    const socketPath =
+      process.platform === "win32"
+        ? "//./pipe/docker_engine"
+        : "/var/run/docker.sock";
+
+    dockerClient = new Docker({ socketPath });
+  }
+
+  return dockerClient;
+}
 
 /**
- * Updates the shared default Docker instance used by the service.
- * @param host - The new Docker host string.
+ * Test Docker connection
+ * @returns Promise resolving to true if connection is successful
  */
-export function updateDefaultDockerInstance(host: string) {
+export async function testDockerConnection(): Promise<boolean> {
   try {
-    const newOptions = getDockerOpts(host);
-    // Re-assign the module-level defaultDocker variable
-    defaultDocker = new Docker(newOptions);
-    // Update the settings object in memory (optional, but keeps it consistent)
-    initialSettings.dockerHost = host;
-    console.log(
-      "Docker Service: Updated defaultDocker instance for host:",
-      host
-    );
-    console.log("Docker Service: New options:", newOptions);
-  } catch (e) {
-    console.error(
-      `Docker Service: Failed to update default Docker instance for host: ${host}`,
-      e
-    );
-    // Optionally revert to a known good state or throw
+    const docker = getDockerClient();
+    const info = await docker.info();
+    return !!info;
+  } catch (err) {
+    console.error("Docker connection test failed:", err);
+    return false;
   }
 }
 
 /**
- * Gets Docker system information.
- * Uses the *shared* defaultDocker instance unless a specific host is passed for testing.
- * @param host - Optional Docker host URL to connect to for *testing*. If not provided, uses the default shared instance.
+ * Get Docker system information
  */
-export async function getDockerInfo(host?: string): Promise<Docker.Info> {
-  // Use a temporary instance ONLY if a specific host is provided for testing
-  const dockerInstance = host ? new Docker(getDockerOpts(host)) : defaultDocker;
-  const targetHost = host || initialSettings.dockerHost; // For logging
-
-  try {
-    const info = await dockerInstance.info();
-    return info;
-  } catch (error: any) {
-    console.error(
-      `Docker Service: Error getting Docker info for host "${targetHost}":`,
-      error.message || error
-    );
-    throw new Error(
-      `Failed to connect to Docker Engine at "${targetHost}". ${
-        error.message || ""
-      }`
-    );
-  }
+export async function getDockerInfo() {
+  const docker = getDockerClient();
+  return await docker.info();
 }
 
 // Define and export the type returned by listContainers
@@ -148,13 +124,11 @@ export type ServiceContainer = {
 
 /**
  * Lists Docker containers.
- * Uses the shared defaultDocker instance.
  */
 export async function listContainers(all = true): Promise<ServiceContainer[]> {
   try {
-    // Uses the potentially updated defaultDocker
-    const containers = await defaultDocker.listContainers({ all });
-    // Ensure the mapping matches the ServiceContainer type
+    const docker = getDockerClient();
+    const containers = await docker.listContainers({ all });
     return containers.map(
       (c): ServiceContainer => ({
         id: c.Id,
@@ -179,26 +153,23 @@ export async function listContainers(all = true): Promise<ServiceContainer[]> {
 
 /**
  * Gets details for a specific container.
- * Uses the shared defaultDocker instance.
  */
 export async function getContainer(containerId: string) {
   try {
-    // Uses the potentially updated defaultDocker
-    const container = defaultDocker.getContainer(containerId);
+    const docker = getDockerClient();
+    const container = docker.getContainer(containerId);
     const inspectData = await container.inspect();
-    // Return relevant details
     return {
       id: inspectData.Id,
       name: inspectData.Name.substring(1),
       created: inspectData.Created,
       path: inspectData.Path,
       args: inspectData.Args,
-      state: inspectData.State, // More detailed state object
+      state: inspectData.State,
       image: inspectData.Image,
       config: inspectData.Config,
       networkSettings: inspectData.NetworkSettings,
       mounts: inspectData.Mounts,
-      // Add more fields as needed
     };
   } catch (error: any) {
     console.error(
@@ -206,7 +177,7 @@ export async function getContainer(containerId: string) {
       error
     );
     if (error.statusCode === 404) {
-      return null; // Container not found
+      return null;
     }
     throw new Error(
       `Failed to get container details for ${containerId} using host "${initialSettings.dockerHost}".`
@@ -220,7 +191,8 @@ export async function getContainer(containerId: string) {
  */
 export async function startContainer(containerId: string): Promise<void> {
   try {
-    const container = defaultDocker.getContainer(containerId);
+    const docker = getDockerClient();
+    const container = docker.getContainer(containerId);
     await container.start();
   } catch (error: any) {
     console.error(
@@ -241,7 +213,8 @@ export async function startContainer(containerId: string): Promise<void> {
  */
 export async function stopContainer(containerId: string): Promise<void> {
   try {
-    const container = defaultDocker.getContainer(containerId);
+    const docker = getDockerClient();
+    const container = docker.getContainer(containerId);
     await container.stop();
   } catch (error: any) {
     console.error(
@@ -262,7 +235,8 @@ export async function stopContainer(containerId: string): Promise<void> {
  */
 export async function restartContainer(containerId: string): Promise<void> {
   try {
-    const container = defaultDocker.getContainer(containerId);
+    const docker = getDockerClient();
+    const container = docker.getContainer(containerId);
     await container.restart();
   } catch (error: any) {
     console.error(
@@ -287,7 +261,8 @@ export async function removeContainer(
   force = false
 ): Promise<void> {
   try {
-    const container = defaultDocker.getContainer(containerId);
+    const docker = getDockerClient();
+    const container = docker.getContainer(containerId);
     await container.remove({ force });
   } catch (error: any) {
     console.error(
@@ -318,16 +293,17 @@ export async function removeContainer(
 export async function getContainerLogs(
   containerId: string,
   options: {
-    tail?: number | "all"; // Number of lines to show from the end of logs (use undefined for all logs)
-    since?: number; // Timestamp (in seconds) to filter logs since
-    until?: number; // Timestamp (in seconds) to filter logs until
-    follow?: boolean; // Stream logs (not typically used in SSR)
-    stdout?: boolean; // Include stdout
-    stderr?: boolean; // Include stderr
+    tail?: number | "all";
+    since?: number;
+    until?: number;
+    follow?: boolean;
+    stdout?: boolean;
+    stderr?: boolean;
   } = {}
 ): Promise<string> {
   try {
-    const container = defaultDocker.getContainer(containerId);
+    const docker = getDockerClient();
+    const container = docker.getContainer(containerId);
 
     const logOptions = {
       tail: options.tail === "all" ? undefined : options.tail || 100,
@@ -389,7 +365,8 @@ export type ServiceImage = {
  */
 export async function listImages(): Promise<ServiceImage[]> {
   try {
-    const images = await defaultDocker.listImages({ all: false });
+    const docker = getDockerClient();
+    const images = await docker.listImages({ all: false });
 
     const parseRepoTag = (
       tag: string | undefined
@@ -444,7 +421,8 @@ export type ServiceNetwork = {
  */
 export async function listNetworks(): Promise<ServiceNetwork[]> {
   try {
-    const networks = await defaultDocker.listNetworks();
+    const docker = getDockerClient();
+    const networks = await docker.listNetworks();
     return networks.map(
       (net): ServiceNetwork => ({
         id: net.Id,
@@ -478,7 +456,8 @@ export type ServiceVolume = {
  */
 export async function listVolumes(): Promise<ServiceVolume[]> {
   try {
-    const volumeResponse = await defaultDocker.listVolumes();
+    const docker = getDockerClient();
+    const volumeResponse = await docker.listVolumes();
     const volumes = volumeResponse.Volumes || [];
 
     return volumes.map(
@@ -498,4 +477,4 @@ export async function listVolumes(): Promise<ServiceVolume[]> {
   }
 }
 
-export default defaultDocker;
+export default getDockerClient;

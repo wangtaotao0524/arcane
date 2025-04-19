@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from "./$types";
 import { fail } from "@sveltejs/kit";
-import { updateDefaultDockerInstance } from "$lib/services/docker-service";
+import updateDefaultDockerInstance from "$lib/services/docker-service";
 
 // Define a type for settings
 type SettingsData = {

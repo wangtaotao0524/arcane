@@ -10,6 +10,7 @@
     X,
     ChevronRight,
     ChevronLeft,
+    FileStack,
     type Icon as IconType,
   } from "@lucide/svelte";
   import { page } from "$app/stores";
@@ -53,6 +54,7 @@
     items = [
       { href: "/", label: "Dashboard", icon: Home },
       { href: "/containers", label: "Containers", icon: Box },
+      { href: "/stacks", label: "Stacks", icon: FileStack },
       { href: "/images", label: "Images", icon: Image },
       { href: "/networks", label: "Networks", icon: Network },
       { href: "/volumes", label: "Volumes", icon: HardDrive },
