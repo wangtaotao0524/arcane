@@ -1,24 +1,35 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import { listContainers } from "$lib/services/docker-service"; // Import the service function
 
-// Here you would integrate with Docker API or SDK
 export const GET: RequestHandler = async () => {
-  // In production implementation:
-  // const docker = new Docker();
-  // const containers = await docker.listContainers({all: true});
-
-  // For now, return mock data
-  return json([
-    { id: "1a2b3c", name: "web", status: "running", image: "nginx:latest" },
-    { id: "4d5e6f", name: "db", status: "exited", image: "postgres:15" },
-  ]);
+  try {
+    const containers = await listContainers(true); // Get all containers
+    return json(containers);
+  } catch (error: any) {
+    console.error("API Error fetching containers:", error);
+    // Return an appropriate error response
+    return json(
+      { error: error.message || "Failed to fetch containers" },
+      { status: 500 }
+    );
+  }
 };
 
 export const POST: RequestHandler = async ({ request }) => {
   const data = await request.json();
-  // Create a new container
-  // const docker = new Docker();
-  // const container = await docker.createContainer(data);
+  // Create a new container using the service
+  // try {
+  //   const newContainer = await createContainer(data); // Assuming you add createContainer to docker.ts
+  //   return json(newContainer, { status: 201 });
+  // } catch (error: any) {
+  //   return json({ error: error.message || 'Failed to create container' }, { status: 500 });
+  // }
 
-  return json({ id: "new_container_id", name: data.name });
+  // Placeholder response for now
+  return json({
+    message: "Create endpoint not fully implemented",
+    id: "new_container_id",
+    name: data.name,
+  });
 };

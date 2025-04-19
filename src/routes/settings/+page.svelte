@@ -4,40 +4,94 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
-  import { Settings, Save, RefreshCw } from "@lucide/svelte";
+  import {
+    Settings,
+    Save,
+    RefreshCw,
+    CheckCircle,
+    XCircle,
+  } from "@lucide/svelte";
   import * as Switch from "$lib/components/ui/switch/index.js";
-  import { enhance } from "$app/forms"; // Optional: for progressive enhancement
+  import { enhance } from "$app/forms";
 
-  export let data: PageData;
-  export let form: ActionData; // To get data back from the form action
+  // Use $props() for component inputs
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  // Initialize state from loaded data or form action result
-  let settings = form?.settings ?? data.settings;
+  // Derive initial settings from props, reacting if form action updates props
+  let initialSettings = $derived(form?.settings ?? data.settings);
 
-  let dockerHost = settings.dockerHost;
-  let autoRefresh = settings.autoRefresh;
-  let refreshInterval = settings.refreshInterval;
-  let darkMode = settings.darkMode;
+  // Use $state for mutable component state bound to inputs
+  let dockerHost = $state("");
+  let autoRefresh = $state(false);
+  let refreshInterval = $state(30);
+  let darkMode = $state(false);
 
-  let isSubmitting = false; // Manual submission state
+  let isSubmitting = $state(false);
+  let testStatus: "idle" | "testing" | "success" | "error" = $state("idle");
+  let testMessage: string | null = $state(null);
 
-  // Test connection function
-  function testConnection() {
-    console.log("Testing connection to", dockerHost);
-    // TODO: Implement actual connection test logic
+  // Effect to update local state when initialSettings (derived from props) changes
+  $effect(() => {
+    // Avoid resetting if the values are already the same (prevents potential loops)
+    if (dockerHost !== initialSettings.dockerHost)
+      dockerHost = initialSettings.dockerHost;
+    if (autoRefresh !== initialSettings.autoRefresh)
+      autoRefresh = initialSettings.autoRefresh;
+    if (refreshInterval !== initialSettings.refreshInterval)
+      refreshInterval = initialSettings.refreshInterval;
+    if (darkMode !== initialSettings.darkMode)
+      darkMode = initialSettings.darkMode;
+  });
+
+  // Effect to reset test status when dockerHost input changes
+  $effect(() => {
+    // This effect now correctly tracks the $state variable 'dockerHost'
+    // Need to access dockerHost to create the dependency
+    const currentHost = dockerHost;
+    if (currentHost !== undefined) {
+      // Check if initialized
+      testStatus = "idle";
+      testMessage = null;
+    }
+  });
+
+  async function testConnection() {
+    testStatus = "testing";
+    testMessage = null;
+    try {
+      const hostParam = encodeURIComponent(dockerHost);
+      const response = await fetch(
+        `/api/docker/test-connection?host=${hostParam}`
+      );
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        testStatus = "success";
+        testMessage = result.message || "Connection successful!";
+      } else {
+        testStatus = "error";
+        testMessage =
+          result.error ||
+          "Connection failed. Check Docker status and host setting.";
+      }
+    } catch (error: any) {
+      testStatus = "error";
+      testMessage =
+        "Failed to run connection test: " + (error.message || "Unknown error");
+      console.error("Error during connection test fetch:", error);
+    }
   }
 </script>
 
 <div class="flex justify-between items-center mb-6">
   <h1 class="text-2xl font-bold">Settings</h1>
-  <!-- Button moved inside the form below -->
 </div>
 
 {#if form?.error}
   <div
     class="mb-4 p-4 bg-destructive/10 text-destructive border border-destructive rounded-md"
   >
-    <p><strong>Error:</strong> {form.error}</p>
+    <p><strong>Error saving settings:</strong> {form.error}</p>
   </div>
 {/if}
 {#if form?.success}
@@ -52,14 +106,16 @@
   method="POST"
   use:enhance={() => {
     isSubmitting = true;
+    testStatus = "idle"; // Reset test status on save attempt
+    testMessage = null;
     return async ({ update }) => {
-      await update(); // Update form data if action returns data
+      await update({ reset: false }); // Use reset: false to prevent SvelteKit from resetting form state automatically
       isSubmitting = false;
+      // The $effect will handle updating local state from props automatically
     };
   }}
 >
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <!-- Docker Connection Settings -->
     <Card.Root>
       <Card.Header>
         <Card.Title>Docker Connection</Card.Title>
@@ -74,6 +130,7 @@
             bind:value={dockerHost}
             placeholder="unix:///var/run/docker.sock"
             class="mt-1"
+            disabled={testStatus === "testing"}
           />
           <p class="text-sm text-muted-foreground mt-1">
             Enter Docker host URL (e.g., unix:///var/run/docker.sock or
@@ -86,14 +143,31 @@
           class="mt-2"
           onclick={testConnection}
           type="button"
+          disabled={testStatus === "testing"}
         >
-          <RefreshCw class="w-4 h-4 mr-2" />
-          Test Connection
+          {#if testStatus === "testing"}
+            <RefreshCw class="w-4 h-4 mr-2 animate-spin" />
+            Testing...
+          {:else}
+            <RefreshCw class="w-4 h-4 mr-2" />
+            Test Connection
+          {/if}
         </Button>
+
+        {#if testStatus === "success"}
+          <div class="flex items-center gap-2 text-sm text-green-600 mt-2">
+            <CheckCircle class="w-4 h-4" />
+            <span>{testMessage || "Connection successful!"}</span>
+          </div>
+        {:else if testStatus === "error"}
+          <div class="flex items-center gap-2 text-sm text-destructive mt-2">
+            <XCircle class="w-4 h-4" />
+            <span>{testMessage || "Connection failed."}</span>
+          </div>
+        {/if}
       </Card.Content>
     </Card.Root>
 
-    <!-- Application Settings -->
     <Card.Root>
       <Card.Header>
         <Card.Title>Application Settings</Card.Title>
@@ -128,7 +202,7 @@
                 min="5"
                 max="60"
               />
-              {#if form?.error && form.values?.refreshInterval && typeof form.values.refreshInterval === "string" && (parseInt(form.values.refreshInterval, 10) < 5 || parseInt(form.values.refreshInterval, 10) > 60)}
+              {#if form?.error && form.values?.refreshInterval && (parseInt(String(form.values.refreshInterval), 10) < 5 || parseInt(String(form.values.refreshInterval), 10) > 60)}
                 <p class="text-sm text-destructive">
                   Must be between 5 and 60.
                 </p>
@@ -154,9 +228,8 @@
     </Card.Root>
   </div>
 
-  <!-- Submit Button inside the form -->
   <div class="mt-6 flex justify-end">
-    <Button type="submit" disabled={isSubmitting}>
+    <Button type="submit" disabled={isSubmitting || testStatus === "testing"}>
       <Save class="w-4 h-4 mr-2" />
       {isSubmitting ? "Saving..." : "Save Settings"}
     </Button>
