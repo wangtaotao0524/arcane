@@ -392,7 +392,7 @@
         <a href="/settings" class="hover:underline">Settings</a>
         <span class="mx-2">•</span>
         <a
-          href="https://github.com/user/arcane"
+          href="https://github.com/ofkm/arcane"
           target="_blank"
           rel="noopener noreferrer"
           class="hover:underline">GitHub</a
