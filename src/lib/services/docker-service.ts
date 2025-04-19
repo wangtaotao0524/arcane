@@ -68,30 +68,46 @@ export async function getDockerInfo(hostToTest?: string) {
   }
 }
 
+// Define and export the type returned by listContainers
+export type ServiceContainer = {
+  id: string;
+  names: string[];
+  name: string; // Your derived name
+  image: string;
+  imageId: string;
+  command: string;
+  created: number;
+  state: string; // 'created', 'running', 'paused', 'restarting', 'removing', 'exited', 'dead'
+  status: string; // e.g., "Up 2 hours"
+  ports: Docker.Port[];
+};
+
 /**
  * Lists Docker containers.
  * @param all - Whether to show all containers (including stopped). Defaults to true.
  */
-export async function listContainers(all = true) {
+// Add the return type annotation
+export async function listContainers(all = true): Promise<ServiceContainer[]> {
   try {
     const containers = await defaultDocker.listContainers({ all });
-    // Map to a simpler format if desired, or return raw data
-    return containers.map((c) => ({
-      id: c.Id,
-      names: c.Names,
-      name: c.Names[0]?.substring(1) || c.Id.substring(0, 12), // Extract a primary name
-      image: c.Image,
-      imageId: c.ImageID,
-      command: c.Command,
-      created: c.Created,
-      state: c.State, // 'created', 'running', 'paused', 'restarting', 'removing', 'exited', 'dead'
-      status: c.Status,
-      ports: c.Ports,
-      mounts: c.Mounts,
-    }));
-  } catch (error) {
+    // Ensure the mapping matches the ServiceContainer type
+    return containers.map(
+      (c): ServiceContainer => ({
+        id: c.Id,
+        names: c.Names,
+        name: c.Names[0]?.substring(1) || c.Id.substring(0, 12),
+        image: c.Image,
+        imageId: c.ImageID,
+        command: c.Command,
+        created: c.Created,
+        state: c.State,
+        status: c.Status,
+        ports: c.Ports,
+      })
+    );
+  } catch (error: any) {
     console.error("Error listing containers:", error);
-    // Rethrow or return an empty array/error indicator
+    // Rethrow or handle as appropriate for your app's error strategy
     throw new Error("Failed to list Docker containers.");
   }
 }

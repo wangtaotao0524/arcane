@@ -1,7 +1,9 @@
 <script lang="ts">
   import DataTable from "$lib/components/data-table.svelte";
+  import Button from "$lib/components/ui/button/button.svelte";
   import * as Card from "$lib/components/ui/card/index.js";
   import { columns } from "./columns.js";
+  import { Plus } from "@lucide/svelte";
 
   let { data } = $props();
   const { containers } = data;
@@ -9,9 +11,10 @@
 
 <div class="flex justify-between items-center mb-6">
   <h1 class="text-2xl font-bold">Containers</h1>
-  <button class="bg-primary text-primary-foreground px-4 py-2 rounded"
-    >New Container</button
-  >
+  <Button variant="default">
+    <Plus class="w-4 h-4" />
+    Create Container
+  </Button>
 </div>
 
 <Card.Root>

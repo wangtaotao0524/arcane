@@ -2,8 +2,13 @@
   import Ellipsis from "@lucide/svelte/icons/ellipsis";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
+  import { goto } from "$app/navigation";
 
   let { id }: { id: string } = $props();
+
+  function viewContainer() {
+    goto(`/containers/${id}`);
+  }
 </script>
 
 <DropdownMenu.Root>
@@ -23,8 +28,10 @@
   <DropdownMenu.Content>
     <DropdownMenu.Group>
       <DropdownMenu.GroupHeading>Actions</DropdownMenu.GroupHeading>
-      <DropdownMenu.Item>Recreate Container</DropdownMenu.Item>
-      <DropdownMenu.Item>Start/Stop</DropdownMenu.Item>
+      <DropdownMenu.Separator />
+      <DropdownMenu.Item onclick={() => viewContainer()}
+        >View Container</DropdownMenu.Item
+      >
     </DropdownMenu.Group>
   </DropdownMenu.Content>
 </DropdownMenu.Root>
