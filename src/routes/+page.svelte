@@ -4,173 +4,405 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
   import StatusBadge from "$lib/components/docker/StatusBadge.svelte";
-  import { AlertCircle } from "@lucide/svelte";
+  import {
+    AlertCircle,
+    Server,
+    Box,
+    HardDrive,
+    Cpu,
+    MemoryStick,
+    Network,
+    ArrowRight,
+    RefreshCw,
+    PlayCircle,
+    StopCircle,
+    Trash2,
+  } from "@lucide/svelte";
   import * as Alert from "$lib/components/ui/alert/index.js";
+  import { Separator } from "$lib/components/ui/separator/index.js";
+  import { Progress } from "$lib/components/ui/progress/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
+  import { invalidateAll } from "$app/navigation";
 
   let { data }: { data: PageData } = $props();
   const { dockerInfo, containers, images, error } = data;
+  let isRefreshing = $state(false);
+
+  // Calculate running containers count
+  const runningContainers = $derived(
+    containers?.filter((c) => c.state === "running").length ?? 0
+  );
+
+  // Calculate stopped containers count
+  const stoppedContainers = $derived(
+    containers?.filter((c) => c.state === "exited").length ?? 0
+  );
 
   // Helper to format bytes
-  function formatBytes(bytes: number, decimals = 2): string {
-    if (!+bytes) return "0 Bytes";
+  function formatBytes(bytes: number | undefined | null, decimals = 1): string {
+    if (!bytes || !+bytes) return "0 Bytes";
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   }
+
+  // Function to refresh data
+  async function refreshData() {
+    isRefreshing = true;
+    await invalidateAll();
+    setTimeout(() => {
+      isRefreshing = false;
+    }, 500);
+  }
 </script>
 
-<h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+<div class="space-y-8">
+  <!-- Header with refresh button -->
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <p class="text-sm text-muted-foreground mt-1">
+        Overview of your Docker environment
+      </p>
+    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-9"
+      onclick={refreshData}
+      disabled={isRefreshing}
+    >
+      <RefreshCw class={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+      Refresh
+    </Button>
+  </div>
 
-{#if error}
-  <Alert.Root variant="destructive" class="mb-6">
-    <AlertCircle class="h-4 w-4" />
-    <Alert.Title>Error Loading Data</Alert.Title>
-    <Alert.Description>{error}</Alert.Description>
-  </Alert.Root>
-{/if}
+  {#if error}
+    <Alert.Root variant="destructive">
+      <AlertCircle class="h-4 w-4 mr-2" />
+      <Alert.Title>Connection Error</Alert.Title>
+      <Alert.Description>
+        {error} Please check your Docker connection in
+        <a href="/settings" class="underline">Settings</a>.
+      </Alert.Description>
+    </Alert.Root>
+  {/if}
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-  <Card.Root>
-    <Card.Header>
-      <Card.Title>Docker Info</Card.Title>
-      <Card.Description>System overview</Card.Description>
-    </Card.Header>
-    <Card.Content>
+  <!-- Engine Overview Section -->
+  <section>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold tracking-tight">Engine Overview</h2>
       {#if dockerInfo}
-        <ul class="text-sm space-y-1">
-          <li><strong>Version:</strong> {dockerInfo.ServerVersion || "N/A"}</li>
-          <li><strong>OS:</strong> {dockerInfo.OperatingSystem || "N/A"}</li>
-          <li>
-            <strong>Architecture:</strong>
-            {dockerInfo.Architecture || "N/A"}
-          </li>
-          <li>
-            <strong>Total Memory:</strong>
-            {formatBytes(dockerInfo.MemTotal || 0)}
-          </li>
-          <li><strong>Containers:</strong> {dockerInfo.Containers || 0}</li>
-          <li><strong>Images:</strong> {dockerInfo.Images || 0}</li>
-        </ul>
-      {:else}
-        <p class="text-sm text-muted-foreground">Could not load Docker info.</p>
+        <Badge variant="outline" class="text-xs font-normal">
+          v{dockerInfo.ServerVersion || "Unknown"}
+        </Badge>
       {/if}
-    </Card.Content>
-  </Card.Root>
+    </div>
 
-  <Card.Root class="md:col-span-2">
-    <Card.Header>
-      <Card.Title>Quick Actions</Card.Title>
-      <Card.Description>Manage all containers</Card.Description>
-    </Card.Header>
-    <Card.Content>
-      <div class="flex gap-2 flex-wrap">
-        <!-- TODO: Implement actions -->
-        <Button disabled={!dockerInfo}>Start All</Button>
-        <Button variant="secondary" disabled={!dockerInfo}>Stop All</Button>
-        <Button variant="destructive" disabled={!dockerInfo}
-          >Prune System</Button
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Running Containers Card -->
+      <Card.Root class="overflow-hidden border-l-4 border-l-green-500">
+        <Card.Content class="p-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-sm font-medium text-muted-foreground">
+                Running Containers
+              </p>
+              <div class="mt-1">
+                <p class="text-2xl font-bold">
+                  {runningContainers}
+                  <span class="text-xs font-normal text-muted-foreground ml-1"
+                    >/ {containers?.length || 0}</span
+                  >
+                </p>
+              </div>
+            </div>
+            <div class="bg-green-500/10 p-2 rounded-full">
+              <Box class="h-5 w-5 text-green-500" />
+            </div>
+          </div>
+          {#if containers?.length}
+            <Progress
+              value={(runningContainers / containers.length) * 100}
+              class="h-1 mt-4"
+            />
+          {/if}
+        </Card.Content>
+      </Card.Root>
+
+      <!-- Images Card -->
+      <Card.Root class="overflow-hidden border-l-4 border-l-blue-500">
+        <Card.Content class="p-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-sm font-medium text-muted-foreground">Images</p>
+              <p class="text-2xl font-bold mt-1">{dockerInfo?.Images || 0}</p>
+            </div>
+            <div class="bg-blue-500/10 p-2 rounded-full">
+              <HardDrive class="h-5 w-5 text-blue-500" />
+            </div>
+          </div>
+          {#if images?.length && dockerInfo?.Images}
+            <div class="mt-4 text-xs text-muted-foreground">
+              Showing {Math.min(images.length, 5)} of {dockerInfo.Images} images
+            </div>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+
+      <!-- CPU Card -->
+      <Card.Root class="overflow-hidden border-l-4 border-l-purple-500">
+        <Card.Content class="p-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-sm font-medium text-muted-foreground">CPU</p>
+              <p class="text-2xl font-bold mt-1">{dockerInfo?.NCPU || "N/A"}</p>
+            </div>
+            <div class="bg-purple-500/10 p-2 rounded-full">
+              <Cpu class="h-5 w-5 text-purple-500" />
+            </div>
+          </div>
+          <div class="mt-4 text-xs text-muted-foreground">
+            {dockerInfo?.Architecture || "Unknown architecture"}
+          </div>
+        </Card.Content>
+      </Card.Root>
+
+      <!-- Memory Card -->
+      <Card.Root class="overflow-hidden border-l-4 border-l-amber-500">
+        <Card.Content class="p-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-sm font-medium text-muted-foreground">Memory</p>
+              <p class="text-2xl font-bold mt-1">
+                {formatBytes(dockerInfo?.MemTotal, 0)}
+              </p>
+            </div>
+            <div class="bg-amber-500/10 p-2 rounded-full">
+              <MemoryStick class="h-5 w-5 text-amber-500" />
+            </div>
+          </div>
+          <div class="mt-4 text-xs text-muted-foreground">
+            {dockerInfo?.OperatingSystem || "Unknown OS"}
+          </div>
+        </Card.Content>
+      </Card.Root>
+    </div>
+  </section>
+
+  <!-- Quick Actions Section -->
+  <section>
+    <h2 class="text-lg font-semibold tracking-tight mb-4">Quick Actions</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <Card.Root class="flex flex-col justify-center items-center p-5 h-full">
+        <Button
+          class="w-full"
+          disabled={!dockerInfo || stoppedContainers === 0}
+          variant="default"
+        >
+          <PlayCircle class="h-4 w-4 mr-2" />
+          Start All Stopped
+          <Badge variant="secondary" class="ml-2">{stoppedContainers}</Badge>
+        </Button>
+        <p class="text-xs text-muted-foreground mt-2">
+          Start all stopped containers
+        </p>
+      </Card.Root>
+
+      <Card.Root class="flex flex-col justify-center items-center p-5 h-full">
+        <Button
+          class="w-full"
+          variant="secondary"
+          disabled={!dockerInfo || runningContainers === 0}
+        >
+          <StopCircle class="h-4 w-4 mr-2" />
+          Stop All Running
+          <Badge variant="outline" class="ml-2">{runningContainers}</Badge>
+        </Button>
+        <p class="text-xs text-muted-foreground mt-2">
+          Stop all running containers
+        </p>
+      </Card.Root>
+
+      <Card.Root class="flex flex-col justify-center items-center p-5 h-full">
+        <Button class="w-full" variant="destructive" disabled={!dockerInfo}>
+          <Trash2 class="h-4 w-4 mr-2" />
+          Prune System
+        </Button>
+        <p class="text-xs text-muted-foreground mt-2">Remove unused data</p>
+      </Card.Root>
+    </div>
+  </section>
+
+  <!-- Resources Section -->
+  <section>
+    <h2 class="text-lg font-semibold tracking-tight mb-4">Resources</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Containers List -->
+      <Card.Root class="border shadow-sm">
+        <Card.Header class="px-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <Card.Title>
+                Containers
+                <Badge variant="secondary" class="ml-2"
+                  >{containers?.length || 0}</Badge
+                >
+              </Card.Title>
+              <Card.Description>Recent containers</Card.Description>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              href="/containers"
+              disabled={!dockerInfo}
+            >
+              View All
+              <ArrowRight class="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </Card.Header>
+        <Card.Content class="p-0">
+          {#if containers?.length > 0}
+            <Table.Root>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head class="pl-6 w-[30%]">Name</Table.Head>
+                  <Table.Head class="w-[40%]">Image</Table.Head>
+                  <Table.Head>State</Table.Head>
+                  <Table.Head class="pr-6">Status</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {#each containers.slice(0, 5) as c (c.id)}
+                  <Table.Row>
+                    <Table.Cell class="font-medium pl-6 truncate">
+                      <a href="/containers/{c.id}" class="hover:underline">
+                        {c.name}
+                      </a>
+                    </Table.Cell>
+                    <Table.Cell class="text-xs truncate max-w-[200px]">
+                      {c.image}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <StatusBadge state={c.state} />
+                    </Table.Cell>
+                    <Table.Cell class="text-xs pr-6">{c.status}</Table.Cell>
+                  </Table.Row>
+                {/each}
+              </Table.Body>
+            </Table.Root>
+            {#if containers.length > 5}
+              <div class="bg-muted/40 py-2 px-6 text-xs text-muted-foreground">
+                Showing 5 of {containers.length} containers
+              </div>
+            {/if}
+          {:else if !error}
+            <div
+              class="flex flex-col items-center justify-center py-10 px-6 text-center"
+            >
+              <Box class="h-8 w-8 text-muted-foreground mb-2 opacity-40" />
+              <p class="text-sm text-muted-foreground">No containers found</p>
+              <p class="text-xs text-muted-foreground mt-1">
+                Use Docker CLI or another tool to create containers
+              </p>
+            </div>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+
+      <!-- Images List -->
+      <Card.Root class="border shadow-sm">
+        <Card.Header class="px-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <Card.Title>
+                Images
+                <Badge variant="secondary" class="ml-2"
+                  >{images?.length || 0}</Badge
+                >
+              </Card.Title>
+              <Card.Description>Recent images</Card.Description>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              href="/images"
+              disabled={!dockerInfo}
+            >
+              View All
+              <ArrowRight class="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </Card.Header>
+        <Card.Content class="p-0">
+          {#if images?.length > 0}
+            <Table.Root>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head class="pl-6 w-[50%]">Repository</Table.Head>
+                  <Table.Head class="w-[20%]">Tag</Table.Head>
+                  <Table.Head class="pr-6">Size</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {#each images.slice(0, 5) as img (img.id)}
+                  <Table.Row>
+                    <Table.Cell class="font-medium truncate pl-6">
+                      {img.repo}
+                    </Table.Cell>
+                    <Table.Cell>{img.tag}</Table.Cell>
+                    <Table.Cell class="pr-6">{formatBytes(img.size)}</Table.Cell
+                    >
+                  </Table.Row>
+                {/each}
+              </Table.Body>
+            </Table.Root>
+            {#if images.length > 5}
+              <div class="bg-muted/40 py-2 px-6 text-xs text-muted-foreground">
+                Showing 5 of {images.length} images
+              </div>
+            {/if}
+          {:else if !error}
+            <div
+              class="flex flex-col items-center justify-center py-10 px-6 text-center"
+            >
+              <HardDrive
+                class="h-8 w-8 text-muted-foreground mb-2 opacity-40"
+              />
+              <p class="text-sm text-muted-foreground">No images found</p>
+              <p class="text-xs text-muted-foreground mt-1">
+                Pull images using Docker CLI or another tool
+              </p>
+            </div>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+    </div>
+  </section>
+
+  <!-- Footer Links -->
+  <section class="border-t pt-4 mt-10">
+    <div
+      class="flex justify-between items-center text-muted-foreground text-sm"
+    >
+      <div>
+        <a href="/settings" class="hover:underline">Settings</a>
+        <span class="mx-2">•</span>
+        <a
+          href="https://github.com/user/arcane"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:underline">GitHub</a
         >
       </div>
-      <p class="text-xs text-muted-foreground mt-2">
-        Note: Actions not yet implemented.
-      </p>
-    </Card.Content>
-  </Card.Root>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  <Card.Root>
-    <Card.Header>
-      <Card.Title>Containers ({containers.length})</Card.Title>
-      <Card.Description>Active and stopped containers</Card.Description>
-    </Card.Header>
-    <Card.Content>
-      {#if containers.length > 0}
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>Name</Table.Head>
-              <Table.Head>Image</Table.Head>
-              <Table.Head>State</Table.Head>
-              <Table.Head>Status</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each containers.slice(0, 5) as c (c.id)}
-              <Table.Row>
-                <Table.Cell class="font-medium">{c.name}</Table.Cell>
-                <Table.Cell class="text-xs truncate max-w-xs"
-                  >{c.image}</Table.Cell
-                >
-                <Table.Cell>
-                  <StatusBadge state={c.state} />
-                </Table.Cell>
-                <Table.Cell class="text-xs">{c.status}</Table.Cell>
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-        {#if containers.length > 5}
-          <p class="text-xs text-muted-foreground mt-2">
-            Showing first 5 containers.
-          </p>
+      <div>
+        {#if dockerInfo}
+          <span title="Docker Engine Version">v{dockerInfo.ServerVersion}</span>
         {/if}
-      {:else if !error}
-        <p class="text-sm text-muted-foreground">No containers found.</p>
-      {/if}
-    </Card.Content>
-    <Card.Footer>
-      <Button
-        variant="outline"
-        size="sm"
-        href="/containers"
-        disabled={!dockerInfo}>View All Containers</Button
-      >
-    </Card.Footer>
-  </Card.Root>
-
-  <Card.Root>
-    <Card.Header>
-      <Card.Title>Images ({images.length})</Card.Title>
-      <Card.Description>Available Docker images</Card.Description>
-    </Card.Header>
-    <Card.Content>
-      {#if images.length > 0}
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>Repository</Table.Head>
-              <Table.Head>Tag</Table.Head>
-              <Table.Head>Size</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each images.slice(0, 5) as img (img.id)}
-              <Table.Row>
-                <Table.Cell class="font-medium truncate max-w-xs"
-                  >{img.repo}</Table.Cell
-                >
-                <Table.Cell>{img.tag}</Table.Cell>
-                <Table.Cell>{formatBytes(img.size)}</Table.Cell>
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-        {#if images.length > 5}
-          <p class="text-xs text-muted-foreground mt-2">
-            Showing first 5 images.
-          </p>
-        {/if}
-      {:else if !error}
-        <p class="text-sm text-muted-foreground">No images found.</p>
-      {/if}
-    </Card.Content>
-    <Card.Footer>
-      <Button variant="outline" size="sm" href="/images" disabled={!dockerInfo}
-        >View All Images</Button
-      >
-    </Card.Footer>
-  </Card.Root>
+      </div>
+    </div>
+  </section>
 </div>

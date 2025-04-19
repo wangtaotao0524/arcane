@@ -43,14 +43,11 @@ This is the easiest way to run Arcane, as it bundles the application and its dep
 3.  **Build and Run:**
 
     ```bash
-    docker-compose up -d --build
+    docker-compose up -d
     ```
 
-    - `--build`: Builds the Docker image for Arcane based on the `Dockerfile`.
-    - `-d`: Runs the containers in detached mode (in the background).
-
 4.  **Access Arcane:**
-    Open your web browser and navigate to `http://localhost:5173` (or the port specified in your `docker-compose.yml` if you changed it).
+    Open your web browser and navigate to `http://localhost:3000` (or the port specified in your `docker-compose.yml` if you changed it).
 
 ## Development (Local)
 
