@@ -1,4 +1,5 @@
 import type { PageServerLoad } from "./$types";
+import type { Container } from "$lib/types/container";
 
 // This will eventually call your Docker API
 export const load: PageServerLoad = async ({ fetch }) => {
@@ -6,12 +7,29 @@ export const load: PageServerLoad = async ({ fetch }) => {
   // const response = await fetch('/api/docker/containers');
   // const containers = await response.json();
 
+  const containers: Container[] = [
+    {
+      id: "1a2b3c-11111",
+      name: "1a2b3c",
+      status: "running",
+      image: "nginx:latest",
+    },
+    {
+      id: "1a2b3c-22222",
+      name: "1a2b3c",
+      status: "running",
+      image: "nginx:latest",
+    },
+    {
+      id: "1a2b3c-3333",
+      name: "1a2b3c",
+      status: "running",
+      image: "nginx:latest",
+    },
+  ];
+
   // For now, return mock data
   return {
-    containers: [
-      { id: "1a2b3c", name: "web", status: "running", image: "nginx:latest" },
-      { id: "4d5e6f", name: "db", status: "exited", image: "postgres:15" },
-      { id: "7g8h9i", name: "cache", status: "running", image: "redis:alpine" },
-    ],
+    containers,
   };
 };
