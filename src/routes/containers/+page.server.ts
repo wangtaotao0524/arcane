@@ -28,7 +28,6 @@ export const load: PageServerLoad = async ({ fetch }) => {
     },
   ];
 
-  // For now, return mock data
   return {
     containers,
   };

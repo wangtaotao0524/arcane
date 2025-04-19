@@ -23,12 +23,8 @@
   <DropdownMenu.Content>
     <DropdownMenu.Group>
       <DropdownMenu.GroupHeading>Actions</DropdownMenu.GroupHeading>
-      <DropdownMenu.Item onclick={() => navigator.clipboard.writeText(id)}>
-        Copy payment ID
-      </DropdownMenu.Item>
+      <DropdownMenu.Item>Recreate Container</DropdownMenu.Item>
+      <DropdownMenu.Item>Start/Stop</DropdownMenu.Item>
     </DropdownMenu.Group>
-    <DropdownMenu.Separator />
-    <DropdownMenu.Item>View customer</DropdownMenu.Item>
-    <DropdownMenu.Item>View payment details</DropdownMenu.Item>
   </DropdownMenu.Content>
 </DropdownMenu.Root>

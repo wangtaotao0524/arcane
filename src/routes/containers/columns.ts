@@ -1,7 +1,7 @@
 import type { Container } from "$lib/types/container";
 import type { ColumnDef } from "@tanstack/table-core";
 import { renderComponent } from "$lib/components/ui/data-table/index.js";
-import DataTableActions from "$lib/components/data-table-actions.svelte";
+import DataTableActions from "./data-table-actions.svelte";
 
 export const columns: ColumnDef<Container>[] = [
   {
