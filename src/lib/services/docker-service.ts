@@ -1,70 +1,134 @@
 import Docker from "dockerode";
+import fs from "fs"; // Use synchronous fs for initial load
+import path from "path";
 
-// This instance can be used for general operations once settings are loaded/applied
-// For now, it might default to the standard connection
-// TODO: Initialize this based on saved settings later
-const defaultDocker = new Docker();
+// Define Settings Type (can be shared with +page.server.ts if moved to a types file)
+type SettingsData = {
+  dockerHost: string;
+  autoRefresh: boolean;
+  refreshInterval: number;
+  darkMode: boolean;
+};
+
+// --- Load Initial Settings ---
+const SETTINGS_FILE = path.resolve("./app-settings.json");
+const DEFAULT_SETTINGS: SettingsData = {
+  dockerHost: "unix:///var/run/docker.sock",
+  autoRefresh: true,
+  refreshInterval: 10,
+  darkMode: true,
+};
+
+function loadInitialSettings(): SettingsData {
+  try {
+    // Use synchronous read for initial module load simplicity
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = fs.readFileSync(SETTINGS_FILE, "utf-8");
+      const settings = JSON.parse(data);
+      console.log("Docker Service: Loaded initial settings:", settings);
+      return { ...DEFAULT_SETTINGS, ...settings }; // Merge with defaults
+    } else {
+      console.log("Docker Service: Settings file not found, using defaults.");
+      return DEFAULT_SETTINGS;
+    }
+  } catch (error) {
+    console.error("Docker Service: Error loading initial settings:", error);
+    return DEFAULT_SETTINGS; // Fallback to defaults
+  }
+}
+
+const initialSettings = loadInitialSettings();
+// --- End Load Initial Settings ---
 
 /**
- * Creates a Dockerode instance options object from a host string.
- * Handles unix sockets and TCP addresses.
+ * Creates Dockerode options from a host string.
  */
-function getDockerOpts(host?: string): Docker.DockerOptions | undefined {
-  if (!host) {
-    return undefined; // Use default connection methods
-  }
-  if (host.startsWith("unix://")) {
-    return { socketPath: host.substring(7) };
-  }
-  if (host.startsWith("tcp://")) {
+function getDockerOpts(host?: string): Docker.DockerOptions {
+  const targetHost = host || initialSettings.dockerHost; // Use provided host or loaded setting
+  const options: Docker.DockerOptions = {};
+
+  if (targetHost.startsWith("unix://")) {
+    options.socketPath = targetHost.substring(7);
+  } else if (
+    targetHost.startsWith("tcp://") ||
+    targetHost.startsWith("http://") ||
+    targetHost.startsWith("https://")
+  ) {
     try {
-      const url = new URL(host);
-      return {
-        host: url.hostname,
-        port: url.port || 2375, // Default Docker TCP port
-        // TODO: Add support for TLS options if needed (protocol: 'https')
-      };
+      const url = new URL(targetHost);
+      options.host = url.hostname;
+      options.port = url.port || (url.protocol === "https:" ? "2376" : "2375");
+      options.protocol = url.protocol.slice(0, -1) as "https" | "http";
+      // TODO: Add TLS options if needed based on protocol or settings
     } catch (e) {
-      console.error("Invalid Docker TCP host URL:", host);
-      return { host: "invalid-host" }; // Force failure
+      console.error("Invalid Docker host URL format:", targetHost, e);
+      // Return options that will likely fail connection, signaling an issue
+      return { host: "invalid-host-format" };
     }
+  } else {
+    // Assume it's a socket path if no protocol
+    options.socketPath = targetHost;
   }
-  // Assume it's a socket path if no protocol is specified
-  return { socketPath: host };
+  return options;
+}
+
+// --- Initialize the shared defaultDocker instance ---
+// Use let so it can be reassigned by updateDefaultDockerInstance
+let defaultDocker = new Docker(getDockerOpts());
+console.log(
+  `Docker Service: Initialized defaultDocker with options:`,
+  getDockerOpts()
+);
+// --- End Initialization ---
+
+/**
+ * Updates the shared default Docker instance used by the service.
+ * @param host - The new Docker host string.
+ */
+export function updateDefaultDockerInstance(host: string) {
+  try {
+    const newOptions = getDockerOpts(host);
+    // Re-assign the module-level defaultDocker variable
+    defaultDocker = new Docker(newOptions);
+    // Update the settings object in memory (optional, but keeps it consistent)
+    initialSettings.dockerHost = host;
+    console.log(
+      "Docker Service: Updated defaultDocker instance for host:",
+      host
+    );
+    console.log("Docker Service: New options:", newOptions);
+  } catch (e) {
+    console.error(
+      `Docker Service: Failed to update default Docker instance for host: ${host}`,
+      e
+    );
+    // Optionally revert to a known good state or throw
+  }
 }
 
 /**
- * Gets basic Docker system information, optionally testing a specific host.
- * @param hostToTest - The Docker host string (e.g., "unix:///var/run/docker.sock" or "tcp://localhost:2375") to test. If undefined, uses the default connection.
+ * Gets Docker system information.
+ * Uses the *shared* defaultDocker instance unless a specific host is passed for testing.
+ * @param host - Optional Docker host URL to connect to for *testing*. If not provided, uses the default shared instance.
  */
-export async function getDockerInfo(hostToTest?: string) {
+export async function getDockerInfo(host?: string): Promise<Docker.Info> {
+  // Use a temporary instance ONLY if a specific host is provided for testing
+  const dockerInstance = host ? new Docker(getDockerOpts(host)) : defaultDocker;
+  const targetHost = host || initialSettings.dockerHost; // For logging
+
   try {
-    // Create a specific instance for testing if hostToTest is provided
-    const dockerInstance = hostToTest
-      ? new Docker(getDockerOpts(hostToTest))
-      : defaultDocker;
-    return await dockerInstance.info();
+    const info = await dockerInstance.info();
+    return info;
   } catch (error: any) {
     console.error(
-      `Error getting Docker info (Host: ${hostToTest || "default"}):`,
-      error.message
+      `Docker Service: Error getting Docker info for host "${targetHost}":`,
+      error.message || error
     );
-    // Make error more specific
-    let message = `Failed to connect to Docker Engine`;
-    if (hostToTest) {
-      message += ` at ${hostToTest}`;
-    }
-    if (error.code === "ENOENT" || error.message.includes("ENOENT")) {
-      message += `. Socket/Path not found.`;
-    } else if (
-      error.code === "ECONNREFUSED" ||
-      error.message.includes("ECONNREFUSED")
-    ) {
-      message += `. Connection refused. Is Docker running?`;
-    } else if (error.message) {
-      message += `. Error: ${error.message}`;
-    }
-    throw new Error(message);
+    throw new Error(
+      `Failed to connect to Docker Engine at "${targetHost}". ${
+        error.message || ""
+      }`
+    );
   }
 }
 
@@ -84,11 +148,11 @@ export type ServiceContainer = {
 
 /**
  * Lists Docker containers.
- * @param all - Whether to show all containers (including stopped). Defaults to true.
+ * Uses the shared defaultDocker instance.
  */
-// Add the return type annotation
 export async function listContainers(all = true): Promise<ServiceContainer[]> {
   try {
+    // Uses the potentially updated defaultDocker
     const containers = await defaultDocker.listContainers({ all });
     // Ensure the mapping matches the ServiceContainer type
     return containers.map(
@@ -106,18 +170,20 @@ export async function listContainers(all = true): Promise<ServiceContainer[]> {
       })
     );
   } catch (error: any) {
-    console.error("Error listing containers:", error);
-    // Rethrow or handle as appropriate for your app's error strategy
-    throw new Error("Failed to list Docker containers.");
+    console.error("Docker Service: Error listing containers:", error);
+    throw new Error(
+      `Failed to list Docker containers using host "${initialSettings.dockerHost}".`
+    );
   }
 }
 
 /**
  * Gets details for a specific container.
- * @param containerId - The ID of the container.
+ * Uses the shared defaultDocker instance.
  */
 export async function getContainer(containerId: string) {
   try {
+    // Uses the potentially updated defaultDocker
     const container = defaultDocker.getContainer(containerId);
     const inspectData = await container.inspect();
     // Return relevant details
@@ -135,11 +201,16 @@ export async function getContainer(containerId: string) {
       // Add more fields as needed
     };
   } catch (error: any) {
-    console.error(`Error getting container ${containerId}:`, error);
+    console.error(
+      `Docker Service: Error getting container ${containerId}:`,
+      error
+    );
     if (error.statusCode === 404) {
       return null; // Container not found
     }
-    throw new Error(`Failed to get container details for ${containerId}.`);
+    throw new Error(
+      `Failed to get container details for ${containerId} using host "${initialSettings.dockerHost}".`
+    );
   }
 }
 
@@ -152,10 +223,14 @@ export async function startContainer(containerId: string): Promise<void> {
     const container = defaultDocker.getContainer(containerId);
     await container.start();
   } catch (error: any) {
-    console.error(`Error starting container ${containerId}:`, error);
-    // Provide more context if possible (e.g., container already started)
+    console.error(
+      `Docker Service: Error starting container ${containerId}:`,
+      error
+    );
     throw new Error(
-      `Failed to start container ${containerId}. ${error.message || ""}`
+      `Failed to start container ${containerId} using host "${
+        initialSettings.dockerHost
+      }". ${error.message || ""}`
     );
   }
 }
@@ -169,10 +244,14 @@ export async function stopContainer(containerId: string): Promise<void> {
     const container = defaultDocker.getContainer(containerId);
     await container.stop();
   } catch (error: any) {
-    console.error(`Error stopping container ${containerId}:`, error);
-    // Provide more context (e.g., container not running)
+    console.error(
+      `Docker Service: Error stopping container ${containerId}:`,
+      error
+    );
     throw new Error(
-      `Failed to stop container ${containerId}. ${error.message || ""}`
+      `Failed to stop container ${containerId} using host "${
+        initialSettings.dockerHost
+      }". ${error.message || ""}`
     );
   }
 }
@@ -186,9 +265,14 @@ export async function restartContainer(containerId: string): Promise<void> {
     const container = defaultDocker.getContainer(containerId);
     await container.restart();
   } catch (error: any) {
-    console.error(`Error restarting container ${containerId}:`, error);
+    console.error(
+      `Docker Service: Error restarting container ${containerId}:`,
+      error
+    );
     throw new Error(
-      `Failed to restart container ${containerId}. ${error.message || ""}`
+      `Failed to restart container ${containerId} using host "${
+        initialSettings.dockerHost
+      }". ${error.message || ""}`
     );
   }
 }
@@ -206,8 +290,10 @@ export async function removeContainer(
     const container = defaultDocker.getContainer(containerId);
     await container.remove({ force });
   } catch (error: any) {
-    console.error(`Error removing container ${containerId}:`, error);
-    // Provide more context (e.g., conflict, container not found)
+    console.error(
+      `Docker Service: Error removing container ${containerId}:`,
+      error
+    );
     if (error.statusCode === 404) {
       throw new Error(`Container ${containerId} not found.`);
     }
@@ -217,7 +303,9 @@ export async function removeContainer(
       );
     }
     throw new Error(
-      `Failed to remove container ${containerId}. ${error.message || ""}`
+      `Failed to remove container ${containerId} using host "${
+        initialSettings.dockerHost
+      }". ${error.message || ""}`
     );
   }
 }
@@ -241,49 +329,44 @@ export async function getContainerLogs(
   try {
     const container = defaultDocker.getContainer(containerId);
 
-    // Set default options if not provided
     const logOptions = {
-      tail: options.tail === "all" ? undefined : options.tail || 100, // Default to last 100 lines, undefined for 'all'
-      stdout: options.stdout !== false, // Include stdout by default
-      stderr: options.stderr !== false, // Include stderr by default
-      follow: false, // Don't stream by default (won't work well with SSR)
-      timestamps: true, // Include timestamps
-      since: options.since || 0, // Get all logs by default
+      tail: options.tail === "all" ? undefined : options.tail || 100,
+      stdout: options.stdout !== false,
+      stderr: options.stderr !== false,
+      follow: false,
+      timestamps: true,
+      since: options.since || 0,
       until: options.until || undefined,
     };
 
-    // Get the logs as a Buffer
     const logsBuffer = await container.logs(logOptions);
-
-    // Convert the Buffer to a string and handle the format
     let logString = logsBuffer.toString();
 
-    // Process the log string to handle Docker log format
-    // Docker prefixes each line with 8 bytes: first byte is 01 (stdout) or 02 (stderr),
-    // followed by 3 bytes of 0s, then 4 bytes for the size
     if (logOptions.stdout || logOptions.stderr) {
-      // This is a simple approach - split by lines and remove Docker headers
       const lines = logString.split("\n");
       const processedLines = lines
         .map((line) => {
-          // Skip empty lines
           if (!line) return "";
-          // Remove the 8-byte header if present (check line length)
           if (line.length > 8) {
             return line.substring(8);
           }
           return line;
         })
-        .filter(Boolean); // Remove empty lines
+        .filter(Boolean);
 
       logString = processedLines.join("\n");
     }
 
     return logString;
   } catch (error: any) {
-    console.error(`Error getting logs for container ${containerId}:`, error);
+    console.error(
+      `Docker Service: Error getting logs for container ${containerId}:`,
+      error
+    );
     throw new Error(
-      `Failed to get logs for container ${containerId}. ${error.message || ""}`
+      `Failed to get logs for container ${containerId} using host "${
+        initialSettings.dockerHost
+      }". ${error.message || ""}`
     );
   }
 }
@@ -297,7 +380,6 @@ export type ServiceImage = {
   size: number;
   virtualSize: number;
   labels: { [label: string]: string } | undefined;
-  // Add primary repo and tag for easier display
   repo: string;
   tag: string;
 };
@@ -305,12 +387,10 @@ export type ServiceImage = {
 /**
  * Lists Docker images.
  */
-// Add the return type annotation
 export async function listImages(): Promise<ServiceImage[]> {
   try {
-    const images = await defaultDocker.listImages({ all: false }); // Usually only show non-intermediate images
+    const images = await defaultDocker.listImages({ all: false });
 
-    // Function to parse repo and tag
     const parseRepoTag = (
       tag: string | undefined
     ): { repo: string; tag: string } => {
@@ -319,7 +399,7 @@ export async function listImages(): Promise<ServiceImage[]> {
       }
       const parts = tag.split(":");
       if (parts.length === 1) {
-        return { repo: parts[0], tag: "latest" }; // Assume latest if no tag
+        return { repo: parts[0], tag: "latest" };
       }
       const tagPart = parts.pop() || "latest";
       const repoPart = parts.join(":");
@@ -341,8 +421,10 @@ export async function listImages(): Promise<ServiceImage[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error listing images:", error);
-    throw new Error("Failed to list Docker images.");
+    console.error("Docker Service: Error listing images:", error);
+    throw new Error(
+      `Failed to list Docker images using host "${initialSettings.dockerHost}".`
+    );
   }
 }
 
@@ -352,9 +434,9 @@ export type ServiceNetwork = {
   name: string;
   driver: string;
   scope: string;
-  subnet: string | null; // Extract the first subnet if available
-  gateway: string | null; // Extract the first gateway if available
-  created: string; // Dockerode returns date as string
+  subnet: string | null;
+  gateway: string | null;
+  created: string;
 };
 
 /**
@@ -369,15 +451,16 @@ export async function listNetworks(): Promise<ServiceNetwork[]> {
         name: net.Name,
         driver: net.Driver,
         scope: net.Scope,
-        // Safely access the first IPAM config and its subnet/gateway
         subnet: net.IPAM?.Config?.[0]?.Subnet ?? null,
         gateway: net.IPAM?.Config?.[0]?.Gateway ?? null,
-        created: net.Created, // Keep as string or parse if needed
+        created: net.Created,
       })
     );
   } catch (error: any) {
-    console.error("Error listing networks:", error);
-    throw new Error("Failed to list Docker networks.");
+    console.error("Docker Service: Error listing networks:", error);
+    throw new Error(
+      `Failed to list Docker networks using host "${initialSettings.dockerHost}".`
+    );
   }
 }
 
@@ -385,7 +468,7 @@ export async function listNetworks(): Promise<ServiceNetwork[]> {
 export type ServiceVolume = {
   name: string;
   driver: string;
-  scope: string; // Usually 'local' or 'global'
+  scope: string;
   mountpoint: string;
   labels: { [label: string]: string } | null;
 };
@@ -395,9 +478,8 @@ export type ServiceVolume = {
  */
 export async function listVolumes(): Promise<ServiceVolume[]> {
   try {
-    // The listVolumes response structure is slightly different
     const volumeResponse = await defaultDocker.listVolumes();
-    const volumes = volumeResponse.Volumes || []; // Access the Volumes array
+    const volumes = volumeResponse.Volumes || [];
 
     return volumes.map(
       (vol): ServiceVolume => ({
@@ -409,8 +491,10 @@ export async function listVolumes(): Promise<ServiceVolume[]> {
       })
     );
   } catch (error: any) {
-    console.error("Error listing volumes:", error);
-    throw new Error("Failed to list Docker volumes.");
+    console.error("Docker Service: Error listing volumes:", error);
+    throw new Error(
+      `Failed to list Docker volumes using host "${initialSettings.dockerHost}".`
+    );
   }
 }
 

@@ -14,42 +14,22 @@
   import * as Switch from "$lib/components/ui/switch/index.js";
   import { enhance } from "$app/forms";
 
-  // Use $props() for component inputs
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  // Derive initial settings from props, reacting if form action updates props
-  let initialSettings = $derived(form?.settings ?? data.settings);
-
-  // Use $state for mutable component state bound to inputs
-  let dockerHost = $state("");
-  let autoRefresh = $state(false);
-  let refreshInterval = $state(30);
-  let darkMode = $state(false);
+  // Initialize state variables *only* from the initial data load
+  let dockerHost = $state(data.settings.dockerHost);
+  let autoRefresh = $state(data.settings.autoRefresh);
+  let refreshInterval = $state(data.settings.refreshInterval);
+  let darkMode = $state(data.settings.darkMode);
 
   let isSubmitting = $state(false);
   let testStatus: "idle" | "testing" | "success" | "error" = $state("idle");
   let testMessage: string | null = $state(null);
 
-  // Effect to update local state when initialSettings (derived from props) changes
+  // Keep the effect for resetting test status when dockerHost input changes
   $effect(() => {
-    // Avoid resetting if the values are already the same (prevents potential loops)
-    if (dockerHost !== initialSettings.dockerHost)
-      dockerHost = initialSettings.dockerHost;
-    if (autoRefresh !== initialSettings.autoRefresh)
-      autoRefresh = initialSettings.autoRefresh;
-    if (refreshInterval !== initialSettings.refreshInterval)
-      refreshInterval = initialSettings.refreshInterval;
-    if (darkMode !== initialSettings.darkMode)
-      darkMode = initialSettings.darkMode;
-  });
-
-  // Effect to reset test status when dockerHost input changes
-  $effect(() => {
-    // This effect now correctly tracks the $state variable 'dockerHost'
-    // Need to access dockerHost to create the dependency
-    const currentHost = dockerHost;
+    const currentHost = dockerHost; // Create dependency on dockerHost
     if (currentHost !== undefined) {
-      // Check if initialized
       testStatus = "idle";
       testMessage = null;
     }
@@ -106,12 +86,27 @@
   method="POST"
   use:enhance={() => {
     isSubmitting = true;
-    testStatus = "idle"; // Reset test status on save attempt
+    testStatus = "idle";
     testMessage = null;
-    return async ({ update }) => {
-      await update({ reset: false }); // Use reset: false to prevent SvelteKit from resetting form state automatically
+    return async ({ result, update }) => {
       isSubmitting = false;
-      // The $effect will handle updating local state from props automatically
+
+      // IMPORTANT: Update local state *before* calling update()
+      // This makes the UI reflect the change instantly
+      if (result.type === "success" && result.data?.settings) {
+        // Define the type for settings explicitly if needed, or infer
+        const newSettings = result.data.settings as typeof data.settings;
+        dockerHost = newSettings.dockerHost;
+        autoRefresh = newSettings.autoRefresh;
+        refreshInterval = newSettings.refreshInterval;
+        darkMode = newSettings.darkMode;
+      }
+
+      // Now call update to refresh the 'form' prop (for success/error messages)
+      // and potentially other page data if the load function depends on settings
+      await update({ reset: false });
+
+      // No need to update state again here, it was done before update()
     };
   }}
 >
