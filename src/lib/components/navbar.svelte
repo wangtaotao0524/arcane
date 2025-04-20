@@ -95,13 +95,20 @@
       isCollapsed ? "justify-center px-2" : "gap-3 px-5 p-4"
     )}
   >
-    <div class="bg-primary/10 p-1.5 rounded-md flex-shrink-0">
-      <span class="text-xl">🐳</span>
+    <div class="flex-shrink-0">
+      <img
+        src="/img/nautix_logo_new.png"
+        alt="Nautix"
+        class="h-15 w-15"
+        width="30"
+        height="30"
+      />
     </div>
     {#if !isCollapsed}
-      <div>
-        <span class="text-lg font-bold tracking-tight">Arcane</span>
-        <span class="text-xs text-muted-foreground ml-1.5">v0.1.0</span>
+      <div class="flex flex-col justify-center">
+        <span class="text-lg font-bold tracking-tight leading-none">Arcane</span
+        >
+        <span class="text-xs text-muted-foreground">v0.1.0</span>
       </div>
     {/if}
   </div>
