@@ -15,23 +15,76 @@
   import * as Card from "$lib/components/ui/card/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { invalidateAll } from "$app/navigation";
+  import { toast } from "svelte-sonner";
+  import PullImageDialog from "./pull-image-dialog.svelte";
 
   let { data }: { data: PageData } = $props();
   const { images, error } = data;
 
   let isRefreshing = $state(false);
+  let isPullDialogOpen = $state(false);
+  let isPullingImage = $state(false);
+  let pullProgress = $state(0);
 
-  // Calculate total images
   const totalImages = $derived(images?.length || 0);
 
-  // Calculate total size of all images
   const totalSize = $derived(
     images?.reduce((acc, img) => acc + (img.size || 0), 0) || 0
   );
 
-  function pullImage() {
-    // TODO: Implement pull image modal/logic
-    alert("Implement pull image functionality");
+  async function handlePullImageSubmit(event: {
+    imageRef: string;
+    tag?: string;
+    platform?: string;
+  }) {
+    const { imageRef, tag = "latest", platform } = event;
+
+    isPullingImage = true;
+    let currentPullProgress = $state(0);
+
+    try {
+      const encodedImageRef = encodeURIComponent(imageRef);
+      const eventSource = new EventSource(
+        `/api/images/pull-stream/${encodedImageRef}?tag=${tag}${platform ? `&platform=${platform}` : ""}`
+      );
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.error) {
+          eventSource.close();
+          toast.error(`Pull failed: ${data.error}`);
+          isPullingImage = false;
+          return;
+        }
+
+        if (data.progress !== undefined) {
+          console.log("Progress update:", data.progress);
+          currentPullProgress = data.progress;
+          pullProgress = data.progress;
+        }
+
+        if (data.complete) {
+          eventSource.close();
+          const fullImageRef = `${imageRef}:${tag}`;
+          toast.success(`Image "${fullImageRef}" pulled successfully.`);
+          isPullDialogOpen = false;
+
+          window.location.href = `${window.location.pathname}?t=${Date.now()}`;
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("EventSource error:", err);
+        eventSource.close();
+        toast.error("Connection to server lost while pulling image");
+        isPullingImage = false;
+      };
+    } catch (err: any) {
+      console.error("Failed to pull image:", err);
+      toast.error(`Failed to pull image: ${err.message}`);
+      isPullingImage = false;
+    }
   }
 
   async function refreshData() {
@@ -42,7 +95,10 @@
     }, 500);
   }
 
-  // Helper to format bytes
+  function openPullDialog() {
+    isPullDialogOpen = true;
+  }
+
   function formatBytes(bytes: number | undefined | null, decimals = 1): string {
     if (!bytes || !+bytes) return "0 Bytes";
     const k = 1024;
@@ -72,7 +128,7 @@
         <RefreshCw class={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
         Refresh
       </Button>
-      <Button variant="outline" size="sm" onclick={pullImage}>
+      <Button variant="outline" size="sm" onclick={openPullDialog}>
         <Download class="w-4 h-4" />
         Pull Image
       </Button>
@@ -159,11 +215,18 @@
           <RefreshCw class="h-4 w-4" />
           Refresh
         </Button>
-        <Button variant="outline" size="sm" onclick={pullImage}>
+        <Button variant="outline" size="sm" onclick={openPullDialog}>
           <Download class="h-4 w-4" />
           Pull Image
         </Button>
       </div>
     </div>
   {/if}
+
+  <PullImageDialog
+    bind:open={isPullDialogOpen}
+    isPulling={isPullingImage}
+    {pullProgress}
+    onSubmit={handlePullImageSubmit}
+  />
 </div>

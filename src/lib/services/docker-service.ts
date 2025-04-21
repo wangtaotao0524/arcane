@@ -429,6 +429,35 @@ export async function listImages(): Promise<ServiceImage[]> {
   }
 }
 
+/**
+ * Removes a Docker image.
+ * @param imageId - The ID or name of the image to remove.
+ * @param force - Whether to force removal (default: false).
+ */
+export async function removeImage(
+  imageId: string,
+  force: boolean = false
+): Promise<void> {
+  try {
+    const docker = getDockerClient();
+    const image = docker.getImage(imageId);
+    await image.remove({ force });
+    console.log(`Docker Service: Image "${imageId}" removed successfully.`);
+  } catch (error: any) {
+    console.error(`Docker Service: Error removing image "${imageId}":`, error);
+    if (error.statusCode === 409) {
+      throw new Error(
+        `Image "${imageId}" is being used by a container. Use force option to remove.`
+      );
+    }
+    throw new Error(
+      `Failed to remove image "${imageId}" using host "${dockerHost}". ${
+        error.message || error.reason || ""
+      }`
+    );
+  }
+}
+
 // Define and export the type returned by listNetworks
 export type ServiceNetwork = {
   id: string;
@@ -564,6 +593,56 @@ export async function removeVolume(
     }
     throw new Error(
       `Failed to remove volume "${name}" using host "${dockerHost}". ${
+        error.message || error.reason || ""
+      }`
+    );
+  }
+}
+
+/**
+ * Pulls a Docker image from a registry.
+ * @param imageRef - The image reference to pull (e.g., 'nginx:latest')
+ * @param platform - Optional platform specification (e.g., 'linux/amd64')
+ */
+export async function pullImage(
+  imageRef: string,
+  platform?: string
+): Promise<void> {
+  try {
+    const docker = getDockerClient();
+
+    const pullOptions: any = {};
+    if (platform) {
+      pullOptions.platform = platform;
+    }
+
+    console.log(`Docker Service: Pulling image "${imageRef}"...`);
+
+    // Pull the image - this returns a stream
+    const stream = await docker.pull(imageRef, pullOptions);
+
+    // Wait for the pull to complete by consuming the stream
+    await new Promise((resolve, reject) => {
+      docker.modem.followProgress(stream, (err: any, output: any) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(output);
+        }
+      });
+    });
+
+    console.log(`Docker Service: Image "${imageRef}" pulled successfully.`);
+  } catch (error: any) {
+    console.error(`Docker Service: Error pulling image "${imageRef}":`, error);
+
+    // Handle specific error cases
+    if (error.statusCode === 404) {
+      throw new Error(`Image "${imageRef}" not found in registry.`);
+    }
+
+    throw new Error(
+      `Failed to pull image "${imageRef}". ${
         error.message || error.reason || ""
       }`
     );
