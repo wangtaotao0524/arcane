@@ -66,17 +66,14 @@
       <Button
         variant="outline"
         size="sm"
-        class="h-9"
         onclick={refreshData}
         disabled={isRefreshing}
       >
-        <RefreshCw
-          class={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-        />
+        <RefreshCw class={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
         Refresh
       </Button>
-      <Button variant="default" onclick={pullImage}>
-        <Download class="w-4 h-4 mr-2" />
+      <Button variant="outline" size="sm" onclick={pullImage}>
+        <Download class="w-4 h-4" />
         Pull Image
       </Button>
     </div>
@@ -158,12 +155,12 @@
         CLI
       </p>
       <div class="flex gap-3 mt-4">
-        <Button variant="outline" onclick={refreshData}>
-          <RefreshCw class="h-4 w-4 mr-2" />
+        <Button variant="outline" size="sm" onclick={refreshData}>
+          <RefreshCw class="h-4 w-4" />
           Refresh
         </Button>
-        <Button variant="default" onclick={pullImage}>
-          <Download class="h-4 w-4 mr-2" />
+        <Button variant="outline" size="sm" onclick={pullImage}>
+          <Download class="h-4 w-4" />
           Pull Image
         </Button>
       </div>

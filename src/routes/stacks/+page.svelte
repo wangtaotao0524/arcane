@@ -63,21 +63,18 @@
       <Button
         variant="outline"
         size="sm"
-        class="h-9"
         onclick={refreshData}
         disabled={isRefreshing}
       >
-        <RefreshCw
-          class={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-        />
+        <RefreshCw class={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
         Refresh
       </Button>
-      <Button variant="outline" size="sm" class="h-9" onclick={importStack}>
-        <Upload class="w-4 h-4 mr-2" />
+      <Button variant="outline" size="sm" onclick={importStack}>
+        <Upload class="w-4 h-4" />
         Import
       </Button>
-      <Button variant="default" onclick={createStack}>
-        <Plus class="w-4 h-4 mr-2" />
+      <Button variant="outline" size="sm" onclick={createStack}>
+        <Plus class="w-4 h-4" />
         Create Stack
       </Button>
     </div>
@@ -169,12 +166,12 @@
             an existing compose file
           </p>
           <div class="flex gap-3 mt-4">
-            <Button variant="outline" onclick={refreshData}>
-              <RefreshCw class="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onclick={refreshData}>
+              <RefreshCw class="h-4 w-4" />
               Refresh
             </Button>
-            <Button variant="default" onclick={createStack}>
-              <Plus class="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onclick={createStack}>
+              <Plus class="h-4 w-4" />
               Create Stack
             </Button>
           </div>
