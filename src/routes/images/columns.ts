@@ -2,20 +2,12 @@ import type { ServiceImage } from "$lib/services/docker-service";
 import type { ColumnDef } from "@tanstack/table-core";
 import { renderComponent } from "$lib/components/ui/data-table/index.js";
 import ImageActions from "./ImageActions.svelte";
-
-function formatBytes(bytes: number, decimals = 2): string {
-  if (!+bytes) return "0 Bytes";
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-}
+import { formatBytes } from "$lib/utils";
 
 export const columns: ColumnDef<ServiceImage>[] = [
   {
     accessorKey: "repo",
-    header: "Repository",
+    header: "Name",
     cell: ({ row }) => {
       return row.original.repo;
     },
@@ -24,7 +16,6 @@ export const columns: ColumnDef<ServiceImage>[] = [
     accessorKey: "tag",
     header: "Tag",
     cell: ({ row }) => {
-      // Return the plain tag string
       return row.original.tag;
     },
   },
@@ -48,7 +39,7 @@ export const columns: ColumnDef<ServiceImage>[] = [
   },
   {
     id: "actions",
-    header: "Actions",
+    header: "",
     cell: ({ row }) => {
       return renderComponent(ImageActions, {
         id: row.original.id,

@@ -1,25 +1,19 @@
 <script lang="ts">
   import type { PageData } from "./$types";
-  import DataTable from "$lib/components/data-table.svelte";
+  import UniversalTable from "$lib/components/universal-table.svelte";
   import { columns } from "./columns";
   import { Button } from "$lib/components/ui/button/index.js";
-  import {
-    Download,
-    AlertCircle,
-    RefreshCw,
-    Filter,
-    ArrowUpDown,
-    HardDrive,
-  } from "@lucide/svelte";
+  import { Download, AlertCircle, RefreshCw, HardDrive } from "@lucide/svelte";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import { invalidateAll } from "$app/navigation";
   import { toast } from "svelte-sonner";
   import PullImageDialog from "./pull-image-dialog.svelte";
+  import { formatBytes } from "$lib/utils";
 
   let { data }: { data: PageData } = $props();
   const { images, error } = data;
+  let selectedIds = $state([]);
 
   let isRefreshing = $state(false);
   let isPullDialogOpen = $state(false);
@@ -98,15 +92,6 @@
   function openPullDialog() {
     isPullDialogOpen = true;
   }
-
-  function formatBytes(bytes: number | undefined | null, decimals = 1): string {
-    if (!bytes || !+bytes) return "0 Bytes";
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-  }
 </script>
 
 <div class="space-y-6">
@@ -119,19 +104,7 @@
       </p>
     </div>
     <div class="flex gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={refreshData}
-        disabled={isRefreshing}
-      >
-        <RefreshCw class={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-        Refresh
-      </Button>
-      <Button variant="outline" size="sm" onclick={openPullDialog}>
-        <Download class="w-4 h-4" />
-        Pull Image
-      </Button>
+      <!-- put buttons here -->
     </div>
   </div>
 
@@ -176,28 +149,32 @@
       <Card.Header class="px-6">
         <div class="flex items-center justify-between">
           <div>
-            <Card.Title>
-              Image List
-              <Badge variant="secondary" class="ml-2">{totalImages}</Badge>
-            </Card.Title>
+            <Card.Title>Image List</Card.Title>
             <Card.Description
               >View and manage your Docker images</Card.Description
             >
           </div>
           <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" class="hidden sm:flex">
-              <Filter class="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-            <Button variant="outline" size="sm" class="hidden sm:flex">
-              <ArrowUpDown class="h-4 w-4 mr-2" />
-              Sort
+            <Button variant="outline" size="sm" onclick={openPullDialog}>
+              <Download class="w-4 h-4" />
+              Pull Image
             </Button>
           </div>
         </div>
       </Card.Header>
       <Card.Content>
-        <DataTable data={images} {columns} />
+        <UniversalTable
+          data={images}
+          {columns}
+          display={{
+            filterPlaceholder: "Search images...",
+            noResultsMessage: "No images found",
+          }}
+          sort={{
+            defaultSort: { id: "repo", desc: false },
+          }}
+          bind:selectedIds
+        />
       </Card.Content>
     </Card.Root>
   {:else if !error}

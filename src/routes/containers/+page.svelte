@@ -1,16 +1,16 @@
 <script lang="ts">
-  import DataTable from "$lib/components/data-table.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
-  import { columns } from "./columns.js";
-  import { Plus, Box, RefreshCw, Filter, ArrowUpDown } from "@lucide/svelte";
-  import { Badge } from "$lib/components/ui/badge/index.js";
+  import { columns } from "./columns";
+  import { Plus, Box, RefreshCw } from "@lucide/svelte";
+  import UniversalTable from "$lib/components/universal-table.svelte";
   import { invalidateAll } from "$app/navigation";
 
   let { data } = $props();
   const { containers } = data;
 
   let isRefreshing = $state(false);
+  let selectedIds = $state([]);
 
   // Calculate running containers
   const runningContainers = $derived(
@@ -44,19 +44,7 @@
       </p>
     </div>
     <div class="flex gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={refreshData}
-        disabled={isRefreshing}
-      >
-        <RefreshCw class={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-        Refresh
-      </Button>
-      <Button variant="outline" size="sm">
-        <Plus class="w-4 h-4" />
-        Create Container
-      </Button>
+      <!-- put buttons here -->
     </div>
   </div>
 
@@ -104,28 +92,29 @@
     <Card.Header class="px-6">
       <div class="flex items-center justify-between">
         <div>
-          <Card.Title>
-            Container List
-            <Badge variant="secondary" class="ml-2">{totalContainers}</Badge>
-          </Card.Title>
+          <Card.Title>Container List</Card.Title>
           <Card.Description
             >View and manage your Docker containers</Card.Description
           >
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" class="hidden sm:flex">
-            <Filter class="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button variant="outline" size="sm" class="hidden sm:flex">
-            <ArrowUpDown class="h-4 w-4 mr-2" />
-            Sort
+          <Button variant="outline" size="sm">
+            <Plus class="w-4 h-4" />
+            Create Container
           </Button>
         </div>
       </div>
     </Card.Header>
     <Card.Content>
-      <DataTable data={containers} {columns} />
+      <UniversalTable
+        data={containers}
+        {columns}
+        display={{
+          filterPlaceholder: "Search containers...",
+          noResultsMessage: "No containers found",
+        }}
+        bind:selectedIds
+      />
     </Card.Content>
   </Card.Root>
 

@@ -12,17 +12,17 @@
     Database,
     Loader2,
   } from "@lucide/svelte";
-  import DataTable from "$lib/components/data-table.svelte";
+  import UniversalTable from "$lib/components/universal-table.svelte";
   import { columns } from "./columns";
   import type { PageData } from "./$types";
   import * as Alert from "$lib/components/ui/alert/index.js";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import { invalidateAll } from "$app/navigation";
   import CreateVolumeDialog from "./create-volume-dialog.svelte";
 
   let { data }: { data: PageData } = $props();
   let { error } = data;
   let volumes = $state(data.volumes);
+  let selectedIds = $state([]);
 
   let isRefreshing = $state(false);
   let isCreateDialogOpen = $state(false);
@@ -102,23 +102,7 @@
       </p>
     </div>
     <div class="flex gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={refreshData}
-        disabled={isRefreshing || isCreatingVolume}
-      >
-        {#if isRefreshing}
-          <Loader2 class="h-4 w-4 animate-spin" />
-        {:else}
-          <RefreshCw class="h-4 w-4" />
-        {/if}
-        Refresh
-      </Button>
-      <Button variant="outline" size="sm" onclick={openCreateDialog}>
-        <Plus class="w-4 h-4" />
-        Create Volume
-      </Button>
+      <!-- put buttons here -->
     </div>
   </div>
 
@@ -160,27 +144,28 @@
     <Card.Header class="px-6">
       <div class="flex items-center justify-between">
         <div>
-          <Card.Title>
-            Volume List
-            <Badge variant="secondary" class="ml-2">{totalVolumes}</Badge>
-          </Card.Title>
+          <Card.Title>Volume List</Card.Title>
           <Card.Description>Manage persistent data storage</Card.Description>
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" class="hidden sm:flex">
-            <Filter class="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button variant="outline" size="sm" class="hidden sm:flex">
-            <ArrowUpDown class="h-4 w-4 mr-2" />
-            Sort
+          <Button variant="outline" size="sm" onclick={openCreateDialog}>
+            <Plus class="w-4 h-4" />
+            Create Volume
           </Button>
         </div>
       </div>
     </Card.Header>
     <Card.Content>
       {#if volumes && volumes.length > 0}
-        <DataTable data={volumes} {columns} />
+        <UniversalTable
+          data={volumes}
+          {columns}
+          display={{
+            filterPlaceholder: "Search volumes...",
+            noResultsMessage: "No volumes found",
+          }}
+          bind:selectedIds
+        />
       {:else if !error}
         <div
           class="flex flex-col items-center justify-center py-12 px-6 text-center"
@@ -191,16 +176,6 @@
             Create a new volume using the "Create Volume" button above or use
             the Docker CLI
           </p>
-          <div class="flex gap-3 mt-4">
-            <Button variant="outline" size="default" onclick={refreshData}>
-              <RefreshCw class="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button variant="default" size="default" onclick={openCreateDialog}>
-              <Plus class="h-4 w-4 mr-2" />
-              Create Volume
-            </Button>
-          </div>
         </div>
       {/if}
     </Card.Content>
