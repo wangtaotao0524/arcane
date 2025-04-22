@@ -360,14 +360,24 @@
               <div class="space-y-2">
                 {#each Object.entries(container.networkSettings.Ports) as [containerPort, hostBindings], i}
                   <div
-                    class="flex items-center justify-between rounded-md bg-muted/40 p-2 px-3"
+                    class="flex flex-col sm:flex-row sm:items-center justify-between rounded-md bg-muted/40 p-2 px-3 gap-1"
                   >
-                    <div class="font-mono text-sm">{containerPort}</div>
-                    <div class="flex items-center gap-2">
+                    <div
+                      class="font-mono text-sm truncate"
+                      title={containerPort}
+                    >
+                      {containerPort}
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
                       <span class="text-xs text-muted-foreground">→</span>
                       {#if hostBindings && hostBindings.length > 0}
                         {#each hostBindings as binding}
-                          <Badge variant="outline" class="font-mono">
+                          <Badge
+                            variant="outline"
+                            class="font-mono truncate max-w-[150px]"
+                            title="{binding.HostIp ||
+                              '0.0.0.0'}:{binding.HostPort}"
+                          >
                             {binding.HostIp || "0.0.0.0"}:{binding.HostPort}
                           </Badge>
                         {/each}
