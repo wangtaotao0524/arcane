@@ -473,9 +473,10 @@
 
         <Card.Content>
           <div
-            class="bg-muted/50 text-foreground p-4 rounded-md font-mono text-xs h-80 overflow-y-auto whitespace-pre-wrap border"
+            class="bg-muted/50 text-foreground p-4 rounded-md font-mono text-xs h-80 overflow-auto whitespace-pre-wrap border"
             bind:this={logsContainer}
             id="logs-container"
+            style="word-break: break-all;"
           >
             {#if logs}
               {@html formattedLogs}
