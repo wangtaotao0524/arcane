@@ -8,8 +8,7 @@ export default class AppConfigService {
   async getVersionInformation(): Promise<AppVersionInformation> {
     try {
       // GitHub API URL for releases - adjust with your repository details
-      const apiUrl =
-        "https://api.github.com/repos/yourusername/arcane/releases/latest";
+      const apiUrl = "https://api.github.com/repos/ofkm/arcane/releases/latest";
 
       const response = await fetch(apiUrl);
       if (!response.ok) {
