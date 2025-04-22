@@ -398,17 +398,21 @@
           </Card.Header>
           <Card.Content class="max-h-[180px] overflow-y-auto">
             {#if container.config?.Env && container.config.Env.length > 0}
-              <div class="space-y-1">
+              <div class="space-y-2">
                 {#each container.config.Env as env}
-                  <div class="text-xs flex">
+                  <div class="text-xs flex overflow-hidden">
                     {#if env.includes("=")}
                       {@const [key, ...valueParts] = env.split("=")}
                       {@const value = valueParts.join("=")}
-                      <span
-                        class="font-semibold mr-2 min-w-[120px] max-w-[180px] truncate"
-                        title={key}>{key}:</span
-                      >
-                      <span class="truncate" title={value}>{value}</span>
+                      <div class="flex w-full">
+                        <span
+                          class="font-semibold mr-2 min-w-[120px] max-w-[180px] truncate flex-shrink-0"
+                          title={key}>{key}:</span
+                        >
+                        <span class="truncate flex-1" title={value}
+                          >{value}</span
+                        >
+                      </div>
                     {:else}
                       <span>{env}</span>
                     {/if}
