@@ -18,13 +18,13 @@
   } from "@lucide/svelte";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { enhance } from "$app/forms";
-  import { invalidateAll } from "$app/navigation";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { Textarea } from "$lib/components/ui/textarea/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import StatusBadge from "$lib/components/docker/StatusBadge.svelte";
+  import YamlEditor from "$lib/components/yaml-editor.svelte";
+  import { onMount } from "svelte";
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let { stack } = $derived(data);
@@ -38,11 +38,17 @@
 
   let name = $state("");
   let composeContent = $state("");
+  let editorReady = $state(false);
 
   $effect(() => {
     if (stack) {
-      name = stack.name;
-      composeContent = stack.composeContent ?? "";
+      name = stack.name || "";
+      composeContent = stack.composeContent || "";
+
+      console.log("Stack data loaded:", {
+        name,
+        composeLength: composeContent.length,
+      });
     }
   });
 
@@ -52,6 +58,12 @@
     restarting = false;
     removing = false;
     saving = false;
+  });
+
+  onMount(() => {
+    setTimeout(() => {
+      editorReady = true;
+    }, 100);
   });
 </script>
 
@@ -297,16 +309,23 @@
 
             <div class="grid w-full items-center gap-1.5">
               <Label for="compose-editor">Docker Compose File</Label>
-              <Textarea
-                id="compose-editor"
+              <input
+                type="hidden"
                 name="composeContent"
-                bind:value={composeContent}
-                rows={20}
-                class="font-mono text-sm"
+                value={composeContent}
               />
+              {#key editorReady || composeContent}
+                <YamlEditor
+                  value={composeContent}
+                  on:change={(e) => (composeContent = e.detail.value)}
+                  height="400px"
+                  placeholder="Enter your docker-compose.yml content"
+                  forceDarkTheme={true}
+                />
+              {/key}
               <p class="text-xs text-muted-foreground">
-                Edit your docker-compose.yml file directly. Be careful with
-                syntax.
+                Edit your docker-compose.yml file directly. Syntax errors will
+                be highlighted.
               </p>
             </div>
           </div>
