@@ -1,61 +1,61 @@
-# Stage 1: Build the application
+# Stage 1: Build dependencies
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+# Install dependencies first (better layer caching)
+RUN npm ci
+
+# Stage 2: Build the application
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN mkdir -p /app/data && chown node:node /app/data
-COPY package*.json ./
-RUN npm install
+# Copy dependencies from previous stage
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm ci
 # When building, set NODE_ENV to "build" to prevent connection attempts
 RUN NODE_ENV=build npm run build
 
-# Stage 2: Production image
-FROM node:22-alpine
+# Stage 3: Production image
+FROM node:22-alpine AS runner
 
-# Delete default node user
-RUN deluser --remove-home node
-
-# Install necessary packages
-RUN apk add --no-cache su-exec curl shadow
+# Delete default node user first (combine with package installation to reduce layers)
+RUN deluser --remove-home node && \
+    apk add --no-cache su-exec curl shadow
 
 WORKDIR /app
 
-# Make sure data directory exists and is writable
-RUN mkdir -p /app/data && chmod 755 /app/data
+# Set up environment variables early for better caching
+ENV DOCKER_GID=998 \
+    PUID=1000 \
+    PGID=1000
 
-# Copy default settings if starting fresh
-COPY app-settings.json /app/data/app-settings.json.default
-
-# Copy entrypoint script
-COPY scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Copy application files
-COPY --from=builder /app/build ./build
-COPY package*.json ./
-RUN npm install --omit=dev
-COPY --from=builder /app/static ./static
-
-# Create docker group with same GID as the host (typically 998 or 999)
-# We'll use 998 which is common, but this can be overridden at runtime
-ENV DOCKER_GID=998
-RUN addgroup -g ${DOCKER_GID} docker
-
-# Create arcane user/group
-ENV PUID=1000
-ENV PGID=1000
+# Create necessary groups and users
 RUN addgroup -g ${PGID} arcane && \
     adduser -D -u ${PUID} -G arcane arcane && \
-    # Add arcane user to docker group to allow socket access
-    adduser arcane docker && \
-    # Set ownership of app files
+    addgroup -g ${DOCKER_GID} docker && \
+    adduser arcane docker
+
+# Set up directories and permissions
+RUN mkdir -p /app/data && chmod 755 /app/data
+
+# Copy only necessary files from builder
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/static ./static
+COPY --chown=arcane:arcane app-settings.json /app/data/app-settings.json.default
+
+# Copy entrypoint script
+COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Install only production dependencies
+COPY package*.json ./
+RUN npm install --omit=dev && \
+    npm cache clean --force && \
     chown -R arcane:arcane /app
 
+# Configure container
 EXPOSE 3000
+VOLUME ["/app/data"]
 LABEL org.opencontainers.image.authors="kmendell"
 
-# Add volume for persistent data
-VOLUME ["/app/data"]
-
+# Set the entrypoint and command
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["node", "build"]
