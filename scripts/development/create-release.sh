@@ -70,9 +70,9 @@ fi
 echo $NEW_VERSION >.version
 git add .version
 
-# Update version in frontend/package.json
+# Update version in package.json
 jq --arg new_version "$NEW_VERSION" '.version = $new_version' package.json >package_tmp.json && mv package_tmp.json package.json
-git add frontend/package.json
+git add package.json
 
 # Check if conventional-changelog is installed, if not install it
 if ! command -v conventional-changelog &>/dev/null; then
