@@ -267,7 +267,7 @@
           >
         </Card.Header>
         <Card.Content>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <!-- Image -->
             <div class="flex items-start gap-3">
               <div
@@ -275,7 +275,7 @@
               >
                 <HardDrive class="h-5 w-5 text-blue-500" />
               </div>
-              <div>
+              <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-muted-foreground">Image</p>
                 <p class="text-base font-semibold mt-1 break-all">
                   <span
@@ -295,9 +295,12 @@
               >
                 <Clock class="h-5 w-5 text-green-500" />
               </div>
-              <div>
+              <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-muted-foreground">Created</p>
-                <p class="text-base font-semibold mt-1">
+                <p
+                  class="text-base font-semibold mt-1 truncate"
+                  title={formatDate(container.created)}
+                >
                   {formatDate(container.created)}
                 </p>
               </div>
@@ -310,24 +313,27 @@
               >
                 <Network class="h-5 w-5 text-purple-500" />
               </div>
-              <div>
+              <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-muted-foreground">
                   IP Address
                 </p>
-                <p class="text-base font-semibold mt-1">
+                <p
+                  class="text-base font-semibold mt-1 truncate"
+                  title={container.networkSettings?.IPAddress || "N/A"}
+                >
                   {container.networkSettings?.IPAddress || "N/A"}
                 </p>
               </div>
             </div>
 
-            <!-- State -->
+            <!-- Command -->
             <div class="flex items-start gap-3">
               <div
                 class="bg-amber-500/10 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0"
               >
                 <Terminal class="h-5 w-5 text-amber-500" />
               </div>
-              <div>
+              <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-muted-foreground">Command</p>
                 <p
                   class="text-base font-semibold mt-1 truncate"
