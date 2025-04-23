@@ -31,14 +31,6 @@ export const actions: Actions = {
       const pollingIntervalStr = formData.get("pollingInterval") as string;
       const stacksDirectory = (formData.get("stacksDirectory") as string) || "";
 
-      // Add logging to debug form values
-      console.log("Form data received:", {
-        dockerHost,
-        autoUpdate: formData.get("autoUpdate"),
-        pollingEnabled: formData.get("pollingEnabled"),
-        pollingInterval: pollingIntervalStr,
-      });
-
       if (!dockerHost) {
         return fail(400, {
           error: "Docker host cannot be empty.",

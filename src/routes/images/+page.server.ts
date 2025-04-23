@@ -1,17 +1,34 @@
 import type { PageServerLoad } from "./$types";
-import { listImages } from "$lib/services/docker-service";
+import { listImages, isImageInUse } from "$lib/services/docker-service";
 import type { ServiceImage } from "$lib/services/docker-service";
 
+// Enhanced type with usage info
+type EnhancedImageInfo = ServiceImage & {
+  inUse: boolean;
+};
+
 type ImageData = {
-  images: ServiceImage[];
+  images: EnhancedImageInfo[];
   error?: string;
 };
 
 export const load: PageServerLoad = async (): Promise<ImageData> => {
   try {
     const images = await listImages();
+
+    // Enhance images with usage information
+    const enhancedImages = await Promise.all(
+      images.map(async (image): Promise<EnhancedImageInfo> => {
+        const inUse = await isImageInUse(image.id);
+        return {
+          ...image,
+          inUse,
+        };
+      })
+    );
+
     return {
-      images,
+      images: enhancedImages,
     };
   } catch (err: any) {
     console.error("Failed to load images:", err);

@@ -115,6 +115,11 @@
         color: "rgb(21, 128, 61)",
         border: "rgba(34, 197, 94, 0.15)",
       },
+      "In Use": {
+        bg: "rgba(34, 197, 94, 0.15)",
+        color: "rgb(21, 128, 61)",
+        border: "rgba(34, 197, 94, 0.15)",
+      },
       "partially running": {
         bg: "rgba(245, 158, 11, 0.15)",
         color: "rgb(180, 83, 9)",
@@ -126,6 +131,11 @@
         border: "rgba(156, 163, 175, 0.15)",
       },
       error: {
+        bg: "rgba(239, 68, 68, 0.15)",
+        color: "rgb(185, 28, 28)",
+        border: "rgba(239, 68, 68, 0.15)",
+      },
+      Unused: {
         bg: "rgba(239, 68, 68, 0.15)",
         color: "rgb(185, 28, 28)",
         border: "rgba(239, 68, 68, 0.15)",

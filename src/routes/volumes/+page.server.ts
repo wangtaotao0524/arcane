@@ -1,17 +1,34 @@
 import type { PageServerLoad } from "./$types";
-import { listVolumes } from "$lib/services/docker-service";
+import { listVolumes, isVolumeInUse } from "$lib/services/docker-service";
 import type { ServiceVolume } from "$lib/services/docker-service";
 
+// Enhanced type with usage info
+type EnhancedVolumeInfo = ServiceVolume & {
+  inUse: boolean;
+};
+
 type VolumePageData = {
-  volumes: ServiceVolume[];
+  volumes: EnhancedVolumeInfo[];
   error?: string;
 };
 
 export const load: PageServerLoad = async (): Promise<VolumePageData> => {
   try {
     const volumes = await listVolumes();
+
+    // Enhance volumes with usage information
+    const enhancedVolumes = await Promise.all(
+      volumes.map(async (volume): Promise<EnhancedVolumeInfo> => {
+        const inUse = await isVolumeInUse(volume.name);
+        return {
+          ...volume,
+          inUse,
+        };
+      })
+    );
+
     return {
-      volumes,
+      volumes: enhancedVolumes,
     };
   } catch (err: any) {
     console.error("Failed to load volumes:", err);

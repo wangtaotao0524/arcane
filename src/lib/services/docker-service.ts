@@ -458,6 +458,28 @@ export async function removeImage(
   }
 }
 
+/**
+ * Check if an image is used by any container
+ * @param imageId The image ID or reference to check
+ * @returns Boolean indicating if the image is in use
+ */
+export async function isImageInUse(imageId: string): Promise<boolean> {
+  try {
+    const docker = getDockerClient();
+    const containers = await docker.listContainers({ all: true });
+
+    // Look for containers using this image
+    return containers.some(
+      (container) =>
+        container.ImageID === imageId || container.Image === imageId
+    );
+  } catch (error) {
+    console.error(`Error checking if image ${imageId} is in use:`, error);
+    // Default to assuming it's in use for safety
+    return true;
+  }
+}
+
 // Define and export the type returned by listNetworks
 export type ServiceNetwork = {
   id: string;
@@ -527,6 +549,39 @@ export async function listVolumes(): Promise<ServiceVolume[]> {
     throw new Error(
       `Failed to list Docker volumes using host "${dockerHost}".`
     );
+  }
+}
+
+/**
+ * Check if a volume is in use by any container
+ * @param volumeName The name of the volume to check
+ * @returns Boolean indicating if the volume is in use
+ */
+export async function isVolumeInUse(volumeName: string): Promise<boolean> {
+  try {
+    const docker = getDockerClient();
+    const containers = await docker.listContainers({ all: true });
+
+    // Inspect each container to check its mounts
+    for (const containerInfo of containers) {
+      const container = docker.getContainer(containerInfo.Id);
+      const details = await container.inspect();
+
+      // Check if any mount points to our volume
+      const volumeMounts = details.Mounts.filter(
+        (mount) => mount.Type === "volume" && mount.Name === volumeName
+      );
+
+      if (volumeMounts.length > 0) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`Error checking if volume ${volumeName} is in use:`, error);
+    // Default to assuming it's in use for safety
+    return true;
   }
 }
 

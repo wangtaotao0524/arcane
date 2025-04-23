@@ -5,12 +5,22 @@
   import { Trash2, Download, Ellipsis, Loader2 } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
-  let { id, repoTag }: { id: string; repoTag?: string } = $props();
+  let {
+    id,
+    repoTag,
+    inUse = true,
+  }: { id: string; repoTag?: string; inUse: boolean } = $props();
+
   let isPulling = $state(false);
   let isDeleting = $state(false);
   let isConfirmDialogOpen = $state(false);
 
-  async function removeImage() {
+  async function handleDelete() {
+    if (inUse) {
+      toast.error("Cannot delete image that is in use by containers");
+      return;
+    }
+
     isDeleting = true;
     try {
       const response = await fetch(`/api/images/${encodeURIComponent(id)}`, {
@@ -134,7 +144,11 @@
       <Button variant="ghost" onclick={() => (isConfirmDialogOpen = false)}>
         Cancel
       </Button>
-      <Button variant="destructive" onclick={removeImage} disabled={isDeleting}>
+      <Button
+        variant="destructive"
+        onclick={handleDelete}
+        disabled={isDeleting}
+      >
         {#if isDeleting}
           <Loader2 class="h-4 w-4 animate-spin" />
           Deleting...

@@ -1,15 +1,20 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
-  import { Trash2, AlertCircle, Loader2 } from "@lucide/svelte";
+  import { Trash2, Loader2 } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
-  const { name } = $props<{ name: string }>();
+  const { name, inUse = true } = $props<{ name: string; inUse: boolean }>();
 
   let isConfirmDialogOpen = $state(false);
   let isDeleting = $state(false);
 
-  async function deleteVolume() {
+  async function handleDelete() {
+    if (inUse) {
+      toast.error("Cannot delete volume that is in use by containers");
+      return;
+    }
+
     isDeleting = true;
     try {
       const response = await fetch(`/api/volumes/${name}`, {
@@ -67,7 +72,7 @@
         </Button>
         <Button
           variant="destructive"
-          onclick={deleteVolume}
+          onclick={handleDelete}
           disabled={isDeleting}
         >
           {#if isDeleting}
