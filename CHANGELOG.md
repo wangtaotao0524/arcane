@@ -1,3 +1,10 @@
+## [0.2.0](https://github.com/ofkm/arcane/compare/v0.1.1...v0.2.0) (2025-04-23)
+
+### Features
+
+* add yaml editor component ([#44](https://github.com/ofkm/arcane/issues/44)) ([165404a](https://github.com/ofkm/arcane/commit/165404a184868f50440d0eebad7cdbaf3b2cb359))
+* implement full docker compose spec ([#45](https://github.com/ofkm/arcane/issues/45)) ([103707f](https://github.com/ofkm/arcane/commit/103707fe353b6deddeaba597dd3248f635d37dc3))
+* link stack containers to container details page ([#41](https://github.com/ofkm/arcane/issues/41)) ([2939909](https://github.com/ofkm/arcane/commit/29399095cd9757e3955b350fece0f37852b7d99b))
 ## [0.1.1](https://github.com/ofkm/arcane/compare/v0.1.0...v0.1.1) (2025-04-22)
 
 ### Bug Fixes
