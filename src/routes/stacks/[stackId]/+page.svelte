@@ -6,11 +6,6 @@
     ArrowLeft,
     Loader2,
     AlertCircle,
-    RefreshCw,
-    PlayCircle,
-    StopCircle,
-    RotateCw,
-    Trash2,
     Save,
     FileStack,
     Layers,
@@ -22,19 +17,20 @@
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
-  import StatusBadge from "$lib/components/docker/StatusBadge.svelte";
   import YamlEditor from "$lib/components/yaml-editor.svelte";
   import { onMount } from "svelte";
+  import ActionButtons from "$lib/components/action-buttons.svelte";
+  import CustomBadge from "$lib/components/badges/custom-badge.svelte";
+  import { capitalizeFirstLetter, getStatusColor } from "$lib/utils";
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let { stack } = $derived(data);
 
-  let starting = $state(false);
+  let depoloying = $state(false);
   let stopping = $state(false);
   let restarting = $state(false);
   let removing = $state(false);
   let saving = $state(false);
-  let isRefreshing = $state(false);
 
   let name = $state("");
   let composeContent = $state("");
@@ -53,7 +49,7 @@
   });
 
   $effect(() => {
-    starting = false;
+    depoloying = false;
     stopping = false;
     restarting = false;
     removing = false;
@@ -107,115 +103,42 @@
 
     {#if stack}
       <div class="flex gap-2 flex-wrap">
-        {#if stack.status === "running" || stack.status === "partially running"}
-          <form
-            method="POST"
-            action="?/stop"
-            use:enhance={() => {
-              stopping = true;
-              return async ({ update }) => {
-                await update({ reset: false });
-              };
-            }}
-          >
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={stopping}
-              size="sm"
-              class="font-medium h-9"
-            >
-              {#if stopping}
-                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-              {:else}
-                <StopCircle class="w-4 h-4 mr-2" />
-              {/if}
-              Stop
-            </Button>
-          </form>
-          <form
-            method="POST"
-            action="?/restart"
-            use:enhance={() => {
-              restarting = true;
-              return async ({ update }) => {
-                await update({ reset: false });
-              };
-            }}
-          >
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={restarting}
-              size="sm"
-              class="font-medium h-9"
-            >
-              {#if restarting}
-                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-              {:else}
-                <RotateCw class="w-4 h-4 mr-2" />
-              {/if}
-              Restart
-            </Button>
-          </form>
-        {:else}
-          <form
-            method="POST"
-            action="?/start"
-            use:enhance={() => {
-              starting = true;
-              return async ({ update }) => {
-                await update({ reset: false });
-              };
-            }}
-          >
-            <Button
-              type="submit"
-              variant="default"
-              disabled={starting}
-              size="sm"
-              class="font-medium h-9"
-            >
-              {#if starting}
-                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-              {:else}
-                <PlayCircle class="w-4 h-4 mr-2" />
-              {/if}
-              Start
-            </Button>
-          </form>
-        {/if}
         <form
           method="POST"
-          action="?/remove"
+          action={stack.status === "running" ||
+          stack.status === "partially running"
+            ? "?/stop"
+            : "?/start"}
           use:enhance={() => {
-            if (
-              !confirm(
-                `Are you sure you want to remove stack "${stack?.name}"?`
-              )
-            ) {
-              return;
-            }
-            removing = true;
+            const isStarting =
+              stack.status !== "running" &&
+              stack.status !== "partially running";
+            if (isStarting) depoloying = true;
+            else stopping = true;
             return async ({ update }) => {
               await update({ reset: false });
             };
           }}
         >
-          <Button
-            type="submit"
-            variant="destructive"
-            disabled={removing}
-            size="sm"
-            class="font-medium h-9"
-          >
-            {#if removing}
-              <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-            {:else}
-              <Trash2 class="w-4 h-4 mr-2" />
-            {/if}
-            Remove
-          </Button>
+          <input
+            type="hidden"
+            name="action"
+            value={stack.status === "running" ||
+            stack.status === "partially running"
+              ? "stop"
+              : "start"}
+          />
+          <ActionButtons
+            id={stack.id}
+            type="stack"
+            state={stack.status}
+            loading={{
+              start: depoloying,
+              stop: stopping,
+              restart: restarting,
+              remove: removing,
+            }}
+          />
         </form>
       </div>
     {/if}
@@ -381,7 +304,17 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <StatusBadge state={service.state?.Status || "unknown"} />
+                  <CustomBadge
+                    variant="status"
+                    text={capitalizeFirstLetter(
+                      service.state?.Status || "unknown"
+                    )}
+                    bgColor={getStatusColor(service.state?.Status || "unknown")
+                      .bg}
+                    textColor={getStatusColor(
+                      service.state?.Status || "unknown"
+                    ).text}
+                  />
                   {#if service.id}
                     <div class="text-xs text-blue-500 ml-2">
                       <span class="hidden sm:inline">View details</span>
