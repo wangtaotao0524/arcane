@@ -6,7 +6,6 @@ import type { SettingsData } from "$lib/types/settings";
 export const load: PageServerLoad = async ({ locals }) => {
   const settings = await getSettings();
 
-  // Generate a CSRF token
   const csrf = crypto.randomUUID();
 
   return {
@@ -17,48 +16,97 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   default: async ({ request }) => {
-    const formData = await request.formData();
-
-    const dockerHost = formData.get("dockerHost") as string;
-    const autoRefresh = formData.get("autoRefresh") === "on";
-    const refreshIntervalStr = formData.get("refreshInterval") as string;
-    const darkMode = formData.get("darkMode") === "on";
-    const stacksDirectory = (formData.get("stacksDirectory") as string) || "";
-
-    if (!dockerHost) {
-      return fail(400, {
-        error: "Docker host cannot be empty.",
-        values: Object.fromEntries(formData),
-      });
-    }
-
-    let refreshInterval = parseInt(refreshIntervalStr, 10);
-    if (isNaN(refreshInterval) || refreshInterval < 5 || refreshInterval > 60) {
-      return fail(400, {
-        error: "Refresh interval must be between 5 and 60 seconds.",
-        values: Object.fromEntries(formData),
-      });
-    }
-
-    if (!stacksDirectory) {
-      return fail(400, {
-        error: "Stacks directory cannot be empty.",
-        values: Object.fromEntries(formData),
-      });
-    }
-
-    const updatedSettings: SettingsData = {
-      dockerHost,
-      autoRefresh,
-      refreshInterval,
-      darkMode,
-      stacksDirectory,
-    };
-
+    let formData = new FormData();
     try {
+      formData = await request.formData();
+      const settings = await getSettings();
+
+      // Get all form values
+      const dockerHost = formData.get("dockerHost") as string;
+
+      // Explicitly check for the "on" value for both toggle switches
+      const autoUpdate = formData.get("autoUpdate") === "on";
+      const pollingEnabled = formData.get("pollingEnabled") === "on";
+
+      const pollingIntervalStr = formData.get("pollingInterval") as string;
+      const stacksDirectory = (formData.get("stacksDirectory") as string) || "";
+
+      // Add logging to debug form values
+      console.log("Form data received:", {
+        dockerHost,
+        autoUpdate: formData.get("autoUpdate"),
+        pollingEnabled: formData.get("pollingEnabled"),
+        pollingInterval: pollingIntervalStr,
+      });
+
+      if (!dockerHost) {
+        return fail(400, {
+          error: "Docker host cannot be empty.",
+          values: Object.fromEntries(formData),
+        });
+      }
+
+      if (!stacksDirectory) {
+        return fail(400, {
+          error: "Stacks directory cannot be empty.",
+          values: Object.fromEntries(formData),
+        });
+      }
+
+      // Process polling interval only if polling is enabled
+      let pollingInterval = settings.pollingInterval || 10;
+      if (pollingEnabled) {
+        const parsedInterval = parseInt(pollingIntervalStr, 10);
+        if (
+          !isNaN(parsedInterval) &&
+          parsedInterval >= 5 &&
+          parsedInterval <= 60
+        ) {
+          pollingInterval = parsedInterval;
+        } else if (pollingIntervalStr) {
+          // Only show error if the user actually entered a value
+          return fail(400, {
+            error: "Polling interval must be between 5 and 60 minutes.",
+            values: {
+              ...Object.fromEntries(formData),
+              pollingEnabled: "on", // Make sure we retain the enabled state
+              autoUpdate: formData.get("autoUpdate"), // Preserve autoUpdate state as well
+            },
+          });
+        }
+      }
+
+      // Extract Valkey settings
+      const valkeyEnabled = formData.get("valkeyEnabled") === "on";
+      const externalServices = {
+        ...settings.externalServices,
+        valkey: {
+          enabled: valkeyEnabled,
+          host: formData.get("valkeyHost")?.toString() || "localhost",
+          port: parseInt(formData.get("valkeyPort")?.toString() || "6379", 10),
+          username: formData.get("valkeyUsername")?.toString() || "",
+          password: formData.get("valkeyPassword")?.toString() || "",
+          keyPrefix:
+            formData.get("valkeyKeyPrefix")?.toString() || "arcane:settings:",
+        },
+      };
+
+      const updatedSettings: SettingsData = {
+        ...settings,
+        dockerHost,
+        autoUpdate,
+        pollingEnabled,
+        pollingInterval,
+        stacksDirectory,
+        externalServices,
+      };
+
+      // Save updated settings
       await saveSettings(updatedSettings);
-      return { success: true, settings: updatedSettings };
+
+      return { success: true };
     } catch (error: any) {
+      console.error("Error updating settings:", error);
       return fail(500, {
         error: error.message || "Failed to save settings.",
         values: Object.fromEntries(formData),
