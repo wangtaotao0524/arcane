@@ -11,6 +11,7 @@
     className = "",
     icon = undefined,
     iconClass = "w-3.5 h-3.5 mr-1",
+    statusVariant = undefined,
   }: {
     variant?: "default" | "secondary" | "destructive" | "outline" | "status";
     text: string;
@@ -21,6 +22,7 @@
     className?: string;
     icon?: typeof IconType;
     iconClass?: string;
+    statusVariant?: "green" | "amber" | "red" | "blue" | "gray" | "purple";
   } = $props();
 
   // Map variant to style variables
@@ -104,68 +106,87 @@
     color?: string;
     border?: string;
   } {
-    if (variant !== "status" || !text) return {};
+    if (variant !== "status") return {};
 
-    const statusStyles: Record<
-      string,
-      { bg: string; color: string; border: string }
-    > = {
-      running: {
-        bg: "rgba(34, 197, 94, 0.15)",
-        color: "rgb(21, 128, 61)",
-        border: "rgba(34, 197, 94, 0.15)",
+    // Define color schemes for each status variant
+    const variantStyles = {
+      green: {
+        bg: "rgba(34, 197, 94, 0.2)",
+        color: "rgb(63, 185, 80)",
+        border: "rgba(34, 197, 94, 0.2)",
       },
-      "In Use": {
-        bg: "rgba(34, 197, 94, 0.15)",
-        color: "rgb(21, 128, 61)",
-        border: "rgba(34, 197, 94, 0.15)",
-      },
-      "partially running": {
-        bg: "rgba(245, 158, 11, 0.15)",
-        color: "rgb(180, 83, 9)",
-        border: "rgba(245, 158, 11, 0.15)",
-      },
-      stopped: {
-        bg: "rgba(156, 163, 175, 0.15)",
-        color: "rgb(75, 85, 99)",
-        border: "rgba(156, 163, 175, 0.15)",
-      },
-      error: {
-        bg: "rgba(239, 68, 68, 0.15)",
-        color: "rgb(185, 28, 28)",
-        border: "rgba(239, 68, 68, 0.15)",
-      },
-      Unused: {
+      amber: {
         bg: "rgba(234, 179, 8, 0.2)",
         color: "rgb(210, 153, 34)",
         border: "rgba(234, 179, 8, 0.2)",
       },
-      pending: {
+      red: {
+        bg: "rgba(239, 68, 68, 0.15)",
+        color: "rgb(185, 28, 28)",
+        border: "rgba(239, 68, 68, 0.15)",
+      },
+      blue: {
         bg: "rgba(59, 130, 246, 0.15)",
         color: "rgb(37, 99, 235)",
         border: "rgba(59, 130, 246, 0.15)",
       },
-      external: {
-        bg: "rgba(245, 158, 11, 0.15)",
-        color: "rgb(180, 83, 9)",
-        border: "rgba(245, 158, 11, 0.15)",
+      gray: {
+        bg: "rgba(156, 163, 175, 0.15)",
+        color: "rgb(75, 85, 99)",
+        border: "rgba(156, 163, 175, 0.15)",
       },
-      managed: {
-        bg: "rgba(34, 197, 94, 0.15)",
-        color: "rgb(21, 128, 61)",
-        border: "rgba(34, 197, 94, 0.15)",
+      purple: {
+        bg: "rgba(139, 92, 246, 0.15)",
+        color: "rgb(107, 33, 168)",
+        border: "rgba(139, 92, 246, 0.15)",
       },
     };
 
-    // Check for exact match or partial match
-    for (const [key, style] of Object.entries(statusStyles)) {
-      if (text.toLowerCase() === key.toLowerCase()) {
-        return style;
+    // Map common status texts to variants for backward compatibility
+    const statusToVariantMap: Record<string, keyof typeof variantStyles> = {
+      running: "green",
+      "in use": "green",
+      managed: "green",
+      unused: "amber",
+      partially: "amber",
+      "partially running": "amber",
+      restarting: "amber",
+      warning: "amber",
+      error: "red",
+      exited: "red",
+      dead: "red",
+      failed: "red",
+      pending: "blue",
+      creating: "blue",
+      stopped: "gray",
+      paused: "gray",
+      external: "purple",
+    };
+
+    // If direct status variant is provided, use it
+    if (statusVariant && statusVariant in variantStyles) {
+      return variantStyles[statusVariant];
+    }
+
+    // Otherwise try to infer from text (backward compatibility)
+    if (text) {
+      const lowerText = text.toLowerCase();
+
+      // Check for exact matches in our map
+      if (lowerText in statusToVariantMap) {
+        return variantStyles[statusToVariantMap[lowerText]];
+      }
+
+      // Check for partial matches
+      for (const [key, variant] of Object.entries(statusToVariantMap)) {
+        if (lowerText.includes(key)) {
+          return variantStyles[variant];
+        }
       }
     }
 
-    // Text doesn't match any preset
-    return {};
+    // Default to blue if no match found
+    return variantStyles.blue;
   }
 
   // Combine variant and custom styles
