@@ -6,11 +6,18 @@ import { capitalizeFirstLetter } from "$lib/utils";
 import { statusConfig } from "$lib/types/statuses";
 import CustomBadge from "$lib/components/badges/custom-badge.svelte";
 import IdCell from "./IdCell.svelte";
+import CellName from "./components/cell-name.svelte";
 
 export const columns: ColumnDef<ServiceContainer>[] = [
   {
     accessorKey: "name",
     header: "Name",
+    cell: ({ row }) => {
+      return renderComponent(CellName, {
+        id: row.original.id,
+        name: row.original.name,
+      });
+    },
   },
   {
     accessorKey: "id",
