@@ -5,8 +5,8 @@ import DataTableActions from "./ContainerActions.svelte";
 import { capitalizeFirstLetter } from "$lib/utils";
 import { statusConfig } from "$lib/types/statuses";
 import CustomBadge from "$lib/components/badges/custom-badge.svelte";
-import IdCell from "./IdCell.svelte";
-import CellName from "./components/cell-name.svelte";
+import IdCell from "./components/IdCell.svelte";
+import CellName from "./components/NameCell.svelte";
 
 export const columns: ColumnDef<ServiceContainer>[] = [
   {

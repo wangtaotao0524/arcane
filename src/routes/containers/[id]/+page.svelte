@@ -89,16 +89,6 @@
         <h1 class="text-2xl font-bold tracking-tight">
           {container?.name || "Container Details"}
         </h1>
-        {#if container}
-          <CustomBadge
-            variant="status"
-            text={capitalizeFirstLetter(container.state?.Status || "unknown")}
-            bgColor={getStatusColor(container.state?.Status || "unknown").bg}
-            textColor={getStatusColor(container.state?.Status || "unknown")
-              .text}
-            iconClass="w-3 h-3 mr-1"
-          />
-        {/if}
       </div>
     </div>
 

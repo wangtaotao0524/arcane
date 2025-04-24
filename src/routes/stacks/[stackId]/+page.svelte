@@ -87,17 +87,6 @@
         <h1 class="text-2xl font-bold tracking-tight">
           {stack?.name || "Stack Details"}
         </h1>
-        {#if stack}
-          <Badge
-            variant={stack.status === "running"
-              ? "default"
-              : stack.status === "partially running"
-                ? "secondary"
-                : "destructive"}
-          >
-            {stack.status}
-          </Badge>
-        {/if}
       </div>
     </div>
 
