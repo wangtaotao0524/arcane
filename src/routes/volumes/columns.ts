@@ -4,6 +4,7 @@ import VolumeActions from "./VolumeActions.svelte";
 import MountpointCell from "./MountpointCell.svelte";
 import CustomBadge from "$lib/components/badges/custom-badge.svelte";
 import type { ServiceVolume } from "$lib/services/docker-service";
+import UnusedTextBadge from "$lib/components/badges/unused-text-badge.svelte";
 
 // Update the type to include the inUse property
 export type VolumeInfo = ServiceVolume & { inUse?: boolean };
@@ -12,6 +13,14 @@ export const columns: ColumnDef<VolumeInfo>[] = [
   {
     accessorKey: "name",
     header: "Name",
+    cell: ({ row }) => {
+      const inUse = row.original.inUse;
+
+      return renderComponent(UnusedTextBadge, {
+        name: row.original.name,
+        inUse: inUse,
+      });
+    },
   },
   {
     accessorKey: "driver",
@@ -20,29 +29,6 @@ export const columns: ColumnDef<VolumeInfo>[] = [
   {
     accessorKey: "scope",
     header: "Scope",
-  },
-  {
-    accessorKey: "usage",
-    header: "Status",
-    cell: ({ row }) => {
-      const inUse = row.original.inUse;
-      if (inUse === undefined) {
-        return null;
-      }
-
-      if (inUse) {
-        return renderComponent(CustomBadge, {
-          variant: "status",
-          text: "In use",
-        });
-      } else {
-        return renderComponent(CustomBadge, {
-          variant: "status",
-          text: "Unused",
-        });
-      }
-    },
-    enableSorting: true,
   },
   {
     accessorKey: "mountpoint",

@@ -109,7 +109,7 @@
 
       {#each tabs as tab}
         <Tabs.Content value={tab.id} class="space-y-4">
-          <svelte:component this={tab.component} {data} {form} />
+          <tab.component {data} {form} />
         </Tabs.Content>
       {/each}
     </form>

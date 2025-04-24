@@ -3,7 +3,7 @@ import type { ColumnDef } from "@tanstack/table-core";
 import { renderComponent } from "$lib/components/ui/data-table/index.js";
 import ImageActions from "./ImageActions.svelte";
 import { formatBytes } from "$lib/utils";
-import CustomBadge from "$lib/components/badges/custom-badge.svelte";
+import UnusedTextBadge from "$lib/components/badges/unused-text-badge.svelte";
 
 // Enhanced type with usage info
 export type EnhancedImage = ServiceImage & { inUse?: boolean };
@@ -13,7 +13,12 @@ export const columns: ColumnDef<EnhancedImage>[] = [
     accessorKey: "repo",
     header: "Name",
     cell: ({ row }) => {
-      return row.original.repo;
+      const inUse = row.original.inUse;
+
+      return renderComponent(UnusedTextBadge, {
+        name: row.original.repo,
+        inUse: row.original.inUse,
+      });
     },
   },
   {
@@ -22,29 +27,6 @@ export const columns: ColumnDef<EnhancedImage>[] = [
     cell: ({ row }) => {
       return row.original.tag;
     },
-  },
-  {
-    accessorKey: "usage",
-    header: "Status",
-    cell: ({ row }) => {
-      const inUse = row.original.inUse;
-      if (inUse === undefined) {
-        return null;
-      }
-
-      if (inUse) {
-        return renderComponent(CustomBadge, {
-          variant: "status",
-          text: "In use",
-        });
-      } else {
-        return renderComponent(CustomBadge, {
-          variant: "status",
-          text: "Unused",
-        });
-      }
-    },
-    enableSorting: true,
   },
   {
     accessorKey: "id",
