@@ -1,7 +1,12 @@
 import Docker from "dockerode";
-import type { VolumeInspectInfo, VolumeCreateOptions, Volume } from "dockerode"; // Import Volume type
+import type { VolumeInspectInfo, VolumeCreateOptions } from "dockerode";
 import { getSettings } from "$lib/services/settings-service";
-import type { DockerConnectionOptions } from "$lib/types/docker";
+import type {
+  DockerConnectionOptions,
+  ContainerConfig,
+  ContainerDetails,
+  ContainerCreate,
+} from "$lib/types/docker";
 
 let dockerClient: Docker | null = null;
 let dockerHost: string = "unix:///var/run/docker.sock"; // Default value
@@ -310,9 +315,13 @@ export async function removeContainer(
 }
 
 /**
- * Gets logs for a specific container.
- * @param containerId - The ID of the container.
- * @param options - Optional parameters for log retrieval
+ * Retrieves logs from a specific Docker container.
+ *
+ * @param containerId - The ID of the container to fetch logs from.
+ * @param options - Optional log retrieval settings, including tail count, time range, streaming, and output selection.
+ * @returns The container logs as a string, with Docker stream headers removed.
+ *
+ * @throws {Error} If log retrieval fails for the specified container.
  */
 export async function getContainerLogs(
   containerId: string,
@@ -369,6 +378,129 @@ export async function getContainerLogs(
       `Failed to get logs for container ${containerId} using host "${dockerHost}". ${
         error.message || ""
       }`
+    );
+  }
+}
+
+/**
+ * Creates and starts a new Docker container using the specified configuration.
+ *
+ * @param config - The container configuration, including image, environment variables, ports, volumes, restart policy, and network.
+ * @returns An object containing the created container's ID, name, state, status, and creation timestamp.
+ *
+ * @throws {Error} If the container cannot be created or started.
+ */
+export async function createContainer(config: ContainerConfig) {
+  try {
+    const docker = getDockerClient();
+
+    const containerOptions: ContainerCreate = {
+      name: config.name,
+      Image: config.image,
+      Env: config.envVars?.map((env) => `${env.key}=${env.value}`) || [],
+      Labels: config.labels || {},
+      Cmd: config.command,
+      User: config.user,
+      Healthcheck: config.healthcheck
+        ? {
+            Test: config.healthcheck.Test,
+            Interval: config.healthcheck.Interval,
+            Timeout: config.healthcheck.Timeout,
+            Retries: config.healthcheck.Retries,
+            StartPeriod: config.healthcheck.StartPeriod,
+          }
+        : undefined,
+      HostConfig: {
+        RestartPolicy: {
+          Name: config.restart || "no",
+        },
+        Memory: config.memoryLimit,
+        NanoCpus: config.cpuLimit
+          ? Math.round(config.cpuLimit * 1_000_000_000)
+          : undefined,
+      },
+    };
+
+    // Set up port bindings if provided
+    if (config.ports && config.ports.length > 0) {
+      containerOptions.ExposedPorts = {};
+      containerOptions.HostConfig = containerOptions.HostConfig || {};
+      containerOptions.HostConfig.PortBindings = {};
+
+      config.ports.forEach((port) => {
+        const containerPort = `${port.containerPort}/tcp`;
+        containerOptions.ExposedPorts![containerPort] = {};
+        containerOptions.HostConfig!.PortBindings![containerPort] = [
+          { HostPort: port.hostPort },
+        ];
+      });
+    }
+
+    // Set up volume mounts if provided
+    if (config.volumes && config.volumes.length > 0) {
+      containerOptions.HostConfig = containerOptions.HostConfig || {};
+      containerOptions.HostConfig.Binds = config.volumes.map(
+        (vol) => `${vol.source}:${vol.target}${vol.readOnly ? ":ro" : ""}`
+      );
+    }
+
+    // Set up network if provided
+    if (config.network) {
+      containerOptions.HostConfig = containerOptions.HostConfig || {};
+      if (!containerOptions.NetworkingConfig) {
+        containerOptions.HostConfig.NetworkMode = config.network;
+      }
+
+      if (
+        config.networkConfig &&
+        config.network !== "host" &&
+        config.network !== "none" &&
+        config.network !== "bridge"
+      ) {
+        containerOptions.NetworkingConfig = {
+          EndpointsConfig: {
+            [config.network]: {
+              IPAMConfig: {
+                IPv4Address: config.networkConfig.ipv4Address || undefined,
+                IPv6Address: config.networkConfig.ipv6Address || undefined,
+              },
+            },
+          },
+        };
+        delete containerOptions.HostConfig.NetworkMode;
+      }
+    }
+
+    // Create and start the container
+    const container = await docker.createContainer(containerOptions);
+    await container.start();
+
+    // Get the container details
+    const containerInfo = await container.inspect();
+
+    return {
+      id: containerInfo.Id,
+      name: containerInfo.Name.substring(1),
+      state: containerInfo.State.Status,
+      status: containerInfo.State.Running ? "running" : "stopped",
+      created: containerInfo.Created,
+    };
+  } catch (error: any) {
+    console.error("Error creating container:", error);
+    if (error.message && error.message.includes("IPAMConfig")) {
+      throw new Error(
+        `Failed to create container: Invalid IP address configuration for network "${config.network}". ${error.message}`
+      );
+    }
+    // Add more specific error handling for resource limits if needed
+    if (error.message && error.message.includes("NanoCpus")) {
+      throw new Error(`Invalid CPU limit specified: ${error.message}`);
+    }
+    if (error.message && error.message.includes("Memory")) {
+      throw new Error(`Invalid Memory limit specified: ${error.message}`);
+    }
+    throw new Error(
+      `Failed to create container with image "${config.image}": ${error.message}`
     );
   }
 }

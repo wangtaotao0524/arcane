@@ -5,12 +5,23 @@
   import { Plus, Box, RefreshCw } from "@lucide/svelte";
   import UniversalTable from "$lib/components/universal-table.svelte";
   import { invalidateAll } from "$app/navigation";
+  import { toast } from "svelte-sonner";
+  import CreateContainerDialog from "./create-container-dialog.svelte";
+  import type { ContainerConfig } from "$lib/types/docker";
+  import { enhance } from "$app/forms";
 
-  let { data } = $props();
+  // Server data from load function
+  let { data, form } = $props();
   const { containers } = data;
 
   let isRefreshing = $state(false);
   let selectedIds = $state([]);
+  let isCreateDialogOpen = $state(false);
+  let isCreatingContainer = $state(false);
+  let containerData = $state<ContainerConfig | null>(null);
+
+  // Add a form reference
+  let formRef: HTMLFormElement;
 
   // Calculate running containers
   const runningContainers = $derived(
@@ -25,12 +36,41 @@
   // Calculate total containers
   const totalContainers = $derived(containers?.length || 0);
 
+  // Success message handling based on form action result
+  $effect(() => {
+    if (form?.success) {
+      toast.success(
+        `Container "${form.container?.name || "Unknown"}" created successfully.`
+      );
+      isCreateDialogOpen = false;
+      isCreatingContainer = false;
+    } else if (form?.error) {
+      toast.error(`Failed to create container: ${form.error}`);
+      isCreatingContainer = false;
+    }
+  });
+
+  // Simple refresh now - this just triggers a new SSR call
   async function refreshData() {
     isRefreshing = true;
     await invalidateAll();
     setTimeout(() => {
       isRefreshing = false;
     }, 500);
+  }
+
+  function openCreateDialog() {
+    isCreateDialogOpen = true;
+  }
+  // This now prepares data for form action and submits the form
+  async function handleCreateContainerSubmit(config: ContainerConfig) {
+    isCreatingContainer = true;
+    containerData = config;
+
+    // This is key - explicitly submit the form after setting the data
+    setTimeout(() => {
+      formRef.requestSubmit();
+    }, 0);
   }
 </script>
 
@@ -98,7 +138,7 @@
           >
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onclick={openCreateDialog}>
             <Plus class="w-4 h-4" />
             Create Container
           </Button>
@@ -128,10 +168,46 @@
         Create a new container using the "Create Container" button above or use
         the Docker CLI
       </p>
-      <Button variant="outline" size="sm" onclick={refreshData}>
-        <RefreshCw class="h-4 w-4" />
-        Refresh
-      </Button>
+      <div class="flex gap-3 mt-4">
+        <Button variant="outline" size="sm" onclick={refreshData}>
+          <RefreshCw class="h-4 w-4" />
+          Refresh
+        </Button>
+        <Button variant="outline" size="sm" onclick={openCreateDialog}>
+          <Plus class="h-4 w-4" />
+          Create Container
+        </Button>
+      </div>
     </div>
   {/if}
+
+  <form
+    bind:this={formRef}
+    method="POST"
+    action="?/create"
+    use:enhance={() => {
+      return async ({ result }) => {
+        isCreatingContainer = false;
+        if (result.type === "success") {
+          isCreateDialogOpen = false;
+          await invalidateAll();
+        }
+      };
+    }}
+  >
+    <input
+      type="hidden"
+      name="containerData"
+      value={containerData ? JSON.stringify(containerData) : ""}
+    />
+
+    <CreateContainerDialog
+      bind:open={isCreateDialogOpen}
+      isCreating={isCreatingContainer}
+      volumes={data.volumes || []}
+      networks={data.networks || []}
+      images={data.images || []}
+      onSubmit={handleCreateContainerSubmit}
+    />
+  </form>
 </div>
