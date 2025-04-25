@@ -34,6 +34,11 @@
   const stoppedContainers = $derived(
     containers?.filter((c) => c.state === "exited").length ?? 0
   );
+
+  // Calculate total image size
+  const totalImageSize = $derived(
+    images?.reduce((sum, image) => sum + (image.size || 0), 0) ?? 0
+  );
 </script>
 
 <div class="space-y-8">
@@ -124,9 +129,14 @@
               <HardDrive class="h-5 w-5 text-blue-500" />
             </div>
           </div>
-          {#if images?.length && dockerInfo?.Images}
+          <!-- Display total image size -->
+          {#if totalImageSize > 0}
             <div class="mt-4 text-xs text-muted-foreground">
-              Showing {Math.min(images.length, 5)} of {dockerInfo.Images} images
+              Total size: {formatBytes(totalImageSize)}
+            </div>
+          {:else if dockerInfo?.Images === 0}
+            <div class="mt-4 text-xs text-muted-foreground">
+              No images stored
             </div>
           {/if}
         </Card.Content>
