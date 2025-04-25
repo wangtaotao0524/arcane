@@ -78,12 +78,6 @@
   <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold tracking-tight">Engine Overview</h2>
-      {#if dockerInfo}
-        <StatusBadge
-          variant="gray"
-          text="v{dockerInfo.ServerVersion || 'Unknown'}"
-        />
-      {/if}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -129,7 +123,6 @@
               <HardDrive class="h-5 w-5 text-blue-500" />
             </div>
           </div>
-          <!-- Display total image size -->
           {#if totalImageSize > 0}
             <div class="mt-4 text-xs text-muted-foreground">
               Total size: {formatBytes(totalImageSize)}
@@ -176,6 +169,9 @@
           </div>
           <div class="mt-4 text-xs text-muted-foreground">
             {dockerInfo?.OperatingSystem || "Unknown OS"}
+            {#if dockerInfo?.ServerVersion}
+              <span class="ml-1">• v{dockerInfo.ServerVersion}</span>
+            {/if}
           </div>
         </Card.Content>
       </Card.Root>
@@ -374,11 +370,6 @@
           rel="noopener noreferrer"
           class="hover:underline">GitHub</a
         >
-      </div>
-      <div>
-        {#if dockerInfo}
-          <span title="Docker Engine Version">v{dockerInfo.ServerVersion}</span>
-        {/if}
       </div>
     </div>
   </section>
