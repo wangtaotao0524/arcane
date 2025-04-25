@@ -1,4 +1,4 @@
-<script lang="ts" generics="TData">
+<script lang="ts" generics="TData extends object">
   import {
     getCoreRowModel,
     getPaginationRowModel,
@@ -241,12 +241,21 @@
       <Table.Body>
         {#if table.getRowModel().rows.length > 0}
           {#each table.getRowModel().rows as row (row.id)}
+            {@const isDisabled =
+              "isExternal" in row.original && !!row.original.isExternal}
             <Table.Row data-state={row.getIsSelected() && "selected"}>
               {#if enableSelection}
                 <Table.Cell class="w-12">
                   <Checkbox
                     checked={row.getIsSelected()}
-                    onCheckedChange={(checked) => row.toggleSelected(!!checked)}
+                    disabled={isDisabled}
+                    onCheckedChange={(checked) => {
+                      // Only toggle if not disabled
+                      if (!isDisabled) {
+                        row.toggleSelected(!!checked);
+                      }
+                    }}
+                    aria-label="Select row"
                   />
                 </Table.Cell>
               {/if}
