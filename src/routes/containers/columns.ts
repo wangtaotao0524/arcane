@@ -3,10 +3,10 @@ import type { ColumnDef } from "@tanstack/table-core";
 import { renderComponent } from "$lib/components/ui/data-table/index.js";
 import DataTableActions from "./ContainerActions.svelte";
 import { capitalizeFirstLetter } from "$lib/utils";
-import { statusConfig } from "$lib/types/statuses";
-import CustomBadge from "$lib/components/badges/custom-badge.svelte";
 import IdCell from "./components/IdCell.svelte";
 import CellName from "./components/NameCell.svelte";
+import StatusBadge from "$lib/components/badges/status-badge.svelte";
+import { statusVariantMap } from "$lib/types/statuses";
 
 export const columns: ColumnDef<ServiceContainer>[] = [
   {
@@ -35,18 +35,12 @@ export const columns: ColumnDef<ServiceContainer>[] = [
     accessorKey: "state",
     header: "Status",
     cell: ({ row }) => {
-      const config = statusConfig[
-        row.getValue("state") as keyof typeof statusConfig
-      ] || {
-        bgColor: "blue-100",
-        textColor: "blue-900",
-      };
+      const variant =
+        statusVariantMap[row.original.state.toLowerCase()] || "gray";
 
-      return renderComponent(CustomBadge, {
-        variant: "status",
-        rounded: true,
-        text: capitalizeFirstLetter(row.getValue("state") as string),
-        ...config,
+      return renderComponent(StatusBadge, {
+        variant: variant,
+        text: capitalizeFirstLetter(row.original.state),
       });
     },
   },

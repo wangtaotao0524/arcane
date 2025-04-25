@@ -19,6 +19,7 @@
   import { Progress } from "$lib/components/ui/progress/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { formatBytes } from "$lib/utils";
+  import StatusBadge from "$lib/components/badges/status-badge.svelte";
 
   let { data }: { data: PageData } = $props();
   const { dockerInfo, containers, images, error } = data;
@@ -73,9 +74,10 @@
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold tracking-tight">Engine Overview</h2>
       {#if dockerInfo}
-        <Badge variant="outline" class="text-xs font-normal">
-          v{dockerInfo.ServerVersion || "Unknown"}
-        </Badge>
+        <StatusBadge
+          variant="gray"
+          text="v{dockerInfo.ServerVersion || 'Unknown'}"
+        />
       {/if}
     </div>
 
@@ -182,7 +184,7 @@
         >
           <PlayCircle class="h-4 w-4 mr-2" />
           Start All Stopped
-          <Badge variant="secondary" class="ml-2">{stoppedContainers}</Badge>
+          <StatusBadge variant="amber" text={stoppedContainers.toString()} />
         </Button>
         <p class="text-xs text-muted-foreground mt-2">
           Start all stopped containers
@@ -197,7 +199,7 @@
         >
           <StopCircle class="h-4 w-4 mr-2" />
           Stop All Running
-          <Badge variant="outline" class="ml-2">{runningContainers}</Badge>
+          <StatusBadge variant="amber" text={runningContainers.toString()} />
         </Button>
         <p class="text-xs text-muted-foreground mt-2">
           Stop all running containers

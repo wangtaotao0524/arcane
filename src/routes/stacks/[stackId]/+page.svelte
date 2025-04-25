@@ -19,8 +19,9 @@
   import YamlEditor from "$lib/components/yaml-editor.svelte";
   import { onMount } from "svelte";
   import ActionButtons from "$lib/components/action-buttons.svelte";
-  import CustomBadge from "$lib/components/badges/custom-badge.svelte";
-  import { capitalizeFirstLetter, getStatusColor } from "$lib/utils";
+  import StatusBadge from "$lib/components/badges/status-badge.svelte";
+  import { statusVariantMap } from "$lib/types/statuses";
+  import { capitalizeFirstLetter } from "$lib/utils";
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let { stack } = $derived(data);
@@ -272,6 +273,9 @@
         <div class="space-y-2">
           {#if stack.services && stack.services.length > 0}
             {#each stack.services as service}
+              {@const status = service.state?.Status || "unknown"}
+              {@const variant =
+                statusVariantMap[status.toLowerCase()] || "gray"}
               <a
                 href={service.id ? `/containers/${service.id}` : undefined}
                 class={`flex items-center justify-between p-3 border rounded-md ${
@@ -292,17 +296,7 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <CustomBadge
-                    variant="status"
-                    text={capitalizeFirstLetter(
-                      service.state?.Status || "unknown"
-                    )}
-                    bgColor={getStatusColor(service.state?.Status || "unknown")
-                      .bg}
-                    textColor={getStatusColor(
-                      service.state?.Status || "unknown"
-                    ).text}
-                  />
+                  <StatusBadge {variant} text={capitalizeFirstLetter(status)} />
                   {#if service.id}
                     <div class="text-xs text-blue-500 ml-2">
                       <span class="hidden sm:inline">View details</span>

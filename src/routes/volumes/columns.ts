@@ -2,7 +2,6 @@ import type { ColumnDef } from "@tanstack/table-core";
 import { renderComponent } from "$lib/components/ui/data-table/index.js";
 import VolumeActions from "./VolumeActions.svelte";
 import MountpointCell from "./MountpointCell.svelte";
-import CustomBadge from "$lib/components/badges/custom-badge.svelte";
 import type { ServiceVolume } from "$lib/services/docker-service";
 import UnusedTextBadge from "$lib/components/badges/unused-text-badge.svelte";
 

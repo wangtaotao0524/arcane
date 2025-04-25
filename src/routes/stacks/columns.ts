@@ -4,9 +4,9 @@ import { renderComponent } from "$lib/components/ui/data-table/index.js";
 import StackActions from "./StackActions.svelte";
 import StackNameCell from "./StackNameCell.svelte";
 import StackDateCell from "./StackDateCell.svelte";
-import CustomBadge from "$lib/components/badges/custom-badge.svelte";
+import StatusBadge from "$lib/components/badges/status-badge.svelte";
 import { capitalizeFirstLetter } from "$lib/utils";
-import { statusConfig } from "$lib/types/statuses";
+import { statusVariantMap } from "$lib/types/statuses";
 
 export const columns: ColumnDef<Stack>[] = [
   {
@@ -27,18 +27,12 @@ export const columns: ColumnDef<Stack>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status");
+      const status = row.getValue("status") as string;
+      const variant = statusVariantMap[status.toLowerCase()] || "gray";
 
-      const config = statusConfig[status as keyof typeof statusConfig] || {
-        bgColor: "blue-100",
-        textColor: "blue-900",
-      };
-
-      return renderComponent(CustomBadge, {
-        variant: "status",
-        rounded: true,
-        text: capitalizeFirstLetter(status as string),
-        ...config,
+      return renderComponent(StatusBadge, {
+        variant: variant,
+        text: capitalizeFirstLetter(status),
       });
     },
   },
@@ -56,11 +50,8 @@ export const columns: ColumnDef<Stack>[] = [
     accessorKey: "isExternal",
     cell: ({ row }) => {
       const isExternal = row.getValue("isExternal");
-      return renderComponent(CustomBadge, {
-        variant: "outline",
-        rounded: true,
-        bgColor: isExternal ? "amber-100" : "indigo-100",
-        textColor: isExternal ? "amber-900" : "indigo-900",
+      return renderComponent(StatusBadge, {
+        variant: isExternal ? "amber" : "green",
         text: isExternal ? "External" : "Managed",
       });
     },

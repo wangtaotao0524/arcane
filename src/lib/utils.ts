@@ -36,22 +36,6 @@ export const capitalizeFirstLetter = (text: string) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
-export function getStatusColor(status: string): { bg: string; text: string } {
-  const statusLower = status.toLowerCase();
-
-  if (statusLower === "running") {
-    return { bg: "green-100", text: "green-900" };
-  } else if (statusLower === "created" || statusLower === "restarting") {
-    return { bg: "blue-100", text: "blue-900" };
-  } else if (statusLower === "paused") {
-    return { bg: "amber-100", text: "amber-900" };
-  } else if (statusLower === "exited" || statusLower === "dead") {
-    return { bg: "red-100", text: "red-900" };
-  } else {
-    return { bg: "gray-100", text: "gray-900" }; // Default for unknown status
-  }
-}
-
 export function formatDate(dateString: string | undefined | null): string {
   if (!dateString) return "Unknown";
   try {

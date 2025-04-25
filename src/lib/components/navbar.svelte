@@ -17,7 +17,6 @@
   import { page } from "$app/stores";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import { cn } from "$lib/utils";
   import { browser } from "$app/environment";
@@ -45,7 +44,6 @@
     href: string;
     label: string;
     icon: typeof IconType;
-    badge?: string;
   };
 
   // State for mobile sidebar
@@ -198,15 +196,9 @@
         </div>
 
         {#if !isCollapsed}
-          {#if item.badge}
-            <Badge variant="outline" class="text-xs">{item.badge}</Badge>
-          {:else if isActive}
+          {#if isActive}
             <ChevronRight size={16} class="text-primary opacity-60" />
           {/if}
-        {:else if item.badge}
-          <Badge variant="outline" class="text-xs mt-1 px-1.5"
-            >{item.badge}</Badge
-          >
         {/if}
       </a>
     {/each}

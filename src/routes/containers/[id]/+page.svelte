@@ -18,13 +18,7 @@
   import { Separator } from "$lib/components/ui/separator/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import ActionButtons from "$lib/components/action-buttons.svelte";
-  import CustomBadge from "$lib/components/badges/custom-badge.svelte";
-  import {
-    capitalizeFirstLetter,
-    getStatusColor,
-    formatDate,
-    formatLogLine,
-  } from "$lib/utils";
+  import { formatDate, formatLogLine } from "$lib/utils";
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let { container, logs } = $derived(data);
