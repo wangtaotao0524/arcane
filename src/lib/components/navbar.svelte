@@ -246,18 +246,6 @@
       {/if}
     </div>
   {/if}
-
-  <Separator />
-
-  <!-- Footer section - simplified -->
-  <div class={cn("transition-all px-3 py-2", isCollapsed ? "text-center" : "")}>
-    <Badge
-      variant="secondary"
-      class="bg-green-500/10 text-green-600 hover:bg-green-500/20 w-full justify-center"
-    >
-      {isCollapsed ? "OK" : "Docker Connected"}
-    </Badge>
-  </div>
 </div>
 
 <!-- Overlay for mobile -->
