@@ -1,17 +1,22 @@
-import { promises as fs } from 'fs';
-import { join } from 'path';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
+import { basename } from 'node:path';
 import DockerodeCompose from 'dockerode-compose';
-import { getDockerClient } from './docker-service';
-import { nanoid } from 'nanoid';
-import type { Stack, StackMeta, StackService, StackUpdate } from '$lib/types/stack';
 import yaml from 'js-yaml';
-import { getSettings, ensureStacksDirectory } from './settings-service';
+import { nanoid } from 'nanoid';
 
+import { getDockerClient } from '$lib/services/docker/core';
+import { getSettings, ensureStacksDirectory } from '$lib/services/settings-service';
+
+import type { Stack, StackMeta, StackService, StackUpdate } from '$lib/types/docker/stack.type';
+
+/* The above code is declaring a variable `STACKS_DIR` with an empty string as its initial value in
+TypeScript. */
 let STACKS_DIR = '';
 
 /**
- * Initialize the compose service with settings
- * This should be called at app startup
+ * The function `initComposeService` initializes the stacks directory and ensures its existence in a
+ * TypeScript application.
  */
 export async function initComposeService(): Promise<void> {
 	try {
@@ -26,8 +31,11 @@ export async function initComposeService(): Promise<void> {
 }
 
 /**
- * Update the stacks directory path - used when settings are updated
- * @param {string} directory New stacks directory path
+ * The function `updateStacksDirectory` updates the `STACKS_DIR` variable with a new directory path and
+ * logs the updated directory path to the console.
+ * @param {string} directory - The `directory` parameter is a string that represents the new directory
+ * path that you want to set for the `STACKS_DIR` variable. When the `updateStacksDirectory` function
+ * is called with a valid `directory` value, it updates the `STACKS_DIR` variable to the new directory
  */
 export function updateStacksDirectory(directory: string): void {
 	if (directory) {
@@ -37,7 +45,9 @@ export function updateStacksDirectory(directory: string): void {
 }
 
 /**
- * Ensure stacks directory exists and return the path
+ * The function `ensureStacksDir` ensures the existence of a directory for storing stacks.
+ * @returns The function `ensureStacksDir()` returns the `STACKS_DIR` variable after ensuring that the
+ * stacks directory exists.
  */
 async function ensureStacksDir(): Promise<string> {
 	try {
@@ -54,17 +64,30 @@ async function ensureStacksDir(): Promise<string> {
 }
 
 /**
- * Get stack directory path
- * @param {string} stackId
+ * The function `getStackDir` returns the directory path for a given stack ID after ensuring the
+ * existence of the stacks directory.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the unique identifier
+ * of a stack.
+ * @returns The function `getStackDir` returns a Promise that resolves to a string representing the
+ * directory path where the stack with the given `stackId` is located.
  */
 async function getStackDir(stackId: string): Promise<string> {
 	const stacksDir = await ensureStacksDir();
-	return join(stacksDir, stackId);
+	const safeId = basename(stackId); // strips path
+	if (safeId !== stackId) {
+		throw new Error('Invalid stack id');
+	}
+	return join(stacksDir, safeId);
 }
 
 /**
- * Get compose file path
- * @param {string} stackId
+ * The function `getComposeFilePath` returns the path to the docker-compose.yml file within the
+ * directory of a given stack ID.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the unique identifier
+ * of a stack in a system.
+ * @returns The function `getComposeFilePath` returns a Promise that resolves to a string representing
+ * the file path of the `docker-compose.yml` file within the directory of the stack identified by
+ * `stackId`.
  */
 async function getComposeFilePath(stackId: string): Promise<string> {
 	const stackDir = await getStackDir(stackId);
@@ -72,8 +95,13 @@ async function getComposeFilePath(stackId: string): Promise<string> {
 }
 
 /**
- * Get stack metadata file path
- * @param {string} stackId
+ * The function `getStackMetaPath` returns the path to the meta.json file within the directory of a
+ * given stack ID.
+ * @param {string} stackId - StackId is a string parameter that represents the unique identifier of a
+ * stack.
+ * @returns The function `getStackMetaPath` returns a `Promise` that resolves to a string representing
+ * the path to the `meta.json` file within the directory of the stack identified by the `stackId`
+ * parameter.
  */
 async function getStackMetaPath(stackId: string): Promise<string> {
 	const stackDir = await getStackDir(stackId);
@@ -81,8 +109,15 @@ async function getStackMetaPath(stackId: string): Promise<string> {
 }
 
 /**
- * Initialize a DockerodeCompose instance for a stack
- * @param {string} stackId
+ * The function `getComposeInstance` returns a new instance of `DockerodeCompose` using a Docker
+ * client, compose file path, and stack ID.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of a
+ * Docker stack. It is used to retrieve the compose file path and create a new instance of
+ * `DockerodeCompose` with the specified stack identifier.
+ * @returns The function `getComposeInstance` is returning a Promise that resolves to an instance of
+ * `DockerodeCompose`. The `DockerodeCompose` instance is created using the Docker client obtained from
+ * `getDockerClient()`, the compose file path obtained asynchronously from
+ * `getComposeFilePath(stackId)`, and the `stackId` parameter.
  */
 async function getComposeInstance(stackId: string): Promise<DockerodeCompose> {
 	const docker = getDockerClient();
@@ -91,9 +126,19 @@ async function getComposeInstance(stackId: string): Promise<DockerodeCompose> {
 }
 
 /**
- * Get the services and their status for a specific stack
- * @param {string} stackId Stack ID
- * @param {string} composeContent Compose file content
+ * This TypeScript function retrieves information about services in a Docker stack based on the
+ * provided stack ID and compose file content.
+ * @param {string} stackId - The `stackId` parameter in the `getStackServices` function is a string
+ * that represents the identifier of a stack in a Docker environment. This identifier is used to filter
+ * and identify containers associated with the specific stack.
+ * @param {string} composeContent - The `composeContent` parameter in the `getStackServices` function
+ * is expected to be a string containing the content of a Docker Compose file in YAML format. This file
+ * defines the services that make up a stack in Docker. The function parses this content to extract
+ * service names and then retrieves information about
+ * @returns The `getStackServices` function returns a Promise that resolves to an array of
+ * `StackService` objects. Each `StackService` object contains information about a service in a
+ * specific stack, including the service ID, name, and state (whether it is running, its status, and
+ * exit code). If an error occurs during the process, an empty array is returned.
  */
 async function getStackServices(stackId: string, composeContent: string): Promise<StackService[]> {
 	const docker = getDockerClient();
@@ -138,7 +183,7 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 				state: {
 					Running: containerData.State === 'running',
 					Status: containerData.State,
-					ExitCode: 0 
+					ExitCode: 0
 				}
 			};
 
@@ -167,8 +212,12 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 }
 
 /**
- * Load all compose stacks
- * @returns {Promise<Array<Stack>>} List of stacks
+ * This TypeScript function asynchronously loads information about Docker Compose stacks from a
+ * directory and returns an array of Stack objects.
+ * @returns The `loadComposeStacks` function returns a Promise that resolves to an array of `Stack`
+ * objects. Each `Stack` object represents a stack loaded from the stacks directory. The `Stack` object
+ * contains properties such as `id`, `name`, `serviceCount`, `runningCount`, `status`, `createdAt`, and
+ * `updatedAt`.
  */
 export async function loadComposeStacks(): Promise<Stack[]> {
 	const stacksDir = await ensureStacksDir();
@@ -220,8 +269,15 @@ export async function loadComposeStacks(): Promise<Stack[]> {
 }
 
 /**
- * Get stack by ID
- * @param {string} stackId
+ * This TypeScript function retrieves information about a stack, including its services and status,
+ * based on the provided stack ID.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the unique identifier
+ * of a stack. It is used to retrieve information about a specific stack, such as its metadata,
+ * services, status, and content.
+ * @returns The `getStack` function returns a Promise that resolves to an object of type `Stack`. The
+ * `Stack` object contains properties such as `id`, `name`, `services`, `serviceCount`, `runningCount`,
+ * `status`, `createdAt`, `updatedAt`, and `composeContent`. These properties hold information about a
+ * specific stack identified by `stackId`.
  */
 export async function getStack(stackId: string): Promise<Stack> {
 	try {
@@ -262,13 +318,25 @@ export async function getStack(stackId: string): Promise<Stack> {
 }
 
 /**
- * Create a new stack
- * @param {string} name Stack name
- * @param {string} composeContent Compose file content
+ * The function `createStack` creates a new stack with a unique ID, saves the stack's metadata and
+ * Docker Compose file to disk, and returns information about the created stack.
+ * @param {string} name - The `name` parameter is a string that represents the name of the stack being
+ * created. It is used to identify the stack and is included in the metadata of the stack.
+ * @param {string} composeContent - The `composeContent` parameter in the `createStack` function is a
+ * string that represents the content of a Docker Compose file. This file defines the services,
+ * networks, and volumes for a Docker application. It is used to configure and run multiple Docker
+ * containers as a single application.
+ * @returns The `createStack` function returns a Promise that resolves to a `Stack` object with the
+ * following properties:
+ * - `id`: The unique identifier of the stack
+ * - `name`: The name of the stack
+ * - `serviceCount`: The number of services defined in the Docker Compose file
+ * - `runningCount`: The number of services currently running
+ * - `status`: The status of the
  */
 export async function createStack(name: string, composeContent: string): Promise<Stack> {
 	const stackId = nanoid();
-	const stackDir = await getStackDir(stackId); 
+	const stackDir = await getStackDir(stackId);
 	const composePath = join(stackDir, 'docker-compose.yml');
 	const metaPath = join(stackDir, 'meta.json');
 
@@ -285,7 +353,7 @@ export async function createStack(name: string, composeContent: string): Promise
 		let serviceCount = 0;
 		try {
 			const composeData = yaml.load(composeContent) as any;
-			if (composeData && composeData.services) {
+			if (composeData?.services) {
 				serviceCount = Object.keys(composeData.services).length;
 			}
 		} catch (parseErr) {
@@ -293,14 +361,14 @@ export async function createStack(name: string, composeContent: string): Promise
 		}
 
 		return {
-			id: stackId, 
+			id: stackId,
 			name: meta.name,
-			serviceCount: serviceCount, 
+			serviceCount: serviceCount,
 			runningCount: 0,
 			status: 'stopped',
 			createdAt: meta.createdAt,
 			updatedAt: meta.updatedAt,
-			composeContent: composeContent 
+			composeContent: composeContent
 		};
 	} catch (err) {
 		console.error('Error creating stack:', err);
@@ -314,9 +382,19 @@ export async function createStack(name: string, composeContent: string): Promise
 }
 
 /**
- * Update an existing stack
- * @param {string} stackId Stack ID
- * @param {StackUpdate} updates Updates to apply
+ * The function `updateStack` updates a stack's metadata and compose file, calculates the status of the
+ * stack based on its services, and returns the updated stack information.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the unique identifier
+ * of the stack that you want to update.
+ * @param {StackUpdate} updates - The `updates` parameter in the `updateStack` function is an object
+ * that contains the changes you want to apply to the stack. It can have the following properties:
+ * @returns The `updateStack` function returns a Promise that resolves to a `Stack` object with the
+ * following properties:
+ * - `id`: The ID of the stack
+ * - `name`: The updated name of the stack
+ * - `serviceCount`: The total number of services in the stack
+ * - `runningCount`: The number of services currently running in the stack
+ * - `status`: The status of the
  */
 export async function updateStack(stackId: string, updates: StackUpdate): Promise<Stack> {
 	const metaPath = await getStackMetaPath(stackId);
@@ -369,8 +447,11 @@ export async function updateStack(stackId: string, updates: StackUpdate): Promis
 }
 
 /**
- * Start a stack
- * @param {string} stackId Stack ID
+ * The function `startStack` asynchronously starts a Docker stack identified by `stackId`, pulling the
+ * latest images and bringing up the services.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of the
+ * stack that you want to start.
+ * @returns The `startStack` function returns a `Promise<boolean>`.
  */
 export async function startStack(stackId: string): Promise<boolean> {
 	try {
@@ -386,8 +467,14 @@ export async function startStack(stackId: string): Promise<boolean> {
 }
 
 /**
- * Stop a stack
- * @param {string} stackId Stack ID
+ * The function `stopStack` stops a Docker stack identified by its ID and returns a boolean indicating
+ * success.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of the
+ * stack that you want to stop.
+ * @returns The `stopStack` function returns a Promise that resolves to a boolean value. If the stack
+ * is stopped successfully, it returns `true`. If an error occurs during the process of stopping the
+ * stack, it will log the error, throw a new Error with a message indicating the failure, and the
+ * Promise will be rejected.
  */
 export async function stopStack(stackId: string): Promise<boolean> {
 	try {
@@ -402,8 +489,11 @@ export async function stopStack(stackId: string): Promise<boolean> {
 }
 
 /**
- * Restart a stack
- * @param {string} stackId Stack ID
+ * The `restartStack` function asynchronously restarts a Docker stack identified by its ID, handling
+ * errors and returning a boolean indicating success.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of the
+ * stack that you want to restart.
+ * @returns The `restartStack` function returns a `Promise<boolean>`.
  */
 export async function restartStack(stackId: string): Promise<boolean> {
 	try {
@@ -419,16 +509,66 @@ export async function restartStack(stackId: string): Promise<boolean> {
 }
 
 /**
- * Remove a stack
- * @param {string} stackId Stack ID
+ * The function `fulllyRedployStack` asynchronously stops, pulls latest images, and restarts a
+ * specified stack, returning true if successful.
+ * @param {string} stackId - The `stackId` parameter in the `fulllyRedployStack` function is a string
+ * that represents the identifier of the stack that you want to fully redeploy. This function stops the
+ * stack, pulls the latest images, and then starts the stack again to ensure a full redeployment of the
+ * specified
+ * @returns The `fulllyRedployStack` function returns a `Promise<boolean>`. The function attempts to
+ * fully redeploy a stack by stopping it, pulling the latest images, and then starting it again. If all
+ * commands succeed, the function resolves the promise with a value of `true`. If an error occurs
+ * during the process, the function catches the error, logs it, and then throws a new `
+ */
+export async function fulllyRedployStack(stackId: string): Promise<boolean> {
+	try {
+		const compose = await getComposeInstance(stackId);
+
+		// Stop the stack
+		console.log(`Stopping stack ${stackId}...`);
+		await compose.down();
+		console.log(`Stack ${stackId} stopped.`);
+
+		// Pull the latest images
+		console.log(`Pulling images for stack ${stackId}...`);
+		await compose.pull();
+		console.log(`Images pulled for stack ${stackId}.`);
+
+		// Start the stack again
+		console.log(`Starting stack ${stackId}...`);
+		await compose.up();
+		console.log(`Stack ${stackId} started.`);
+
+		// If all commands succeeded, return true
+		return true;
+	} catch (err: unknown) {
+		console.error(`Error restarting stack ${stackId}:`, err);
+		const errorMessage = err instanceof Error ? err.message : String(err);
+		throw new Error(`Failed to restart stack: ${errorMessage}`);
+	}
+}
+/**
+ * The function `removeStack` removes a Docker stack by stopping its services and deleting its
+ * directory.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the unique identifier
+ * of the stack that needs to be removed.
+ * @returns The `removeStack` function returns a `Promise<boolean>`. The function attempts to remove a
+ * stack identified by `stackId`. If the removal process is successful, it resolves the promise with a
+ * value of `true`. If an error occurs during the removal process, it catches the error, logs it, and
+ * then throws a new `Error` with a message indicating the failure to remove the stack.
  */
 export async function removeStack(stackId: string): Promise<boolean> {
 	try {
 		const compose = await getComposeInstance(stackId);
-		await compose.down();
-
 		const stackDir = await getStackDir(stackId);
-		await fs.rm(stackDir, { recursive: true, force: true });
+
+		await compose.down();
+		try {
+			await fs.rm(stackDir, { recursive: true, force: true });
+		} catch (e) {
+			console.error(`Failed to remove stack directory ${stackDir}:`, e);
+			return false;
+		}
 
 		return true;
 	} catch (err: unknown) {
@@ -439,8 +579,13 @@ export async function removeStack(stackId: string): Promise<boolean> {
 }
 
 /**
- * Discover existing Docker Compose stacks by analyzing container labels
- * @returns {Promise<Stack[]>} External stacks discovered
+ * The function `discoverExternalStacks` asynchronously discovers external Docker stacks and their
+ * services, categorizing them based on their running status.
+ * @returns The `discoverExternalStacks` function returns a Promise that resolves to an array of
+ * `Stack` objects representing external stacks discovered by querying Docker containers. The `Stack`
+ * objects contain information about the external stacks, such as the stack name, services, service
+ * count, running service count, status (running, stopped, partially running), and timestamps for
+ * creation and update. If an error occurs during the discovery
  */
 export async function discoverExternalStacks(): Promise<Stack[]> {
 	try {
@@ -516,10 +661,12 @@ export async function discoverExternalStacks(): Promise<Stack[]> {
 }
 
 /**
- * Import an external stack into Arcane
- *
- * @param stackId The ID of the external stack to import
- * @returns The newly imported stack object
+ * The function `importExternalStack` imports an external Docker stack by retrieving containers,
+ * reading the compose file, and creating a new stack in Arcane's managed stacks.
+ * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of the
+ * external stack that you want to import. It is used to locate the stack and its associated containers
+ * in the Docker environment.
+ * @returns The `importExternalStack` function returns a Promise that resolves to a `Stack` object.
  */
 export async function importExternalStack(stackId: string): Promise<Stack> {
 	// 1. First, check if we can find the stack by ID
