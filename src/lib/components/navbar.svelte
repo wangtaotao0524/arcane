@@ -91,7 +91,12 @@
 			{@const isActive = page.url.pathname === item.href || (page.url.pathname.startsWith(item.href) && item.href !== '/')}
 			{@const Icon = item.icon}
 
-			<a href={item.href} class={cn('flex items-center justify-between rounded-md text-sm font-medium transition-all', isCollapsed ? 'px-2 py-2 my-1 flex-col gap-1' : 'px-3 py-2 my-0.5', 'transition-colors group', isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground')} aria-current={isActive ? 'page' : undefined} title={isCollapsed ? item.label : undefined}>
+			<a
+				href={item.href}
+				class={cn('flex items-center justify-between rounded-md text-sm font-medium transition-all', isCollapsed ? 'px-2 py-2 my-1 flex-col gap-1' : 'px-3 py-2 my-0.5', 'transition-colors group', isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+				aria-current={isActive ? 'page' : undefined}
+				title={isCollapsed ? item.label : undefined}
+			>
 				<div class={cn('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
 					<div class={cn('p-1 rounded-md', isActive ? 'bg-primary/10' : 'bg-transparent group-hover:bg-muted-foreground/10')}>
 						<Icon size={16} class={cn(isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
