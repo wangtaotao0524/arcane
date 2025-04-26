@@ -14,7 +14,7 @@
     ExternalLink, // Add this for the update link icon
     type Icon as IconType,
   } from "@lucide/svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
@@ -104,7 +104,7 @@
   >
     <div class="flex-shrink-0">
       <img
-        src="/img/nautix_logo_new.png"
+        src="/img/arcane.png"
         alt="Arcane"
         class="h-15 w-15"
         width="30"
@@ -150,8 +150,8 @@
   >
     {#each items as item}
       {@const isActive =
-        $page.url.pathname === item.href ||
-        ($page.url.pathname.startsWith(item.href) && item.href !== "/")}
+        page.url.pathname === item.href ||
+        (page.url.pathname.startsWith(item.href) && item.href !== "/")}
       {@const Icon = item.icon}
 
       <a

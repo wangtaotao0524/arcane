@@ -1,5 +1,6 @@
 import Docker from "dockerode";
 import type { VolumeInspectInfo, VolumeCreateOptions } from "dockerode";
+import type { NetworkInspectInfo, NetworkCreateOptions } from "dockerode"; // Add NetworkCreateOptions
 import { getSettings } from "$lib/services/settings-service";
 import type {
   DockerConnectionOptions,
@@ -612,6 +613,45 @@ export async function isImageInUse(imageId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Prunes unused Docker images.
+ * @param mode - Mode of pruning ('all' or 'dangling').
+ * @returns Information about reclaimed space.
+ */
+export async function pruneImages(mode: "all" | "dangling" = "all"): Promise<{
+  ImagesDeleted: Docker.ImageRemoveInfo[] | null;
+  SpaceReclaimed: number;
+}> {
+  try {
+    const docker = getDockerClient();
+    const filterValue = mode === "all" ? "false" : "true";
+    const logMessage =
+      mode === "all"
+        ? "Pruning all unused images (docker image prune -a)..."
+        : "Pruning dangling images (docker image prune)...";
+
+    console.log(`Docker Service: ${logMessage}`);
+
+    const pruneOptions = {
+      filters: { dangling: [filterValue] },
+    };
+
+    const result = await docker.pruneImages(pruneOptions); // Use the options object
+
+    console.log(
+      `Docker Service: Image prune complete. Space reclaimed: ${result.SpaceReclaimed}`
+    );
+    return result;
+  } catch (error: any) {
+    console.error("Docker Service: Error pruning images:", error);
+    throw new Error(
+      `Failed to prune images using host "${dockerHost}". ${
+        error.message || error.reason || ""
+      }`
+    );
+  }
+}
+
 // Define and export the type returned by listNetworks
 export type ServiceNetwork = {
   id: string;
@@ -645,6 +685,86 @@ export async function listNetworks(): Promise<ServiceNetwork[]> {
     console.error("Docker Service: Error listing networks:", error);
     throw new Error(
       `Failed to list Docker networks using host "${dockerHost}".`
+    );
+  }
+}
+
+/**
+ * Removes a Docker network.
+ * @param networkId - The ID or name of the network to remove.
+ */
+export async function removeNetwork(networkId: string): Promise<void> {
+  try {
++    const DEFAULT_NETWORKS = new Set(["host", "bridge", "none", "ingress"]);
++    if (DEFAULT_NETWORKS.has(networkId)) {
++      throw new Error(`Network "${networkId}" is managed by Docker and cannot be removed.`);
++    }
+    const docker = getDockerClient();
+    const network = docker.getNetwork(networkId);
+    await network.remove();
+    console.log(`Docker Service: Network "${networkId}" removed successfully.`);
+  } catch (error: any) {
+    console.error(
+      `Docker Service: Error removing network "${networkId}":`,
+      error
+    );
+    if (error.statusCode === 404) {
+      throw new Error(`Network "${networkId}" not found.`);
+    }
+    if (error.statusCode === 409) {
+      // 409 Conflict usually means it's in use or predefined
+      throw new Error(
+        `Network "${networkId}" cannot be removed (possibly in use or predefined).`
+      );
+    }
+    throw new Error(
+      `Failed to remove network "${networkId}" using host "${dockerHost}". ${
+        error.message || error.reason || ""
+      }`
+    );
+  }
+}
+
+/**
+ * Creates a Docker network.
+ * @param options - Options for creating the network (e.g., Name, Driver, Labels, CheckDuplicate, Internal, IPAM).
+ */
+export async function createNetwork(
+  options: NetworkCreateOptions
+): Promise<NetworkInspectInfo> {
+  try {
+    const docker = getDockerClient();
+    console.log(
+      `Docker Service: Creating network "${options.Name}"...`,
+      options
+    );
+
+    // Dockerode's createNetwork returns the Network object, we need to inspect it after creation
+    const network = await docker.createNetwork(options);
+
+    // Inspect the newly created network to get full details
+    const inspectInfo = await network.inspect();
+
+    console.log(
+      `Docker Service: Network "${options.Name}" (ID: ${inspectInfo.Id}) created successfully.`
+    );
+    return inspectInfo; // Return the detailed inspect info
+  } catch (error: any) {
+    console.error(
+      `Docker Service: Error creating network "${options.Name}":`,
+      error
+    );
+    // Check for specific Docker errors
+    if (error.statusCode === 409) {
+      // Could be duplicate name if CheckDuplicate was true, or other conflicts
+      throw new Error(
+        `Network "${options.Name}" may already exist or conflict with an existing configuration.`
+      );
+    }
+    throw new Error(
+      `Failed to create network "${options.Name}" using host "${dockerHost}". ${
+        error.message || error.reason || ""
+      }`
     );
   }
 }

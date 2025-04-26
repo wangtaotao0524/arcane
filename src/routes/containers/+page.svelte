@@ -10,17 +10,13 @@
   import type { ContainerConfig } from "$lib/types/docker";
   import { enhance } from "$app/forms";
 
-  // Server data from load function
   let { data, form } = $props();
-  const { containers } = data;
-
+  let containers = $state(data.containers);
   let isRefreshing = $state(false);
   let selectedIds = $state([]);
   let isCreateDialogOpen = $state(false);
   let isCreatingContainer = $state(false);
   let containerData = $state<ContainerConfig | null>(null);
-
-  // Add a form reference
   let formRef: HTMLFormElement;
 
   // Calculate running containers
@@ -50,13 +46,16 @@
     }
   });
 
-  // Simple refresh now - this just triggers a new SSR call
   async function refreshData() {
     isRefreshing = true;
-    await invalidateAll();
-    setTimeout(() => {
-      isRefreshing = false;
-    }, 500);
+    try {
+      await invalidateAll();
+      containers = data.containers;
+    } finally {
+      setTimeout(() => {
+        isRefreshing = false;
+      }, 300);
+    }
   }
 
   function openCreateDialog() {
@@ -138,7 +137,7 @@
           >
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" onclick={openCreateDialog}>
+          <Button variant="secondary" onclick={openCreateDialog}>
             <Plus class="w-4 h-4" />
             Create Container
           </Button>
@@ -169,11 +168,11 @@
         the Docker CLI
       </p>
       <div class="flex gap-3 mt-4">
-        <Button variant="outline" size="sm" onclick={refreshData}>
+        <Button variant="secondary" onclick={refreshData}>
           <RefreshCw class="h-4 w-4" />
           Refresh
         </Button>
-        <Button variant="outline" size="sm" onclick={openCreateDialog}>
+        <Button variant="secondary" onclick={openCreateDialog}>
           <Plus class="h-4 w-4" />
           Create Container
         </Button>
@@ -190,7 +189,7 @@
         isCreatingContainer = false;
         if (result.type === "success") {
           isCreateDialogOpen = false;
-          await invalidateAll();
+          await refreshData();
         }
       };
     }}
