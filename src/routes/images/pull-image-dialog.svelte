@@ -44,7 +44,7 @@
 		if (!imageRef.trim()) return;
 
 		let urlPath = imageRef.trim();
-		let imageTag = tag || 'latest';
+		let imageTag = tag.trim();
 
 		if (urlPath.includes(':')) {
 			const parts = urlPath.split(':');

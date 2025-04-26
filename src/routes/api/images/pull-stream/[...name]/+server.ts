@@ -1,8 +1,12 @@
 import type { RequestHandler } from './$types';
 import { getDockerClient } from '$lib/services/docker/core';
+import { URL } from 'url'; // Import URL
 
 export const GET: RequestHandler = async ({ params, request }) => {
-	const imageRef = params.name;
+	const imageName = params.name;
+	const url = new URL(request.url);
+	const tag = url.searchParams.get('tag') || 'latest';
+	const platform = url.searchParams.get('platform');
 
 	// Set up SSE headers
 	const headers = new Headers({
@@ -20,7 +24,16 @@ export const GET: RequestHandler = async ({ params, request }) => {
 					controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`));
 				}
 
-				const pullStream = await docker.pull(imageRef);
+				const fullImageRef = `${imageName}:${tag}`;
+
+				// Construct pull options
+				const pullOptions: { platform?: string } = {};
+				if (platform) {
+					pullOptions.platform = platform;
+				}
+
+				// Pass options to docker.pull
+				const pullStream = await docker.pull(fullImageRef, pullOptions);
 
 				let layers: Record<string, any> = {};
 				let totalProgress = 0;
@@ -61,8 +74,12 @@ export const GET: RequestHandler = async ({ params, request }) => {
 								totalProgress = Math.min(99, Math.floor((currentProgress / totalSize) * 100));
 								send({ progress: totalProgress, status: event.status });
 							} else {
-								send({ progress: 5, status: event.status });
+								// Send initial status even if progress can't be calculated yet
+								send({ progress: 0, status: event.status });
 							}
+						} else if (event.status) {
+							// Send status updates that don't have layer progress
+							send({ status: event.status });
 						}
 					}
 				);
