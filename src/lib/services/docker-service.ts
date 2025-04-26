@@ -1,11 +1,10 @@
 import Docker from 'dockerode';
-import type { VolumeInspectInfo, VolumeCreateOptions } from 'dockerode';
-import type { NetworkInspectInfo, NetworkCreateOptions } from 'dockerode'; // Add NetworkCreateOptions
-import { getSettings } from '$lib/services/settings-service';
-import type { DockerConnectionOptions, ContainerConfig, ContainerDetails, ContainerCreate } from '$lib/types/docker';
+import type { VolumeCreateOptions } from 'dockerode';
+import type { NetworkInspectInfo, NetworkCreateOptions } from 'dockerode';
+import type { DockerConnectionOptions, ContainerConfig, ContainerCreate } from '$lib/types/docker';
 
 let dockerClient: Docker | null = null;
-let dockerHost: string = 'unix:///var/run/docker.sock'; // Default value
+let dockerHost: string = 'unix:///var/run/docker.sock'; 
 
 /**
  * Initialize Docker connection with the given options
