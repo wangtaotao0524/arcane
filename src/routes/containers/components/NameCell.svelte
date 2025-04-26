@@ -1,12 +1,12 @@
 <script lang="ts">
-  interface Props {
-    id: string;
-    name: string;
-  }
+	interface Props {
+		id: string;
+		name: string;
+	}
 
-  let { id, name }: Props = $props();
+	let { id, name }: Props = $props();
 </script>
 
 <a href="/containers/{id}" class="font-medium hover:underline">
-  {name}
+	{name}
 </a>

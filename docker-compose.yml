@@ -3,7 +3,7 @@ services:
     image: ghcr.io/ofkm/arcane:latest
     container_name: arcane
     ports:
-      - "3000:3000"
+      - '3000:3000'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./arcane-data:/app/data
@@ -14,7 +14,6 @@ services:
       - PGID=1000
       - DOCKER_GID=998 # getent group docker | cut -d: -f3
     restart: unless-stopped
-
 # Optional: Define the volume if you want Docker to manage it
 # volumes:
 #   arcane-data:

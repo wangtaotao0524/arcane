@@ -1,118 +1,118 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @config '../tailwind.config.ts';
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
-    --destructive: 0 72.22% 50.59%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 1rem;
-  }
-  .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 263.4 70% 50.4%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 263.4 70% 50.4%;
-  }
+	:root {
+		--background: 0 0% 100%;
+		--foreground: 224 71.4% 4.1%;
+		--card: 0 0% 100%;
+		--card-foreground: 224 71.4% 4.1%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 224 71.4% 4.1%;
+		--primary: 262.1 83.3% 57.8%;
+		--primary-foreground: 210 20% 98%;
+		--secondary: 220 14.3% 95.9%;
+		--secondary-foreground: 220.9 39.3% 11%;
+		--muted: 220 14.3% 95.9%;
+		--muted-foreground: 220 8.9% 46.1%;
+		--accent: 220 14.3% 95.9%;
+		--accent-foreground: 220.9 39.3% 11%;
+		--destructive: 0 72.22% 50.59%;
+		--destructive-foreground: 210 20% 98%;
+		--border: 220 13% 91%;
+		--input: 220 13% 91%;
+		--ring: 262.1 83.3% 57.8%;
+		--radius: 1rem;
+	}
+	.dark {
+		--background: 224 71.4% 4.1%;
+		--foreground: 210 20% 98%;
+		--card: 224 71.4% 4.1%;
+		--card-foreground: 210 20% 98%;
+		--popover: 224 71.4% 4.1%;
+		--popover-foreground: 210 20% 98%;
+		--primary: 263.4 70% 50.4%;
+		--primary-foreground: 210 20% 98%;
+		--secondary: 215 27.9% 16.9%;
+		--secondary-foreground: 210 20% 98%;
+		--muted: 215 27.9% 16.9%;
+		--muted-foreground: 217.9 10.6% 64.9%;
+		--accent: 215 27.9% 16.9%;
+		--accent-foreground: 210 20% 98%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 210 20% 98%;
+		--border: 215 27.9% 16.9%;
+		--input: 215 27.9% 16.9%;
+		--ring: 263.4 70% 50.4%;
+	}
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }
 
 /* Dashboard tables styling */
 .dashboard-table-wrapper :global(.space-y-4) {
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
+	margin-top: 0 !important;
+	margin-bottom: 0 !important;
 }
 
 .dashboard-table-wrapper :global(.rounded-md.border) {
-  border: none !important;
-  border-radius: 0 !important;
-  overflow: hidden;
+	border: none !important;
+	border-radius: 0 !important;
+	overflow: hidden;
 }
 
 .dashboard-table-wrapper :global(table) {
-  margin: 0;
+	margin: 0;
 }
 
 .dashboard-table-wrapper :global(th) {
-  background-color: transparent !important;
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-  color: var(--muted-foreground) !important;
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
-  height: 2.5rem !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
+	background-color: transparent !important;
+	font-size: 0.75rem !important;
+	font-weight: 500 !important;
+	color: var(--muted-foreground) !important;
+	padding-left: 1.5rem !important;
+	padding-right: 1.5rem !important;
+	height: 2.5rem !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.04em !important;
 }
 
 .dashboard-table-wrapper :global(td) {
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
-  font-size: 0.875rem !important;
+	padding-left: 1.5rem !important;
+	padding-right: 1.5rem !important;
+	font-size: 0.875rem !important;
 }
 
 .dashboard-table-wrapper :global(tr:last-child td) {
-  border-bottom: none !important;
+	border-bottom: none !important;
 }
 
 /* Hide the search/filter area */
 .dashboard-table-wrapper > :global(div) > :global(div:first-child) {
-  display: none !important;
+	display: none !important;
 }
 
 /* Remove vertical spacing between elements */
 .dashboard-table-wrapper > :global(div.space-y-4) > :global(div) {
-  margin-top: 0 !important;
+	margin-top: 0 !important;
 }
 
 /* Hide pagination when not needed */
 .dashboard-table-wrapper > :global(div.space-y-4) > :global(div:last-child) {
-  display: none !important;
+	display: none !important;
 }
 
 .version-collapsed {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-  opacity: 0.7;
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+	transform: rotate(180deg);
+	opacity: 0.7;
 }
