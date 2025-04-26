@@ -62,9 +62,8 @@
 					fontSize: '14px',
 					fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace'
 				},
-				// Optionally add styles for read-only state
 				'&.cm-editor[contenteditable=false]': {
-					backgroundColor: '#f8f8f8', // Example: slightly different background
+					backgroundColor: '#f8f8f8',
 					cursor: 'not-allowed'
 				},
 				'.cm-content[contenteditable=false]': {

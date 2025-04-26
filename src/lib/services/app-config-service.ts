@@ -7,7 +7,6 @@ export default class AppConfigService {
 	 */
 	async getVersionInformation(): Promise<AppVersionInformation> {
 		try {
-			// GitHub API URL for releases - adjust with your repository details
 			const apiUrl = 'https://api.github.com/repos/ofkm/arcane/releases/latest';
 
 			const response = await fetch(apiUrl);
@@ -34,7 +33,6 @@ export default class AppConfigService {
 			};
 		} catch (error) {
 			console.error('Error fetching version information:', error);
-			// Return only current version if fetch fails
 			return { currentVersion };
 		}
 	}
@@ -54,6 +52,6 @@ export default class AppConfigService {
 			if ((latestParts[i] || 0) < (currentParts[i] || 0)) return false;
 		}
 
-		return false; // Versions are equal
+		return false;
 	}
 }

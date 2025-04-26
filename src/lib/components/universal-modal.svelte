@@ -25,7 +25,6 @@
 		showCancel?: boolean;
 	} = $props();
 
-	// Determine icon and color based on type
 	const iconMap = {
 		success: CheckCircle2,
 		error: AlertCircle,

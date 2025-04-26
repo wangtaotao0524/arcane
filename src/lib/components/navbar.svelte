@@ -1,19 +1,5 @@
 <script lang="ts">
-	import {
-		Home,
-		Box,
-		Image,
-		Network,
-		HardDrive,
-		Settings,
-		Menu,
-		X,
-		ChevronRight,
-		ChevronLeft,
-		FileStack,
-		ExternalLink, // Add this for the update link icon
-		type Icon as IconType
-	} from '@lucide/svelte';
+	import { Home, Box, Image, Network, HardDrive, Settings, Menu, X, ChevronRight, ChevronLeft, FileStack, ExternalLink, type Icon as IconType } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -22,7 +8,6 @@
 	import { browser } from '$app/environment';
 	import type { AppVersionInformation } from '$lib/types/application-configuration';
 
-	// Menu items and version information with proper typing
 	let {
 		items = [
 			{ href: '/', label: 'Dashboard', icon: Home },
@@ -39,26 +24,20 @@
 		versionInformation?: AppVersionInformation;
 	}>();
 
-	// Define MenuItem type with proper IconType
 	type MenuItem = {
 		href: string;
 		label: string;
 		icon: typeof IconType;
 	};
 
-	// State for mobile sidebar
 	let isOpen = $state(false);
-
-	// State for sidebar collapse (desktop)
 	let isCollapsed = $state(false);
 
-	// Initialize from localStorage if available
 	if (browser) {
 		const savedState = localStorage.getItem('sidebarCollapsed');
 		isCollapsed = savedState === 'true';
 	}
 
-	// Save collapsed state to localStorage
 	function toggleCollapse() {
 		isCollapsed = !isCollapsed;
 		if (browser) {
@@ -66,7 +45,6 @@
 		}
 	}
 
-	// Determine if update is available
 	const updateAvailable = $derived(versionInformation?.updateAvailable);
 </script>
 

@@ -13,37 +13,25 @@
 	import type { UniversalTableProps } from '$lib/types/table-types';
 
 	let { data, columns, idKey, features = {}, display = {}, pagination = {}, sort = {}, selectedIds = $bindable<string[]>([]) }: UniversalTableProps<TData> & { idKey?: keyof TData } = $props();
-
 	let { sorting: enableSorting = true, filtering: enableFiltering = true, selection: enableSelection = true } = features;
-
 	let { pageSize: initialPageSize = 10, pageSizeOptions = [10, 20, 50, 100], itemsPerPageLabel = 'Items per page' } = pagination;
-
 	let { filterPlaceholder = 'Search...', noResultsMessage = 'No results found', isDashboardTable = false, class: className = '' } = display;
-
 	let { defaultSort = { id: 'name', desc: false } } = sort;
 
-	// Pagination state
 	let pageSize = $state(initialPageSize);
 	let pageIndex = $state(0);
 	let currentPage = $state(1);
-
-	// Sorting state - Initialize with default sort
 	let sorting = $state<SortingState>(defaultSort ? [defaultSort] : []);
-
-	// Filtering state
 	let columnFilters = $state<ColumnFiltersState>([]);
 	let globalFilter = $state<string>('');
-	// Selection state
 	let selectedRowIds = $state<Record<string, boolean>>({});
 
 	$effect(() => {
-		// Update selected IDs array when row selection changes
 		selectedIds = Object.entries(selectedRowIds)
 			.filter(([_, selected]) => selected)
 			.map(([id]) => id);
 	});
 
-	// Sync pagination states
 	$effect(() => {
 		pageIndex = currentPage - 1;
 	});
@@ -55,7 +43,6 @@
 		}
 	});
 
-	// Create table instance
 	const table = createSvelteTable({
 		get data() {
 			return data;
@@ -106,7 +93,7 @@
 		},
 		onGlobalFilterChange: (value) => {
 			globalFilter = value;
-			pageIndex = 0; // Reset to first page when filtering
+			pageIndex = 0;
 			currentPage = 1;
 		},
 		onRowSelectionChange: (updater) => {
@@ -122,15 +109,12 @@
 	const pageCount = $derived(table.getPageCount());
 	const filteredRowCount = $derived(table.getFilteredRowModel().rows.length);
 
-	// Handle global filtering with debounce
 	const handleFilterChange = debounced((value: string) => {
 		table.setGlobalFilter(value);
 	}, 300);
 
-	// Check if all rows on current page are selected
 	const allRowsSelected = $derived(table.getIsAllPageRowsSelected() && table.getRowModel().rows.length > 0);
 
-	// Handle page size change
 	function handlePageSizeChange(size: string | number) {
 		const sizeNumber = typeof size === 'string' ? parseInt(size) : size;
 		pageSize = sizeNumber;

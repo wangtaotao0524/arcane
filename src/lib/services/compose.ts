@@ -7,7 +7,6 @@ import type { Stack, StackMeta, StackService, StackUpdate } from '$lib/types/sta
 import yaml from 'js-yaml';
 import { getSettings, ensureStacksDirectory } from './settings-service';
 
-// This will be populated on initialization
 let STACKS_DIR = '';
 
 /**
@@ -16,16 +15,13 @@ let STACKS_DIR = '';
  */
 export async function initComposeService(): Promise<void> {
 	try {
-		// Get settings to initialize the stacks directory
 		const settings = await getSettings();
 		STACKS_DIR = settings.stacksDirectory;
 		console.log(`Stacks directory initialized: ${STACKS_DIR}`);
 
-		// Ensure the directory exists
 		await ensureStacksDir();
 	} catch (err) {
 		console.error('Error initializing compose service:', err);
-		// We'll initialize again when needed in other functions
 	}
 }
 
@@ -45,12 +41,9 @@ export function updateStacksDirectory(directory: string): void {
  */
 async function ensureStacksDir(): Promise<string> {
 	try {
-		// If STACKS_DIR is empty, initialize from settings
 		if (!STACKS_DIR) {
-			// Get from settings service
 			STACKS_DIR = await ensureStacksDirectory();
 		} else {
-			// Just ensure the directory exists
 			await fs.mkdir(STACKS_DIR, { recursive: true });
 		}
 		return STACKS_DIR;
@@ -106,7 +99,6 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 	const docker = getDockerClient();
 
 	try {
-		// Parse the compose file to get service names
 		const composeData = yaml.load(composeContent) as any;
 		if (!composeData || !composeData.services) {
 			return [];
@@ -114,27 +106,20 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 
 		const serviceNames = Object.keys(composeData.services);
 
-		// First, list all containers
 		const containers = await docker.listContainers({ all: true });
 
-		// Filter containers related to this stack based on naming convention
-		// DockerodeCompose prepends the project name to container names
 		const stackPrefix = `${stackId}_`;
 		const stackContainers = containers.filter((container) => {
 			const names = container.Names || [];
 			return names.some((name) => name.startsWith(`/${stackPrefix}`));
 		});
 
-		// Map containerData to our StackService format
 		const services: StackService[] = [];
 
 		for (const containerData of stackContainers) {
-			// Extract service name by removing stack prefix from container name
 			let containerName = containerData.Names?.[0] || '';
-			// Remove the leading slash and the stack prefix
-			containerName = containerName.substring(1); // Remove the leading slash
+			containerName = containerName.substring(1);
 
-			// Find the service name by removing prefix
 			let serviceName = '';
 			for (const name of serviceNames) {
 				if (containerName.startsWith(`${stackId}_${name}_`) || containerName === `${stackId}_${name}`) {
@@ -144,7 +129,6 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 			}
 
 			if (!serviceName) {
-				// In case we can't determine the service name, use the container name
 				serviceName = containerName;
 			}
 
@@ -154,14 +138,13 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 				state: {
 					Running: containerData.State === 'running',
 					Status: containerData.State,
-					ExitCode: 0 // Would need to get container inspect data for this
+					ExitCode: 0 
 				}
 			};
 
 			services.push(service);
 		}
 
-		// Add services from compose file that don't have containers yet
 		for (const name of serviceNames) {
 			if (!services.some((s) => s.name === name)) {
 				services.push({
@@ -203,7 +186,6 @@ export async function loadComposeStacks(): Promise<Stack[]> {
 
 				const meta = JSON.parse(metaContent) as StackMeta;
 
-				// Get services and their status
 				const services = await getStackServices(dir, composeContent);
 
 				const serviceCount = services.length;
@@ -227,7 +209,6 @@ export async function loadComposeStacks(): Promise<Stack[]> {
 				});
 			} catch (err) {
 				console.warn(`Error loading stack ${dir}:`, err);
-				// Skip this stack if we can't load it
 			}
 		}
 
@@ -251,9 +232,7 @@ export async function getStack(stackId: string): Promise<Stack> {
 
 		const meta = JSON.parse(metaContent) as StackMeta;
 
-		// Get services status
 		const services = await getStackServices(stackId, composeContent);
-		const compose = await getComposeInstance(stackId);
 
 		const serviceCount = services.length;
 		const runningCount = services.filter((s) => s.state?.Running).length;
@@ -275,8 +254,6 @@ export async function getStack(stackId: string): Promise<Stack> {
 			createdAt: meta.createdAt,
 			updatedAt: meta.updatedAt,
 			composeContent
-			// We don't include the compose instance directly in the returned object
-			// as it may not serialize properly and isn't needed in the UI
 		};
 	} catch (err) {
 		console.error(`Error getting stack ${stackId}:`, err);
@@ -290,8 +267,8 @@ export async function getStack(stackId: string): Promise<Stack> {
  * @param {string} composeContent Compose file content
  */
 export async function createStack(name: string, composeContent: string): Promise<Stack> {
-	const stackId = nanoid(); // Generate ID here
-	const stackDir = await getStackDir(stackId); // Use the generated ID
+	const stackId = nanoid();
+	const stackDir = await getStackDir(stackId); 
 	const composePath = join(stackDir, 'docker-compose.yml');
 	const metaPath = join(stackDir, 'meta.json');
 
@@ -305,7 +282,6 @@ export async function createStack(name: string, composeContent: string): Promise
 		await fs.mkdir(stackDir, { recursive: true });
 		await Promise.all([fs.writeFile(composePath, composeContent, 'utf8'), fs.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8')]);
 
-		// Parse the compose content to estimate service count initially
 		let serviceCount = 0;
 		try {
 			const composeData = yaml.load(composeContent) as any;
@@ -317,18 +293,17 @@ export async function createStack(name: string, composeContent: string): Promise
 		}
 
 		return {
-			id: stackId, // Return the generated ID
+			id: stackId, 
 			name: meta.name,
-			serviceCount: serviceCount, // Initial estimate
+			serviceCount: serviceCount, 
 			runningCount: 0,
 			status: 'stopped',
 			createdAt: meta.createdAt,
 			updatedAt: meta.updatedAt,
-			composeContent: composeContent // Include content for immediate use if needed
+			composeContent: composeContent 
 		};
 	} catch (err) {
 		console.error('Error creating stack:', err);
-		// Attempt to clean up if creation failed partially
 		try {
 			await fs.rm(stackDir, { recursive: true, force: true });
 		} catch (cleanupErr) {
@@ -348,18 +323,15 @@ export async function updateStack(stackId: string, updates: StackUpdate): Promis
 	const composePath = await getComposeFilePath(stackId);
 
 	try {
-		// Read existing meta
 		const metaContent = await fs.readFile(metaPath, 'utf8');
 		const meta = JSON.parse(metaContent) as StackMeta;
 
-		// Update meta
 		const updatedMeta: StackMeta = {
 			...meta,
 			name: updates.name || meta.name,
 			updatedAt: new Date().toISOString()
 		};
 
-		// Write updated files
 		const promises = [fs.writeFile(metaPath, JSON.stringify(updatedMeta, null, 2), 'utf8')];
 
 		if (updates.composeContent) {
@@ -368,7 +340,6 @@ export async function updateStack(stackId: string, updates: StackUpdate): Promis
 
 		await Promise.all(promises);
 
-		// Now get the updated stack status
 		const composeContent = updates.composeContent || (await fs.readFile(composePath, 'utf8'));
 		const services = await getStackServices(stackId, composeContent);
 
@@ -436,8 +407,6 @@ export async function stopStack(stackId: string): Promise<boolean> {
  */
 export async function restartStack(stackId: string): Promise<boolean> {
 	try {
-		// DockerodeCompose doesn't have a restart method, so we'll implement it
-		// by stopping and starting the stack
 		const compose = await getComposeInstance(stackId);
 		await compose.down();
 		await compose.up();
@@ -455,11 +424,9 @@ export async function restartStack(stackId: string): Promise<boolean> {
  */
 export async function removeStack(stackId: string): Promise<boolean> {
 	try {
-		// First stop all services
 		const compose = await getComposeInstance(stackId);
 		await compose.down();
 
-		// Then delete the stack files
 		const stackDir = await getStackDir(stackId);
 		await fs.rm(stackDir, { recursive: true, force: true });
 
@@ -480,11 +447,9 @@ export async function discoverExternalStacks(): Promise<Stack[]> {
 		const docker = getDockerClient();
 		const containers = await docker.listContainers({ all: true });
 
-		// Docker Compose adds these labels to managed containers
 		const composeProjectLabel = 'com.docker.compose.project';
 		const composeServiceLabel = 'com.docker.compose.service';
 
-		// Group containers by project
 		const projectMap: Record<string, any[]> = {};
 
 		containers.forEach((container) => {
@@ -508,11 +473,9 @@ export async function discoverExternalStacks(): Promise<Stack[]> {
 			}
 		});
 
-		// Convert to our Stack format
 		const externalStacks: Stack[] = [];
 
 		for (const [projectName, services] of Object.entries(projectMap)) {
-			// Check if this stack is already in our managed stacks
 			const stackDir = await getStackDir(projectName);
 			try {
 				await fs.access(stackDir);

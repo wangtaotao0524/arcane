@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Play, StopCircle, RotateCcw, Download, Rocket, RefreshCw, Trash2, Loader2 } from '@lucide/svelte';
+	import { Play, StopCircle, RotateCcw, Download, Trash2, Loader2 } from '@lucide/svelte';
 
 	type TargetType = 'container' | 'stack';
 	type LoadingStates = {
