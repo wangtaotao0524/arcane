@@ -2,7 +2,8 @@ import { getDockerClient, dockerHost } from './core';
 import type { ContainerConfig, ContainerCreate } from '$lib/types/docker';
 import type { ServiceContainer } from '$lib/types/docker/container.type';
 // Import custom errors
-import { NotFoundError, ConflictError, DockerApiError } from '$lib/types/errors';
+import { NotFoundError, ConflictError, DockerApiError, ContainerStateError } from '$lib/types/errors';
+import type Docker from 'dockerode';
 
 /**
  * This TypeScript function lists Docker containers and returns an array of ServiceContainer objects.
@@ -335,5 +336,63 @@ export async function createContainer(config: ContainerConfig) {
 			throw new Error(`Invalid Memory limit specified: ${error.message}`);
 		}
 		throw new Error(`Failed to create container with image "${config.image}": ${error.message}`);
+	}
+}
+
+/**
+ * Retrieves a single snapshot of resource usage statistics for a given container.
+ * @param {string} containerId - The ID of the container.
+ * @returns {Promise<Docker.ContainerStats | null>} A promise that resolves with the stats object, or null if the container is not running or not found.
+ * @throws {NotFoundError} If the container does not exist.
+ * @throws {DockerApiError} For other errors during the Docker API interaction.
+ */
+export async function getContainerStats(containerId: string): Promise<Docker.ContainerStats | null> {
+	try {
+		const docker = getDockerClient();
+		const container = docker.getContainer(containerId);
+
+		// Check if container exists first (inspect is a good way)
+		try {
+			await container.inspect();
+		} catch (inspectError: any) {
+			if (inspectError.statusCode === 404) {
+				throw new NotFoundError(`Container ${containerId} not found when trying to get stats.`);
+			}
+			// Rethrow other inspect errors
+			throw inspectError;
+		}
+
+		// Get a single stats reading
+		// Note: This might throw an error or return empty/zero data if the container is not running.
+		const stats = await container.stats({ stream: false });
+
+		// The stats stream might return an empty object {} if the container just stopped.
+		// Check for essential properties before returning.
+		if (!stats || !stats.memory_stats || !stats.cpu_stats) {
+			console.warn(`Docker Service: Received incomplete stats for container ${containerId}. It might not be running.`);
+			return null;
+		}
+
+		return stats as Docker.ContainerStats;
+	} catch (error: any) {
+		// Handle cases where stats fails because the container isn't running (often a 404 or 500 from Docker API)
+		if (error.statusCode === 404) {
+			// Could be container not found OR container not running (Docker API might return 404 for stats on stopped container)
+			console.warn(`Docker Service: Container ${containerId} not found or not running when fetching stats.`);
+			return null; // Return null if not running or not found
+		}
+		if (error.statusCode === 500 && error.message?.includes('is not running')) {
+			console.warn(`Docker Service: Container ${containerId} is not running when fetching stats.`);
+			return null; // Return null if not running
+		}
+
+		// Handle specific NotFoundError from the inspect check
+		if (error instanceof NotFoundError) {
+			throw error;
+		}
+
+		console.error(`Docker Service: Error getting stats for container ${containerId}:`, error);
+		// Throw a DockerApiError for unexpected issues
+		throw new DockerApiError(`Failed to get stats for container ${containerId}: ${error.message || 'Unknown Docker error'}`, error.statusCode);
 	}
 }

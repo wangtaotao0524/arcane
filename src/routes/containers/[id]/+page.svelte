@@ -2,7 +2,7 @@
 	import type { PageData, ActionData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, AlertCircle, RefreshCw, HardDrive, Clock, Network, Terminal } from '@lucide/svelte';
+	import { ArrowLeft, AlertCircle, RefreshCw, HardDrive, Clock, Network, Terminal, Cpu, MemoryStick } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -10,10 +10,11 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import ActionButtons from '$lib/components/action-buttons.svelte';
-	import { formatDate, formatLogLine } from '$lib/utils';
+	import { formatDate, formatLogLine, formatBytes } from '$lib/utils';
+	import type Docker from 'dockerode';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	let { container, logs } = $derived(data);
+	let { container, logs, stats } = $derived(data);
 
 	let starting = $state(false);
 	let stopping = $state(false);
@@ -23,8 +24,32 @@
 
 	let formattedLogs = $derived(logs ? logs.split('\n').map(formatLogLine).join('\n') : '');
 
-	// Set up auto-scroll for logs
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
+
+	// --- Stats Calculation ---
+	const calculateCPUPercent = (statsData: Docker.ContainerStats | null): number => {
+		if (!statsData || !statsData.cpu_stats || !statsData.precpu_stats) {
+			return 0;
+		}
+
+		const cpuDelta = statsData.cpu_stats.cpu_usage.total_usage - (statsData.precpu_stats.cpu_usage?.total_usage || 0);
+		const systemDelta = statsData.cpu_stats.system_cpu_usage - (statsData.precpu_stats.system_cpu_usage || 0);
+		const numberCPUs = statsData.cpu_stats.online_cpus || statsData.cpu_stats.cpu_usage?.percpu_usage?.length || 1;
+
+		if (systemDelta > 0 && cpuDelta > 0) {
+			const cpuPercent = (cpuDelta / systemDelta) * numberCPUs * 100.0;
+			return Math.min(Math.max(cpuPercent, 0), 100 * numberCPUs);
+		}
+		return 0;
+	};
+
+	const cpuUsagePercent = $derived(calculateCPUPercent(stats));
+	const memoryUsageBytes = $derived(stats?.memory_stats?.usage || 0);
+	const memoryLimitBytes = $derived(stats?.memory_stats?.limit || 0);
+	const memoryUsageFormatted = $derived(formatBytes(memoryUsageBytes));
+	const memoryLimitFormatted = $derived(formatBytes(memoryLimitBytes));
+	const memoryUsagePercent = $derived(memoryLimitBytes > 0 ? (memoryUsageBytes / memoryLimitBytes) * 100 : 0);
+	// --- End Stats Calculation ---
 
 	$effect(() => {
 		starting = false;
@@ -34,7 +59,6 @@
 	});
 
 	$effect(() => {
-		// Scroll to bottom whenever logs change
 		if (logsContainer && logs) {
 			logsContainer.scrollTop = logsContainer.scrollHeight;
 		}
@@ -73,6 +97,11 @@
 				<h1 class="text-2xl font-bold tracking-tight">
 					{container?.name || 'Container Details'}
 				</h1>
+				{#if container?.state}
+					<Badge variant={container.state.Running ? 'default' : 'destructive'} class="capitalize">
+						{container.state.Status}
+					</Badge>
+				{/if}
 			</div>
 		</div>
 
@@ -294,37 +323,59 @@
 			<!-- Stats Card -->
 			<Card.Root class="lg:col-span-4 border shadow-sm">
 				<Card.Header>
-					<Card.Title class="text-lg font-semibold">Resource Usage</Card.Title>
-					<Card.Description>Container performance metrics</Card.Description>
+					<div class="flex justify-between items-center">
+						<div>
+							<Card.Title class="text-lg font-semibold">Resource Usage</Card.Title>
+							<Card.Description>Live container metrics</Card.Description>
+						</div>
+						<Button variant="ghost" size="icon" onclick={refreshData} disabled={isRefreshing} title="Refresh Stats & Logs">
+							<RefreshCw class={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+						</Button>
+					</div>
 				</Card.Header>
 
 				<Card.Content>
-					<div class="space-y-4">
-						<div>
-							<div class="flex justify-between mb-1">
-								<span class="text-sm font-medium">CPU Usage</span>
-								<span class="text-sm text-muted-foreground">0%</span>
+					{#if stats && container.state?.Running}
+						<div class="space-y-4">
+							<!-- CPU Usage -->
+							<div>
+								<div class="flex justify-between items-center mb-1">
+									<span class="text-sm font-medium flex items-center gap-2"><Cpu class="h-4 w-4 text-muted-foreground" /> CPU Usage</span>
+									<span class="text-sm font-semibold">{cpuUsagePercent.toFixed(2)}%</span>
+								</div>
+								<div class="w-full bg-secondary rounded-full h-2 overflow-hidden">
+									<div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {Math.min(cpuUsagePercent, 100)}%"></div>
+								</div>
 							</div>
-							<div class="w-full bg-secondary rounded-full h-2">
-								<div class="bg-primary h-2 rounded-full" style="width: 0%"></div>
-							</div>
-						</div>
 
-						<div>
-							<div class="flex justify-between mb-1">
-								<span class="text-sm font-medium">Memory Usage</span>
-								<span class="text-sm text-muted-foreground">0 / 0 MB</span>
+							<!-- Memory Usage -->
+							<div>
+								<div class="flex justify-between items-center mb-1">
+									<span class="text-sm font-medium flex items-center gap-2"><MemoryStick class="h-4 w-4 text-muted-foreground" /> Memory Usage</span>
+									<span class="text-sm font-semibold">{memoryUsageFormatted} / {memoryLimitFormatted}</span>
+								</div>
+								<div class="w-full bg-secondary rounded-full h-2 overflow-hidden">
+									<div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {memoryUsagePercent.toFixed(2)}%"></div>
+								</div>
 							</div>
-							<div class="w-full bg-secondary rounded-full h-2">
-								<div class="bg-primary h-2 rounded-full" style="width: 0%"></div>
-							</div>
-						</div>
 
-						<div class="bg-muted/50 p-4 rounded-md text-center mt-4">
-							<p class="text-sm text-muted-foreground mb-2">Stats fetching not implemented yet.</p>
-							<Button variant="outline" size="sm" href="/containers/{container.id}/stats" class="text-sm w-full">View detailed stats</Button>
+							<!-- Network I/O -->
+							<div class="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+								<div class="flex justify-between">
+									<span>Network RX:</span>
+									<span>{formatBytes(stats.networks?.eth0?.rx_bytes || 0)}</span>
+								</div>
+								<div class="flex justify-between">
+									<span>Network TX:</span>
+									<span>{formatBytes(stats.networks?.eth0?.tx_bytes || 0)}</span>
+								</div>
+							</div>
 						</div>
-					</div>
+					{:else if !container.state?.Running}
+						<div class="text-center text-sm text-muted-foreground italic py-8">Container is not running. Stats unavailable.</div>
+					{:else}
+						<div class="text-center text-sm text-muted-foreground italic py-8">Could not load stats.</div>
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		</div>
