@@ -46,7 +46,7 @@
 			extensions={[lintGutter(), lintExtension]}
 			styles={{
 				'&': {
-					height,
+					height: '550px',
 					fontSize: '14px',
 					fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace'
 				},

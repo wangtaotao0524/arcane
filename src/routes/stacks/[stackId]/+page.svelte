@@ -7,10 +7,7 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import CodeMirror from 'svelte-codemirror-editor';
-	import { yaml } from '@codemirror/lang-yaml';
-	import { linter, lintGutter } from '@codemirror/lint';
-	import { coolGlow } from 'thememirror';
+	import { linter } from '@codemirror/lint';
 	import jsyaml from 'js-yaml';
 	import ActionButtons from '$lib/components/action-buttons.svelte';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
@@ -19,6 +16,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
+	import YamlEditor from '$lib/components/yaml-editor.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let { stack, editorState } = $derived(data);
@@ -79,26 +77,6 @@
 			saving = false;
 		}
 	}
-
-	function yamlLinter(view: { state: { doc: { toString(): string } } }) {
-		const diagnostics = [];
-		try {
-			jsyaml.load(view.state.doc.toString());
-		} catch (e: unknown) {
-			const err = e as { mark?: { position: number }; message: string };
-			const start = err.mark?.position || 0;
-			const end = err.mark?.position !== undefined ? Math.max(start + 1, err.mark.position + 1) : start + 1;
-			diagnostics.push({
-				from: start,
-				to: end,
-				severity: 'error' as const,
-				message: err.message
-			});
-		}
-		return diagnostics;
-	}
-
-	const lintExtension = linter(yamlLinter);
 </script>
 
 <div class="space-y-6 pb-8">
@@ -223,27 +201,7 @@
 						<div class="grid w-full items-center gap-1.5">
 							<Label for="compose-editor">Docker Compose File</Label>
 							<div class="border rounded-md overflow-hidden">
-								<CodeMirror
-									bind:value={composeContent}
-									lang={yaml()}
-									theme={coolGlow}
-									extensions={[lintGutter(), lintExtension]}
-									styles={{
-										'&': {
-											height: '550px',
-											fontSize: '14px',
-											fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace'
-										},
-										'&.cm-editor[contenteditable=false]': {
-											cursor: 'not-allowed'
-										},
-										'.cm-content[contenteditable=false]': {
-											cursor: 'not-allowed'
-										}
-									}}
-									placeholder="Enter your compose.yaml content"
-									readonly={saving || depoloying || stopping || restarting || removing}
-								/>
+								<YamlEditor bind:value={composeContent} readOnly={saving || depoloying || stopping || restarting || removing} />
 							</div>
 							<p class="text-xs text-muted-foreground">
 								Edit your <span class="font-bold">compose.yaml</span> file directly. Syntax errors will be highlighted.
