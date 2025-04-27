@@ -1,6 +1,8 @@
 import { getDockerClient, dockerHost } from './core';
 import type { ServiceImage } from '$lib/types/docker/image.type';
 import type Docker from 'dockerode';
+// Import custom errors
+import { NotFoundError, ConflictError, DockerApiError } from '$lib/types/errors';
 
 /**
  * The function `listImages` retrieves a list of Docker images and parses their information into a
@@ -48,6 +50,29 @@ export async function listImages(): Promise<ServiceImage[]> {
 	} catch (error: any) {
 		console.error('Docker Service: Error listing images:', error);
 		throw new Error(`Failed to list Docker images using host "${dockerHost}".`);
+	}
+}
+
+/**
+ * Retrieves detailed information about a specific Docker image by its ID.
+ * @param {string} imageId - The ID or name of the image to inspect.
+ * @returns {Promise<Docker.ImageInspectInfo>} A promise that resolves with the detailed image information.
+ * @throws {NotFoundError} If the image with the specified ID does not exist.
+ * @throws {DockerApiError} For other errors during the Docker API interaction.
+ */
+export async function getImage(imageId: string): Promise<Docker.ImageInspectInfo> {
+	try {
+		const docker = getDockerClient();
+		const image = docker.getImage(imageId);
+		const inspectInfo = await image.inspect();
+		console.log(`Docker Service: Inspected image "${imageId}" successfully.`);
+		return inspectInfo;
+	} catch (error: any) {
+		console.error(`Docker Service: Error inspecting image "${imageId}":`, error);
+		if (error.statusCode === 404) {
+			throw new NotFoundError(`Image "${imageId}" not found.`);
+		}
+		throw new DockerApiError(`Failed to inspect image "${imageId}": ${error.message || 'Unknown Docker error'}`, error.statusCode);
 	}
 }
 

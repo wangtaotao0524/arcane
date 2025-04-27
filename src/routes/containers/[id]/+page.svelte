@@ -15,7 +15,6 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let { container, logs, stats } = $derived(data);
-	console.log('Container:', container);
 
 	let starting = $state(false);
 	let stopping = $state(false);

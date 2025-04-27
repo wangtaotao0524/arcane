@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { Eye, Play, RotateCcw, StopCircle, Trash2, Loader2 } from '@lucide/svelte';
+	import { ScanSearch, Play, RotateCcw, StopCircle, Trash2, Loader2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 
@@ -95,7 +95,7 @@
 	<DropdownMenu.Content>
 		<DropdownMenu.Group>
 			<DropdownMenu.Item onclick={viewContainer} disabled={isAnyLoading}>
-				<Eye class="w-4 h-4" />
+				<ScanSearch class="w-4 h-4" />
 				View
 			</DropdownMenu.Item>
 

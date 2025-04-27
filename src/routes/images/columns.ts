@@ -13,11 +13,10 @@ export const columns: ColumnDef<EnhancedImage>[] = [
 		accessorKey: 'repo',
 		header: 'Name',
 		cell: ({ row }) => {
-			const inUse = row.original.inUse;
-
 			return renderComponent(UnusedTextBadge, {
 				name: row.original.repo,
-				inUse: row.original.inUse
+				inUse: row.original.inUse,
+				link: `/images/${row.original.id}`
 			});
 		}
 	},

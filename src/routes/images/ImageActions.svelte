@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { Trash2, Download, Ellipsis, Loader2 } from '@lucide/svelte';
+	import { Trash2, Download, Ellipsis, Loader2, ScanSearch } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let { id, repoTag, inUse = true }: { id: string; repoTag?: string; inUse: boolean } = $props();
@@ -79,6 +79,9 @@
 			isPulling = false;
 		}
 	}
+	function handleView(id: string) {
+		window.location.href = `/images/${id}`;
+	}
 </script>
 
 <DropdownMenu.Root>
@@ -92,17 +95,21 @@
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content>
 		<DropdownMenu.Group>
+			<DropdownMenu.Item onclick={() => handleView(id)}>
+				<ScanSearch class="h-4 w-4" />
+				Inspect
+			</DropdownMenu.Item>
 			<DropdownMenu.Item onclick={pullImage} disabled={isPulling || !repoTag}>
 				{#if isPulling}
 					<Loader2 class="h-4 w-4 animate-spin" />
 					Pulling...
 				{:else}
-					<Download class="mr-2 h-4 w-4" />
+					<Download class="h-4 w-4" />
 					Pull
 				{/if}
 			</DropdownMenu.Item>
 			<DropdownMenu.Item class="text-red-500 focus:!text-red-700" onclick={() => (isConfirmDialogOpen = true)}>
-				<Trash2 class="mr-2 h-4 w-4" />
+				<Trash2 class="h-4 w-4" />
 				Remove
 			</DropdownMenu.Item>
 		</DropdownMenu.Group>
