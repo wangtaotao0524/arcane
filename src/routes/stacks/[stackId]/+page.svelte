@@ -7,8 +7,6 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { linter } from '@codemirror/lint';
-	import jsyaml from 'js-yaml';
 	import ActionButtons from '$lib/components/action-buttons.svelte';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { statusVariantMap } from '$lib/types/statuses';
@@ -18,7 +16,7 @@
 	import { enhance } from '$app/forms';
 	import YamlEditor from '$lib/components/yaml-editor.svelte';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { data }: { data: PageData; form: ActionData } = $props();
 	let { stack, editorState } = $derived(data);
 
 	let depoloying = $state(false);
