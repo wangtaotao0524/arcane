@@ -15,6 +15,7 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let { container, logs, stats } = $derived(data);
+	console.log('Container:', container);
 
 	let starting = $state(false);
 	let stopping = $state(false);
@@ -50,6 +51,34 @@
 	const memoryLimitFormatted = $derived(formatBytes(memoryLimitBytes));
 	const memoryUsagePercent = $derived(memoryLimitBytes > 0 ? (memoryUsageBytes / memoryLimitBytes) * 100 : 0);
 	// --- End Stats Calculation ---
+
+	// --- Helper to find Primary IP Address ---
+	// Type is any to avoid TypeScript errors, but ideally should be replaced with a proper type definition for networkSettings.
+	const getPrimaryIpAddress = (networkSettings: any | undefined | null): string => {
+		if (!networkSettings) return 'N/A';
+
+		// 1. Check top-level IPAddress (common for bridge)
+		if (networkSettings.IPAddress) {
+			return networkSettings.IPAddress;
+		}
+
+		// 2. Check IPs within the Networks object (common for ipvlan, macvlan, custom bridges)
+		if (networkSettings.Networks) {
+			for (const networkName in networkSettings.Networks) {
+				const network = networkSettings.Networks[networkName];
+				if (network?.IPAddress) {
+					// Return the first valid IP found in the networks list
+					return network.IPAddress;
+				}
+			}
+		}
+
+		// 3. Fallback if no IP found
+		return 'N/A';
+	};
+
+	const primaryIpAddress = $derived(getPrimaryIpAddress(container?.networkSettings));
+	// --- End Helper ---
 
 	$effect(() => {
 		starting = false;
@@ -192,8 +221,8 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-sm font-medium text-muted-foreground">IP Address</p>
-								<p class="text-base font-semibold mt-1 truncate" title={container.networkSettings?.IPAddress || 'N/A'}>
-									{container.networkSettings?.IPAddress || 'N/A'}
+								<p class="text-base font-semibold mt-1 truncate" title={primaryIpAddress}>
+									{primaryIpAddress}
 								</p>
 							</div>
 						</div>
