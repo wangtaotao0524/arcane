@@ -54,7 +54,21 @@ RUN npm install --omit=dev && \
 # Configure container
 EXPOSE 3000
 VOLUME ["/app/data"]
-LABEL org.opencontainers.image.authors="kmendell"
+
+ARG VERSION="0.3.0"
+ARG REVISION="1e6da7d"
+
+# Add OCI standard labels (reading version/revision from files)
+LABEL org.opencontainers.image.authors="OFKM Technologies"
+LABEL org.opencontainers.image.url="https://github.com/ofkm/arcane"
+LABEL org.opencontainers.image.documentation="https://github.com/ofkm/arcane/blob/main/README.md"
+LABEL org.opencontainers.image.source="https://github.com/ofkm/arcane"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.revision=$REVISION
+LABEL org.opencontainers.image.licenses="BSD-3-Clause"
+LABEL org.opencontainers.image.ref.name="arcane"
+LABEL org.opencontainers.image.title="Arcane"
+LABEL org.opencontainers.image.description="Simple and Elegant Docker Management UI written in Typescript and SvelteKit"
 
 # Set the entrypoint and command
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

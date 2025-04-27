@@ -74,6 +74,22 @@ git add .version
 jq --arg new_version "$NEW_VERSION" '.version = $new_version' package.json >package_tmp.json && mv package_tmp.json package.json
 git add package.json
 
+# Create/Update .revision file with the latest commit short hash
+echo "Creating/Updating .revision file..."
+LATEST_REVISION=$(git rev-parse --short HEAD)
+echo "$LATEST_REVISION" > .revision
+git add .revision
+
+# Update default ARG VERSION in Dockerfile
+echo "Updating Dockerfile ARG VERSION..."
+sed -i.bak "s/^ARG VERSION=.*$/ARG VERSION=\"$NEW_VERSION\"/" Dockerfile && rm Dockerfile.bak
+git add Dockerfile 
+
+# Update default ARG REVISION in Dockerfile
+echo "Updating Dockerfile ARG REVISION..."
+sed -i.bak "s/^ARG REVISION=.*$/ARG REVISION=\"$LATEST_REVISION\"/" Dockerfile && rm Dockerfile.bak
+git add Dockerfile
+
 # Check if conventional-changelog is installed, if not install it
 if ! command -v conventional-changelog &>/dev/null; then
     echo "conventional-changelog not found, installing..."
