@@ -4,6 +4,7 @@ import { basename } from 'node:path';
 import DockerodeCompose from 'dockerode-compose';
 import yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
+import Dockerode from 'dockerode';
 
 import { getDockerClient } from '$lib/services/docker/core';
 import { getSettings, ensureStacksDirectory } from '$lib/services/settings-service';
@@ -142,58 +143,103 @@ async function getComposeInstance(stackId: string): Promise<DockerodeCompose> {
  */
 async function getStackServices(stackId: string, composeContent: string): Promise<StackService[]> {
 	const docker = getDockerClient();
+	const composeProjectLabel = 'com.docker.compose.project'; // Standard label
+	const composeServiceLabel = 'com.docker.compose.service'; // Standard service label
 
 	try {
 		const composeData = yaml.load(composeContent) as any;
 		if (!composeData || !composeData.services) {
+			console.warn(`No services found in compose content for stack ${stackId}`);
 			return [];
 		}
 
 		const serviceNames = Object.keys(composeData.services);
 
-		const containers = await docker.listContainers({ all: true });
-
-		const stackPrefix = `${stackId}_`;
-		const stackContainers = containers.filter((container) => {
-			const names = container.Names || [];
-			return names.some((name) => name.startsWith(`/${stackPrefix}`));
+		// List containers, potentially filtering by label for efficiency if needed
+		const containers = await docker.listContainers({
+			all: true
+			// Optional: Filter directly using Docker API if performance becomes an issue
+			// filters: JSON.stringify({ label: [`${composeProjectLabel}=${stackId}`] })
 		});
+
+		// Filter containers based on EITHER the project label OR the naming convention
+		const stackContainers = containers.filter((container) => {
+			const labels = container.Labels || {};
+			const names = container.Names || [];
+			// Check if any name starts with the conventional prefix (e.g., /stackId_service_1)
+			const nameStartsWithPrefix = names.some((name) => name.startsWith(`/${stackId}_`));
+			// Check if the standard compose project label matches the stackId
+			const hasCorrectLabel = labels[composeProjectLabel] === stackId;
+			// Include the container if either condition is true
+			return nameStartsWithPrefix || hasCorrectLabel;
+		});
+
+		if (stackContainers.length === 0) {
+			console.log(`No running or stopped containers found for stack ${stackId} based on name prefix or label.`);
+		}
 
 		const services: StackService[] = [];
 
 		for (const containerData of stackContainers) {
-			let containerName = containerData.Names?.[0] || '';
-			containerName = containerName.substring(1);
+			const containerName = containerData.Names?.[0]?.substring(1) || ''; // Remove leading '/'
+			const labels = containerData.Labels || {};
+			// Prefer the standard compose service label for the service name
+			let serviceName = labels[composeServiceLabel];
 
-			let serviceName = '';
-			for (const name of serviceNames) {
-				if (containerName.startsWith(`${stackId}_${name}_`) || containerName === `${stackId}_${name}`) {
-					serviceName = name;
-					break;
+			// Fallback to parsing from container name if the service label is missing
+			if (!serviceName) {
+				console.warn(`Container ${containerData.Id} in stack ${stackId} is missing the '${composeServiceLabel}' label. Attempting to parse name.`);
+				for (const name of serviceNames) {
+					// Match patterns like stackId_serviceName_1 or stackId_serviceName
+					// Ensure the match is precise to avoid partial overlaps (e.g., 'web' vs 'web-api')
+					const servicePrefixWithUnderscore = `${stackId}_${name}_`;
+					const servicePrefixExact = `${stackId}_${name}`;
+					if (containerName.startsWith(servicePrefixWithUnderscore) || containerName === servicePrefixExact) {
+						serviceName = name;
+						break;
+					}
 				}
 			}
 
+			// Final fallback if still no match (less ideal)
 			if (!serviceName) {
-				serviceName = containerName;
+				serviceName = containerName; // Use the full container name as a last resort
+				console.error(`Could not determine service name for container ${containerName} (ID: ${containerData.Id}) in stack ${stackId}. Using full container name.`);
 			}
 
 			const service: StackService = {
 				id: containerData.Id,
-				name: serviceName,
+				name: serviceName, // Use the determined service name
 				state: {
 					Running: containerData.State === 'running',
 					Status: containerData.State,
-					ExitCode: 0
+					// Note: listContainers doesn't provide ExitCode reliably, need inspect for that if required later
+					ExitCode: containerData.State === 'exited' ? -1 : 0 // Placeholder
 				}
 			};
 
-			services.push(service);
+			// Avoid adding duplicates if multiple containers map to the same service (e.g., scaled services)
+			// Check if a service with the same name already exists
+			const existingServiceIndex = services.findIndex((s) => s.name === serviceName);
+			if (existingServiceIndex !== -1) {
+				// If the existing service is just a placeholder ('not created'), replace it
+				if (!services[existingServiceIndex].id) {
+					services[existingServiceIndex] = service;
+				} else {
+					// Handle scaled services - maybe add instance number or just log for now
+					console.log(`Multiple containers found for service ${serviceName} in stack ${stackId}. Displaying first found.`);
+					// Or potentially create a unique name like serviceName + '-' + instanceNumber
+				}
+			} else {
+				services.push(service);
+			}
 		}
 
+		// Add placeholders for services defined in compose but not found among listed containers
 		for (const name of serviceNames) {
 			if (!services.some((s) => s.name === name)) {
 				services.push({
-					id: '',
+					id: '', // No container ID
 					name: name,
 					state: {
 						Running: false,
@@ -204,10 +250,13 @@ async function getStackServices(stackId: string, composeContent: string): Promis
 			}
 		}
 
+		// Sort services alphabetically by name for consistent order
+		services.sort((a, b) => a.name.localeCompare(b.name));
+
 		return services;
 	} catch (err) {
 		console.error(`Error getting services for stack ${stackId}:`, err);
-		return [];
+		return []; // Return empty array on error
 	}
 }
 
@@ -468,7 +517,8 @@ export async function startStack(stackId: string): Promise<boolean> {
 
 /**
  * The function `stopStack` stops a Docker stack identified by its ID and returns a boolean indicating
- * success.
+ * success. It manually stops and removes containers associated with the stack due to potential
+ * inconsistencies in `dockerode-compose`.
  * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of the
  * stack that you want to stop.
  * @returns The `stopStack` function returns a Promise that resolves to a boolean value. If the stack
@@ -477,14 +527,103 @@ export async function startStack(stackId: string): Promise<boolean> {
  * Promise will be rejected.
  */
 export async function stopStack(stackId: string): Promise<boolean> {
+	console.log(`Attempting to stop stack ${stackId} by manually stopping containers...`);
+	const docker = getDockerClient();
+	const composeProjectLabel = 'com.docker.compose.project';
+	let stoppedCount = 0;
+	let removedCount = 0;
+
 	try {
-		const compose = await getComposeInstance(stackId);
-		await compose.down();
-		return true;
+		// 1. Find containers belonging to the stack (using label or name convention)
+		const containers = await docker.listContainers({
+			all: true, // Include stopped containers as well
+			filters: JSON.stringify({
+				// Primarily filter by the standard compose project label
+				label: [`${composeProjectLabel}=${stackId}`]
+			})
+		});
+
+		// Fallback: If label filter missed some, double-check by name (less reliable)
+		// This part might be less necessary if the label is consistently applied by `up()`
+		const allContainers = await docker.listContainers({ all: true });
+		const nameFilteredContainers = allContainers.filter(
+			(c) =>
+				!containers.some((fc) => fc.Id === c.Id) && // Only check containers not already found by label
+				(c.Labels?.[composeProjectLabel] === stackId || c.Names?.some((name) => name.startsWith(`/${stackId}_`)))
+		);
+		const seen = new Set<string>();
+		const stackContainers = [...containers, ...nameFilteredContainers].filter((c) => {
+			if (seen.has(c.Id)) return false;
+			seen.add(c.Id);
+			return true;
+		});
+
+		if (stackContainers.length === 0) {
+			return true; // Nothing to stop
+		}
+
+		console.log(`Found ${stackContainers.length} containers for stack ${stackId}. Attempting to stop and remove...`);
+
+		// 2. Stop and Remove each container
+		for (const containerInfo of stackContainers) {
+			console.log(`Processing container ${containerInfo.Names?.[0]} (ID: ${containerInfo.Id})...`);
+			const container = docker.getContainer(containerInfo.Id);
+			try {
+				// Stop the container if it's running
+				if (containerInfo.State === 'running') {
+					console.log(`Stopping container ${containerInfo.Id}...`);
+					await container.stop(); // Consider adding a timeout option: { t: 10 }
+					console.log(`Container ${containerInfo.Id} stopped.`);
+					stoppedCount++;
+				} else {
+					console.log(`Container ${containerInfo.Id} is already stopped (State: ${containerInfo.State}).`);
+				}
+
+				// Remove the container
+				console.log(`Removing container ${containerInfo.Id}...`);
+				await container.remove({ force: true }); // Use force to ensure removal even if stopped uncleanly
+				console.log(`Container ${containerInfo.Id} removed.`);
+				removedCount++;
+			} catch (containerErr) {
+				// Log error for specific container but continue with others
+				console.error(`Error processing container ${containerInfo.Id} for stack ${stackId}:`, containerErr);
+				// Optionally decide if this should cause the whole function to fail
+			}
+		}
+
+		// 3. (Optional) Remove networks associated with the stack
+		try {
+			const networks = await docker.listNetworks({
+				filters: JSON.stringify({
+					label: [`${composeProjectLabel}=${stackId}`]
+				})
+			});
+			if (networks.length > 0) {
+				console.log(`Found ${networks.length} networks for stack ${stackId}. Attempting to remove...`);
+				for (const networkInfo of networks) {
+					console.log(`Removing network ${networkInfo.Name} (ID: ${networkInfo.Id})...`);
+					const network = docker.getNetwork(networkInfo.Id);
+					try {
+						await network.remove();
+						console.log(`Network ${networkInfo.Name} removed.`);
+					} catch (networkErr) {
+						console.error(`Error removing network ${networkInfo.Name} (ID: ${networkInfo.Id}):`, networkErr);
+					}
+				}
+			} else {
+				console.log(`No networks found specifically for stack ${stackId}.`);
+			}
+		} catch (networkListErr) {
+			console.error(`Error listing networks for stack ${stackId}:`, networkListErr);
+		}
+
+		console.log(`Stack ${stackId} processing complete. Stopped: ${stoppedCount}, Removed: ${removedCount}.`);
+		return true; // Indicate overall success even if some individual steps had errors (adjust if needed)
 	} catch (err: unknown) {
-		console.error(`Error stopping stack ${stackId}:`, err);
+		// Log the specific error
+		console.error(`Error during manual stop/remove for stack ${stackId}:`, err);
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to stop stack: ${errorMessage}`);
+		throw new Error(`Failed to stop stack ${stackId}: ${errorMessage}`);
 	}
 }
 
@@ -496,10 +635,21 @@ export async function stopStack(stackId: string): Promise<boolean> {
  * @returns The `restartStack` function returns a `Promise<boolean>`.
  */
 export async function restartStack(stackId: string): Promise<boolean> {
+	console.log(`Attempting to restart stack ${stackId}...`);
 	try {
+		// Use the manual stop logic
+		const stopped = await stopStack(stackId);
+		if (!stopped) {
+			// If stopStack indicates failure (if you modify it to return false on error)
+			console.error(`Restart failed because stop step failed for stack ${stackId}.`);
+			return false;
+		}
+
+		// Now start it again using compose.up()
+		console.log(`Starting stack ${stackId} after stopping...`);
 		const compose = await getComposeInstance(stackId);
-		await compose.down();
-		await compose.up();
+		await compose.up(); // Assuming compose.up() works correctly
+		console.log(`Stack ${stackId} started.`);
 		return true;
 	} catch (err: unknown) {
 		console.error(`Error restarting stack ${stackId}:`, err);
@@ -509,44 +659,46 @@ export async function restartStack(stackId: string): Promise<boolean> {
 }
 
 /**
- * The function `fulllyRedployStack` asynchronously stops, pulls latest images, and restarts a
+ * The function `fullyRedployStack` asynchronously stops, pulls latest images, and restarts a
  * specified stack, returning true if successful.
- * @param {string} stackId - The `stackId` parameter in the `fulllyRedployStack` function is a string
+ * @param {string} stackId - The `stackId` parameter in the `fullyRedeployStack` function is a string
  * that represents the identifier of the stack that you want to fully redeploy. This function stops the
  * stack, pulls the latest images, and then starts the stack again to ensure a full redeployment of the
  * specified
- * @returns The `fulllyRedployStack` function returns a `Promise<boolean>`. The function attempts to
+ * @returns The `fullyRedeployStack` function returns a `Promise<boolean>`. The function attempts to
  * fully redeploy a stack by stopping it, pulling the latest images, and then starting it again. If all
  * commands succeed, the function resolves the promise with a value of `true`. If an error occurs
  * during the process, the function catches the error, logs it, and then throws a new `
  */
-export async function fulllyRedployStack(stackId: string): Promise<boolean> {
+export async function fullyRedeployStack(stackId: string): Promise<boolean> {
+	console.log(`Attempting to fully redeploy stack ${stackId}...`);
 	try {
-		const compose = await getComposeInstance(stackId);
-
-		// Stop the stack
-		console.log(`Stopping stack ${stackId}...`);
-		await compose.down();
-		console.log(`Stack ${stackId} stopped.`);
+		// Use the manual stop logic
+		const stopped = await stopStack(stackId);
+		if (!stopped) {
+			console.error(`Redeploy failed because stop step failed for stack ${stackId}.`);
+			return false;
+		}
 
 		// Pull the latest images
 		console.log(`Pulling images for stack ${stackId}...`);
+		const compose = await getComposeInstance(stackId); // Get instance again for pull/up
 		await compose.pull();
 		console.log(`Images pulled for stack ${stackId}.`);
 
 		// Start the stack again
-		console.log(`Starting stack ${stackId}...`);
+		console.log(`Starting stack ${stackId} after pull...`);
 		await compose.up();
 		console.log(`Stack ${stackId} started.`);
 
-		// If all commands succeeded, return true
 		return true;
 	} catch (err: unknown) {
-		console.error(`Error restarting stack ${stackId}:`, err);
+		console.error(`Error fully redeploying stack ${stackId}:`, err);
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to restart stack: ${errorMessage}`);
+		throw new Error(`Failed to fully redeploy stack: ${errorMessage}`);
 	}
 }
+
 /**
  * The function `removeStack` removes a Docker stack by stopping its services and deleting its
  * directory.
@@ -558,23 +710,37 @@ export async function fulllyRedployStack(stackId: string): Promise<boolean> {
  * then throws a new `Error` with a message indicating the failure to remove the stack.
  */
 export async function removeStack(stackId: string): Promise<boolean> {
+	console.log(`Attempting to remove stack ${stackId}...`);
 	try {
-		const compose = await getComposeInstance(stackId);
-		const stackDir = await getStackDir(stackId);
+		// Manually stop and remove containers first
+		const stopped = await stopStack(stackId);
+		if (!stopped) {
+			console.error(`Removal failed because stop/remove container step failed for stack ${stackId}.`);
+			// Decide if you want to proceed with directory removal anyway
+			// return false; // Option 1: Stop here
+		} else {
+			console.log(`Containers for stack ${stackId} stopped and removed.`);
+		}
 
-		await compose.down();
+		// Now remove the stack directory
+		const stackDir = await getStackDir(stackId);
+		console.log(`Removing stack directory ${stackDir}...`);
 		try {
 			await fs.rm(stackDir, { recursive: true, force: true });
+			console.log(`Stack directory ${stackDir} removed.`);
 		} catch (e) {
 			console.error(`Failed to remove stack directory ${stackDir}:`, e);
-			return false;
+			// Even if containers were removed, directory removal failed
+			throw new Error(`Failed to remove stack directory: ${e instanceof Error ? e.message : String(e)}`);
 		}
 
 		return true;
 	} catch (err: unknown) {
+		// Catch errors from stopStack or directory removal
 		console.error(`Error removing stack ${stackId}:`, err);
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to remove stack: ${errorMessage}`);
+		// Ensure a specific error message is thrown
+		throw new Error(`Failed to remove stack ${stackId}: ${errorMessage}`);
 	}
 }
 
