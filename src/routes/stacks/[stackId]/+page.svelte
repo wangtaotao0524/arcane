@@ -4,19 +4,24 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ArrowLeft, Loader2, AlertCircle, Save, FileStack, Layers, ArrowRight } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import { enhance } from '$app/forms';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import YamlEditor from '$lib/components/yaml-editor.svelte';
-	import { onMount } from 'svelte';
+	import CodeMirror from 'svelte-codemirror-editor';
+	import { yaml } from '@codemirror/lang-yaml';
+	import { linter, lintGutter } from '@codemirror/lint';
+	import { coolGlow } from 'thememirror';
+	import jsyaml from 'js-yaml';
 	import ActionButtons from '$lib/components/action-buttons.svelte';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { statusVariantMap } from '$lib/types/statuses';
 	import { capitalizeFirstLetter } from '$lib/utils';
+	import { invalidateAll } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
+	import { enhance } from '$app/forms';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	let { stack } = $derived(data);
+	let { stack, editorState } = $derived(data);
 
 	let depoloying = $state(false);
 	let stopping = $state(false);
@@ -24,21 +29,12 @@
 	let removing = $state(false);
 	let saving = $state(false);
 
-	let name = $state('');
-	let composeContent = $state('');
-	let editorReady = $state(false);
+	let name = $derived(editorState.name);
+	let composeContent = $derived(editorState.composeContent);
+	let originalName = $derived(editorState.originalName);
+	let originalComposeContent = $derived(editorState.originalComposeContent);
 
-	$effect(() => {
-		if (stack) {
-			name = stack.name || '';
-			composeContent = stack.composeContent || '';
-
-			console.log('Stack data loaded:', {
-				name,
-				composeLength: composeContent.length
-			});
-		}
-	});
+	let hasChanges = $derived(name !== originalName || composeContent !== originalComposeContent);
 
 	$effect(() => {
 		depoloying = false;
@@ -48,15 +44,64 @@
 		saving = false;
 	});
 
-	onMount(() => {
-		setTimeout(() => {
-			editorReady = true;
-		}, 100);
-	});
+	async function handleSaveChanges() {
+		if (!stack || !hasChanges) return;
+
+		saving = true;
+		console.log('Saving stack via API...');
+
+		try {
+			const response = await fetch(`/api/stacks/${stack.id}`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name, composeContent })
+			});
+
+			const result = await response.json();
+
+			if (!response.ok) {
+				throw new Error(result.error || `HTTP error! status: ${response.status}`);
+			}
+
+			console.log('Stack save successful:', result);
+			toast.success('Stack updated successfully!');
+
+			originalName = name;
+			originalComposeContent = composeContent;
+
+			await invalidateAll();
+		} catch (error: any) {
+			console.error('Error saving stack:', error);
+			toast.error(`Failed to update stack: ${error.message}`);
+		} finally {
+			saving = false;
+		}
+	}
+
+	function yamlLinter(view: { state: { doc: { toString(): string } } }) {
+		const diagnostics = [];
+		try {
+			jsyaml.load(view.state.doc.toString());
+		} catch (e: unknown) {
+			const err = e as { mark?: { position: number }; message: string };
+			const start = err.mark?.position || 0;
+			const end = err.mark?.position !== undefined ? Math.max(start + 1, err.mark.position + 1) : start + 1;
+			diagnostics.push({
+				from: start,
+				to: end,
+				severity: 'error' as const,
+				message: err.message
+			});
+		}
+		return diagnostics;
+	}
+
+	const lintExtension = linter(yamlLinter);
 </script>
 
 <div class="space-y-6 pb-8">
-	<!-- Breadcrumb Navigation -->
 	<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
 		<div>
 			<Breadcrumb.Root>
@@ -113,17 +158,15 @@
 		{/if}
 	</div>
 
-	<!-- Error Alert -->
-	{#if form?.error}
+	{#if data.error}
 		<Alert.Root variant="destructive">
-			<AlertCircle class="h-4 w-4 mr-2" />
-			<Alert.Title>Action Failed</Alert.Title>
-			<Alert.Description>{form.error}</Alert.Description>
+			<AlertCircle class="h-4 w-4" />
+			<Alert.Title>Error Loading Stack</Alert.Title>
+			<Alert.Description>{data.error}</Alert.Description>
 		</Alert.Root>
 	{/if}
 
 	{#if stack}
-		<!-- Stack Details Section -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 			<Card.Root>
 				<Card.Content class="p-4 flex items-center justify-between">
@@ -164,19 +207,7 @@
 			</Card.Root>
 		</div>
 
-		<!-- Stack Editor -->
-		<form
-			method="POST"
-			action="?/update"
-			class="space-y-6"
-			use:enhance={() => {
-				saving = true;
-				return async ({ update }) => {
-					saving = false;
-					await update({ reset: false });
-				};
-			}}
-		>
+		<div class="space-y-6">
 			<Card.Root class="border shadow-sm">
 				<Card.Header>
 					<Card.Title>Stack Configuration</Card.Title>
@@ -186,15 +217,34 @@
 					<div class="space-y-4">
 						<div class="grid w-full max-w-sm items-center gap-1.5">
 							<Label for="name">Stack Name</Label>
-							<Input type="text" id="name" name="name" bind:value={name} required />
+							<Input type="text" id="name" name="name" bind:value={name} required disabled={saving} />
 						</div>
 
 						<div class="grid w-full items-center gap-1.5">
 							<Label for="compose-editor">Docker Compose File</Label>
-							<input type="hidden" name="composeContent" value={composeContent} />
-							{#key editorReady || composeContent}
-								<YamlEditor value={composeContent} on:change={(e) => (composeContent = e.detail.value)} height="400px" placeholder="Enter your compose.yaml content" forceDarkTheme={true} />
-							{/key}
+							<div class="border rounded-md overflow-hidden">
+								<CodeMirror
+									bind:value={composeContent}
+									lang={yaml()}
+									theme={coolGlow}
+									extensions={[lintGutter(), lintExtension]}
+									styles={{
+										'&': {
+											height: '550px',
+											fontSize: '14px',
+											fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace'
+										},
+										'&.cm-editor[contenteditable=false]': {
+											cursor: 'not-allowed'
+										},
+										'.cm-content[contenteditable=false]': {
+											cursor: 'not-allowed'
+										}
+									}}
+									placeholder="Enter your compose.yaml content"
+									readonly={saving || depoloying || stopping || restarting || removing}
+								/>
+							</div>
 							<p class="text-xs text-muted-foreground">
 								Edit your <span class="font-bold">compose.yaml</span> file directly. Syntax errors will be highlighted.
 							</p>
@@ -202,23 +252,21 @@
 					</div>
 				</Card.Content>
 				<Card.Footer class="flex justify-between">
-					<Button variant="outline" type="button" onclick={() => window.history.back()}>
+					<Button variant="outline" type="button" onclick={() => window.history.back()} disabled={saving}>
 						<ArrowLeft class="w-4 h-4 mr-2" />
 						Back
 					</Button>
-					<Button type="submit" variant="default" disabled={saving}>
+					<Button type="button" variant="default" onclick={handleSaveChanges} disabled={saving || !hasChanges}>
 						{#if saving}
-							<Loader2 class="w-4 h-4 mr-2 animate-spin" />
+							<Loader2 class="w-4 h-4 mr-2 animate-spin" /> Saving...
 						{:else}
-							<Save class="w-4 h-4 mr-2" />
+							<Save class="w-4 h-4 mr-2" /> Save Changes
 						{/if}
-						Save Changes
 					</Button>
 				</Card.Footer>
 			</Card.Root>
-		</form>
+		</div>
 
-		<!-- Service List -->
 		<Card.Root class="border shadow-sm">
 			<Card.Header>
 				<Card.Title>Services</Card.Title>
@@ -261,7 +309,7 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
-	{:else}
+	{:else if !data.error}
 		<div class="flex flex-col items-center justify-center py-12 border rounded-lg shadow-sm bg-card">
 			<div class="rounded-full bg-muted/50 p-4 mb-4">
 				<AlertCircle class="h-8 w-8 text-muted-foreground" />

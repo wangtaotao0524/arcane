@@ -7,10 +7,32 @@ export async function load({ params }) {
 
 	try {
 		const stack = await getStack(stackId);
-		return { stack };
+
+		// Pre-populate the editor state values for SSR
+		return {
+			stack,
+			error: null,
+			// These will be available directly in the svelte component's data prop
+			editorState: {
+				name: stack.name || '',
+				composeContent: stack.composeContent || '',
+				originalName: stack.name || '',
+				originalComposeContent: stack.composeContent || ''
+			}
+		};
 	} catch (err) {
+		console.error(`Error loading stack ${stackId}:`, err);
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw error(404, `Stack not found: ${errorMessage}`);
+		return {
+			stack: null,
+			error: `Stack not found or failed to load: ${errorMessage}`,
+			editorState: {
+				name: '',
+				composeContent: '',
+				originalName: '',
+				originalComposeContent: ''
+			}
+		};
 	}
 }
 
@@ -31,6 +53,14 @@ export const actions = {
 			};
 		} catch (err) {
 			console.error('Error updating stack:', err);
+			// Consider using fail() for form action errors
+			// import { fail } from '@sveltejs/kit';
+			// return fail(422, { // Example: Unprocessable Entity
+			//  name, // Return submitted values for repopulation
+			//  composeContent,
+			//  error: err instanceof Error ? err.message : 'Failed to update stack'
+			// });
+			// Or keep the simple return for now:
 			return {
 				success: false,
 				error: err instanceof Error ? err.message : 'Failed to update stack'
@@ -81,7 +111,9 @@ export const actions = {
 		try {
 			const success = await removeStack(params.stackId);
 			if (success) {
-				return { success: true, redirectTo: '/stacks' };
+				// Redirect can be handled differently, maybe client-side after success
+				// Or use SvelteKit's redirect helper if needed server-side
+				return { success: true, message: 'Stack removal initiated' };
 			}
 			return { success: false, error: 'Failed to remove stack' };
 		} catch (err) {

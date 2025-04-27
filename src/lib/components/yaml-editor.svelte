@@ -4,21 +4,14 @@
 	import { linter, lintGutter } from '@codemirror/lint';
 	import { browser } from '$app/environment';
 	import jsyaml from 'js-yaml';
-	import { createEventDispatcher } from 'svelte';
-	import { oneDark } from '@codemirror/theme-one-dark';
+	import { coolGlow } from 'thememirror';
+	import type { EditorView } from 'codemirror';
 
-	const dispatch = createEventDispatcher();
+	// Make value bindable
+	let { value = $bindable(''), height = '400px', placeholder = 'Enter YAML content', readOnly = false } = $props();
 
-	let { value = $bindable(''), height = '400px', placeholder = 'Enter YAML content', forceDarkTheme = true, readOnly = false } = $props();
-
-	let darkMode = $state(forceDarkTheme || false);
-
-	// Check for dark mode preference
-	$effect(() => {
-		if (browser) {
-			darkMode = forceDarkTheme || window.matchMedia('(prefers-color-scheme: dark)').matches || document.documentElement.classList.contains('dark');
-		}
-	});
+	// Reference to the CodeMirror instance (for debugging if needed)
+	let editorView: EditorView;
 
 	// YAML linting function
 	function yamlLinter(view: { state: { doc: { toString(): string } } }) {
@@ -28,7 +21,7 @@
 		} catch (e: unknown) {
 			const err = e as { mark?: { position: number }; message: string };
 			const start = err.mark?.position || 0;
-			const end = err.mark?.position !== undefined ? err.mark.position + 1 : 1;
+			const end = err.mark?.position !== undefined ? Math.max(start + 1, err.mark.position + 1) : start + 1;
 			diagnostics.push({
 				from: start,
 				to: end,
@@ -39,23 +32,18 @@
 		return diagnostics;
 	}
 
-	const extensions = $derived([yaml(), lintGutter(), linter(yamlLinter), darkMode ? oneDark : []]);
-
-	function handleChange(e: Event) {
-		// No need to dispatch if readOnly
-		if (readOnly) return;
-		const target = e.target as HTMLInputElement;
-		value = target.value;
-		dispatch('change', { value });
-	}
+	// Combined extensions array
+	const lintExtension = linter(yamlLinter);
 </script>
 
 {#if browser}
 	<div class="border rounded-md overflow-hidden">
 		<CodeMirror
 			bind:value
-			on:change={handleChange}
-			{extensions}
+			on:ready={(e) => (editorView = e.detail)}
+			lang={yaml()}
+			theme={coolGlow}
+			extensions={[lintGutter(), lintExtension]}
 			styles={{
 				'&': {
 					height,
@@ -63,7 +51,6 @@
 					fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace'
 				},
 				'&.cm-editor[contenteditable=false]': {
-					backgroundColor: '#f8f8f8',
 					cursor: 'not-allowed'
 				},
 				'.cm-content[contenteditable=false]': {
@@ -72,6 +59,7 @@
 			}}
 			{placeholder}
 			readonly={readOnly}
+			nodebounce={true}
 		/>
 	</div>
 {/if}

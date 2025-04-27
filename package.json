@@ -47,7 +47,6 @@
 	},
 	"dependencies": {
 		"@codemirror/lang-yaml": "^6.1.2",
-		"@codemirror/theme-one-dark": "^6.1.2",
 		"@tanstack/table-core": "^8.21.3",
 		"codemirror": "^6.0.1",
 		"dockerode": "^4.0.6",
@@ -58,6 +57,7 @@
 		"prettier-plugin-svelte": "^3.3.3",
 		"proper-lockfile": "^4.1.2",
 		"redis": "^4.7.0",
-		"svelte-codemirror-editor": "^1.4.1"
+		"svelte-codemirror-editor": "^1.4.1",
+		"thememirror": "^2.0.1"
 	}
 }
