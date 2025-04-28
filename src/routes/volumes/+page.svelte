@@ -13,7 +13,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 
 	let { data }: { data: PageData } = $props();
-	let { error } = data;
+	let { error } = $state(data);
 	let volumes = $state(data.volumes);
 	let selectedIds = $state<string[]>([]);
 	let isRefreshing = $state(false);
@@ -51,9 +51,7 @@
 			toast.success(`Volume "${result.volume.Name}" created successfully.`);
 			isCreateDialogOpen = false;
 
-			setTimeout(async () => {
-				await refreshData();
-			}, 500);
+			await refreshData();
 		} catch (err: any) {
 			console.error('Failed to create volume:', err);
 			toast.error(`Failed to create volume: ${err.message}`);
@@ -68,9 +66,7 @@
 			await invalidateAll();
 			volumes = data.volumes;
 		} finally {
-			setTimeout(() => {
-				isRefreshing = false;
-			}, 300);
+			isRefreshing = false;
 		}
 	}
 
@@ -123,6 +119,11 @@
 	function openCreateDialog() {
 		isCreateDialogOpen = true;
 	}
+
+	$effect(() => {
+		volumes = data.volumes;
+		error = data.error;
+	});
 </script>
 
 <div class="space-y-6">

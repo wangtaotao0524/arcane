@@ -11,7 +11,8 @@
 	import UniversalModal from '$lib/components/universal-modal.svelte';
 
 	let { data }: { data: PageData } = $props();
-	const { stacks, error } = data;
+	let { error } = data;
+	let stacks = $state(data.stacks);
 	let selectedIds = $state([]);
 
 	let isRefreshing = $state(false);
@@ -65,6 +66,10 @@
 			isRefreshing = false;
 		}, 500);
 	}
+
+	$effect(() => {
+		stacks = data.stacks;
+	});
 </script>
 
 <div class="space-y-6">

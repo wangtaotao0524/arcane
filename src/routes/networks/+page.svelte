@@ -26,7 +26,7 @@
 	let isCreatingNetwork = $state(false);
 
 	$effect(() => {
-		networks = data.networks || [];
+		networks = data.networks;
 		error = data.error;
 	});
 

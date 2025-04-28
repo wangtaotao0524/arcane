@@ -31,7 +31,7 @@
 	let isConfirmPruneDialogOpen = $state(false);
 
 	$effect(() => {
-		images = data.images || [];
+		images = data.images;
 		error = data.error;
 	});
 
