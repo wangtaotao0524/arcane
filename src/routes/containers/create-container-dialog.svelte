@@ -13,6 +13,7 @@
 	import { parseBytes } from '$lib/utils/bytes';
 
 	import { createEventDispatcher } from 'svelte';
+	import { optional } from 'zod';
 	const dispatch = createEventDispatcher();
 
 	// Functions for events
@@ -52,9 +53,18 @@
 	// Environment variables
 	let envVars = $state<{ key: string; value: string; sensitive?: boolean }[]>([{ key: '', value: '', sensitive: true }]);
 
+	const restartPolicyOptions = [
+		{ value: 'no', label: 'No' },
+		{ value: 'always', label: 'Always' },
+		{ value: 'on-failure', label: 'On Failure' },
+		{ value: 'unless-stopped', label: 'Unless Stopped' }
+	];
+
 	// Network and restart policy
 	let network = $state('');
-	let restartPolicy = $state('no'); // "no", "always", "on-failure", "unless-stopped"
+	let restartPolicy = $state('unless-stopped'); // "no", "always", "on-failure", "unless-stopped"
+
+	const selectedRestartPolicyLabel = $derived(restartPolicyOptions.find((opt) => opt.value === restartPolicy)?.label || restartPolicy);
 
 	// Add state for IP addresses
 	let ipv4Address = $state('');
@@ -324,13 +334,12 @@
 								<Label for="restart-policy">Restart Policy</Label>
 								<Select.Root type="single" bind:value={restartPolicy} disabled={isCreating}>
 									<Select.Trigger class="w-full">
-										<span>{restartPolicy}</span>
+										<span>{selectedRestartPolicyLabel}</span>
 									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="no">no</Select.Item>
-										<Select.Item value="always">always</Select.Item>
-										<Select.Item value="on-failure">on-failure</Select.Item>
-										<Select.Item value="unless-stopped">unless-stopped</Select.Item>
+										{#each restartPolicyOptions as option}
+											<Select.Item label={option.label} value={option.value}>{option.label}</Select.Item>
+										{/each}
 									</Select.Content>
 								</Select.Root>
 							</div>
