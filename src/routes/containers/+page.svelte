@@ -25,6 +25,13 @@
 	// Calculate total containers
 	const totalContainers = $derived(containers?.length || 0);
 
+	$effect(() => {
+		containers = data.containers;
+		if (isRefreshing) {
+			isRefreshing = false;
+		}
+	});
+
 	// Success message handling based on form action result
 	$effect(() => {
 		if (form?.success) {
