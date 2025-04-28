@@ -122,35 +122,6 @@
 		</Card.Root>
 	</div>
 
-	<!-- Main container table -->
-	<Card.Root class="border shadow-sm">
-		<Card.Header class="px-6">
-			<div class="flex items-center justify-between">
-				<div>
-					<Card.Title>Container List</Card.Title>
-					<Card.Description>View and manage your Docker containers</Card.Description>
-				</div>
-				<div class="flex items-center gap-2">
-					<Button variant="secondary" onclick={openCreateDialog}>
-						<Plus class="w-4 h-4" />
-						Create Container
-					</Button>
-				</div>
-			</div>
-		</Card.Header>
-		<Card.Content>
-			<UniversalTable
-				data={containers}
-				{columns}
-				display={{
-					filterPlaceholder: 'Search containers...',
-					noResultsMessage: 'No containers found'
-				}}
-				bind:selectedIds
-			/>
-		</Card.Content>
-	</Card.Root>
-
 	{#if containers?.length === 0}
 		<div class="flex flex-col items-center justify-center py-12 px-6 text-center border rounded-lg bg-card">
 			<Box class="h-12 w-12 text-muted-foreground mb-4 opacity-40" />
@@ -167,6 +138,35 @@
 				</Button>
 			</div>
 		</div>
+	{:else}
+		<!-- Main container table -->
+		<Card.Root class="border shadow-sm">
+			<Card.Header class="px-6">
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>Container List</Card.Title>
+						<Card.Description>View and manage your Docker containers</Card.Description>
+					</div>
+					<div class="flex items-center gap-2">
+						<Button variant="secondary" onclick={openCreateDialog}>
+							<Plus class="w-4 h-4" />
+							Create Container
+						</Button>
+					</div>
+				</div>
+			</Card.Header>
+			<Card.Content>
+				<UniversalTable
+					data={containers}
+					{columns}
+					display={{
+						filterPlaceholder: 'Search containers...',
+						noResultsMessage: 'No containers found'
+					}}
+					bind:selectedIds
+				/>
+			</Card.Content>
+		</Card.Root>
 	{/if}
 
 	<form
