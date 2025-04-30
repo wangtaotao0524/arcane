@@ -17,7 +17,7 @@ This guide explains how to build the Arcane application from its source code. Th
 ## Steps
 
 1.  **Clone the Repository:**
-    Open your terminal and clone the Arcane repository (replace `<your-repository-url>` with the actual URL):
+    Open your terminal and clone the Arcane repository:
 
     ```bash
     git clone https://github.com/ofkm/arcane
