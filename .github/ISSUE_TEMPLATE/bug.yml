@@ -1,7 +1,7 @@
 name: 🐞 Bug Report
 description: Report a bug to help improve Arcane
 title: '🐞 Bug: '
-labels: ['bug']
+type: 'Bug'
 body:
   - type: markdown
     attributes:
