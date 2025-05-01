@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 2
 title: Building from Source
 ---
 
@@ -9,10 +9,10 @@ This guide explains how to build the Arcane application from its source code. Th
 
 ## Prerequisites
 
-- **Node.js:** Version 18.x or higher is recommended (check `.nvmrc` if present).
-- **npm, yarn, or pnpm:** A Node.js package manager. Examples will use `npm`.
-- **Git:** Required to clone the repository.
-- **Docker Engine:** Required if you intend to build the Docker image.
+- Node.js: Version 22 or higher.
+- npm, yarn, pnpm, or bun: A Node.js package manager. Examples will use `npm`.
+- Git: Required to clone the repository.
+- Docker Engine: Required if you intend to build the Docker image, and test functionality locally.
 
 ## Steps
 
@@ -44,7 +44,7 @@ This guide explains how to build the Arcane application from its source code. Th
 
     This will start a local development server, typically accessible at `http://localhost:3000` .
 
-4.  **Linting and Formatting (Optional):**
+4.  **Linting and Formatting:**
     Before building, you might want to check for code style issues:
 
     ```bash
@@ -84,14 +84,7 @@ The repository includes a `Dockerfile` to containerize the application.
     You can replace `arcane-local` with your preferred image tag.
 
 3.  **Run the Docker Container:**
-    Once built, you can run the image similarly to the official image, ensuring you mount the Docker socket and potentially a data volume:
 
-    ```bash
-    docker run -d -p 3000:3000 \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v ./arcane-data:/app/data \
-      --name arcane-dev \
-      arcane-local
-    ```
+See the [Quickstart](/docs/getting-started/quickstart) guide on how to run the docker container.
 
 This covers the essential steps for building and running Arcane from its source code, both as a standalone Node.js application and as a Docker image.

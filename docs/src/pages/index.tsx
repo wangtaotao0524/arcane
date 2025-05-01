@@ -25,7 +25,7 @@ function HomepageHeader() {
 							<Link className={styles.buttonPrimary} to="/docs/">
 								Get Started
 							</Link>
-							<Link className={styles.buttonSecondary} href="https://github.com/your-username/arcane" target="_blank" rel="noopener noreferrer">
+							<Link className={styles.buttonSecondary} href="https://github.com/ofkm/arcane" target="_blank" rel="noopener noreferrer">
 								GitHub
 							</Link>
 						</div>

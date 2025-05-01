@@ -93,7 +93,7 @@ services:
     # ... other settings
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
-      - ./arcane-data:/app/data # Mount data directory
+      - arcane-data:/app/data # Mount data directory
     # ... other settings
 ```
 
@@ -126,4 +126,4 @@ services:
 
 ## Initial Setup
 
-When you first access Arcane, you'll be guided through a setup process where you can configure these settings. You can modify them later at any time through the Settings page in the web UI.
+When you first access Arcane, you'll be guided through a setup process where you can configure the essential settings. You can modify them later at any time through the Settings page in the web UI.
