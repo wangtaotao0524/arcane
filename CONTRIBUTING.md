@@ -1,8 +1,3 @@
----
-sidebar_position: 2
-title: Contributing
----
-
 # Contributing to Arcane
 
 Thank you for your interest in contributing to Arcane! We welcome contributions from the community to help make Arcane better. Whether it's reporting a bug, suggesting a feature, or writing code, your help is appreciated.
