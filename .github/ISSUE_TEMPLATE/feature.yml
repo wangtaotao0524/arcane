@@ -1,7 +1,7 @@
 name: ⚡️ Feature Request
 description: Suggest a new feature or enhancement for Arcane
 title: '⚡️ Feature: '
-labels: ['enhancement']
+type: 'Feature'
 body:
   - type: markdown
     attributes:
