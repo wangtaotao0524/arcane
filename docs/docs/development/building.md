@@ -29,10 +29,6 @@ This guide explains how to build the Arcane application from its source code. Th
 
     ```bash
     npm install
-    # or
-    # yarn install
-    # or
-    # pnpm install
     ```
 
 3.  **Run the Development Server (Optional):**
@@ -85,6 +81,8 @@ The repository includes a `Dockerfile` to containerize the application.
 
 3.  **Run the Docker Container:**
 
-See the [Quickstart](/docs/getting-started/quickstart) guide on how to run the docker container.
+    See the [Quickstart](/docs/getting-started/quickstart) guide on how to run the docker container.
+
+## Summary
 
 This covers the essential steps for building and running Arcane from its source code, both as a standalone Node.js application and as a Docker image.

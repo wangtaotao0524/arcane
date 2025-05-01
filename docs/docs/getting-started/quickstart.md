@@ -13,8 +13,7 @@ This guide provides the fastest way to get Arcane up and running using Docker Co
 
 ## Steps
 
-1.  **Create `docker-compose.yml`:**
-    Create a `docker-compose.yml` file with the following content:
+1. Create a `docker-compose.yml` file with the following content:
 
 ```yaml
 services:
