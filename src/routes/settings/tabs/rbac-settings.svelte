@@ -3,12 +3,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Shield, Plus, Users, Settings } from '@lucide/svelte';
-	import type { ActionData, PageData } from '../$types';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import type { PageData } from '../$types';
+	import Switch from '$lib/components/ui/switch/switch.svelte';
+	import { settingsStore } from '$lib/stores/settings-store';
 
-	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	let { data } = $props<{ data: PageData }>();
 
-	// Sample roles for demonstration
 	const roles = [
 		{
 			id: 1,
@@ -61,8 +61,30 @@
 	let selectedRole = $state(roles[0]);
 </script>
 
+<div class="mb-6">
+	<div class="flex items-center justify-between rounded-lg border p-4 bg-muted/30">
+		<div class="space-y-0.5">
+			<label for="rbacEnabledSwitch" class="text-base font-medium">Enable Role-Based Access Control</label>
+			<p class="text-sm text-muted-foreground">Control user permissions with customizable roles</p>
+		</div>
+		<Switch
+			id="rbacEnabledSwitch"
+			name="rbacEnabled"
+			checked={$settingsStore.auth?.rbacEnabled}
+			onCheckedChange={(checked) => {
+				settingsStore.update((current) => ({
+					...current,
+					auth: {
+						...current.auth,
+						rbacEnabled: checked
+					}
+				}));
+			}}
+		/>
+	</div>
+</div>
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-	<!-- Roles List -->
 	<div class="lg:col-span-1">
 		<Card.Root class="border shadow-sm h-full">
 			<Card.Header class="pb-3">
@@ -80,7 +102,7 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="space-y-2">
-					{#each roles as role}
+					{#each roles as role (role.id)}
 						<button
 							class="w-full text-left p-3 rounded-md border transition-colors flex items-center justify-between
                      {selectedRole.id === role.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted/50'}"
@@ -100,7 +122,6 @@
 		</Card.Root>
 	</div>
 
-	<!-- Role Details -->
 	<div class="lg:col-span-2">
 		<Card.Root class="border shadow-sm">
 			<Card.Header class="pb-3">
@@ -138,11 +159,11 @@
 					<div>
 						<h3 class="text-sm font-medium mb-3">Permissions</h3>
 						<div class="border rounded-md divide-y">
-							{#each permissionCategories as category}
+							{#each permissionCategories as category (category.name)}
 								<div class="p-3">
 									<h4 class="font-medium mb-2">{category.name}</h4>
 									<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-										{#each category.permissions as permission}
+										{#each category.permissions as permission (permission)}
 											<label class="flex items-center space-x-2 text-sm">
 												<input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary" checked={selectedRole.permissions.includes(permission)} />
 												<span>{permission.split(':')[1]}</span>

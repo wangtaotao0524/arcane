@@ -1,11 +1,14 @@
 import type { VolumeInspectInfo as OriginalVolumeInspectInfo } from 'dockerode';
+import type { User } from '$lib/types/user.type';
+import type { UserSession } from '$lib/types/session.type';
 
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			user?: User | null;
+			session?: UserSession | null;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}

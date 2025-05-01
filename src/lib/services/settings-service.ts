@@ -1,63 +1,53 @@
 import fs from 'fs/promises';
 import path from 'path';
 import proper from 'proper-lockfile';
-import type { SettingsData } from '$lib/types/settings';
+import type { Settings } from '$lib/types/settings.type';
+import { encrypt, decrypt } from './encryption-service';
+import { SETTINGS_DIR, STACKS_DIR, ensureDirectory } from './paths-service';
 
 // Determine if we're in development or production
 const isDev = process.env.NODE_ENV === 'development';
 
-// Configure paths based on environment
-const BASE_PATH = isDev ? path.resolve(process.cwd(), '.dev-data') : '/app/data';
-
-const SETTINGS_FILE = path.join(BASE_PATH, 'app-settings.json');
-const SETTINGS_FOLDER = path.join(BASE_PATH, 'settings');
-
 // Default settings - also adapt paths for development environment
-export const DEFAULT_SETTINGS: SettingsData = {
+export const DEFAULT_SETTINGS: Settings = {
 	dockerHost: isDev ? (process.platform === 'win32' ? 'npipe:////./pipe/docker_engine' : 'unix:///var/run/docker.sock') : 'unix:///var/run/docker.sock',
 	autoUpdate: false,
 	autoUpdateInterval: 5,
 	pollingEnabled: true,
 	pollingInterval: 10,
 	pruneMode: 'all',
-	stacksDirectory: path.resolve(BASE_PATH, 'stacks'),
-	externalServices: {
-		valkey: {
-			enabled: false,
-			host: 'localhost',
-			port: 6379,
-			username: '',
-			password: '',
-			keyPrefix: 'arcane:settings:'
-		}
+	stacksDirectory: STACKS_DIR,
+	registryCredentials: [],
+	auth: {
+		localAuthEnabled: true,
+		sessionTimeout: 60,
+		passwordPolicy: 'medium',
+		rbacEnabled: false
 	}
 };
 
-// Path getter functions
-export function getBasePath(): string {
-	return BASE_PATH;
-}
+// Ensure settings directory exists with proper permissions
+async function ensureSettingsDir() {
+	try {
+		await ensureDirectory(SETTINGS_DIR, 0o700); // Only owner can access
 
-export function getSettingsFilePath(): string {
-	return SETTINGS_FILE;
-}
-
-export function getStacksDirectory(): string {
-	return DEFAULT_SETTINGS.stacksDirectory;
-}
-
-// Log configured paths on startup
-console.log(`Settings service configured with:
-- Environment: ${isDev ? 'Development' : 'Production'}
-- Settings file: ${SETTINGS_FILE}
-- Settings folder: ${SETTINGS_FOLDER}
-- Default stacks directory: ${DEFAULT_SETTINGS.stacksDirectory}
-`);
-
-// Make sure directories exist
-async function ensureDirs() {
-	await fs.mkdir(path.dirname(SETTINGS_FILE), { recursive: true });
-	await fs.mkdir(SETTINGS_FOLDER, { recursive: true });
+		// Only apply chmod on non-Windows platforms
+		// Windows doesn't fully support POSIX permissions
+		if (process.platform !== 'win32') {
+			try {
+				// Ensure correct permissions even if directory already existed
+				await fs.chmod(SETTINGS_DIR, 0o700);
+			} catch (chmodError: unknown) {
+				// Ignore specific errors related to unsupported operations
+				if (chmodError && typeof chmodError === 'object' && 'code' in chmodError && chmodError.code !== 'EINVAL' && chmodError.code !== 'ENOTSUP') {
+					console.warn('Non-critical error setting permissions:', chmodError);
+				}
+			}
+		}
+	} catch (error) {
+		console.error('Error ensuring settings directory with proper permissions:', error);
+		throw error;
+	}
 }
 
 /**
@@ -68,14 +58,14 @@ export async function ensureStacksDirectory(): Promise<string> {
 		const settings = await getSettings();
 		const stacksDir = settings.stacksDirectory;
 
-		await fs.mkdir(stacksDir, { recursive: true });
+		await ensureDirectory(stacksDir);
 		return stacksDir;
 	} catch (err) {
 		console.error('Error ensuring stacks directory:', err);
 		// Fall back to default
 		try {
-			await fs.mkdir(DEFAULT_SETTINGS.stacksDirectory, { recursive: true });
-			return DEFAULT_SETTINGS.stacksDirectory;
+			await ensureDirectory(STACKS_DIR);
+			return STACKS_DIR;
 		} catch (innerErr) {
 			console.error('Failed to create default stacks directory:', innerErr);
 			throw new Error('Unable to create stacks directory');
@@ -85,10 +75,10 @@ export async function ensureStacksDirectory(): Promise<string> {
 
 // Save a setting to its own file
 async function saveSetting(key: string, value: any): Promise<void> {
-	const filePath = path.join(SETTINGS_FOLDER, `${key}.json`);
+	const filePath = path.join(SETTINGS_DIR, `${key}.json`);
 
 	// Make sure the directory exists
-	await fs.mkdir(path.dirname(filePath), { recursive: true });
+	await ensureDirectory(path.dirname(filePath));
 
 	try {
 		// Create the file if it doesn't exist
@@ -113,124 +103,91 @@ async function saveSetting(key: string, value: any): Promise<void> {
 	}
 }
 
-// Get a setting from its own file
-async function getSetting(key: string): Promise<any | null> {
-	const filePath = path.join(SETTINGS_FOLDER, `${key}.json`);
-
-	try {
-		const data = await fs.readFile(filePath, 'utf-8');
-		return JSON.parse(data);
-	} catch (error) {
-		return null;
-	}
-}
-
 // Get all settings
-export async function getSettings(): Promise<SettingsData> {
+export async function getSettings(): Promise<Settings> {
 	try {
-		await ensureDirs();
+		await ensureSettingsDir();
+		const filePath = path.join(SETTINGS_DIR, 'settings.dat');
 
-		// Try to load the main settings file first (as override)
-		let fileSettings: Partial<SettingsData> = {};
 		try {
-			const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
-			fileSettings = JSON.parse(data);
-
-			// If in development and paths are production paths, convert them
-			if (isDev) {
-				// Convert any absolute /app/data paths to local development paths
-				if (fileSettings.stacksDirectory && fileSettings.stacksDirectory.startsWith('/app/data')) {
-					fileSettings.stacksDirectory = fileSettings.stacksDirectory.replace('/app/data', BASE_PATH);
-				}
-			}
-		} catch (error) {
-			console.log('No main settings file found');
+			await fs.access(filePath);
+		} catch {
+			// Settings file doesn't exist, return default settings
+			return getDefaultSettings();
 		}
 
-		// Load individual settings
-		const individualSettings: Record<string, any> = {};
-		try {
-			const files = await fs.readdir(SETTINGS_FOLDER);
-			for (const file of files) {
-				if (file.endsWith('.json')) {
-					const key = file.replace('.json', '');
-					const value = await getSetting(key);
-					if (value !== null) {
-						individualSettings[key] = value;
-					}
-				}
-			}
-		} catch (error) {
-			console.error('Error reading individual settings:', error);
+		const rawData = await fs.readFile(filePath, 'utf8');
+		const settingsData = JSON.parse(rawData);
+
+		// Decrypt sensitive data if available
+		if (settingsData._encrypted) {
+			// Use destructuring to separate _encrypted from the rest of the settings
+			const { _encrypted, ...nonSensitiveSettings } = settingsData;
+			const decryptedData = await decrypt(_encrypted);
+
+			// Merge the non-sensitive settings with decrypted data
+			return { ...nonSensitiveSettings, ...decryptedData };
 		}
 
-		// Merge in order: defaults < individual < file
-		const mergedSettings = {
-			...DEFAULT_SETTINGS,
-			...individualSettings,
-			...fileSettings
-		};
-
-		// Ensure stacks directory exists
-		await fs.mkdir(mergedSettings.stacksDirectory, { recursive: true });
-
-		return mergedSettings;
+		// Fallback for old format settings
+		return settingsData;
 	} catch (error) {
 		console.error('Error loading settings:', error);
-		return DEFAULT_SETTINGS;
+		return getDefaultSettings();
 	}
 }
 
 // Save all settings
-export async function saveSettings(settings: SettingsData): Promise<void> {
-	await ensureDirs();
+export async function saveSettings(settings: Settings): Promise<void> {
+	await ensureSettingsDir();
+	const filePath = path.join(SETTINGS_DIR, 'settings.dat');
 
+	// Create the file if it doesn't exist
 	try {
-		// In development mode, ensure paths are relative to the current environment
-		let settingsToSave = { ...settings };
-
-		// If we're in development and the stacks directory is still a production path
-		if (isDev && settingsToSave.stacksDirectory?.startsWith('/app/data')) {
-			settingsToSave.stacksDirectory = settingsToSave.stacksDirectory.replace('/app/data', BASE_PATH);
-		}
-
-		// Save each setting to its own file for granular access
-		const flatSettings = flattenObject(settingsToSave);
-		for (const [key, value] of Object.entries(flatSettings)) {
-			await saveSetting(key, value);
-		}
-
-		// Also save the complete settings as a snapshot
-		await fs.writeFile(SETTINGS_FILE, JSON.stringify(settingsToSave, null, 2));
-
-		// Ensure the stacks directory exists
-		await fs.mkdir(settingsToSave.stacksDirectory, { recursive: true });
-
-		console.log('Settings saved successfully');
-	} catch (error) {
-		console.error('Error saving settings:', error);
-		throw new Error('Failed to save settings');
-	}
-}
-
-// Helper function to flatten nested objects
-function flattenObject(obj: any, prefix = ''): Record<string, any> {
-	return Object.keys(obj).reduce((acc: Record<string, any>, k: string) => {
-		const pre = prefix.length ? `${prefix}.` : '';
-		if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-			Object.assign(acc, flattenObject(obj[k], `${pre}${k}`));
-		} else {
-			acc[`${pre}${k}`] = obj[k];
-		}
-		return acc;
-	}, {});
-}
-
-// Helper to parse JSON values
-function tryParse(value: string): any {
-	try {
-		return JSON.parse(value);
+		await fs.access(filePath);
 	} catch {
-		return value;
+		// File doesn't exist, create an empty file
+		await fs.writeFile(filePath, '{}', { mode: 0o600 });
 	}
+
+	// Acquire a lock on the settings file
+	let release;
+	try {
+		release = await proper.lock(filePath, {
+			retries: 5, // Try up to 5 times
+			stale: 10000, // Consider lock stale after 10 seconds
+			onCompromised: (err) => {
+				console.error('Lock was compromised:', err);
+			}
+		});
+
+		// Separate sensitive and non-sensitive settings
+		const { auth, registryCredentials, ...nonSensitiveSettings } = settings;
+
+		// Create a settings object with encrypted sensitive data
+		const dataToSave = {
+			...nonSensitiveSettings,
+			_encrypted: await encrypt({ auth, registryCredentials })
+		};
+
+		// Write the settings with proper permissions
+		await fs.writeFile(filePath, JSON.stringify(dataToSave, null, 2), { mode: 0o600 });
+	} catch (error) {
+		console.error('Error saving settings with lock:', error);
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		throw new Error(`Failed to save settings: ${errorMessage}`);
+	} finally {
+		// Always release the lock if we acquired it
+		if (release) {
+			try {
+				await release();
+			} catch (releaseError) {
+				console.error('Error releasing lock:', releaseError);
+			}
+		}
+	}
+}
+
+function getDefaultSettings(): Settings {
+	return DEFAULT_SETTINGS;
 }

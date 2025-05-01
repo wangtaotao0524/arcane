@@ -7,7 +7,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./arcane-data:/app/data
-      # - ./arcane-data/app-settings.json:/app/app-settings.json
 
     environment:
       - PUID=1000
