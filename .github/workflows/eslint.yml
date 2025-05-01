@@ -3,13 +3,28 @@ name: Run ESLint
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/eslint.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.eslintrc.cjs'
+      - 'tsconfig.json'
   pull_request:
     branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/eslint.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.eslintr.config.js'
+      - 'tsconfig.json'
   workflow_dispatch:
 
 jobs:
   lint:
     name: Run ESLint
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -31,9 +46,5 @@ jobs:
       - name: Setup problem matcher
         run: echo "::add-matcher::.github/eslint-matcher.json"
 
-      - name: Lint with ESLint
-        uses: reviewdog/action-eslint@2fee6dd72a5419ff4113f694e2068d2a03bb35dd
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
-          eslint_flags: '.'
+      - name: Run ESLint
+        run: npm run lint
