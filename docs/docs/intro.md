@@ -15,7 +15,7 @@ Arcane is a **Simple and Elegant Docker Management UI** written in Typescript an
 - **Modern UI Interface** - Clean, intuitive design that makes Docker management a breeze
 - **Real-time Monitoring** - Live updates of container status, resource usage, and logs
 - **Container Management** - Start, stop, restart, and inspect containers with ease
-- **Image Management** - Pull, build, and manage Docker images
+- **Image Management** - Pull, and manage Docker images
 - **Network Configuration** - Create and configure Docker networks
 - **Volume Management** - Create and manage persistent data with Docker volumes
 - **Resource Visualization** - Visual graphs for CPU, memory, and network usage
