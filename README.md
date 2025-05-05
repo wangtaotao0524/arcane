@@ -18,6 +18,11 @@ If you have suggestions, feedback, or feature requests, please open an issue or 
 
 ---
 
+<img width="1682" alt="image" src="https://github.com/user-attachments/assets/3389dffb-b27b-4cff-aace-a8751008c983" />
+
+
+---
+
 ## Documentation
 
 For setup instructions, configuration details, and development guides, visit the **[official documentation site](https://arcane.ofkm.dev)**.
