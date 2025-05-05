@@ -50,8 +50,9 @@ else
     # If user with PUID exists, find their name
     USERNAME=$(getent passwd "$PUID" | cut -d: -f1)
     echo "Entrypoint: User with UID ${PUID} already exists: ${USERNAME}"
-    # Rename user if it's not the expected name
-    if [ "$USERNAME" != "$APP_USER" ]; then
+    
+    # Don't try to rename the root user or if username already matches
+    if [ "$USERNAME" != "$APP_USER" ] && [ "$USERNAME" != "root" ]; then
         echo "Entrypoint: Renaming user from ${USERNAME} to ${APP_USER}..."
         usermod -l "$APP_USER" "$USERNAME"
     fi
@@ -104,13 +105,14 @@ chmod 755 /app/data
 chmod 644 /app/data/app-settings.json 2>/dev/null || true
 
 # Change ownership of application directories
-echo "Entrypoint: Ensuring ownership of ${APP_DIR} for ${PUID}:${PGID}..."
-chown -R "$PUID":"$PGID" "$APP_DIR"
+echo "Entrypoint: Setting permissions on critical directories..."
+chown "$PUID":"$PGID" "$APP_DIR"
 chown -R "$PUID":"$PGID" "$APP_DIR/data"
 
-# Ensure permissions
-chown -R arcane:arcane /app/data
-
-# Execute the command passed to the script (CMD) as the specified user
-echo "Starting Arcane as user arcane ($(id -u arcane):$(id -g arcane))..."
-exec su-exec arcane "$@"
+if [ "$PUID" = "0" ]; then
+    echo "Starting Arcane as root user (PUID=0 was specified)..."
+    exec "$@"
+else
+    echo "Starting Arcane as user arcane ($(id -u arcane):$(id -g arcane))..."
+    exec su-exec arcane "$@"
+fi
