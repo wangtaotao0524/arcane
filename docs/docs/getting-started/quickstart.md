@@ -33,7 +33,7 @@ services:
 
 volumes:
   arcane-data:
-  driver: local
+    driver: local
 ```
 
 You may need to modify the environment variables to fit your setup. Mainly the `DOCKER_GID` variable.
