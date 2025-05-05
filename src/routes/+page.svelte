@@ -20,6 +20,7 @@
 	import ContainerAPIService from '$lib/services/api/container-api-service';
 	import SystemAPIService from '$lib/services/api/system-api-service';
 	import type { EnhancedImageInfo } from '$lib/types/docker';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 
 	let { data }: { data: PageData } = $props();
 
@@ -82,20 +83,29 @@
 
 	async function handleStopAll() {
 		if (isLoading.stopping || !dashboardStates.dockerInfo || runningContainers === 0) return;
-		handleApiReponse(
-			await tryCatch(containerApi.stopAll()),
-			`Failed to Stop All Running Containers`,
-			(value) => (isLoading.starting = value),
-			async () => {
-				toast.success(`All Containers Stopped Successfully.`);
-				await invalidateAll();
+		openConfirmDialog({
+			title: 'Stop All Containers',
+			message: 'Are you sure you want to stop all running containers?',
+			confirm: {
+				label: 'Confirm',
+				destructive: false,
+				action: async () => {
+					handleApiReponse(
+						await tryCatch(containerApi.stopAll()),
+						`Failed to Stop All Running Containers`,
+						(value) => (isLoading.starting = value),
+						async () => {
+							toast.success(`All Containers Stopped Successfully.`);
+							await invalidateAll();
+						}
+					);
+				}
 			}
-		);
+		});
 	}
 
 	async function confirmPrune(selectedTypes: string[]) {
 		if (isLoading.pruning || selectedTypes.length === 0) return;
-
 		handleApiReponse(
 			await tryCatch(systemApi.prune(['containers', 'images'])),
 			`Failed to Prune ${selectedTypes}`,
