@@ -91,7 +91,7 @@
 					</div>
 
 					<div class="space-y-2">
-						<p class="text-sm text-muted-foreground">Add credentials for private registries like Docker Hub, GitHub Container Registry (ghcr.io), or other private repositories.</p>
+						<p class="text-sm text-destructive">Private Registries are currently not supported for pulling images, even though these settings exsist.</p>
 
 						{#if $settingsStore.registryCredentials.length === 0}
 							<div class="text-center py-4 text-muted-foreground text-sm border rounded-md">No registry credentials configured yet</div>
