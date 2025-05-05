@@ -75,7 +75,7 @@ This approach ensures all settings are properly validated and securely stored.
   - **`passwordPolicy`** (`string`): Password complexity requirements.
     - **Default:** `"medium"`
 
-- **`registryCredentials`** (array)
+- **`registryCredentials`** (array) (This is currently not actually working in 0.4.0)
   - List of registry credentials for pulling private images.
 
 ## Configuration with Docker
