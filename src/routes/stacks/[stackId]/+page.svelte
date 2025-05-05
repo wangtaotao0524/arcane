@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
+	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ArrowLeft, Loader2, AlertCircle, Save, FileStack, Layers, ArrowRight } from '@lucide/svelte';
@@ -10,17 +10,21 @@
 	import ActionButtons from '$lib/components/action-buttons.svelte';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { statusVariantMap } from '$lib/types/statuses';
-	import { capitalizeFirstLetter } from '$lib/utils';
+	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { enhance } from '$app/forms';
 	import YamlEditor from '$lib/components/yaml-editor.svelte';
 	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { tryCatch } from '$lib/utils/try-catch';
+	import StackAPIService from '$lib/services/api/stack-api-service';
+	import { handleApiReponse } from '$lib/utils/api.util';
+
+	const stackApi = new StackAPIService();
 
 	let { data }: { data: PageData } = $props();
 	let { stack, editorState } = $derived(data);
 
-	let depoloying = $state(false);
+	let deploying = $state(false);
 	let stopping = $state(false);
 	let restarting = $state(false);
 	let removing = $state(false);
@@ -28,14 +32,15 @@
 
 	let name = $derived(editorState.name);
 	let composeContent = $derived(editorState.composeContent);
+	let autoUpdate = $derived(editorState.autoUpdate);
 	let originalName = $derived(editorState.originalName);
 	let originalComposeContent = $derived(editorState.originalComposeContent);
 	let originalAutoUpdate = $derived(editorState.autoUpdate);
 
-	let hasChanges = $derived(name !== originalName || composeContent !== originalComposeContent || editorState.autoUpdate !== originalAutoUpdate);
+	let hasChanges = $derived(name !== originalName || composeContent !== originalComposeContent || autoUpdate !== originalAutoUpdate);
 
 	$effect(() => {
-		depoloying = false;
+		deploying = false;
 		stopping = false;
 		restarting = false;
 		removing = false;
@@ -45,43 +50,22 @@
 	async function handleSaveChanges() {
 		if (!stack || !hasChanges) return;
 
-		saving = true;
-		console.log('Saving stack via API...');
+		handleApiReponse(
+			await tryCatch(stackApi.save(stack.id, name, composeContent, autoUpdate)),
+			'Failed to Save Stack',
+			(value) => (saving = value),
+			async (data) => {
+				originalName = name;
+				originalComposeContent = composeContent;
+				originalAutoUpdate = autoUpdate;
 
-		try {
-			const response = await fetch(`/api/stacks/${stack.id}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					name,
-					composeContent,
-					autoUpdate: editorState.autoUpdate
-				})
-			});
+				console.log('Stack save successful:', data);
+				toast.success('Stack updated successfully!');
 
-			const result = await response.json();
-
-			if (!response.ok) {
-				throw new Error(result.error || `HTTP error! status: ${response.status}`);
+				await new Promise((resolve) => setTimeout(resolve, 200));
+				await invalidateAll();
 			}
-
-			console.log('Stack save successful:', result);
-			toast.success('Stack updated successfully!');
-
-			originalName = name;
-			originalComposeContent = composeContent;
-			originalAutoUpdate = editorState.autoUpdate;
-
-			await invalidateAll();
-		} catch (error: unknown) {
-			console.error('Error saving stack:', error);
-			const message = error instanceof Error ? error.message : String(error);
-			toast.error(`Failed to update stack: ${message}`);
-		} finally {
-			saving = false;
-		}
+		);
 	}
 </script>
 
@@ -113,31 +97,17 @@
 
 		{#if stack}
 			<div class="flex gap-2 flex-wrap">
-				<form
-					method="POST"
-					action={stack.status === 'running' || stack.status === 'partially running' ? '?/stop' : '?/start'}
-					use:enhance={() => {
-						const isStarting = stack.status !== 'running' && stack.status !== 'partially running';
-						if (isStarting) depoloying = true;
-						else stopping = true;
-						return async ({ update }) => {
-							await update({ reset: false });
-						};
+				<ActionButtons
+					id={stack.id}
+					type="stack"
+					itemState={stack.status}
+					loading={{
+						start: deploying,
+						stop: stopping,
+						restart: restarting,
+						remove: removing
 					}}
-				>
-					<input type="hidden" name="action" value={stack.status === 'running' || stack.status === 'partially running' ? 'stop' : 'start'} />
-					<ActionButtons
-						id={stack.id}
-						type="stack"
-						itemState={stack.status}
-						loading={{
-							start: depoloying,
-							stop: stopping,
-							restart: restarting,
-							remove: removing
-						}}
-					/>
-				</form>
+				/>
 			</div>
 		{/if}
 	</div>
@@ -207,7 +177,7 @@
 						<div class="grid w-full items-center gap-1.5">
 							<Label for="compose-editor">Docker Compose File</Label>
 							<div class="border rounded-md overflow-hidden">
-								<YamlEditor bind:value={composeContent} readOnly={saving || depoloying || stopping || restarting || removing} />
+								<YamlEditor bind:value={composeContent} readOnly={saving || deploying || stopping || restarting || removing} />
 							</div>
 							<p class="text-xs text-muted-foreground">
 								Edit your <span class="font-bold">compose.yaml</span> file directly. Syntax errors will be highlighted.
@@ -215,7 +185,7 @@
 						</div>
 
 						<div class="flex items-center space-x-2 mt-4">
-							<Switch id="auto-update" name="autoUpdate" bind:checked={editorState.autoUpdate} />
+							<Switch id="auto-update" name="autoUpdate" bind:checked={autoUpdate} />
 							<Label for="auto-update" class="font-medium">Enable auto-update</Label>
 							<div class="inline-block">
 								<p class="text-xs text-muted-foreground">When enabled, Arcane will periodically check for newer versions of all images in this stack and automatically redeploy it.</p>

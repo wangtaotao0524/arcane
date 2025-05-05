@@ -1,32 +1,34 @@
-<!-- @migration task: review uses of `navigating` -->
 <script lang="ts">
 	import '../app.css';
 	import { ModeWatcher } from 'mode-watcher';
 	import Nav from '$lib/components/navbar.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { navigating, page } from '$app/state';
+	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
 
 	let { children, data } = $props();
 
 	const versionInformation = data.versionInformation;
-	const user = $derived(data.user); // Access the user from data
-
-	const isNavigating = $derived(navigating !== null);
-	const isAuthenticated = $derived(!!user); // Check if user exists
+	const user = $derived(data.user);
+	const isNavigating = $derived(navigating.type !== null);
+	const isAuthenticated = $derived(!!user);
 
 	const isOnboardingPage = $derived(page.url.pathname.startsWith('/onboarding'));
-	// Only show sidebar when authenticated AND not in onboarding
-	const showSidebar = $derived(isAuthenticated && !isOnboardingPage);
+	const isLoginPage = $derived(page.url.pathname === '/login' || page.url.pathname.startsWith('/auth/login') || page.url.pathname === '/auth' || page.url.pathname.includes('/login'));
+	const showSidebar = $derived(isAuthenticated && !isOnboardingPage && !isLoginPage);
 </script>
 
 <svelte:head><title>Arcane</title></svelte:head>
 
 <ModeWatcher />
 <Toaster />
+<ConfirmDialog />
 
-<!-- Apply a loading state to the page during navigation -->
+<!-- Loading Indicator -->
 {#if isNavigating}
-	<!-- add a loading indicator here -->
+	<div class="fixed top-0 left-0 right-0 h-2 z-50">
+		<div class="h-full bg-primary animate-pulse"></div>
+	</div>
 {/if}
 
 <div class="flex min-h-screen bg-background">

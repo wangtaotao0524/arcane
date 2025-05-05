@@ -1,21 +1,19 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button/index.js';
 	import { Play, StopCircle, RotateCcw, Download, Trash2, Loader2, RefreshCcwDot } from '@lucide/svelte';
-	import ConfirmDialog from './confirm-dialog.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { openConfirmDialog } from './confirm-dialog';
 	import { invalidateAll } from '$app/navigation';
-	import type { ApiResponse } from '$lib/types/api-response.type';
 	import { toast } from 'svelte-sonner';
+	import type { LoadingStates } from '$lib/types/loading-states.type';
+	import ContainerAPIService from '$lib/services/api/container-api-service';
+	import StackAPIService from '$lib/services/api/stack-api-service';
+	import { tryCatch } from '$lib/utils/try-catch';
+	import { handleApiReponse } from '$lib/utils/api.util';
+
+	const containerApi = new ContainerAPIService();
+	const stackApi = new StackAPIService();
 
 	type TargetType = 'container' | 'stack';
-	type LoadingStates = {
-		start?: boolean;
-		stop?: boolean;
-		restart?: boolean;
-		pull?: boolean;
-		deploy?: boolean;
-		redeploy?: boolean;
-		remove?: boolean;
-	};
 
 	let {
 		id,
@@ -27,107 +25,132 @@
 		id: string;
 		type?: TargetType;
 		itemState?: string;
-		loading?: LoadingStates;
+		loading: LoadingStates;
 		onActionComplete?: () => void;
 	} = $props();
 
-	// Track dialog states
-	let showRemoveDialog = $state(false);
-	let showRedeployDialog = $state(false);
-
-	// Track loading states for each action
-	let isStarting = $state(false);
-	let isStopping = $state(false);
-	let isRestarting = $state(false);
-	let isRedeploying = $state(false);
-	let isRemoving = $state(false);
-	let isPulling = $state(false);
+	let isLoading = $state({
+		start: false,
+		stop: false,
+		restart: false,
+		remove: false,
+		pulling: false,
+		redeploy: false
+	});
 
 	const isRunning = $derived(itemState === 'running' || (type === 'stack' && itemState === 'partially running'));
 
-	// Handle showing confirmation dialogs
+	$effect(() => {
+		isLoading.start = loading.start ?? false;
+		isLoading.stop = loading.stop ?? false;
+		isLoading.pulling = loading.pull ?? false;
+		isLoading.remove = loading.remove ?? false;
+		isLoading.restart = loading.restart ?? false;
+		isLoading.redeploy = loading.redeploy ?? false;
+	});
+
 	function confirmAction(action: string) {
 		if (action === 'remove') {
-			showRemoveDialog = true;
+			openConfirmDialog({
+				title: `Confirm Removal`,
+				message: `Are you sure you want to remove this ${type}? This action cannot be undone.`,
+				confirm: {
+					label: 'Remove',
+					destructive: true,
+					action: async () => {
+						isLoading.remove = true;
+						handleApiReponse(
+							await tryCatch(type === 'container' ? containerApi.remove(id) : stackApi.remove(id)),
+							`Failed to Remove ${type}`,
+							(value) => (isLoading.remove = value),
+							async () => {
+								toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Removed Successfully`);
+								await invalidateAll();
+							}
+						);
+					}
+				}
+			});
 		} else if (action === 'redeploy') {
-			showRedeployDialog = true;
+			openConfirmDialog({
+				title: `Confirm Redeploy`,
+				message: `Are you sure you want to redeploy this ${type}?`,
+				confirm: {
+					label: 'Redeploy',
+					action: async () => {
+						isLoading.redeploy = true;
+						handleApiReponse(
+							await tryCatch(stackApi.redeploy(id)),
+							`Failed to Redeploy ${type}`,
+							(value) => (isLoading.redeploy = value),
+							async () => {
+								toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Redeployed Successfully`);
+								await invalidateAll();
+							}
+						);
+					}
+				}
+			});
 		}
 	}
 
-	// Generic API call function
-	async function callApi(action: string, loadingStateSetter: (value: boolean) => void) {
-		loadingStateSetter(true);
-
-		// Different endpoint format for stacks vs containers
-		let endpoint;
-		if (type === 'stack') {
-			endpoint = `/api/stacks/${id}/${action}`; // No plural, no separator between "stack" and ID
-		} else {
-			endpoint = `/api/${type}s/${id}/${action}`; // Plural with separator for containers
-		}
-
-		const method = action === 'remove' ? 'DELETE' : 'POST';
-
-		try {
-			const response = await fetch(endpoint, { method });
-			// Gracefully fallback when there is no JSON body
-			let result: ApiResponse = {};
-			if (response.headers.get('content-type')?.includes('application/json')) {
-				result = await response.json();
-			}
-			if (!response.ok) {
-				throw new Error(result.error ?? `Failed to ${action} ${type}`);
-			}
-			toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} ${action}ed successfully`);
-			await invalidateAll();
-			onActionComplete();
-		} catch (error: Error | unknown) {
-			console.error(`Error ${action}ing ${type}:`, error);
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			toast.error(`Failed to ${action} ${type}: ${errorMessage}`);
-		} finally {
-			loadingStateSetter(false);
-		}
-	}
-
-	// Action handlers
 	async function handleStart() {
-		await callApi('start', (value) => (isStarting = value));
+		isLoading.start = true;
+		handleApiReponse(
+			await tryCatch(type === 'container' ? containerApi.start(id) : stackApi.start(id)),
+			`Failed to Start ${type}`,
+			(value) => (isLoading.start = value),
+			async () => {
+				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Started Successfully`);
+				await invalidateAll();
+			}
+		);
 	}
 
 	async function handleStop() {
-		await callApi('stop', (value) => (isStopping = value));
+		isLoading.stop = true;
+		handleApiReponse(
+			await tryCatch(type === 'container' ? containerApi.stop(id) : stackApi.stop(id)),
+			`Failed to Stop ${type}`,
+			(value) => (isLoading.stop = value),
+			async () => {
+				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Stopped Successfully`);
+				await invalidateAll();
+			}
+		);
 	}
 
 	async function handleRestart() {
-		await callApi('restart', (value) => (isRestarting = value));
-	}
-
-	async function handleRedeploy() {
-		showRedeployDialog = false;
-		await callApi('redeploy', (value) => (isRedeploying = value));
-	}
-
-	async function handleRemove() {
-		showRemoveDialog = false;
-		await callApi('remove', (value) => (isRemoving = value));
+		isLoading.restart = true;
+		handleApiReponse(
+			await tryCatch(type === 'container' ? containerApi.restart(id) : stackApi.restart(id)),
+			`Failed to Restart ${type}`,
+			(value) => (isLoading.restart = value),
+			async () => {
+				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Restarted Successfully`);
+				await invalidateAll();
+			}
+		);
 	}
 
 	async function handlePull() {
-		await callApi('pull', (value) => (isPulling = value));
+		isLoading.pulling = true;
+		handleApiReponse(
+			await tryCatch(type === 'container' ? containerApi.pull(id) : stackApi.pull(id)),
+			'Failed to Pull Image(s)',
+			(value) => (isLoading.pulling = value),
+			async () => {
+				toast.success('Image(s) Pulled Successfully.');
+				await invalidateAll();
+			}
+		);
 	}
 </script>
 
-<!-- Confirmation Dialogs -->
-<ConfirmDialog bind:open={showRemoveDialog} title="Confirm Removal" description={`Are you sure you want to remove this ${type}? This action cannot be undone.`} confirmLabel="Remove" variant="destructive" onConfirm={handleRemove} />
-
-<ConfirmDialog bind:open={showRedeployDialog} title="Confirm Redeploy" description={`Are you sure you want to redeploy this ${type}?`} confirmLabel="Redeploy" variant="default" onConfirm={handleRedeploy} />
-
-<!-- Action buttons -->
 <div class="flex items-center gap-2">
 	{#if !isRunning}
-		<Button type="button" variant="default" disabled={isStarting || loading.start} class="font-medium" onclick={handleStart}>
-			{#if isStarting || loading.start}
+		<Button type="button" variant="default" disabled={isLoading.start || loading.start} class="font-medium" onclick={() => handleStart()}>
+			{#if isLoading.start || loading.start}
 				<Loader2 class="w-4 h-4 mr-2 animate-spin" />
 			{:else}
 				<Play class="w-4 h-4 mr-2" />
@@ -135,8 +158,8 @@
 			{type === 'stack' ? 'Deploy' : 'Start'}
 		</Button>
 	{:else}
-		<Button type="button" variant="secondary" disabled={isStopping || loading.stop} class="font-medium" onclick={handleStop}>
-			{#if isStopping || loading.stop}
+		<Button type="button" variant="secondary" disabled={isLoading.stop || loading.stop} class="font-medium" onclick={() => handleStop()}>
+			{#if isLoading.stop || loading.stop}
 				<Loader2 class="w-4 h-4 animate-spin" />
 			{:else}
 				<StopCircle class="w-4 h-4" />
@@ -144,8 +167,8 @@
 			Stop
 		</Button>
 
-		<Button type="button" variant="outline" disabled={isRestarting || loading.restart} class="font-medium" onclick={handleRestart}>
-			{#if isRestarting || loading.restart}
+		<Button type="button" variant="outline" disabled={isLoading.restart || loading.restart} class="font-medium" onclick={() => handleRestart()}>
+			{#if isLoading.restart || loading.restart}
 				<Loader2 class="w-4 h-4 animate-spin" />
 			{:else}
 				<RotateCcw class="w-4 h-4" />
@@ -155,8 +178,8 @@
 	{/if}
 
 	{#if type === 'container'}
-		<Button type="button" variant="destructive" disabled={isRemoving || loading.remove} class="font-medium" onclick={() => confirmAction('remove')}>
-			{#if isRemoving || loading.remove}
+		<Button type="button" variant="destructive" disabled={isLoading.remove || loading.remove} class="font-medium" onclick={() => confirmAction('remove')}>
+			{#if isLoading.remove || loading.remove}
 				<Loader2 class="w-4 h-4 animate-spin" />
 			{:else}
 				<Trash2 class="w-4 h-4" />
@@ -164,8 +187,8 @@
 			Remove
 		</Button>
 	{:else}
-		<Button type="button" variant="secondary" disabled={isRedeploying || loading.redeploy} class="font-medium" onclick={() => confirmAction('redeploy')}>
-			{#if isRedeploying || loading.redeploy}
+		<Button type="button" variant="secondary" disabled={isLoading.redeploy || loading.redeploy} class="font-medium" onclick={() => confirmAction('redeploy')}>
+			{#if isLoading.redeploy || loading.redeploy}
 				<Loader2 class="w-4 h-4 animate-spin" />
 			{:else}
 				<RefreshCcwDot class="w-4 h-4" />
@@ -173,8 +196,8 @@
 			Redeploy
 		</Button>
 
-		<Button type="button" variant="outline" disabled={isPulling || loading.pull} class="font-medium" onclick={handlePull}>
-			{#if isPulling || loading.pull}
+		<Button type="button" variant="outline" disabled={isLoading.pulling || loading.pull} class="font-medium" onclick={() => handlePull()}>
+			{#if isLoading.pulling || loading.pull}
 				<Loader2 class="w-4 h-4 animate-spin" />
 			{:else}
 				<Download class="w-4 h-4" />
@@ -182,8 +205,8 @@
 			Pull
 		</Button>
 
-		<Button type="button" variant="destructive" disabled={isRemoving || loading.remove} class="font-medium" onclick={() => confirmAction('remove')}>
-			{#if isRemoving || loading.remove}
+		<Button type="button" variant="destructive" disabled={isLoading.remove || loading.remove} class="font-medium" onclick={() => confirmAction('remove')}>
+			{#if isLoading.remove || loading.remove}
 				<Loader2 class="w-4 h-4 animate-spin" />
 			{:else}
 				<Trash2 class="w-4 h-4" />

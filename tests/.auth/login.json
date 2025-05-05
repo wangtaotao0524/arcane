@@ -1,0 +1,29 @@
+{
+  "cookies": [
+    {
+      "name": "session_id",
+      "value": "ff3866c740296d5d9d1a1b1137af1908bc29c6b01ba9c79aa766739f5fedd66a",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1746336862.42101,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "mode-watcher-theme",
+          "value": ""
+        },
+        {
+          "name": "mode-watcher-mode",
+          "value": "system"
+        }
+      ]
+    }
+  ]
+}
