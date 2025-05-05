@@ -1,3 +1,22 @@
+## [0.4.0](https://github.com/ofkm/arcane/compare/v0.3.0...v0.4.0) (2025-05-05)
+
+### Features
+
+* auto update containers and stacks ([#83](https://github.com/ofkm/arcane/issues/83)) ([0a5132f](https://github.com/ofkm/arcane/commit/0a5132fed65df2174b838ddf7e2b8b9ec5277e1f))
+* dashboard quick actions ([#77](https://github.com/ofkm/arcane/issues/77)) ([f82380b](https://github.com/ofkm/arcane/commit/f82380b1a483a74c45f5e9f2b3c6919fffe7c051))
+* image inspection page ([c3f5665](https://github.com/ofkm/arcane/commit/c3f5665bf5c67077a9d21d33dc23ec0a530ea041))
+* network inspection page ([#76](https://github.com/ofkm/arcane/issues/76)) ([89451f9](https://github.com/ofkm/arcane/commit/89451f915bfa38e4b1930fb45fe2d39ccc8815c2))
+* user authentication ([#86](https://github.com/ofkm/arcane/issues/86)) ([0ab0df3](https://github.com/ofkm/arcane/commit/0ab0df3638905b6d5714b1470903461fc0b5c3cb))
+* volume inspection page ([#75](https://github.com/ofkm/arcane/issues/75)) ([1e6da7d](https://github.com/ofkm/arcane/commit/1e6da7dd0889d0c88abbc8863c71800e0253f52b))
+
+### Bug Fixes
+
+* container table showing when no containers found ([4f63742](https://github.com/ofkm/arcane/commit/4f63742dd584a5d598876497b46c6d6090503938))
+* disable autofill for input fields ([c7ff1c0](https://github.com/ofkm/arcane/commit/c7ff1c063161a1bca8aff4b426db0011e8b19f48))
+* make sure data is watched by effect ([cd89d48](https://github.com/ofkm/arcane/commit/cd89d48677c1ebb899979663e7ddaeba9410705d))
+* set default restart policy to unless-stopped ([4c578e4](https://github.com/ofkm/arcane/commit/4c578e4d9faca22333f15f011ed2c98c46c3ebb3))
+* show ipvaln/macvlan ip address on details page ([77495da](https://github.com/ofkm/arcane/commit/77495da4b40a7da02a50deea336ced9a7885abe5))
+* use  for watching containers ([e99ec10](https://github.com/ofkm/arcane/commit/e99ec10787af07e4f4e27e7fb8195c45ccde00c7))
 ## [0.3.0](https://github.com/ofkm/arcane/compare/v0.2.0...v0.3.0) (2025-04-27)
 
 ### Features
