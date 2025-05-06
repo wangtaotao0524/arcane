@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Get password policy from settings
 		const settings = await getSettings();
-		const policy = settings.auth?.passwordPolicy || 'medium';
+		const policy = settings.auth?.passwordPolicy || 'strong';
 
 		// Validate password according to policy
 		if (!validatePassword(password, policy)) {
@@ -89,13 +89,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 // Validate password based on policy
-function validatePassword(password: string, policy: 'low' | 'medium' | 'high'): boolean {
+function validatePassword(password: string, policy: 'basic' | 'standard' | 'strong'): boolean {
 	switch (policy) {
-		case 'low':
+		case 'basic':
 			return password.length >= 8;
-		case 'medium':
+		case 'standard':
 			return password.length >= 10 && /[A-Z]/.test(password) && /[0-9]/.test(password);
-		case 'high':
+		case 'strong':
 			return password.length >= 12 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password);
 		default:
 			return true;

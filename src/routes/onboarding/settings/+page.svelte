@@ -43,7 +43,7 @@
 					...(currentSettings.auth || {}),
 					localAuthEnabled: true,
 					sessionTimeout: 30,
-					passwordPolicy: 'medium' as 'medium' | 'low' | 'high',
+					passwordPolicy: 'strong' as 'basic' | 'standard' | 'strong',
 					rbacEnabled: false
 				},
 				onboarding: {

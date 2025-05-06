@@ -129,7 +129,8 @@ export const PUT: RequestHandler = async ({ request }) => {
 		if (body.auth !== undefined) {
 			body.auth = {
 				localAuthEnabled: body.auth.localAuthEnabled ?? currentSettings.auth?.localAuthEnabled ?? true,
-				sessionTimeout: body.auth.sessionTimeout ?? currentSettings.auth?.sessionTimeout ?? 60
+				sessionTimeout: body.auth.sessionTimeout ?? currentSettings.auth?.sessionTimeout ?? 60,
+				passwordPolicy: body.auth.passwordPolicy ?? currentSettings.auth?.passwordPolicy ?? 'strong'
 			};
 		} else if (currentSettings.auth) {
 			// Keep current auth settings if not provided in update

@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	auth: {
 		localAuthEnabled: true,
 		sessionTimeout: 60,
-		passwordPolicy: 'medium',
+		passwordPolicy: 'strong',
 		rbacEnabled: false
 	}
 };

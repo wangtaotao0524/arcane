@@ -41,7 +41,7 @@ export const settingsStore = writable<Settings>({
 	auth: {
 		localAuthEnabled: true,
 		sessionTimeout: 30,
-		passwordPolicy: 'medium',
+		passwordPolicy: 'strong',
 		rbacEnabled: false
 	}
 });

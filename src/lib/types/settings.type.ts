@@ -1,7 +1,7 @@
 export interface AuthSettings {
 	localAuthEnabled: boolean;
 	sessionTimeout: number;
-	passwordPolicy: 'low' | 'medium' | 'high';
+	passwordPolicy: 'basic' | 'standard' | 'strong';
 	rbacEnabled: boolean;
 }
 

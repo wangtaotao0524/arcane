@@ -92,50 +92,50 @@
 						<label for="passwordPolicy" class="text-sm font-medium">Password Policy</label>
 						<div class="grid grid-cols-3 gap-2">
 							<Button
-								variant={$settingsStore.auth?.passwordPolicy === 'low' ? 'default' : 'outline'}
+								variant={($settingsStore.auth?.passwordPolicy || 'strong') === 'basic' ? 'default' : 'outline'}
 								class="w-full"
 								onclick={() => {
 									settingsStore.update((current) => ({
 										...current,
 										auth: {
 											...current.auth,
-											passwordPolicy: 'low'
+											passwordPolicy: 'basic'
 										}
 									}));
 								}}>Basic</Button
 							>
 							<Button
-								variant={$settingsStore.auth?.passwordPolicy === 'medium' ? 'default' : 'outline'}
+								variant={($settingsStore.auth?.passwordPolicy || 'strong') === 'standard' ? 'default' : 'outline'}
 								class="w-full"
 								onclick={() => {
 									settingsStore.update((current) => ({
 										...current,
 										auth: {
 											...current.auth,
-											passwordPolicy: 'medium'
+											passwordPolicy: 'standard'
 										}
 									}));
 								}}>Standard</Button
 							>
 							<Button
-								variant={$settingsStore.auth?.passwordPolicy === 'high' ? 'default' : 'outline'}
+								variant={($settingsStore.auth?.passwordPolicy || 'strong') === 'strong' ? 'default' : 'outline'}
 								class="w-full"
 								onclick={() => {
 									settingsStore.update((current) => ({
 										...current,
 										auth: {
 											...current.auth,
-											passwordPolicy: 'high'
+											passwordPolicy: 'strong'
 										}
 									}));
 								}}>Strong</Button
 							>
 						</div>
-						<input type="hidden" id="passwordPolicy" name="passwordPolicy" value={$settingsStore.auth?.passwordPolicy} />
+						<input type="hidden" id="passwordPolicy" name="passwordPolicy" value={$settingsStore.auth?.passwordPolicy || 'strong'} />
 						<p class="text-xs text-muted-foreground mt-1">
-							{#if $settingsStore.auth?.passwordPolicy === 'low'}
+							{#if $settingsStore.auth?.passwordPolicy === 'basic'}
 								Basic: Minimum 8 characters
-							{:else if $settingsStore.auth?.passwordPolicy === 'medium'}
+							{:else if $settingsStore.auth?.passwordPolicy === 'standard'}
 								Standard: Minimum 10 characters, requires mixed case and numbers
 							{:else}
 								Strong: Minimum 12 characters, requires mixed case, numbers and special characters
