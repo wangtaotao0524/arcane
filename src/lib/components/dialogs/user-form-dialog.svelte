@@ -12,11 +12,13 @@
 		open = $bindable(false),
 		userToEdit = $bindable<User | null>(null),
 		roles = [],
+		isLoading = $bindable(false), // Add this prop to control loading state from parent
 		onSubmit = $bindable((_data: { user: Partial<User> & { password?: string }; isEditMode: boolean; userId?: string }) => {})
 	}: {
 		open?: boolean;
 		userToEdit?: User | null;
 		roles: { id: string; name: string }[];
+		isLoading?: boolean; // New prop
 		onSubmit?: (data: { user: Partial<User> & { password?: string }; isEditMode: boolean; userId?: string }) => void;
 	} = $props();
 
@@ -25,7 +27,6 @@
 	let displayName = $state('');
 	let email = $state('');
 	let selectedRole = $state('user');
-	let isSaving = $state(false);
 	let error = $state<string | null>(null);
 
 	let isEditMode = $derived(!!userToEdit);
@@ -53,8 +54,7 @@
 	});
 
 	async function handleSubmit() {
-		if (isSaving) return;
-		isSaving = true;
+		if (isLoading) return;
 		error = null;
 
 		const userData: Partial<User> & { password?: string } = {
@@ -70,11 +70,9 @@
 
 		try {
 			onSubmit({ user: userData, isEditMode, userId: userToEdit?.id });
-			isSaving = false;
 		} catch (err: unknown) {
 			const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
 			error = errorMessage;
-			isSaving = false;
 		}
 	}
 </script>
@@ -126,11 +124,11 @@
 			{/if}
 
 			<Dialog.Footer>
-				<Button type="button" variant="outline" onclick={() => (open = false)} disabled={isSaving}>Cancel</Button>
-				<Button type="submit" disabled={isSaving}>
-					{#if isSaving}
+				<Button type="button" variant="outline" onclick={() => (open = false)} disabled={isLoading}>Cancel</Button>
+				<Button type="submit" disabled={isLoading}>
+					{#if isLoading}
 						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-						Saving...
+						Creating...
 					{:else}
 						<SubmitIcon class="mr-2 h-4 w-4" />
 						{submitButtonText}

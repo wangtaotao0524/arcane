@@ -63,6 +63,7 @@
 				userPageStates.isUserDialogOpen = false;
 				toast.success(isEditMode ? 'User Updated Successfully' : 'User Created Successfully');
 				await invalidateAll();
+				isLoading.saving = false;
 			}
 		);
 	}
@@ -90,7 +91,7 @@
 	}
 </script>
 
-<UserFormDialog bind:open={userPageStates.isUserDialogOpen} bind:userToEdit={userPageStates.userToEdit} {roles} onSubmit={handleDialogSubmit} bind:this={userDialogRef} />
+<UserFormDialog bind:open={userPageStates.isUserDialogOpen} bind:userToEdit={userPageStates.userToEdit} {roles} onSubmit={handleDialogSubmit} bind:this={userDialogRef} isLoading={isLoading.saving} />
 
 <div class="grid grid-cols-1 gap-6 h-full">
 	<!-- User List Card -->
