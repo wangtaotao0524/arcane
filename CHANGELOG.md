@@ -1,3 +1,14 @@
+## [0.6.0](https://github.com/ofkm/arcane/compare/v0.5.0...v0.6.0) (2025-05-06)
+
+### Features
+
+* .env configuration support ([#128](https://github.com/ofkm/arcane/issues/128)) ([20e12df](https://github.com/ofkm/arcane/commit/20e12df66afc2ac9e3ef5dea3e1e019d4db7a30b))
+
+### Bug Fixes
+
+* password policy not able to be saved ([976cd83](https://github.com/ofkm/arcane/commit/976cd831bc064062a0329d0975dd1b64dd17bd32))
+* remove ping group and iputils from container so GID 999 is available ([4a9e619](https://github.com/ofkm/arcane/commit/4a9e6194cf38a00b4e3a8e71cabd72dd9c896e52))
+* user creation button not showing loading state ([d79b2ff](https://github.com/ofkm/arcane/commit/d79b2ff76825f88fbe0c833515a17458bdef5002))
 ## [0.5.0](https://github.com/ofkm/arcane/compare/v0.4.1...v0.5.0) (2025-05-06)
 
 ### Features
