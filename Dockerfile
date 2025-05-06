@@ -18,7 +18,9 @@ RUN NODE_ENV=build npm run build
 FROM node:22-alpine AS runner
 
 # Delete default node user first (combine with system upgrade package installation to reduce layers)
-RUN deluser --remove-home node && apk upgrade -a && apk add --no-cache su-exec curl shadow
+RUN deluser --remove-home node && apk upgrade && apk add --no-cache su-exec curl shadow
+# Delete ping group and utility as this shouldnt be needed and conflicts with GID 999
+RUN delgroup ping && apk del iputils
 
 WORKDIR /app
 
