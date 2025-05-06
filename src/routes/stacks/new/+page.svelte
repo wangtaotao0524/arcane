@@ -12,37 +12,25 @@
 	import { preventDefault } from '$lib/utils/form.utils';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { handleApiReponse } from '$lib/utils/api.util';
+	import EnvEditor from '$lib/components/env-editor.svelte';
+	import { defaultEnvTemplate, defaultComposeTemplate } from '$lib/constants';
 
 	const stackApi = new StackAPIService();
 	let saving = $state(false);
 
-	const defaultComposeTemplate = `services:
-  nginx:
-    image: nginx:alpine
-    container_name: nginx_service
-    ports:
-      - "8080:80"
-    volumes:
-      - nginx_data:/usr/share/nginx/html
-    restart: unless-stopped
-
-volumes:
-  nginx_data:
-    driver: local
-`;
-
 	let name = $state('');
 	let composeContent = $state(defaultComposeTemplate);
+	let envContent = $state(defaultEnvTemplate);
 
 	async function handleSubmit() {
 		saving = true;
 
 		handleApiReponse(
-			await tryCatch(stackApi.create(name, composeContent)),
+			await tryCatch(stackApi.create(name, composeContent, envContent)),
 			'Failed to Create Stack',
 			(value) => (saving = value),
 			async (data) => {
-				toast.success(`Stack "${data.stack.name}" created.`);
+				toast.success(`Stack "${data.stack.name}" created with environment file.`);
 				await invalidateAll();
 				goto(`/stacks/${data.stack.id}`);
 			}
@@ -82,7 +70,7 @@ volumes:
 					</div>
 					<div>
 						<Card.Title>Stack Configuration</Card.Title>
-						<Card.Description>Create a new Docker Compose stack</Card.Description>
+						<Card.Description>Create a new Docker Compose stack with environment variables</Card.Description>
 					</div>
 				</div>
 			</Card.Header>
@@ -93,12 +81,23 @@ volumes:
 						<Input type="text" id="name" name="name" bind:value={name} required placeholder="e.g., my-web-app" disabled={saving} />
 					</div>
 
-					<div class="grid w-full items-center gap-1.5">
-						<Label for="compose-editor">Docker Compose File</Label>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div class="md:col-span-2 space-y-2">
+							<Label for="compose-editor" class="mb-2">Docker Compose File</Label>
+							<div class="border rounded-md overflow-hidden h-[550px] mt-2">
+								<YamlEditor bind:value={composeContent} readOnly={saving} />
+							</div>
+							<p class="text-xs text-muted-foreground">Enter a valid compose.yaml file.</p>
+						</div>
 
-						<YamlEditor bind:value={composeContent} readOnly={saving} />
+						<div class="space-y-2">
+							<Label for="env-editor" class="mb-2">Environment Configuration (.env)</Label>
 
-						<p class="text-xs text-muted-foreground">Enter a valid compose.yaml file.</p>
+							<div class="border rounded-md overflow-hidden h-[550px] mt-2">
+								<EnvEditor bind:value={envContent} readOnly={saving} />
+							</div>
+							<p class="text-xs text-muted-foreground">Define environment variables in KEY=value format. These will be saved as a .env file in the stack directory.</p>
+						</div>
 					</div>
 				</div>
 			</Card.Content>

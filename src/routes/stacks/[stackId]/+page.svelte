@@ -14,6 +14,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import YamlEditor from '$lib/components/yaml-editor.svelte';
+	import EnvEditor from '$lib/components/env-editor.svelte';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import StackAPIService from '$lib/services/api/stack-api-service';
@@ -24,39 +25,48 @@
 	let { data }: { data: PageData } = $props();
 	let { stack, editorState } = $derived(data);
 
-	let deploying = $state(false);
-	let stopping = $state(false);
-	let restarting = $state(false);
-	let removing = $state(false);
-	let saving = $state(false);
+	let isLoading = $state({
+		deploying: false,
+		stopping: false,
+		restarting: false,
+		removing: false,
+		importing: false,
+		redeploying: false,
+		destroying: false,
+		pulling: false,
+		saving: false
+	});
 
 	let name = $derived(editorState.name);
 	let composeContent = $derived(editorState.composeContent);
+	let envContent = $derived(editorState.envContent || '');
 	let autoUpdate = $derived(editorState.autoUpdate);
 	let originalName = $derived(editorState.originalName);
 	let originalComposeContent = $derived(editorState.originalComposeContent);
+	let originalEnvContent = $derived(editorState.originalEnvContent || '');
 	let originalAutoUpdate = $derived(editorState.autoUpdate);
 
-	let hasChanges = $derived(name !== originalName || composeContent !== originalComposeContent || autoUpdate !== originalAutoUpdate);
+	let hasChanges = $derived(name !== originalName || composeContent !== originalComposeContent || envContent !== originalEnvContent || autoUpdate !== originalAutoUpdate);
 
 	$effect(() => {
-		deploying = false;
-		stopping = false;
-		restarting = false;
-		removing = false;
-		saving = false;
+		isLoading.deploying = false;
+		isLoading.stopping = false;
+		isLoading.restarting = false;
+		isLoading.removing = false;
+		isLoading.saving = false;
 	});
 
 	async function handleSaveChanges() {
 		if (!stack || !hasChanges) return;
 
 		handleApiReponse(
-			await tryCatch(stackApi.save(stack.id, name, composeContent, autoUpdate)),
+			await tryCatch(stackApi.save(stack.id, name, composeContent, autoUpdate, envContent)),
 			'Failed to Save Stack',
-			(value) => (saving = value),
+			(value) => (isLoading.saving = value),
 			async (data) => {
 				originalName = name;
 				originalComposeContent = composeContent;
+				originalEnvContent = envContent;
 				originalAutoUpdate = autoUpdate;
 
 				console.log('Stack save successful:', data);
@@ -102,10 +112,10 @@
 					type="stack"
 					itemState={stack.status}
 					loading={{
-						start: deploying,
-						stop: stopping,
-						restart: restarting,
-						remove: removing
+						start: isLoading.deploying,
+						stop: isLoading.stopping,
+						restart: isLoading.restarting,
+						remove: isLoading.removing
 					}}
 				/>
 			</div>
@@ -165,23 +175,34 @@
 			<Card.Root class="border shadow-sm">
 				<Card.Header>
 					<Card.Title>Stack Configuration</Card.Title>
-					<Card.Description>Edit stack settings and compose file</Card.Description>
+					<Card.Description>Edit stack settings, compose file, and environment variables</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					<div class="space-y-4">
 						<div class="grid w-full max-w-sm items-center gap-1.5">
 							<Label for="name">Stack Name</Label>
-							<Input type="text" id="name" name="name" bind:value={name} required disabled={saving} />
+							<Input type="text" id="name" name="name" bind:value={name} required disabled={isLoading.saving} />
 						</div>
 
-						<div class="grid w-full items-center gap-1.5">
-							<Label for="compose-editor">Docker Compose File</Label>
-							<div class="border rounded-md overflow-hidden">
-								<YamlEditor bind:value={composeContent} readOnly={saving || deploying || stopping || restarting || removing} />
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+							<div class="md:col-span-2 space-y-2">
+								<Label for="compose-editor" class="mb-2">Docker Compose File</Label>
+								<div class="border rounded-md overflow-hidden h-[550px] mt-2">
+									<YamlEditor bind:value={composeContent} readOnly={isLoading.saving || isLoading.deploying || isLoading.stopping || isLoading.restarting || isLoading.removing} />
+								</div>
+								<p class="text-xs text-muted-foreground">
+									Edit your <span class="font-bold">compose.yaml</span> file directly. Syntax errors will be highlighted.
+								</p>
 							</div>
-							<p class="text-xs text-muted-foreground">
-								Edit your <span class="font-bold">compose.yaml</span> file directly. Syntax errors will be highlighted.
-							</p>
+
+							<div class="space-y-2">
+								<Label for="env-editor" class="mb-2">Environment Configuration (.env)</Label>
+
+								<div class="border rounded-md overflow-hidden h-[550px] mt-2">
+									<EnvEditor bind:value={envContent} readOnly={isLoading.saving || isLoading.deploying || isLoading.stopping || isLoading.restarting || isLoading.removing} />
+								</div>
+								<p class="text-xs text-muted-foreground">Define environment variables in KEY=value format. These will be saved as a .env file in the stack directory.</p>
+							</div>
 						</div>
 
 						<div class="flex items-center space-x-2 mt-4">
@@ -194,12 +215,12 @@
 					</div>
 				</Card.Content>
 				<Card.Footer class="flex justify-between">
-					<Button variant="outline" type="button" onclick={() => window.history.back()} disabled={saving}>
+					<Button variant="outline" type="button" onclick={() => window.history.back()} disabled={isLoading.saving}>
 						<ArrowLeft class="w-4 h-4 mr-2" />
 						Back
 					</Button>
-					<Button type="button" variant="default" onclick={handleSaveChanges} disabled={saving || !hasChanges}>
-						{#if saving}
+					<Button type="button" variant="default" onclick={handleSaveChanges} disabled={isLoading.saving || !hasChanges}>
+						{#if isLoading.saving}
 							<Loader2 class="w-4 h-4 mr-2 animate-spin" /> Saving...
 						{:else}
 							<Save class="w-4 h-4 mr-2" /> Save Changes
