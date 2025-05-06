@@ -1,3 +1,14 @@
+## [0.5.0](https://github.com/ofkm/arcane/compare/v0.4.1...v0.5.0) (2025-05-06)
+
+### Features
+
+* add confiramtion dialog before stopping all running containers ([1a696c0](https://github.com/ofkm/arcane/commit/1a696c08e7b15f13bfdf4b0542d444facbeeb851))
+
+### Bug Fixes
+
+* loading states on action buttons not reflecting status ([8305078](https://github.com/ofkm/arcane/commit/8305078dcd1fd07a89976466d90350d5e05e0b3f))
+* session cookie not being created on http sites ([#112](https://github.com/ofkm/arcane/issues/112)) ([0ef6073](https://github.com/ofkm/arcane/commit/0ef6073ac8d5ed5886022199bdcee93837147665))
+* use correct cursor on all buttons ([50d4211](https://github.com/ofkm/arcane/commit/50d4211c23743c1e5fda6324be9220e7e367ae05))
 ## [0.4.1](https://github.com/ofkm/arcane/compare/v0.4.0...v0.4.1) (2025-05-05)
 
 ### Bug Fixes
