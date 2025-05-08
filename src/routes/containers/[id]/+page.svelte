@@ -12,6 +12,7 @@
 	import type { ContainerInspectInfo } from 'dockerode';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import { onDestroy } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 	let { container, logs, stats } = $derived(data);
@@ -23,8 +24,75 @@
 	let isRefreshing = $state(false);
 	let formattedLogHtml = $derived(logs ? logs.split('\n').map(formatLogLine).join('<br />') : '');
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
+	let activeTab = $state('overview');
+	let autoScrollLogs = $state(true);
 
-	// --- Stats Calculation ---
+	let logEventSource: EventSource | null = $state(null);
+
+	function scrollLogsToBottom() {
+		if (logsContainer) {
+			logsContainer.scrollTop = logsContainer.scrollHeight;
+		}
+	}
+
+	$effect(() => {
+		if (logsContainer && logs && activeTab === 'logs' && autoScrollLogs) {
+			scrollLogsToBottom();
+		}
+	});
+
+	$effect(() => {
+		if (activeTab === 'logs') {
+			startLogStream();
+
+			setTimeout(scrollLogsToBottom, 100);
+		} else if (logEventSource) {
+			closeLogStream();
+		}
+	});
+
+	function startLogStream() {
+		if (logEventSource || !container?.id) return;
+
+		try {
+			const url = `/api/containers/${container.id}/logs/stream`;
+
+			const eventSource = new EventSource(url);
+
+			logEventSource = eventSource;
+
+			eventSource.onmessage = (event) => {
+				if (event.data) {
+					logs = (logs || '') + event.data;
+					formattedLogHtml = logs.split('\n').map(formatLogLine).join('<br />');
+
+					if (autoScrollLogs) {
+						scrollLogsToBottom();
+					}
+				}
+			};
+
+			eventSource.onerror = (error) => {
+				console.error('EventSource error:', error);
+				eventSource.close();
+				logEventSource = null;
+			};
+		} catch (error) {
+			console.error('Failed to connect to log stream:', error);
+		}
+	}
+
+	function closeLogStream() {
+		if (logEventSource) {
+			logEventSource.close();
+			logEventSource = null;
+		}
+	}
+
+	onDestroy(() => {
+		closeLogStream();
+	});
+
 	const calculateCPUPercent = (statsData: Docker.ContainerStats | null): number => {
 		if (!statsData || !statsData.cpu_stats || !statsData.precpu_stats) {
 			return 0;
@@ -93,8 +161,6 @@
 			isRefreshing = false;
 		}, 500);
 	}
-
-	let activeTab = $state('overview');
 </script>
 
 <div class="space-y-6 pb-8">
@@ -530,15 +596,35 @@
 								<Card.Title class="text-lg font-semibold">Container Logs</Card.Title>
 								<Card.Description>Recent output from the container</Card.Description>
 							</div>
-							<Button variant="outline" size="sm" onclick={refreshData} disabled={isRefreshing}>
-								<RefreshCw class={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-								Refresh Logs
-							</Button>
+							<div class="flex items-center gap-2">
+								<div class="flex items-center">
+									<input type="checkbox" id="auto-scroll" class="mr-2" checked={autoScrollLogs} onchange={(e) => (autoScrollLogs = e.currentTarget.checked)} />
+									<label for="auto-scroll" class="text-xs">Auto-scroll</label>
+								</div>
+								<Button variant="outline" size="sm" onclick={refreshData} disabled={isRefreshing}>
+									<RefreshCw class={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+									Refresh Logs
+								</Button>
+							</div>
 						</div>
 					</Card.Header>
 
 					<Card.Content>
-						<div class="bg-muted/50 text-foreground p-4 rounded-md font-mono text-xs h-[500px] overflow-auto whitespace-pre-wrap border" bind:this={logsContainer} id="logs-container" style="word-break: break-all;">
+						<div
+							class="bg-muted/50 text-foreground p-4 rounded-md font-mono text-xs h-[500px] overflow-auto whitespace-pre-wrap border"
+							bind:this={logsContainer}
+							id="logs-container"
+							style="word-break: break-all;"
+							onscroll={() => {
+								// Detect if user manually scrolled up
+								if (logsContainer) {
+									const atBottom = logsContainer.scrollHeight - logsContainer.scrollTop <= logsContainer.clientHeight + 50;
+									if (!atBottom && autoScrollLogs) {
+										autoScrollLogs = false;
+									}
+								}
+							}}
+						>
 							{#if formattedLogHtml}
 								{@html formattedLogHtml}
 							{:else}
