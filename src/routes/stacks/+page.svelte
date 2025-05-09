@@ -241,16 +241,20 @@
 					{#snippet rows({ item })}
 						{@const stateVariant = statusVariantMap[item.status.toLowerCase()]}
 						<Table.Cell>
-							<div class="flex items-center gap-2">
-								<a class="font-medium hover:underline" href="/stacks/{item.id}/">
-									{item.name}
-								</a>
-								{#if item.isLegacy}
-									<span title="This stack uses the legacy layout. Migrate to the new layout from the dropdown menu." class="ml-1 flex items-center" style="filter: drop-shadow(0 0 4px #fbbf24);">
-										<AlertCircle class="w-4 h-4 text-amber-400 animate-pulse" />
-									</span>
-								{/if}
-							</div>
+							{#if item.isExternal}
+								{item.name}
+							{:else}
+								<div class="flex items-center gap-2">
+									<a class="font-medium hover:underline" href="/stacks/{item.id}/">
+										{item.name}
+									</a>
+									{#if item.isLegacy}
+										<span title="This stack uses the legacy layout. Migrate to the new layout from the dropdown menu." class="ml-1 flex items-center" style="filter: drop-shadow(0 0 4px #fbbf24);">
+											<AlertCircle class="w-4 h-4 text-amber-400 animate-pulse" />
+										</span>
+									{/if}
+								</div>
+							{/if}
 						</Table.Cell>
 						<Table.Cell>{item.serviceCount}</Table.Cell>
 						<Table.Cell><StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.status)} /></Table.Cell>
