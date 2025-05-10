@@ -32,7 +32,6 @@ services:
 
       # --- Advanced/Debugging (Uncomment if needed) ---
       # - PUBLIC_ALLOW_INSECURE_COOKIES=true # Uncomment only for local HTTP testing without SSL/TLS.
-      # - LOG_LEVEL=debug # For more verbose logging from Arcane.
       # - NODE_ENV=development # For development-specific behaviors (not recommended for production).
 
     restart: unless-stopped # Ensures the container restarts automatically unless manually stopped.
