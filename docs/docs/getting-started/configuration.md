@@ -64,7 +64,7 @@ services:
     # ... other settings like image name ...
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # Lets Arcane talk to Docker
-      - ./arcane-data:/app/data # IMPORTANT: Arcane stores everything here!
+      - arcane-data:/app/data # IMPORTANT: Arcane stores everything here!
         # './arcane-data' on your computer becomes '/app/data' inside Arcane.
     # ... other settings ...
 ```

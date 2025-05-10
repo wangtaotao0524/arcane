@@ -24,7 +24,7 @@ This guide provides the fastest way to get Arcane up and running using Docker Co
           - '3000:3000'
         volumes:
           - /var/run/docker.sock:/var/run/docker.sock
-          - ./arcane-data:/app/data # Persists Arcane's data
+          - arcane-data:/app/data # Persists Arcane's data
         environment:
           - APP_ENV=production # Required for Docker
           - PUBLIC_SESSION_SECRET=your_super_strong_random_secret_here # Generate with: openssl rand -base64 32
