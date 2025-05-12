@@ -19,8 +19,7 @@ NGINX_PORT=80
 # DB_NAME=mydatabase
 `;
 
-export const defaultComposeTemplate = `
-services:
+export const defaultComposeTemplate = `services:
   nginx:
     image: nginx:alpine
     container_name: nginx_service
