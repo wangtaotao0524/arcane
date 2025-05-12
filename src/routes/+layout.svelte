@@ -34,7 +34,7 @@
 <div class="flex min-h-screen bg-background">
 	<!-- Only show sidebar when authenticated -->
 	{#if showSidebar}
-		<Nav {versionInformation} />
+		<Nav {versionInformation} {user} />
 	{/if}
 
 	<main class="flex-1">

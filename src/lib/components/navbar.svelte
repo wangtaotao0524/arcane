@@ -7,6 +7,7 @@
 	import { cn } from '$lib/utils';
 	import { browser } from '$app/environment';
 	import type { AppVersionInformation } from '$lib/types/application-configuration';
+	import type { User } from '$lib/types/user.type';
 
 	let {
 		items = [
@@ -18,10 +19,12 @@
 			{ href: '/volumes', label: 'Volumes', icon: HardDrive },
 			{ href: '/settings', label: 'Settings', icon: Settings }
 		] as MenuItem[],
-		versionInformation
+		versionInformation,
+		user
 	} = $props<{
 		items?: MenuItem[];
 		versionInformation?: AppVersionInformation;
+		user?: User | null;
 	}>();
 
 	type MenuItem = {
@@ -137,9 +140,14 @@
 		</div>
 	{/if}
 
-	<!-- Logout Button -->
+	<!-- User Info & Logout Button -->
 	<div class="mt-auto p-2">
 		<Separator class="mb-2" />
+		{#if user && user.displayName && !isCollapsed}
+			<div class="px-3 py-2 text-sm text-muted-foreground truncate" title={user.displayName}>
+				{user.displayName}
+			</div>
+		{/if}
 		<form action="/auth/logout" method="POST">
 			<Button variant="ghost" class={cn('w-full flex items-center text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground', isCollapsed ? 'justify-center px-2 py-2' : 'justify-start gap-3 px-3 py-2')} title={isCollapsed ? 'Logout' : undefined} type="submit">
 				<LogOut size={16} />
