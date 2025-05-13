@@ -279,7 +279,7 @@
 					{:else}
 						<Trash2 class="h-4 w-4 mr-2" />
 					{/if}
-					Prune System...
+					Prune System
 				</Button>
 				<p class="text-xs text-muted-foreground mt-2">Remove unused data</p>
 			</Card.Root>

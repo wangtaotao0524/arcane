@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { Home, Box, Image, Network, HardDrive, Settings, Menu, X, ChevronRight, ChevronLeft, FileStack, ExternalLink, LogOut, type Icon as IconType } from '@lucide/svelte';
+	import { Home, Box, Image, Network, HardDrive, Settings, Menu, X, ChevronRight, ChevronLeft, FileStack, ExternalLink, LogOut, Sun, Moon, type Icon as IconType } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { cn } from '$lib/utils';
 	import { browser } from '$app/environment';
+	import { mode, toggleMode } from 'mode-watcher';
 	import type { AppVersionInformation } from '$lib/types/application-configuration';
 	import type { User } from '$lib/types/user.type';
 
@@ -141,6 +142,18 @@
 				{user.displayName}
 			</div>
 		{/if}
+
+		<Button variant="ghost" class={cn('w-full flex items-center text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground', isCollapsed ? 'justify-center px-2 py-2' : 'justify-start gap-3 px-3 py-2')} title={isCollapsed ? 'Toggle theme' : 'Toggle theme'} onclick={toggleMode}>
+			{#if mode.current === 'dark'}
+				<Sun size={16} />
+			{:else}
+				<Moon size={16} />
+			{/if}
+			{#if !isCollapsed}
+				<span>Toggle theme</span>
+			{/if}
+		</Button>
+
 		<form action="/auth/logout" method="POST">
 			<Button variant="ghost" class={cn('w-full flex items-center text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground', isCollapsed ? 'justify-center px-2 py-2' : 'justify-start gap-3 px-3 py-2')} title={isCollapsed ? 'Logout' : undefined} type="submit">
 				<LogOut size={16} />
