@@ -6,7 +6,7 @@
 	import { AlertCircle, Box, HardDrive, Cpu, MemoryStick, ArrowRight, PlayCircle, StopCircle, Trash2, Settings, RefreshCw, Loader2 } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
-	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
+	import { capitalizeFirstLetter, truncateString } from '$lib/utils/string.utils';
 	import { formatBytes } from '$lib/utils';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { invalidateAll } from '$app/navigation';
@@ -329,7 +329,7 @@
 									{#snippet rows({ item })}
 										{@const stateVariant = statusVariantMap[item.state.toLowerCase()]}
 										<Table.Cell><a class="font-medium hover:underline" href="/containers/{item.id}/">{item.name}</a></Table.Cell>
-										<Table.Cell>{item.image}</Table.Cell>
+										<Table.Cell title={item.image}>{truncateString(item.image, 40)}</Table.Cell>
 										<Table.Cell><StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.state)} /></Table.Cell>
 										<Table.Cell>{item.status}</Table.Cell>
 									{/snippet}
