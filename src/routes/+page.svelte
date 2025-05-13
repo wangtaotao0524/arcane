@@ -318,6 +318,9 @@
 										filtering: false,
 										selection: false
 									}}
+									sort={{
+										defaultSort: { id: 'status', desc: false }
+									}}
 									pagination={{
 										pageSize: 5,
 										pageSizeOptions: [5]
@@ -356,7 +359,7 @@
 					<div class="flex items-center justify-between">
 						<div>
 							<Card.Title>Images</Card.Title>
-							<Card.Description class="pb-3">Recent images</Card.Description>
+							<Card.Description class="pb-3">Top 5 Largest Images</Card.Description>
 						</div>
 						<Button variant="ghost" size="sm" href="/images" disabled={!dashboardStates.dockerInfo}>
 							View All
@@ -387,7 +390,7 @@
 										isDashboardTable: true
 									}}
 									sort={{
-										defaultSort: { id: 'repo', desc: false }
+										defaultSort: { id: 'size', desc: true }
 									}}
 								>
 									{#snippet rows({ item })}
