@@ -75,6 +75,9 @@ export async function saveUser(user: User): Promise<User> {
 }
 
 export async function verifyPassword(user: User, password: string): Promise<boolean> {
+	if (typeof user.passwordHash !== 'string') {
+		return false;
+	}
 	return await bcrypt.compare(password, user.passwordHash);
 }
 
@@ -116,4 +119,10 @@ export async function listUsers(): Promise<User[]> {
 		console.error('Error listing users:', error);
 		return [];
 	}
+}
+
+export async function getUserByOidcSubjectId(oidcSubjectId: string): Promise<User | null> {
+	const users = await listUsers();
+	const user = users.find((u) => u.oidcSubjectId === oidcSubjectId);
+	return user || null;
 }
