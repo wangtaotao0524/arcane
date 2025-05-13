@@ -121,11 +121,9 @@
 					if (successCount > 0) {
 						setTimeout(async () => {
 							await invalidateAll();
-							volumePageStates.selectedIds = [];
 						}, 500);
-					} else {
-						volumePageStates.selectedIds = [];
 					}
+					volumePageStates.selectedIds = [];
 				}
 			}
 		});

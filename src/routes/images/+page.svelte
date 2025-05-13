@@ -172,11 +172,9 @@
 					if (successCount > 0) {
 						setTimeout(async () => {
 							await invalidateAll();
-							selectedIds = [];
 						}, 500);
-					} else {
-						selectedIds = [];
 					}
+					selectedIds = [];
 				}
 			}
 		});
