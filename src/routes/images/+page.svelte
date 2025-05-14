@@ -3,7 +3,7 @@
 	import type { EnhancedImageInfo } from '$lib/types/docker';
 	import UniversalTable from '$lib/components/universal-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Download, AlertCircle, HardDrive, Trash2, Loader2, ChevronDown, CopyX, Ellipsis, ScanSearch, Plus, Funnel } from '@lucide/svelte';
+	import { Download, AlertCircle, HardDrive, Trash2, Loader2, ChevronDown, CopyX, Ellipsis, ScanSearch, CircleFadingArrowUp, Funnel, CircleCheck, CircleArrowUp } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -19,6 +19,7 @@
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { settingsStore } from '$lib/stores/settings-store';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	let { data }: { data: PageData } = $props();
 	let images = $state<EnhancedImageInfo[]>(data.images || []);
@@ -37,7 +38,8 @@
 		pulling: false,
 		removing: false,
 		refreshing: false,
-		pruning: false
+		pruning: false,
+		checking: false
 	});
 
 	$effect(() => {
@@ -238,6 +240,74 @@
 		});
 	}
 
+	async function checkAllMaturity() {
+		isLoading.checking = true;
+
+		const imageIdsToCheck = images.filter((image) => image.id).map((image) => image.id);
+
+		if (imageIdsToCheck.length === 0) {
+			toast.info('No images to check for updates.');
+			isLoading.checking = false;
+			return;
+		}
+
+		console.log(`Client: Attempting to check maturity for ${imageIdsToCheck.length} images.`);
+
+		try {
+			const batchResult = await imageApi.checkMaturityBatch(imageIdsToCheck);
+
+			if (!batchResult || typeof batchResult.success !== 'boolean') {
+				toast.error('Maturity check failed: Invalid response from server.');
+				isLoading.checking = false;
+				return;
+			}
+
+			const stats = batchResult.stats || { total: 0, success: 0, failed: 0 };
+			const numSuccessfullyUpdated = stats.success || 0; // Images for which new data was likely returned
+			const numFailedByBackend = stats.failed || 0;
+			const numAttemptedByBackend = stats.total || numSuccessfullyUpdated + numFailedByBackend;
+
+			console.log(`Backend Response: Attempted to process ${numAttemptedByBackend}, Succeeded (updated) ${numSuccessfullyUpdated}, Failed ${numFailedByBackend}.`);
+
+			if (batchResult.success) {
+				// Overall API call was successful
+				if (numSuccessfullyUpdated > 0) {
+					toast.success(`Successfully retrieved updates for ${numSuccessfullyUpdated} image(s).`);
+				}
+				if (numFailedByBackend > 0) {
+					toast.warning(`Backend failed to check updates for ${numFailedByBackend} image(s).`);
+				}
+
+				if (imageIdsToCheck.length > numAttemptedByBackend && numAttemptedByBackend >= 0) {
+					const notAttemptedCount = imageIdsToCheck.length - numAttemptedByBackend;
+					toast.info(`Server processed ${numAttemptedByBackend} of ${imageIdsToCheck.length} images. ${notAttemptedCount} were not processed by the backend.`);
+				} else if (numAttemptedByBackend > numSuccessfullyUpdated + numFailedByBackend) {
+					// This case implies some images were "attempted" but neither succeeded in update nor explicitly failed.
+					const processedWithoutUpdate = numAttemptedByBackend - (numSuccessfullyUpdated + numFailedByBackend);
+					if (processedWithoutUpdate > 0) {
+						toast.info(`${processedWithoutUpdate} image(s) were checked by the backend but had no new update status reported.`);
+					}
+				}
+
+				if (numSuccessfullyUpdated === 0 && numFailedByBackend === 0 && numAttemptedByBackend === 0 && imageIdsToCheck.length > 0) {
+					toast.info('Maturity check ran, but the backend reported no images were processed or updated.');
+				}
+
+				// Always invalidate if the API call itself was successful,
+				// as some images might have been updated.
+				await invalidateAll();
+			} else {
+				// The API call itself failed (e.g., HTTP 500, or batchResult.success is false)
+				toast.error(`Maturity check request failed: ${batchResult.error || 'Unknown server error.'}`);
+			}
+		} catch (error) {
+			console.error('Client-side error during checkAllMaturity:', error);
+			toast.error(`Client-side error checking image updates: ${(error as Error).message}`);
+		} finally {
+			isLoading.checking = false;
+		}
+	}
+
 	$effect(() => {
 		images = data.images;
 	});
@@ -349,14 +419,23 @@
 								<Download class="w-4 h-4" /> Pull Image
 							{/if}
 						</Button>
+						<Button variant="outline" onclick={() => checkAllMaturity()} disabled={isLoading.checking}>
+							{#if isLoading.checking}
+								<Loader2 class="w-4 h-4 mr-2 animate-spin" /> Checking...
+							{:else}
+								<ScanSearch class="w-4 h-4 mr-2" /> Check Updates
+							{/if}
+						</Button>
 					</div>
 				</div>
 			</Card.Header>
+
 			<Card.Content>
 				<UniversalTable
 					data={filteredImages}
 					columns={[
 						{ accessorKey: 'repo', header: 'Name' },
+						{ accessorKey: 'inUse', header: ' ', enableSorting: false },
 						{ accessorKey: 'tag', header: 'Tag' },
 						{ accessorKey: 'id', header: 'Image ID', enableSorting: false },
 						{ accessorKey: 'size', header: 'Size' },
@@ -375,15 +454,101 @@
 					{#snippet rows({ item })}
 						<Table.Cell>
 							<div class="flex items-center gap-2">
-								<span class="truncate">
-									<a class="font-medium hover:underline" href="/images/{item.id}/">
+								<div class="flex items-center flex-1">
+									<!-- Maturity Indicator with proper Tooltip -->
+									{#if item.maturity}
+										<Tooltip.Provider>
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													<span class="inline-flex items-center justify-center align-middle w-4 h-4 mr-2">
+														{#if !item.maturity.updatesAvailable}
+															<!-- Green checkmark for up-to-date images -->
+
+															<CircleCheck class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" />
+															<!-- <CircleFadingArrowUp class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" /> -->
+														{:else if item.maturity.status === 'Not Matured'}
+															<!-- Yellow warning icon for non-matured updates -->
+															<CircleFadingArrowUp class="w-10 h-10 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" />
+														{:else}
+															<!-- Blue checkmark for matured updates -->
+															<CircleArrowUp class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" />
+														{/if}
+													</span>
+												</Tooltip.Trigger>
+												<!-- Tooltip content updated -->
+												<Tooltip.Content side="right" class="p-3 max-w-[200px] relative tooltip-with-arrow" align="center">
+													<div class="space-y-2">
+														<div class="flex items-center gap-2">
+															{#if !item.maturity.updatesAvailable}
+																<!-- Green checkmark in tooltip -->
+																<CircleCheck class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" />
+																<span class="font-medium">Image Up to Date</span>
+															{:else if item.maturity.status === 'Not Matured'}
+																<!-- Yellow warning icon in tooltip -->
+																<CircleFadingArrowUp class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" />
+																<span class="font-medium">Update Available (Not Matured)</span>
+															{:else}
+																<!-- Blue info icon in tooltip -->
+																<CircleArrowUp class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" />
+																<span class="font-medium">Matured Update Available</span>
+															{/if}
+														</div>
+
+														<div class="pt-1 border-t border-gray-200 dark:border-gray-700 justify-between">
+															<div class="flex justify-between text-xs">
+																<span class="text-muted-foreground">Version:</span>
+																<span class="font-medium">{item.maturity.version || 'N/A'}</span>
+															</div>
+
+															<div class="flex justify-between text-xs mt-1">
+																<span class="text-muted-foreground">Released:</span>
+																<span>{item.maturity.date || 'Unknown'}</span>
+															</div>
+
+															<div class="flex justify-between text-xs mt-1">
+																<span class="text-muted-foreground">Status:</span>
+																<span class={item.maturity.status === 'Matured' ? 'text-green-500' : 'text-amber-500'}>
+																	{item.maturity.status || 'Unknown'}
+																</span>
+															</div>
+														</div>
+													</div>
+												</Tooltip.Content>
+											</Tooltip.Root>
+										</Tooltip.Provider>
+									{:else}
+										<!-- Tooltip for missing maturity info -->
+										<Tooltip.Provider>
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													<span class="inline-flex items-center justify-center w-4 h-4 mr-2 opacity-30">
+														<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+															<circle cx="12" cy="12" r="10" />
+															<path d="M9 12l2 2 4-4" />
+														</svg>
+													</span>
+												</Tooltip.Trigger>
+												<Tooltip.Content side="right" class="p-2 relative tooltip-with-arrow" align="center">
+													<span class="text-xs">Maturity status not available.</span>
+												</Tooltip.Content>
+											</Tooltip.Root>
+										</Tooltip.Provider>
+									{/if}
+									<!-- End Maturity Indicator -->
+
+									<!-- Repository name as a separate element -->
+									<a class="font-medium hover:underline flex-shrink truncate" href="/images/{item.id}/">
 										{item.repo}
 									</a>
-								</span>
-								{#if !item.inUse}
-									<StatusBadge text="Unused" variant="amber" />
-								{/if}
+								</div>
 							</div>
+						</Table.Cell>
+						<Table.Cell>
+							{#if !item.inUse}
+								<StatusBadge text="Unused" variant="amber" />
+							{:else}
+								<StatusBadge text="In Use" variant="green" />
+							{/if}
 						</Table.Cell>
 						<Table.Cell>{item.tag}</Table.Cell>
 						<Table.Cell class="truncate">{item.id}</Table.Cell>
@@ -460,3 +625,57 @@
 		</Dialog.Content>
 	</Dialog.Root>
 </div>
+
+<style>
+	:global(.tooltip-with-arrow) {
+		position: relative;
+		overflow: visible;
+	}
+
+	:global(.tooltip-with-arrow::before) {
+		content: '';
+		position: absolute;
+		width: 8px;
+		height: 8px;
+		background-color: hsl(var(--popover));
+		border: 1px solid hsl(var(--border));
+		z-index: 1;
+	}
+
+	/* Top side: Arrow on bottom of tooltip pointing down */
+	:global(.tooltip-with-arrow[data-side='top']::before) {
+		bottom: -4px;
+		left: 50%;
+		transform: translateX(-50%) rotate(45deg);
+		border-top: none;
+		border-left: none;
+	}
+
+	/* Bottom side: Arrow on top of tooltip pointing up */
+	:global(.tooltip-with-arrow[data-side='bottom']::before) {
+		top: -4px;
+		left: 50%;
+		transform: translateX(-50%) rotate(225deg);
+		border-bottom: none;
+		border-right: none;
+	}
+
+	/* Left side: Arrow on right of tooltip pointing right */
+	:global(.tooltip-with-arrow[data-side='left']::before) {
+		top: 50%;
+		right: -4px;
+		transform: translateY(-50%) rotate(-45deg);
+		border-left: none;
+		border-bottom: none;
+	}
+
+	/* Right side: Arrow on left of tooltip pointing left - improved */
+	:global(.tooltip-with-arrow[data-side='right']::before) {
+		top: 50%;
+		left: -4px;
+		transform: translateY(-50%) rotate(-45deg);
+		border-left: none;
+		border-top: none;
+		box-shadow: -1px 1px 1px rgba(0, 0, 0, 0.05);
+	}
+</style>
