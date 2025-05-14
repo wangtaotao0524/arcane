@@ -1,3 +1,22 @@
+## [0.9.0](https://github.com/ofkm/arcane/compare/v0.8.0...v0.9.0) (2025-05-14)
+
+### Features
+
+* add dark / light mode toggle ([f24cae1](https://github.com/ofkm/arcane/commit/f24cae1afcb26090005fe9fab4a9376a6725f749))
+* add logged in users name in sidebar ([e86659b](https://github.com/ofkm/arcane/commit/e86659bd94b3d4918ab17c3243d0e3c7a7512cf0))
+* image maturity indicator and image update indicators ([#181](https://github.com/ofkm/arcane/issues/181)) ([2eff068](https://github.com/ofkm/arcane/commit/2eff0689efece7c55779665f192223320e836fd4))
+* oidc login support ([#172](https://github.com/ofkm/arcane/issues/172)) ([43609a8](https://github.com/ofkm/arcane/commit/43609a85ca9c648d021b3f8291a7390163888db9))
+
+### Bug Fixes
+
+* container logs duplicated and not formatted correctly ([5aa5f04](https://github.com/ofkm/arcane/commit/5aa5f048f6c4b4ca36183c682daf1d3418cc1737))
+* duplicated service badge links on stack start ([aca8932](https://github.com/ofkm/arcane/commit/aca8932a787703824c3f35c44851cc37407fabc7))
+* selectedIds persisting after api call is returned ([0c01485](https://github.com/ofkm/arcane/commit/0c0148504e29a165afef75b9d07c2794e4371335))
+* sort images and containers but uptime and size ([05cc599](https://github.com/ofkm/arcane/commit/05cc5992134040d76624b2e4525b071e0da1cc00))
+* stacks not deploying if a health check is defined ([664f330](https://github.com/ofkm/arcane/commit/664f330ac8fef08c71bc8f35b401978f4c9e44bd))
+* truncate long images names on dashboard table ([87556c9](https://github.com/ofkm/arcane/commit/87556c94e9f3449977a8f035c0597834c1d82675))
+* UI consistency and layout updates ([#185](https://github.com/ofkm/arcane/issues/185)) ([1b85225](https://github.com/ofkm/arcane/commit/1b852257b9e16276e6fc91a87442c375b069ab0f))
+* use svg icon over png ([da5a591](https://github.com/ofkm/arcane/commit/da5a591327b2ac78c7ca89a017e6bc7d24d40d6d))
 ## [0.8.0](https://github.com/ofkm/arcane/compare/v0.7.1...v0.8.0) (2025-05-12)
 
 ### Features
