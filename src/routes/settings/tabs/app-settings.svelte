@@ -8,6 +8,42 @@
 
 	let { data } = $props<{ data: PageData }>();
 
+	// Initialize form inputs
+	let stacksDirectoryInput = $state<FormInputType<string>>({
+		value: '',
+		valid: true,
+		touched: false,
+		error: null,
+		errors: []
+	});
+
+	let baseServerUrlInput = $state<FormInputType<string>>({
+		value: '',
+		valid: true,
+		touched: false,
+		error: null,
+		errors: []
+	});
+
+	let maturityThresholdInput = $state<FormInputType<number>>({
+		value: 30,
+		valid: true,
+		touched: false,
+		error: null,
+		errors: []
+	});
+
+	// Synchronize values when settings change
+	$effect(() => {
+		// Get the latest values from the store
+		const settings = $settingsStore;
+
+		// Update form inputs with values from the store
+		stacksDirectoryInput.value = settings.stacksDirectory || 'data/stacks';
+		baseServerUrlInput.value = settings.baseServerUrl || 'localhost';
+		maturityThresholdInput.value = settings.maturityThresholdDays || 30;
+	});
+
 	// Initialize settings from page data once
 	let initialized = false;
 	$effect(() => {
@@ -18,31 +54,6 @@
 			}));
 			initialized = true;
 		}
-	});
-
-	// Create local form state with initial values
-	let stacksDirectoryInput = $state<FormInputType<string>>({
-		value: $settingsStore.stacksDirectory || '',
-		valid: true,
-		touched: false,
-		error: null,
-		errors: []
-	});
-
-	let baseServerUrlInput = $state<FormInputType<string>>({
-		value: $settingsStore.baseServerUrl || '',
-		valid: true,
-		touched: false,
-		error: null,
-		errors: []
-	});
-
-	let maturityThresholdInput = $state<FormInputType<number>>({
-		value: $settingsStore.maturityThresholdDays || 30,
-		valid: true,
-		touched: false,
-		error: null,
-		errors: []
 	});
 
 	// No automatic syncing - just event handlers for changes
@@ -64,12 +75,10 @@
 
 	function onMaturityThresholdChange() {
 		maturityThresholdInput.touched = true;
-		// The value from the input element (via bind:input) might be a string.
 		const rawValue = maturityThresholdInput.value;
 		const numericValue = parseInt(String(rawValue), 10);
 
 		if (!isNaN(numericValue)) {
-			// Update the local state's value to be a number for type consistency
 			maturityThresholdInput.value = numericValue;
 			settingsStore.update((settings) => ({
 				...settings,
@@ -78,11 +87,8 @@
 			maturityThresholdInput.valid = true;
 			maturityThresholdInput.error = null;
 		} else {
-			// If parsing fails (e.g., empty input), mark as invalid.
-			// The maturityThresholdInput.value will remain the unparsed (e.g. empty string) value.
 			maturityThresholdInput.valid = false;
 			maturityThresholdInput.error = 'Please enter a valid whole number.';
-			// The store is not updated with NaN.
 		}
 	}
 </script>
@@ -107,7 +113,7 @@
 					type="text"
 					id="stacksDirectory"
 					label="Stack Projects Directory"
-					placeholder="/opt/arcane/stacks"
+					placeholder="data/stacks"
 					required
 					description="The primary folder where Arcane will store and manage your Docker Compose stack projects. This path is inside Arcane's container."
 					warningText="Important: Changing this path will not automatically move existing stack projects."
