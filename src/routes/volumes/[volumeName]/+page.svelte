@@ -2,35 +2,54 @@
 	import type { PageData, ActionData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, AlertCircle, RefreshCw, HardDrive, Clock, Tag, Layers, Trash2, Loader2, Database, Globe, Info } from '@lucide/svelte';
+	import { ArrowLeft, AlertCircle, HardDrive, Clock, Tag, Layers, Trash2, Loader2, Database, Globe, Info } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import * as Alert from '$lib/components/ui/alert/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { formatDate } from '$lib/utils/string.utils';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
+	import { toast } from 'svelte-sonner';
+	import { tryCatch } from '$lib/utils/try-catch';
+	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
+	import VolumeAPIService from '$lib/services/api/volume-api-service';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let { volume, inUse } = $derived(data);
 
 	let isRefreshing = $state(false);
-	let isRemoving = $state(false);
-	let showRemoveConfirm = $state(false);
-	let forceRemove = $state(false);
+	let isLoading = $state({ remove: false });
 	const createdDate = $derived(volume?.CreatedAt ? formatDate(volume.CreatedAt) : 'N/A');
 
-	async function refreshData() {
-		isRefreshing = true;
-		await invalidateAll();
-		setTimeout(() => {
-			isRefreshing = false;
-		}, 500);
-	}
+	const volumeApi = new VolumeAPIService();
 
-	function triggerRemove() {
-		forceRemove = false;
-		showRemoveConfirm = true;
+	async function handleRemoveVolumeConfirm(volumeName: string) {
+		// Build a custom message that includes warnings for volumes in use
+		let message = 'Are you sure you want to delete this volume? This action cannot be undone.';
+
+		if (inUse) {
+			message += '\n\n⚠️ Warning: This volume is currently in use by containers. Forcing removal may cause data loss or container issues.';
+		}
+
+		openConfirmDialog({
+			title: 'Delete Volume',
+			message,
+			confirm: {
+				label: 'Delete',
+				destructive: true,
+				action: async () => {
+					handleApiResultWithCallbacks({
+						result: await tryCatch(volumeApi.remove(volumeName)),
+						message: 'Failed to Remove Volume',
+						setLoadingState: (value) => (isLoading.remove = value),
+						onSuccess: async () => {
+							toast.success('Volume Removed Successfully.');
+							goto('/volumes');
+						}
+					});
+				}
+			}
+		});
 	}
 </script>
 
@@ -77,31 +96,14 @@
 
 			<!-- Action Buttons -->
 			<div class="flex gap-2 self-start">
-				<Button variant="destructive" size="sm" onclick={triggerRemove} disabled={isRemoving}>
-					{#if isRemoving}
+				<Button variant="destructive" size="sm" onclick={() => handleRemoveVolumeConfirm(volume?.Name)} disabled={isLoading.remove}>
+					{#if isLoading.remove}
 						<Loader2 class="animate-spin size-4" />
 					{:else}
 						<Trash2 class="size-4" />
 					{/if} Remove Volume
 				</Button>
 			</div>
-
-			<!-- Hidden form for removal action -->
-			<form
-				id="remove-volume-form"
-				method="POST"
-				action="?/remove"
-				use:enhance={() => {
-					isRemoving = true;
-					return async ({ update }) => {
-						await update({ reset: false });
-					};
-				}}
-				class="hidden"
-			>
-				<input type="hidden" name="volumeName" value={volume?.Name} />
-				<button type="submit">Submit</button>
-			</form>
 		</div>
 	</div>
 
