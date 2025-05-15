@@ -1,3 +1,9 @@
+## [0.9.1](https://github.com/ofkm/arcane/compare/v0.9.0...v0.9.1) (2025-05-15)
+
+### Bug Fixes
+
+* settings not loading values from json file ([ad65e80](https://github.com/ofkm/arcane/commit/ad65e803c53e5c9f8b639e0620b6e85a61b50941))
+* volumes cant be deleted from volume details page ([76bc5b8](https://github.com/ofkm/arcane/commit/76bc5b8e362b8e8de216d18d7f6acf9fd86d171b))
 ## [0.9.0](https://github.com/ofkm/arcane/compare/v0.8.0...v0.9.0) (2025-05-14)
 
 ### Features
