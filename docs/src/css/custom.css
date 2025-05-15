@@ -170,3 +170,189 @@ blockquote {
 .hero {
 	background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(107, 33, 168, 0.05) 100%);
 }
+
+/* Fix mobile sidebar issues */
+@media (max-width: 996px) {
+	/* Adjust the sidebar positioning for mobile */
+	.navbar-sidebar {
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: 80%;
+		max-width: 300px;
+		height: 100%;
+		transform: translateX(-100%);
+		transition: transform 0.3s ease;
+		z-index: 100;
+		background-color: var(--arcane-glass-bg);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		border-right: 1px solid var(--arcane-glass-border);
+		box-shadow: var(--arcane-glass-shadow);
+		overflow-x: visible; /* Ensure children can overflow if needed */
+	}
+
+	/* When the sidebar is shown */
+	.navbar-sidebar--show {
+		transform: translateX(0);
+	}
+
+	/* Make sure the backdrop works properly */
+	.navbar-sidebar__backdrop {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.5);
+		z-index: 99;
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
+	}
+
+	/* Fix the closing button position */
+	.navbar-sidebar__close {
+		position: absolute;
+		top: 0.5rem;
+		right: 0.5rem;
+		padding: 0.5rem;
+		background-color: transparent;
+		border: none;
+	}
+
+	/* Ensure the header doesn't overlap sidebar content */
+	.navbar-sidebar__brand {
+		padding: 1rem;
+	}
+
+	/* Improve menu items spacing and display on mobile */
+	.menu {
+		padding: 0.5rem 0;
+	}
+
+	.menu__list {
+		padding-left: 0.5rem;
+		padding-right: 1.5rem !important; /* Add space on the right for arrows */
+	}
+
+	.menu__link {
+		padding: 0.75rem 1rem;
+		padding-right: 2.5rem !important; /* Give space for the arrow */
+	}
+
+	/* Optional: if you want to target the arrow directly */
+	.menu__caret {
+		right: 1rem !important;
+	}
+
+	:root {
+		--arcane-glass-bg: rgba(255, 255, 255, 0.95);
+	}
+
+	[data-theme='dark'] {
+		--arcane-glass-bg: rgba(30, 30, 40, 0.95);
+	}
+}
+
+/* Prevent body scroll when sidebar is open */
+body.navbar-sidebar--show {
+	overflow: hidden;
+	height: 100vh;
+}
+
+/* Make sure the sidebar overlays all content */
+.navbar-sidebar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	width: 80vw;
+	max-width: 300px;
+	height: 100vh;
+	z-index: 200; /* Higher than navbar */
+	background-color: var(--arcane-glass-bg);
+	box-shadow: var(--arcane-glass-shadow);
+	transform: translateX(-100%);
+	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Show sidebar when active */
+.navbar-sidebar--show {
+	transform: translateX(0) !important;
+}
+
+/* Ensure the backdrop covers the whole screen */
+.navbar-sidebar__backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 150;
+}
+
+/* Make sure the sidebar is above the backdrop */
+.navbar-sidebar {
+	z-index: 200;
+}
+
+/* Hide main content interaction when sidebar is open */
+body.navbar-sidebar--show .main-wrapper {
+	pointer-events: none;
+	user-select: none;
+	opacity: 0.3;
+}
+
+/* Optional: fix close button on sidebar */
+.navbar-sidebar__close {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	z-index: 201;
+}
+
+/* Fix the main content padding on mobile */
+@media (max-width: 996px) {
+	.main-wrapper {
+		padding-top: var(--ifm-navbar-height);
+	}
+
+	/* Adjust navbar height for mobile */
+	:root {
+		--ifm-navbar-height: 60px;
+	}
+
+	/* Make navbar more compact on mobile */
+	.navbar {
+		padding: 0.5rem 1rem;
+	}
+
+	/* Make sure the toggle button is visible and working */
+	.navbar__toggle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		margin-right: 1rem;
+		color: var(--ifm-navbar-link-color);
+		border: none;
+		background-color: transparent;
+	}
+}
+
+/* Optimize backdrop filters for mobile performance */
+@media (max-width: 768px) {
+	.navbar,
+	.theme-doc-sidebar-container,
+	.navbar-sidebar {
+		backdrop-filter: blur(5px);
+		-webkit-backdrop-filter: blur(5px);
+	}
+
+	.admonition,
+	.pagination-nav__link {
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
+}
