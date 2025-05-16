@@ -26,7 +26,9 @@ export async function migrateStacksToNameFolders() {
 		try {
 			await fs.access(newMetaPath);
 			continue; // Already migrated
-		} catch {}
+		} catch {
+			// intentionally empty, means .stack.json does not exist
+		}
 
 		// Check if stack is running before migration
 		let wasRunning = false;
@@ -118,7 +120,9 @@ export async function migrateStackToNameFolder(stackId: string): Promise<void> {
 	try {
 		await fs.access(newMetaPath);
 		throw new Error(`Stack "${stackId}" is already migrated`);
-	} catch {}
+	} catch {
+		// intentionally empty, means .stack.json does not exist
+	}
 
 	// Check if stack is running before migration
 	let wasRunning = false;
