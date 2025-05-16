@@ -42,9 +42,19 @@
 	let selectedRowIds = $state<Record<string, boolean>>({});
 
 	$effect(() => {
-		selectedIds = Object.entries(selectedRowIds)
-			.filter(([_, selected]) => selected)
-			.map(([id]) => id);
+		const newTanstackSelectionState: Record<string, boolean> = {};
+		(selectedIds || []).forEach((id) => {
+			newTanstackSelectionState[id] = true;
+		});
+
+		const currentTanstackSelectedKeys = Object.keys(selectedRowIds)
+			.filter((k) => selectedRowIds[k])
+			.sort();
+		const newPropSelectedKeys = Object.keys(newTanstackSelectionState).sort();
+
+		if (JSON.stringify(currentTanstackSelectedKeys) !== JSON.stringify(newPropSelectedKeys)) {
+			table.setRowSelection(newTanstackSelectionState);
+		}
 	});
 
 	$effect(() => {
@@ -112,10 +122,21 @@
 			currentPage = 1;
 		},
 		onRowSelectionChange: (updater) => {
-			if (typeof updater === 'function') {
-				selectedRowIds = updater(selectedRowIds);
-			} else {
-				selectedRowIds = updater;
+			const newInternalState = typeof updater === 'function' ? updater(selectedRowIds) : updater;
+
+			if (JSON.stringify(newInternalState) !== JSON.stringify(selectedRowIds)) {
+				selectedRowIds = newInternalState;
+			}
+
+			const newSelectedIdsArray = Object.entries(selectedRowIds)
+				.filter(([_, selected]) => selected)
+				.map(([id]) => id);
+
+			const sortedCurrentProp = [...(selectedIds || [])].sort();
+			const sortedNewInternal = [...newSelectedIdsArray].sort();
+
+			if (JSON.stringify(sortedCurrentProp) !== JSON.stringify(sortedNewInternal)) {
+				selectedIds = newSelectedIdsArray;
 			}
 		},
 		enableRowSelection: enableSelection
