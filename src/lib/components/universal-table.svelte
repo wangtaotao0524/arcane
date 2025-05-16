@@ -74,7 +74,7 @@
 		},
 		columns,
 		getRowId: idKey
-			? (originalRow: TData, _index: number, _parent?: RowData) => {
+			? (originalRow: TData) => {
 					return String(originalRow[idKey]);
 				}
 			: undefined,
@@ -129,7 +129,7 @@
 			}
 
 			const newSelectedIdsArray = Object.entries(selectedRowIds)
-				.filter(([_, selected]) => selected)
+				.filter(([key, selected]) => selected)
 				.map(([id]) => id);
 
 			const sortedCurrentProp = [...(selectedIds || [])].sort();
