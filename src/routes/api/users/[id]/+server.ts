@@ -73,8 +73,6 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	// Handle password change
 	if (password) {
 		const settingsResult = await tryCatch(getSettings());
-		const settings = settingsResult.data;
-		const policy = settings?.auth?.passwordPolicy || 'medium';
 
 		// Password validation can be added here if needed
 		const hashResult = await tryCatch(hashPassword(password));
@@ -103,7 +101,8 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		return json(response, { status: 500 });
 	}
 
-	const { passwordHash: _, ...sanitizedUser } = saveResult.data;
+	// Remove passwordHash from returned user object
+	const { passwordHash, ...sanitizedUser } = saveResult.data;
 	return json({ success: true, user: sanitizedUser });
 };
 
