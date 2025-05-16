@@ -23,10 +23,12 @@ export async function pruneSystem(types: PruneType[]): Promise<PruneServiceResul
 
 	console.log(`Using image prune mode: ${pruneMode}`);
 
+	let message = 'System pruned successfully.';
+	const settings = await getSettings();
+
 	for (const type of types) {
 		let result: PruneResult | null = null;
 		let error: string | undefined = undefined;
-		let pruneOptions: { filters: { dangling: string[] } } | undefined;
 		let filterValue: string | undefined;
 		let logMessage: string | undefined;
 
@@ -37,20 +39,28 @@ export async function pruneSystem(types: PruneType[]): Promise<PruneServiceResul
 				case 'containers':
 					result = await docker.pruneContainers();
 					break;
-				case 'images':
-					filterValue = pruneMode === 'all' ? 'false' : 'true';
-					logMessage = pruneMode === 'all' ? 'Pruning all unused images (docker image prune -a)...' : 'Pruning dangling images (docker image prune)...';
-					console.log(logMessage);
-					pruneOptions = {
-						filters: { dangling: [filterValue] }
+				case 'images': {
+					const imagePruneOptions = {
+						filters: {
+							// Ensure 'dangling' is a string 'true' or 'false'
+							dangling: [settings.pruneMode === 'dangling' ? 'true' : 'false']
+						}
 					};
-					result = await docker.pruneImages(pruneOptions);
+					const imagePruneResult = await docker.pruneImages(imagePruneOptions);
+					if (imagePruneResult.ImagesDeleted && imagePruneResult.ImagesDeleted.length > 0) {
+						results.push({
+							...(imagePruneResult || { SpaceReclaimed: 0 }),
+							type,
+							error
+						} as PruneServiceResult);
+					}
 					break;
+				}
 				case 'networks':
 					result = await docker.pruneNetworks();
 					break;
 				case 'volumes':
-					// result = await docker.pruneVolumes();
+					result = await docker.pruneVolumes();
 					break;
 				default:
 					console.warn(`Unsupported prune type requested: ${type}`);
@@ -58,7 +68,7 @@ export async function pruneSystem(types: PruneType[]): Promise<PruneServiceResul
 			}
 
 			console.log(`Pruning ${type} completed.`);
-			results.push({ ...(result || {}), type, error } as PruneServiceResult);
+			results.push({ ...(result || { SpaceReclaimed: 0 }), type, error } as PruneServiceResult);
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
 			console.error(`Error pruning ${type}:`, err);

@@ -4,33 +4,34 @@ import { getDockerInfo } from '$lib/services/docker/core';
 import { isImageInUse, listImages, checkImageMaturity } from '$lib/services/docker/image-service';
 import { getSettings } from '$lib/services/settings-service';
 import { maturityCache } from '$lib/services/docker/maturity-cache-service';
-import type { EnhancedImageInfo, ServiceContainer, ServiceImage } from '$lib/types/docker';
+import type { EnhancedImageInfo, ServiceImage } from '$lib/types/docker';
+import type { ContainerInfo } from 'dockerode';
 
 type DockerInfoType = Awaited<ReturnType<typeof getDockerInfo>>;
 type SettingsType = NonNullable<Awaited<ReturnType<typeof getSettings>>>;
 
 type DashboardData = {
 	dockerInfo: DockerInfoType | null;
-	containers: ServiceContainer[];
-	images: ServiceImage[];
+	containers: ContainerInfo[];
+	images: EnhancedImageInfo[];
 	settings: Pick<SettingsType, 'pruneMode'> | null;
 	error?: string;
 };
 
 export const load: PageServerLoad = async (): Promise<DashboardData> => {
 	try {
-		const [dockerInfo, containers, images, settings] = await Promise.all([
+		const [dockerInfo, containersData, imagesData, settings] = await Promise.all([
 			getDockerInfo().catch((e) => {
 				console.error('Dashboard: Failed to get Docker info:', e.message);
 				return null;
 			}),
 			listContainers(true).catch((e) => {
 				console.error('Dashboard: Failed to list containers:', e.message);
-				return [];
+				return [] as ContainerInfo[];
 			}),
 			listImages().catch((e) => {
 				console.error('Dashboard: Failed to list images:', e.message);
-				return [];
+				return [] as ServiceImage[];
 			}),
 			getSettings().catch((e) => {
 				console.error('Dashboard: Failed to get settings:', e.message);
@@ -39,20 +40,20 @@ export const load: PageServerLoad = async (): Promise<DashboardData> => {
 		]);
 
 		const enhancedImages = await Promise.all(
-			images.map(async (image): Promise<EnhancedImageInfo> => {
-				const inUse = await isImageInUse(image.id);
+			imagesData.map(async (image): Promise<EnhancedImageInfo> => {
+				const inUse = await isImageInUse(image.Id);
 
-				// Check maturity cache first before returning
-				const cachedMaturity = maturityCache.get(image.id);
+				const cachedMaturity = maturityCache.get(image.Id);
 
 				let maturity = cachedMaturity;
 				if (maturity === undefined) {
 					try {
 						if (image.repo !== '<none>' && image.tag !== '<none>') {
-							maturity = await checkImageMaturity(image.id);
+							maturity = await checkImageMaturity(image.Id);
 						}
 					} catch (maturityError) {
-						console.error(`Dashboard: Failed to check maturity for image ${image.id}:`, maturityError);
+						console.error(`Dashboard: Failed to check maturity for image ${image.Id}:`, maturityError);
+						maturity = undefined;
 					}
 				}
 
@@ -67,8 +68,8 @@ export const load: PageServerLoad = async (): Promise<DashboardData> => {
 		if (!dockerInfo) {
 			return {
 				dockerInfo: null,
-				containers: [],
-				images: [] as EnhancedImageInfo[],
+				containers: [] as ContainerInfo[],
+				images: enhancedImages,
 				settings: settings ? { pruneMode: settings.pruneMode } : null,
 				error: 'Failed to connect to Docker Engine. Please check settings and ensure Docker is running.'
 			};
@@ -76,7 +77,7 @@ export const load: PageServerLoad = async (): Promise<DashboardData> => {
 
 		return {
 			dockerInfo,
-			containers,
+			containers: containersData,
 			images: enhancedImages,
 			settings: settings ? { pruneMode: settings.pruneMode } : null
 		};
@@ -84,8 +85,8 @@ export const load: PageServerLoad = async (): Promise<DashboardData> => {
 		console.error('Dashboard: Unexpected error loading data:', err);
 		return {
 			dockerInfo: null,
-			containers: [],
-			images: [],
+			containers: [] as ContainerInfo[],
+			images: [], // Return empty EnhancedImageInfo array on error
 			settings: null,
 			error: err.message || 'An unexpected error occurred while loading dashboard data.'
 		};
