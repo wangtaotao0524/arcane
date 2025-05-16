@@ -16,8 +16,6 @@ export async function migrateStacksToNameFolders() {
 
 		const metaPath = path.join(oldDirPath, 'meta.json');
 		const newMetaPath = path.join(oldDirPath, '.stack.json');
-		const oldComposePath = path.join(oldDirPath, 'docker-compose.yml');
-		const newComposePath = path.join(oldDirPath, 'compose.yaml');
 
 		// Only migrate if meta.json exists and .stack.json does not
 		try {
@@ -110,8 +108,6 @@ export async function migrateStackToNameFolder(stackId: string): Promise<void> {
 
 	const metaPath = path.join(oldDirPath, 'meta.json');
 	const newMetaPath = path.join(oldDirPath, '.stack.json');
-	const oldComposePath = path.join(oldDirPath, 'docker-compose.yml');
-	const newComposePath = path.join(oldDirPath, 'compose.yaml');
 
 	// Only migrate if meta.json exists and .stack.json does not
 	try {
