@@ -1,3 +1,14 @@
+## [0.10.0](https://github.com/ofkm/arcane/compare/v0.9.2...v0.10.0) (2025-05-17)
+
+### Features
+
+* environment variable support in compose files ([#195](https://github.com/ofkm/arcane/issues/195)) ([4612271](https://github.com/ofkm/arcane/commit/4612271a87f1064074fac0a2a22471a6720c8f53))
+
+### Bug Fixes
+
+* improve loading speed of stack and container pages ([#194](https://github.com/ofkm/arcane/issues/194)) ([ccbbdb4](https://github.com/ofkm/arcane/commit/ccbbdb425033635648102c11a5c2cd3ee6a41a05))
+* stacks not starting with more than one network ([#191](https://github.com/ofkm/arcane/issues/191)) ([77a32ee](https://github.com/ofkm/arcane/commit/77a32ee155520ae444c939d5f7fcdece414a7de2))
+* table selection states not getting invailidated ([d1ef3cb](https://github.com/ofkm/arcane/commit/d1ef3cb4a0656bfb95736dcd0fcaab11649d4e18))
 ## [0.9.2](https://github.com/ofkm/arcane/compare/v0.9.1...v0.9.2) (2025-05-15)
 
 ### Bug Fixes
