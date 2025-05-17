@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Plus, AlertCircle, Layers, FileStack, Loader2, Play, RotateCcw, StopCircle, Trash2, Ellipsis, Pen, Import } from '@lucide/svelte';
+	import { AlertCircle, Layers, FileStack, Loader2, Play, RotateCcw, StopCircle, Trash2, Ellipsis, Pen } from '@lucide/svelte';
 	import UniversalTable from '$lib/components/universal-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import * as Table from '$lib/components/ui/table';

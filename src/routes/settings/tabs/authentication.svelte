@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte'; // Import onMount
-	import { env as publicEnv } from '$env/dynamic/public'; // Import public env
+	import { onMount } from 'svelte';
+	import { env as publicEnv } from '$env/dynamic/public';
 	import type { PageData } from '../$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';

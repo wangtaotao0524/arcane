@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, Loader2, Save, FileStack } from '@lucide/svelte';
+	import { ArrowLeft, FileStack } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -14,7 +14,7 @@
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import EnvEditor from '$lib/components/env-editor.svelte';
 	import { defaultEnvTemplate, defaultComposeTemplate } from '$lib/constants';
-	import ArcaneButton from '$lib/components/arcane-button.svelte'; // Add this import
+	import ArcaneButton from '$lib/components/arcane-button.svelte';
 
 	const stackApi = new StackAPIService();
 	let saving = $state(false);

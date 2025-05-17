@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, AlertCircle, HardDrive, Clock, Tag, Layers, Trash2, Loader2, Database, Globe, Info } from '@lucide/svelte';
+	import { AlertCircle, HardDrive, Clock, Tag, Layers, Database, Globe, Info } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { goto } from '$app/navigation';
 	import * as Alert from '$lib/components/ui/alert/index.js';

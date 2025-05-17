@@ -3,7 +3,7 @@
 	import type { Stack, StackService, StackPort } from '$lib/types/docker/stack.type';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, Loader2, AlertCircle, Save, FileStack, Layers, ArrowRight, ExternalLink } from '@lucide/svelte';
+	import { ArrowLeft, AlertCircle, FileStack, Layers, ArrowRight, ExternalLink } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
