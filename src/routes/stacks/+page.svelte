@@ -56,7 +56,7 @@
 			});
 		} else if (action === 'stop') {
 			handleApiResultWithCallbacks({
-				result: await tryCatch(stackApi.stop(id)),
+				result: await tryCatch(stackApi.down(id)),
 				message: 'Failed to Stop Stack',
 				setLoadingState: (value) => (isLoading.stop = value),
 				onSuccess: async () => {
@@ -103,7 +103,7 @@
 					destructive: true,
 					action: async () => {
 						handleApiResultWithCallbacks({
-							result: await tryCatch(stackApi.remove(id)),
+							result: await tryCatch(stackApi.destroy(id)),
 							message: 'Failed to Remove Stack',
 							setLoadingState: (value) => (isLoading.destroy = value),
 							onSuccess: async () => {
