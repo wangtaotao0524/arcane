@@ -845,99 +845,136 @@ async function startStackWithExternalNetworks(stackId: string, composeData: any,
 	for (const [serviceName, serviceConfig] of Object.entries(composeData.services || {})) {
 		const service = serviceConfig as any;
 
-		// service.container_name should be resolved from composeData (processed by parseYamlContent)
 		let containerName = service.container_name;
-
-		// If container_name is still not defined or is empty after substitution, use a default.
 		if (!containerName || typeof containerName !== 'string') {
 			containerName = `${stackId}_${serviceName}`;
 		}
-
-		// Check if the container name (which should have been substituted by parseYamlContent)
-		// still contains unresolved placeholders. This indicates the variable was not defined.
 		if (containerName.includes('${')) {
-			console.warn(`CRITICAL: Unresolved variable in container_name for service '${serviceName}': ${containerName}. ` + `This means the environment variable was not found. Using default name: ${stackId}_${serviceName}`);
-			containerName = `${stackId}_${serviceName}`; // Fallback to a safe default
+			console.warn(`CRITICAL: Unresolved variable in container_name for service '${serviceName}': ${containerName}. Using default name: ${stackId}_${serviceName}`);
+			containerName = `${stackId}_${serviceName}`;
 		}
 
-		// Prepare container configuration (existing code)
 		const containerConfig: any = {
-			name: containerName, // Use the processed container name
+			name: containerName,
 			Image: service.image,
+			User: service.user || '', // Add User field
 			Labels: {
 				'com.docker.compose.project': stackId,
 				'com.docker.compose.service': serviceName,
 				...service.labels
 			},
-			Env: await prepareEnvironmentVariables(service.environment, stackDir), // Ensure this is awaited if async
+			Env: await prepareEnvironmentVariables(service.environment, stackDir),
 			HostConfig: {
 				RestartPolicy: prepareRestartPolicy(service.restart),
-				Binds: prepareVolumes(service.volumes), // Ensure this handles paths correctly
-				PortBindings: preparePorts(service.ports)
+				Binds: prepareVolumes(service.volumes),
+				PortBindings: preparePorts(service.ports),
+				Dns: service.dns || [],
+				DnsOptions: service.dns_opt || [],
+				DnsSearch: service.dns_search || []
 			}
 		};
 
-		// Add network configuration
 		const networkMode = service.network_mode || null;
+		let primaryNetworkName = null;
 		if (networkMode) {
 			containerConfig.HostConfig.NetworkMode = networkMode;
+		} else if (service.networks) {
+			const serviceNetworks = Array.isArray(service.networks) ? service.networks : Object.keys(service.networks);
+
+			if (serviceNetworks.length > 0) {
+				const firstNetName = serviceNetworks[0];
+				const networkDefinition = composeData.networks?.[firstNetName];
+
+				let actualExternalNetIdentifier = firstNetName;
+				if (networkDefinition?.external && networkDefinition.name) {
+					if (typeof networkDefinition.name === 'string' && networkDefinition.name.includes('${') && networkDefinition.name.includes('}')) {
+						console.warn(`External network key '${firstNetName}' has an unresolved variable in name attribute. Using key '${firstNetName}' as identifier.`);
+					} else {
+						actualExternalNetIdentifier = networkDefinition.name;
+					}
+				}
+
+				// Set the primary network name
+				primaryNetworkName = networkDefinition?.external ? actualExternalNetIdentifier : `${stackId}_${firstNetName}`;
+				containerConfig.HostConfig.NetworkMode = primaryNetworkName;
+				console.log(`Service ${serviceName} will use '${primaryNetworkName}' as primary network.`);
+			}
 		}
 
+		// When preparing the EndpointsConfig, only include additional networks
 		const networkingConfig: { EndpointsConfig?: any } = {};
 		if (!networkMode && service.networks) {
-			// Only configure EndpointsConfig if not using network_mode host/none etc.
-			networkingConfig.EndpointsConfig = {};
 			const serviceNetworks = Array.isArray(service.networks) ? service.networks : Object.keys(service.networks);
-			for (const netName of serviceNetworks) {
-				const networkDefinition = composeData.networks?.[netName];
-				const fullNetworkName = networkDefinition?.external ? networkDefinition.name || netName : `${stackId}_${netName}`;
-				networkingConfig.EndpointsConfig[fullNetworkName] = {}; // Add aliases or other configs here if needed from service.networks[netName]
-				if (typeof service.networks === 'object' && service.networks[netName] && service.networks[netName].aliases) {
-					networkingConfig.EndpointsConfig[fullNetworkName].Aliases = service.networks[netName].aliases;
+
+			// Skip the first network if we're using it as the primary NetworkMode
+			const additionalNetworks = primaryNetworkName ? serviceNetworks.slice(1) : serviceNetworks;
+
+			if (additionalNetworks.length > 0) {
+				networkingConfig.EndpointsConfig = {};
+
+				for (const netName of additionalNetworks) {
+					const serviceNetConfig = typeof service.networks === 'object' ? service.networks[netName] : {};
+					const networkDefinition = composeData.networks?.[netName];
+
+					let actualExternalNetIdentifier = netName;
+					if (networkDefinition?.external && networkDefinition.name) {
+						if (typeof networkDefinition.name === 'string' && networkDefinition.name.includes('${') && networkDefinition.name.includes('}')) {
+							console.warn(`External network key '${netName}' in stack '${stackId}' has a 'name' attribute '${networkDefinition.name}' that appears to be an unresolved variable. Using the network key '${netName}' as the identifier for connection.`);
+						} else {
+							actualExternalNetIdentifier = networkDefinition.name;
+						}
+					}
+					const fullNetworkName = networkDefinition?.external ? actualExternalNetIdentifier : `${stackId}_${netName}`;
+
+					// Create the endpoint config properly with all possible options
+					const endpointConfig: any = {};
+
+					// Handle network aliases
+					if (typeof serviceNetConfig === 'object' && serviceNetConfig.aliases) {
+						endpointConfig.Aliases = serviceNetConfig.aliases;
+					}
+
+					// Handle static IP configuration - CRITICAL for networks like vlan25
+					if (typeof serviceNetConfig === 'object') {
+						const ipamConfig: any = {};
+
+						if (serviceNetConfig.ipv4_address) {
+							ipamConfig.IPv4Address = serviceNetConfig.ipv4_address;
+						}
+
+						if (serviceNetConfig.ipv6_address) {
+							ipamConfig.IPv6Address = serviceNetConfig.ipv6_address;
+						}
+
+						if (Object.keys(ipamConfig).length > 0) {
+							endpointConfig.IPAMConfig = ipamConfig;
+						}
+					}
+
+					networkingConfig.EndpointsConfig[fullNetworkName] = endpointConfig;
 				}
 			}
 		}
 
-		// Find existing container with same name to remove
-		try {
-			const existingContainers = await docker.listContainers({
-				all: true,
-				filters: JSON.stringify({ name: [containerName] })
-			});
-
-			for (const existing of existingContainers) {
-				console.log(`Removing existing container: ${containerName} (ID: ${existing.Id})`);
-				const c = docker.getContainer(existing.Id); // Corrected variable name
-				if (existing.State === 'running') {
-					await c.stop().catch((e) => console.warn(`Failed to stop existing container ${existing.Id}: ${e.message}`));
-				}
-				await c.remove({ force: true }).catch((e) => console.warn(`Failed to remove existing container ${existing.Id}: ${e.message}`));
-			}
-		} catch (removeErr) {
-			console.warn(`Warning: Error checking/removing existing containers for ${containerName}:`, removeErr);
-		}
-
-		// Create and start the container
-		console.log(`Creating container for service ${serviceName}: ${containerName}`);
 		try {
 			const container = await docker.createContainer(containerConfig);
 			console.log(`Successfully created container: ${containerName} (ID: ${container.id})`);
 
-			// Connect to networks if not using a specific network_mode like 'host' or 'none'
-			// This part was simplified in your snippet, ensure it's robust
 			if (networkingConfig.EndpointsConfig && Object.keys(networkingConfig.EndpointsConfig).length > 0) {
-				for (const netName of Object.keys(networkingConfig.EndpointsConfig)) {
+				for (const netNameKey of Object.keys(networkingConfig.EndpointsConfig)) {
 					try {
-						console.log(`Connecting container ${container.id} to network: ${netName}`);
-						const network = docker.getNetwork(netName);
+						// Log the actual config we're using to connect to the network
+						console.log(`Connecting container ${container.id} to network: ${netNameKey} with config:`, JSON.stringify(networkingConfig.EndpointsConfig[netNameKey]));
+
+						const network = docker.getNetwork(netNameKey);
 						await network.connect({
 							Container: container.id,
-							EndpointConfig: networkingConfig.EndpointsConfig[netName] || {}
+							EndpointConfig: networkingConfig.EndpointsConfig[netNameKey] || {}
 						});
-						console.log(`Successfully connected ${container.id} to network: ${netName}`);
+						console.log(`Successfully connected ${container.id} to network: ${netNameKey}`);
 					} catch (netConnectErr) {
-						console.error(`Error connecting container ${container.id} to network ${netName}:`, netConnectErr);
-						// Decide if this should throw or just be a warning
+						console.error(`Error connecting container ${container.id} to network ${netNameKey}:`, netConnectErr);
+						throw new Error(`Failed to connect container ${container.id} to network ${netNameKey}: ${netConnectErr instanceof Error ? netConnectErr.message : String(netConnectErr)}`);
 					}
 				}
 			}
@@ -1275,24 +1312,19 @@ export async function fullyRedeployStack(stackId: string): Promise<boolean> {
 }
 
 /**
- * The function `removeStack` removes a Docker stack by stopping its services and deleting its
- * directory.
- * @param {string} stackId - The `stackId` parameter is a string that represents the unique identifier
- * of the stack that needs to be removed.
- * @returns The `removeStack` function returns a `Promise<boolean>`. The function attempts to remove a
- * stack identified by `stackId`. If the removal process is successful, it resolves the promise with a
- * value of `true`. If an error occurs during the removal process, it catches the error, logs it, and
- * then throws a new `Error` with a message indicating the failure to remove the stack.
+ * The function `destroyStack` completely removes a Docker stack by stopping its services,
+ * removing containers, networks, and deleting all stack files.
+ * @param {string} stackId - The unique identifier of the stack to destroy
+ * @returns {Promise<boolean>} - True if the stack was successfully destroyed
  */
-export async function removeStack(stackId: string): Promise<boolean> {
-	console.log(`Attempting to remove stack ${stackId}...`);
+export async function destroyStack(stackId: string): Promise<boolean> {
+	console.log(`Attempting to destroy stack ${stackId} (containers and files)...`);
 	try {
-		// Manually stop and remove containers first
+		// First stop and remove all containers
 		const stopped = await stopStack(stackId);
 		if (!stopped) {
-			console.error(`Removal failed because stop/remove container step failed for stack ${stackId}.`);
-			// Decide if you want to proceed with directory removal anyway
-			// return false; // Option 1: Stop here
+			console.error(`Destruction step 1 failed: stop/remove containers failed for stack ${stackId}.`);
+			// We'll continue anyway to try to remove files
 		} else {
 			console.log(`Containers for stack ${stackId} stopped and removed.`);
 		}
@@ -1303,9 +1335,9 @@ export async function removeStack(stackId: string): Promise<boolean> {
 		try {
 			await fs.rm(stackDir, { recursive: true, force: true });
 			console.log(`Stack directory ${stackDir} removed.`);
-		} catch {
-			console.error(`Failed to remove stack directory ${stackDir}`);
-			throw new Error(`Failed to remove stack directory`);
+		} catch (rmErr) {
+			console.error(`Failed to remove stack directory ${stackDir}:`, rmErr);
+			throw new Error(`Failed to remove stack directory: ${rmErr instanceof Error ? rmErr.message : String(rmErr)}`);
 		}
 
 		// Invalidate the cache after removing a stack
@@ -1313,11 +1345,38 @@ export async function removeStack(stackId: string): Promise<boolean> {
 
 		return true;
 	} catch (err: unknown) {
-		// Catch errors from stopStack or directory removal
-		console.error(`Error removing stack ${stackId}:`, err);
+		console.error(`Error destroying stack ${stackId}:`, err);
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		// Ensure a specific error message is thrown
-		throw new Error(`Failed to remove stack ${stackId}: ${errorMessage}`);
+		throw new Error(`Failed to destroy stack ${stackId}: ${errorMessage}`);
+	}
+}
+
+/**
+ * The function `removeStack` stops and removes all containers and networks for a stack
+ * but preserves the stack files for potential redeployment.
+ * @param {string} stackId - The unique identifier of the stack to remove containers from
+ * @returns {Promise<boolean>} - True if the stack's containers were successfully removed
+ */
+export async function removeStack(stackId: string): Promise<boolean> {
+	console.log(`Attempting to remove containers for stack ${stackId} (preserving files)...`);
+	try {
+		// Stop and remove all containers
+		const stopped = await stopStack(stackId);
+		if (!stopped) {
+			console.error(`Remove operation failed: stop/remove containers failed for stack ${stackId}.`);
+			throw new Error(`Failed to stop/remove containers for stack ${stackId}`);
+		}
+
+		console.log(`Stack ${stackId} containers successfully removed. Stack files preserved.`);
+
+		// Invalidate the cache after container removal
+		stackCache.delete('compose-stacks');
+
+		return true;
+	} catch (err: unknown) {
+		console.error(`Error removing containers for stack ${stackId}:`, err);
+		const errorMessage = err instanceof Error ? err.message : String(err);
+		throw new Error(`Failed to remove containers for stack ${stackId}: ${errorMessage}`);
 	}
 }
 
