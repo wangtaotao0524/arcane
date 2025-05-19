@@ -670,6 +670,7 @@ export async function updateStack(currentStackId: string, updates: StackUpdate):
 export async function startStack(stackId: string): Promise<boolean> {
 	const stackDir = await getStackDir(stackId);
 	const originalCwd = process.cwd();
+	let deploymentStarted = false;
 
 	try {
 		const composePath = await getComposeFilePath(stackId);
@@ -708,7 +709,7 @@ export async function startStack(stackId: string): Promise<boolean> {
 		process.chdir(stackDir);
 		console.log(`Temporarily changed CWD to: ${stackDir} for stack ${stackId} operations.`);
 
-		// Parse the (potentially updated on disk) normalized content for composeData
+		// Parse the normalized content for composeData
 		const composeData = parseYamlContent(normalizedComposeContent, getEnvVar);
 
 		if (!composeData) {
@@ -717,33 +718,49 @@ export async function startStack(stackId: string): Promise<boolean> {
 
 		const hasExternalNetworks = composeData.networks && Object.values(composeData.networks).some((net: any) => net.external);
 
-		if (hasExternalNetworks) {
-			console.log(`Stack ${stackId} contains external networks. Using custom deployment approach.`);
-			await startStackWithExternalNetworks(stackId, composeData, stackDir);
-		} else {
-			// Standard approach for stacks without external networks
-			// dockerode-compose will read the composePath, which should now be substituted
-			const docker = await getDockerClient(); // Ensure docker client is available if needed for image pull
-			const imagePullPromises = Object.entries(composeData.services || {})
-				.filter(([_, serviceConfig]) => (serviceConfig as any).image)
-				.map(async ([serviceName, serviceConfig]) => {
-					const serviceImage = (serviceConfig as any).image;
-					console.log(`Pulling image for service ${serviceName}: ${serviceImage}`);
-					try {
-						// Rest of the image pulling logic remains the same
-					} catch (pullErr) {
-						console.warn(`Warning: Failed to pull image ${serviceImage} for service ${serviceName}:`, pullErr);
-					}
-				});
+		try {
+			deploymentStarted = true;
+			if (hasExternalNetworks) {
+				console.log(`Stack ${stackId} contains external networks. Using custom deployment approach.`);
+				await startStackWithExternalNetworks(stackId, composeData, stackDir);
+			} else {
+				// Standard approach for stacks without external networks
+				const docker = await getDockerClient(); // Ensure docker client is available if needed for image pull
+				const imagePullPromises = Object.entries(composeData.services || {})
+					.filter(([_, serviceConfig]) => (serviceConfig as any).image)
+					.map(async ([serviceName, serviceConfig]) => {
+						const serviceImage = (serviceConfig as any).image;
+						console.log(`Pulling image for service ${serviceName}: ${serviceImage}`);
+						try {
+							// Rest of the image pulling logic remains the same
+						} catch (pullErr) {
+							console.warn(`Warning: Failed to pull image ${serviceImage} for service ${serviceName}:`, pullErr);
+						}
+					});
 
-			await Promise.all(imagePullPromises);
+				await Promise.all(imagePullPromises);
 
-			const compose = await getComposeInstance(stackId); // Reads from composePath
-			await compose.up();
+				const compose = await getComposeInstance(stackId); // Reads from composePath
+				await compose.up();
+			}
+
+			stackCache.delete('compose-stacks');
+			return true;
+		} catch (deployErr) {
+			// If deployment started but failed, clean up any containers that were created
+			if (deploymentStarted) {
+				console.log(`Deployment of stack ${stackId} failed. Cleaning up any created containers...`);
+				try {
+					await cleanupFailedDeployment(stackId);
+				} catch (cleanupErr) {
+					console.error(`Error cleaning up failed deployment for stack ${stackId}:`, cleanupErr);
+					// Continue with the original error even if cleanup fails
+				}
+			}
+
+			// Rethrow the original error
+			throw deployErr;
 		}
-
-		stackCache.delete('compose-stacks');
-		return true;
 	} catch (err) {
 		console.error(`Error starting stack ${stackId} from directory ${stackDir}:`, err);
 		const errorMessage = err instanceof Error ? err.message : String(err);
@@ -751,6 +768,59 @@ export async function startStack(stackId: string): Promise<boolean> {
 	} finally {
 		process.chdir(originalCwd);
 		console.log(`Restored CWD to: ${originalCwd}.`);
+	}
+}
+
+/**
+ * Cleans up containers from a failed stack deployment
+ * @param {string} stackId - The ID of the stack that failed to deploy
+ */
+async function cleanupFailedDeployment(stackId: string): Promise<void> {
+	console.log(`Cleaning up containers for failed deployment of stack ${stackId}...`);
+	const docker = await getDockerClient();
+	const composeProjectLabel = 'com.docker.compose.project';
+
+	try {
+		// Find containers belonging to this stack
+		const containers = await docker.listContainers({
+			all: true, // Include non-running containers
+			filters: JSON.stringify({
+				label: [`${composeProjectLabel}=${stackId}`]
+			})
+		});
+
+		// Also check by name convention as fallback
+		const allContainers = await docker.listContainers({ all: true });
+		const nameFilteredContainers = allContainers.filter((c) => !containers.some((fc) => fc.Id === c.Id) && c.Names?.some((name) => name.startsWith(`/${stackId}_`)));
+
+		const stackContainers = [...containers, ...nameFilteredContainers];
+
+		if (stackContainers.length === 0) {
+			console.log(`No containers found for failed deployment of stack ${stackId}.`);
+			return;
+		}
+
+		console.log(`Found ${stackContainers.length} containers to remove for failed deployment of stack ${stackId}.`);
+
+		// Remove each container
+		for (const containerInfo of stackContainers) {
+			try {
+				const container = docker.getContainer(containerInfo.Id);
+				console.log(`Removing container ${containerInfo.Names?.[0] || containerInfo.Id}...`);
+
+				// Force removal to ensure it's gone (equivalent to docker rm -f)
+				await container.remove({ force: true });
+				console.log(`Successfully removed container ${containerInfo.Names?.[0] || containerInfo.Id}.`);
+			} catch (containerErr) {
+				console.error(`Error removing container ${containerInfo.Id}:`, containerErr);
+				// Continue with others even if one fails
+			}
+		}
+
+		console.log(`Cleanup of failed deployment for stack ${stackId} complete.`);
+	} catch (err) {
+		console.error(`Error during cleanup of failed deployment for stack ${stackId}:`, err);
+		throw err;
 	}
 }
 
