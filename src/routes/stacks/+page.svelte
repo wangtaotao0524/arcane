@@ -18,6 +18,7 @@
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import type { StackActions } from '$lib/types/actions.type';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { tablePersistence } from '$lib/stores/table-store';
 
 	let { data }: { data: PageData } = $props();
 	let stacks = $derived(data.stacks);
@@ -224,6 +225,12 @@
 					]}
 					features={{
 						selection: false
+					}}
+					pagination={{
+						pageSize: tablePersistence.getPageSize('stacks')
+					}}
+					onPageSizeChange={(newSize) => {
+						tablePersistence.setPageSize('stacks', newSize);
 					}}
 					display={{
 						filterPlaceholder: 'Search stacks...',

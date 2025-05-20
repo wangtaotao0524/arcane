@@ -23,6 +23,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { maturityStore } from '$lib/stores/maturity-store';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { tablePersistence } from '$lib/stores/table-store';
 
 	let { data }: { data: PageData } = $props();
 	let images = $derived(data.images || []);
@@ -485,6 +486,12 @@
 					display={{
 						filterPlaceholder: 'Search images...',
 						noResultsMessage: 'No images found'
+					}}
+					pagination={{
+						pageSize: tablePersistence.getPageSize('images')
+					}}
+					onPageSizeChange={(newSize) => {
+						tablePersistence.setPageSize('images', newSize);
 					}}
 					sort={{
 						defaultSort: { id: 'repo', desc: false }

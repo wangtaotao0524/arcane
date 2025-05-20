@@ -17,6 +17,7 @@
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import type { VolumeCreateOptions, VolumeInspectInfo } from 'dockerode';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { tablePersistence } from '$lib/stores/table-store';
 
 	let { data }: { data: PageData } = $props();
 
@@ -235,6 +236,12 @@
 						{ accessorKey: 'Driver', header: 'Driver' },
 						{ accessorKey: 'actions', header: ' ', enableSorting: false }
 					]}
+					pagination={{
+						pageSize: tablePersistence.getPageSize('volumes')
+					}}
+					onPageSizeChange={(newSize) => {
+						tablePersistence.setPageSize('volumes', newSize);
+					}}
 					display={{
 						filterPlaceholder: 'Search volumes...',
 						noResultsMessage: 'No volumes found matching your filters.'

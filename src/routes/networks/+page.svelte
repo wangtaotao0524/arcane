@@ -17,6 +17,7 @@
 	import NetworkAPIService from '$lib/services/api/network-api-service';
 	import { DEFAULT_NETWORK_NAMES } from '$lib/constants';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { tablePersistence } from '$lib/stores/table-store';
 
 	let { data }: { data: PageData } = $props();
 
@@ -234,6 +235,12 @@
 					display={{
 						filterPlaceholder: 'Search networks...',
 						noResultsMessage: 'No networks found'
+					}}
+					pagination={{
+						pageSize: tablePersistence.getPageSize('networks')
+					}}
+					onPageSizeChange={(newSize) => {
+						tablePersistence.setPageSize('networks', newSize);
 					}}
 					sort={{
 						defaultSort: { id: 'Name', desc: false }

@@ -19,6 +19,7 @@
 	import { shortId } from '$lib/utils/string.utils';
 	import type { PageData } from './$types';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { tablePersistence } from '$lib/stores/table-store';
 
 	const containerApi = new ContainerAPIService();
 
@@ -213,6 +214,12 @@
 					]}
 					features={{
 						selection: false
+					}}
+					pagination={{
+						pageSize: tablePersistence.getPageSize('containers')
+					}}
+					onPageSizeChange={(newSize) => {
+						tablePersistence.setPageSize('containers', newSize);
 					}}
 					sort={{
 						defaultSort: { id: 'displayName', desc: false }

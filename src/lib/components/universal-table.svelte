@@ -22,10 +22,12 @@
 		pagination = {},
 		sort = {},
 		selectedIds = $bindable<string[]>([]),
-		rows
+		rows,
+		onPageSizeChange = $bindable<((size: number) => void) | undefined>(undefined)
 	}: UniversalTableProps<TData> & {
 		idKey?: keyof TData;
 		rows?: Snippet<[{ item: TData; index?: number }]>;
+		onPageSizeChange?: ((size: number) => void) | undefined;
 	} = $props();
 
 	let { sorting: enableSorting = true, filtering: enableFiltering = true, selection: enableSelection = true } = features;
@@ -157,6 +159,10 @@
 		table.setPageSize(sizeNumber);
 		pageIndex = 0;
 		currentPage = 1;
+
+		if (onPageSizeChange) {
+			onPageSizeChange(sizeNumber);
+		}
 	}
 </script>
 
