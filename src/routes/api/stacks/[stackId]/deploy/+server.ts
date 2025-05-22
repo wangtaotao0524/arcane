@@ -1,4 +1,4 @@
-import { startStack } from '$lib/services/docker/stack-service';
+import { deployStack } from '$lib/services/docker/stack-custom-service';
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { ApiErrorCode, type ApiErrorResponse } from '$lib/types/errors.type';
@@ -7,7 +7,7 @@ import { tryCatch } from '$lib/utils/try-catch';
 export const POST: RequestHandler = async ({ params }) => {
 	const id = params.stackId;
 
-	const result = await tryCatch(startStack(id));
+	const result = await tryCatch(deployStack(id));
 
 	if (result.error) {
 		console.error(`API Error starting stack ${id}:`, result.error);

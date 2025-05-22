@@ -91,7 +91,7 @@ export async function ensureStacksDir(): Promise<string> {
 /**
  * Returns the stack directory for a given stackId (unchanged)
  */
-async function getStackDir(stackId: string): Promise<string> {
+export async function getStackDir(stackId: string): Promise<string> {
 	const stacksDirAbs = await ensureStacksDir(); // This now returns an absolute path
 	const safeId = path.basename(stackId); // Use path.basename for safety
 	if (safeId !== stackId) {
@@ -108,7 +108,7 @@ async function getStackDir(stackId: string): Promise<string> {
  * Returns the path to the compose file, prioritizing compose.yaml, fallback to docker-compose.yml.
  * Returns null if neither is found.
  */
-async function getComposeFilePath(stackId: string): Promise<string | null> {
+export async function getComposeFilePath(stackId: string): Promise<string | null> {
 	const stackDirAbs = await getStackDir(stackId); // Will be absolute
 	const newPath = path.join(stackDirAbs, 'compose.yaml');
 	const oldPath = path.join(stackDirAbs, 'docker-compose.yml');
@@ -153,7 +153,7 @@ async function saveEnvFile(stackId: string, content?: string): Promise<void> {
  * Loads environment variables from a .env file in the stack directory
  * Returns empty string if the file doesn't exist
  */
-async function loadEnvFile(stackId: string): Promise<string> {
+export async function loadEnvFile(stackId: string): Promise<string> {
 	const envPath = await getEnvFilePath(stackId);
 
 	try {
@@ -1262,194 +1262,6 @@ export async function stopStack(stackId: string): Promise<boolean> {
 	}
 }
 
-/**
- * The `restartStack` function asynchronously restarts a Docker stack identified by its ID, handling
- * errors and returning a boolean indicating success.
- * @param {string} stackId - The `stackId` parameter is a string that represents the identifier of the
- * stack that you want to restart.
- * @returns The `restartStack` function returns a `Promise<boolean>`.
- */
-export async function restartStack(stackId: string): Promise<boolean> {
-	const stackDir = await getStackDir(stackId);
-	const originalCwd = process.cwd();
-	console.log(`Attempting to restart stack ${stackId}...`);
-
-	try {
-		const stopped = await stopStack(stackId);
-		if (!stopped) {
-			console.error(`Restart failed because stop step failed for stack ${stackId}.`);
-			return false;
-		}
-
-		// ---- START: Ensure compose file is normalized before use ----
-		const composePath = await getComposeFilePath(stackId);
-		if (!composePath) {
-			throw new Error(`Compose file not found for stack ${stackId} during restart.`);
-		}
-		const currentComposeContent = await fs.readFile(composePath, 'utf8');
-		const normalizedComposeContent = normalizeHealthcheckTest(currentComposeContent);
-		if (currentComposeContent !== normalizedComposeContent) {
-			console.log(`Normalizing healthcheck.test in compose file for stack ${stackId} before restart.`);
-			await fs.writeFile(composePath, normalizedComposeContent, 'utf8');
-		}
-		// ---- END: Ensure compose file is normalized ----
-
-		process.chdir(stackDir);
-		console.log(`Temporarily changed CWD to: ${stackDir} for restarting stack ${stackId}.`);
-
-		console.log(`Starting stack ${stackId} after stopping...`);
-		const compose = await getComposeInstance(stackId);
-		await compose.up();
-		console.log(`Stack ${stackId} started.`);
-
-		// Invalidate the cache after restarting
-		stackCache.delete('compose-stacks');
-
-		return true;
-	} catch (err: unknown) {
-		console.error(`Error restarting stack ${stackId} from directory ${stackDir}:`, err);
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to restart stack: ${errorMessage}`);
-	} finally {
-		process.chdir(originalCwd);
-		console.log(`Restored CWD to: ${originalCwd}.`);
-	}
-}
-
-/**
- * The function `fullyRedployStack` asynchronously stops, pulls latest images, and restarts a
- * specified stack, returning true if successful.
- * @param {string} stackId - The `stackId` parameter in the `fullyRedeployStack` function is a string
- * that represents the identifier of the stack that you want to fully redeploy. This function stops the
- * stack, pulls the latest images, and then starts the stack again to ensure a full redeployment of the
- * specified
- * @returns The `fullyRedeployStack` function returns a `Promise<boolean>`. The function attempts to
- * fully redeploy a stack by stopping it, pulling the latest images, and then starting it again. If all
- * commands succeed, the function resolves the promise with a value of `true`. If an error occurs
- * during the process, the function catches the error, logs it, and then throws a new `
- */
-export async function fullyRedeployStack(stackId: string): Promise<boolean> {
-	const stackDir = await getStackDir(stackId);
-	const originalCwd = process.cwd();
-	console.log(`Attempting to fully redeploy stack ${stackId}...`);
-
-	try {
-		const stopped = await stopStack(stackId);
-		if (!stopped) {
-			console.error(`Redeploy failed because stop step failed for stack ${stackId}.`);
-			return false;
-		}
-
-		// ---- START: Ensure compose file is normalized before use ----
-		const composePath = await getComposeFilePath(stackId);
-		if (!composePath) {
-			throw new Error(`Compose file not found for stack ${stackId} during redeploy.`);
-		}
-		const currentComposeContent = await fs.readFile(composePath, 'utf8');
-		// The normalizeHealthcheckTest function is defined at the end of your file
-		const normalizedComposeContent = normalizeHealthcheckTest(currentComposeContent);
-
-		// Only write back to disk if the normalization actually changed the content
-		// This avoids unnecessary file modifications and mtime updates.
-		if (currentComposeContent !== normalizedComposeContent) {
-			console.log(`Normalizing healthcheck.test in compose file for stack ${stackId} before redeploy.`);
-			await fs.writeFile(composePath, normalizedComposeContent, 'utf8');
-		}
-		// ---- END: Ensure compose file is normalized ----
-
-		process.chdir(stackDir);
-		console.log(`Temporarily changed CWD to: ${stackDir} for redeploying stack ${stackId}.`);
-
-		console.log(`Pulling images for stack ${stackId}...`);
-		// getComposeInstance will now read the potentially corrected (normalized) file from disk
-		const compose = await getComposeInstance(stackId);
-		await compose.pull();
-		console.log(`Images pulled for stack ${stackId}.`);
-
-		console.log(`Starting stack ${stackId} after pull...`);
-		await compose.up(); // This should now use the corrected compose configuration
-		console.log(`Stack ${stackId} started.`);
-
-		return true;
-	} catch (err: unknown) {
-		console.error(`Error fully redeploying stack ${stackId} from directory ${stackDir}:`, err);
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to fully redeploy stack: ${errorMessage}`);
-	} finally {
-		process.chdir(originalCwd);
-		console.log(`Restored CWD to: ${originalCwd}.`);
-	}
-}
-
-/**
- * The function `destroyStack` completely removes a Docker stack by stopping its services,
- * removing containers, networks, and deleting all stack files.
- * @param {string} stackId - The unique identifier of the stack to destroy
- * @returns {Promise<boolean>} - True if the stack was successfully destroyed
- */
-export async function destroyStack(stackId: string): Promise<boolean> {
-	console.log(`Attempting to destroy stack ${stackId} (containers and files)...`);
-	try {
-		// First stop and remove all containers
-		const stopped = await stopStack(stackId);
-		if (!stopped) {
-			console.error(`Destruction step 1 failed: stop/remove containers failed for stack ${stackId}.`);
-			// We'll continue anyway to try to remove files
-		} else {
-			console.log(`Containers for stack ${stackId} stopped and removed.`);
-		}
-
-		// Now remove the stack directory
-		const stackDir = await getStackDir(stackId);
-		console.log(`Removing stack directory ${stackDir}...`);
-		try {
-			await fs.rm(stackDir, { recursive: true, force: true });
-			console.log(`Stack directory ${stackDir} removed.`);
-		} catch (rmErr) {
-			console.error(`Failed to remove stack directory ${stackDir}:`, rmErr);
-			throw new Error(`Failed to remove stack directory: ${rmErr instanceof Error ? rmErr.message : String(rmErr)}`);
-		}
-
-		// Invalidate the cache after removing a stack
-		stackCache.delete('compose-stacks');
-
-		return true;
-	} catch (err: unknown) {
-		console.error(`Error destroying stack ${stackId}:`, err);
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to destroy stack ${stackId}: ${errorMessage}`);
-	}
-}
-
-/**
- * The function `removeStack` stops and removes all containers and networks for a stack
- * but preserves the stack files for potential redeployment.
- * @param {string} stackId - The unique identifier of the stack to remove containers from
- * @returns {Promise<boolean>} - True if the stack's containers were successfully removed
- */
-export async function removeStack(stackId: string): Promise<boolean> {
-	console.log(`Attempting to remove containers for stack ${stackId} (preserving files)...`);
-	try {
-		// Stop and remove all containers
-		const stopped = await stopStack(stackId);
-		if (!stopped) {
-			console.error(`Remove operation failed: stop/remove containers failed for stack ${stackId}.`);
-			throw new Error(`Failed to stop/remove containers for stack ${stackId}`);
-		}
-
-		console.log(`Stack ${stackId} containers successfully removed. Stack files preserved.`);
-
-		// Invalidate the cache after container removal
-		stackCache.delete('compose-stacks');
-
-		return true;
-	} catch (err: unknown) {
-		console.error(`Error removing containers for stack ${stackId}:`, err);
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		throw new Error(`Failed to remove containers for stack ${stackId}: ${errorMessage}`);
-	}
-}
-
 export async function renameStack(currentStackId: string, newName: string): Promise<Stack> {
 	if (!currentStackId || !newName) {
 		throw new Error('Current stack ID and new name must be provided.');
@@ -1815,7 +1627,7 @@ export async function isStackRunning(stackId: string): Promise<boolean> {
  * @param {function} envGetter - Optional function to get environment variable values.
  * @returns {string} - The normalized and substituted YAML content.
  */
-function normalizeHealthcheckTest(composeContent: string, envGetter?: (key: string) => string | undefined): string {
+export function normalizeHealthcheckTest(composeContent: string, envGetter?: (key: string) => string | undefined): string {
 	let doc: any; // Use 'any' for easier manipulation, will be validated by yamlLoad
 	try {
 		doc = yamlLoad(composeContent);
@@ -1881,7 +1693,7 @@ function normalizeHealthcheckTest(composeContent: string, envGetter?: (key: stri
  * @param envGetter Optional function to get environment variable values
  * @returns Parsed object or null if parsing fails
  */
-function parseYamlContent(content: string, envGetter?: (key: string) => string | undefined): Record<string, any> | null {
+export function parseYamlContent(content: string, envGetter?: (key: string) => string | undefined): Record<string, any> | null {
 	try {
 		// Use js-yaml directly without any potential CommonJS dependencies
 		const parsedYaml = yamlLoad(content);
