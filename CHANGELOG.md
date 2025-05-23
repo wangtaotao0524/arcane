@@ -1,3 +1,15 @@
+## [0.11.0](https://github.com/ofkm/arcane/compare/v0.10.0...v0.11.0) (2025-05-23)
+
+### Features
+
+* save page sizes for all tables ([e01d7eb](https://github.com/ofkm/arcane/commit/e01d7ebd05d93f1b9a716ec8dae4535c8e0e1f2a))
+
+### Bug Fixes
+
+* cleanup failed stack deployments if they fail ([6fa7bd7](https://github.com/ofkm/arcane/commit/6fa7bd71d511e1b0286e07e6165470c6abfdada0))
+* dashboard overview card arrangement ([#215](https://github.com/ofkm/arcane/issues/215)) ([da87f3b](https://github.com/ofkm/arcane/commit/da87f3b7eb8ebefbbb2cdce69e47d5cff82af5db))
+* stack deployments for external networks ([#199](https://github.com/ofkm/arcane/issues/199)) ([dfdf1e0](https://github.com/ofkm/arcane/commit/dfdf1e0fb824c8370e90cb3ec879db8e6da7d174))
+* use correct stack api endpoints ([4ea2c12](https://github.com/ofkm/arcane/commit/4ea2c125319df1b797842f649f43ae649414bbd4))
 ## [0.10.0](https://github.com/ofkm/arcane/compare/v0.9.2...v0.10.0) (2025-05-17)
 
 ### Features
