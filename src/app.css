@@ -2,13 +2,10 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@config '../tailwind.config.ts';
-
 @theme {
 	--font-sans: 'Kantumruy Pro', sans-serif;
 }
 
-/* Move :root and .dark outside of @layer base with hsl() wrappers */
 :root {
 	--background: hsl(0 0% 100%);
 	--foreground: hsl(224 71.4% 4.1%);
