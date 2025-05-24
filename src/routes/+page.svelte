@@ -438,7 +438,10 @@
 						<div class="flex flex-col h-full">
 							<div class="flex-1">
 								<UniversalTable
-									data={dashboardStates.images.slice(0, 5)}
+									data={dashboardStates.images
+										.slice()
+										.sort((a, b) => (b.Size || 0) - (a.Size || 0))
+										.slice(0, 5)}
 									columns={[
 										{ accessorKey: 'repo', header: 'Name' },
 										{ accessorKey: 'inUse', header: ' ', enableSorting: false },
