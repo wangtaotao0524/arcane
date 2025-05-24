@@ -3,7 +3,7 @@
 	import type { Stack, StackService, StackPort } from '$lib/types/docker/stack.type';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, AlertCircle, FileStack, Layers, ArrowRight, ExternalLink } from '@lucide/svelte';
+	import { ArrowLeft, AlertCircle, FileStack, Layers, ArrowRight, ExternalLink, RefreshCw, Terminal } from '@lucide/svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -50,6 +50,10 @@
 	const baseServerUrl = $derived(settings?.baseServerUrl || 'localhost');
 
 	let activeTab = $state('config');
+	let stackLogsEventSource: EventSource | null = $state(null);
+	let displayedStackLogs = $state('');
+	let autoScrollStackLogs = $state(true);
+	let stackLogsContainer = $state<HTMLDivElement | undefined>(undefined);
 
 	$effect(() => {
 		isLoading.deploying = false;
@@ -133,6 +137,79 @@
 
 		return `${protocol}://${host}:80`;
 	}
+
+	function scrollStackLogsToBottom() {
+		if (stackLogsContainer) {
+			stackLogsContainer.scrollTop = stackLogsContainer.scrollHeight;
+		}
+	}
+
+	$effect(() => {
+		if (stackLogsContainer && displayedStackLogs && activeTab === 'logs' && autoScrollStackLogs) {
+			scrollStackLogsToBottom();
+		}
+	});
+
+	$effect(() => {
+		if (activeTab === 'logs' && stack?.id) {
+			startStackLogsStream();
+			setTimeout(scrollStackLogsToBottom, 100);
+		} else if (stackLogsEventSource) {
+			closeStackLogsStream();
+		}
+	});
+
+	function startStackLogsStream() {
+		if (stackLogsEventSource || !stack?.id) return;
+
+		// Reset logs when starting a new stream (like container logs do)
+		displayedStackLogs = '';
+
+		try {
+			const url = `/api/stacks/${stack.id}/logs`;
+			const eventSource = new EventSource(url);
+			stackLogsEventSource = eventSource;
+
+			eventSource.onmessage = (event) => {
+				if (event.data) {
+					// Ensure proper newline formatting
+					const logLine = event.data;
+					const formattedLine = logLine.endsWith('\n') ? logLine : logLine + '\n';
+
+					displayedStackLogs = (displayedStackLogs || '') + formattedLine;
+
+					if (autoScrollStackLogs) {
+						scrollStackLogsToBottom();
+					}
+				}
+			};
+
+			eventSource.onerror = (error) => {
+				console.error('Stack logs EventSource error:', error);
+				eventSource.close();
+				stackLogsEventSource = null;
+			};
+		} catch (error) {
+			console.error('Failed to connect to stack logs stream:', error);
+		}
+	}
+
+	function closeStackLogsStream() {
+		if (stackLogsEventSource) {
+			stackLogsEventSource.close();
+			stackLogsEventSource = null;
+		}
+	}
+
+	function clearStackLogs() {
+		displayedStackLogs = '';
+	}
+
+	$effect(() => {
+		return () => {
+			closeStackLogsStream();
+		};
+	});
 </script>
 
 <div class="space-y-6 pb-8">
@@ -270,6 +347,12 @@
 						<span>Services ({stack.serviceCount})</span>
 					</div>
 				</button>
+				<button class="px-4 py-3 font-medium text-sm border-b-2 {activeTab === 'logs' ? 'border-primary text-primary' : 'border-transparent hover:text-muted-foreground/80 hover:border-muted-foreground/20'}" onclick={() => (activeTab = 'logs')}>
+					<div class="flex items-center gap-1.5">
+						<Terminal class="size-4" />
+						<span>Logs</span>
+					</div>
+				</button>
 			</div>
 
 			{#if activeTab === 'config'}
@@ -322,6 +405,61 @@
 						Back
 					</Button>
 				</Card.Footer>
+			{:else if activeTab === 'logs'}
+				<!-- Stack Logs Content -->
+				<Card.Content class="pt-6 pb-6">
+					<div class="space-y-4">
+						<!-- Logs Header -->
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+							<div>
+								<h3 class="text-lg font-semibold">Stack Logs</h3>
+								<p class="text-sm text-muted-foreground">Aggregated logs from all containers in this stack</p>
+							</div>
+							<div class="flex items-center gap-2">
+								<div class="flex items-center">
+									<input type="checkbox" id="auto-scroll-stack" class="mr-2" checked={autoScrollStackLogs} onchange={(e) => (autoScrollStackLogs = e.currentTarget.checked)} />
+									<label for="auto-scroll-stack" class="text-xs">Auto-scroll</label>
+								</div>
+								<Button variant="outline" size="sm" onclick={clearStackLogs}>Clear Logs</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => {
+										closeStackLogsStream();
+										startStackLogsStream();
+									}}
+								>
+									<RefreshCw class="size-4" />
+									Refresh
+								</Button>
+							</div>
+						</div>
+
+						<!-- Logs Container -->
+						<div
+							class="bg-muted/50 text-foreground p-4 rounded-md font-mono text-xs overflow-auto border h-[600px]"
+							bind:this={stackLogsContainer}
+							style="overflow-x: auto;"
+							onscroll={() => {
+								if (stackLogsContainer) {
+									const atBottom = stackLogsContainer.scrollHeight - stackLogsContainer.scrollTop <= stackLogsContainer.clientHeight + 50;
+									if (!atBottom && autoScrollStackLogs) {
+										autoScrollStackLogs = false;
+									}
+								}
+							}}
+						>
+							{#if displayedStackLogs}
+								<pre class="m-0 whitespace-pre-wrap break-words">{displayedStackLogs}</pre>
+							{:else}
+								<div class="flex flex-col items-center justify-center h-full text-center">
+									<Terminal class="text-muted-foreground mb-3 opacity-40 size-8" />
+									<p class="text-muted-foreground italic">No logs available. Containers may not have started yet or produce no output.</p>
+								</div>
+							{/if}
+						</div>
+					</div>
+				</Card.Content>
 			{:else}
 				<!-- Services List Content -->
 				<Card.Content class="pt-6 pb-6">

@@ -20,6 +20,7 @@
 	import type { PageData } from './$types';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { tablePersistence } from '$lib/stores/table-store';
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	const containerApi = new ContainerAPIService();
 
@@ -139,41 +140,9 @@
 	</div>
 
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-		<Card.Root>
-			<Card.Content class="p-4 flex items-center justify-between">
-				<div>
-					<p class="text-sm font-medium text-muted-foreground">Total</p>
-					<p class="text-2xl font-bold">{totalContainers}</p>
-				</div>
-				<div class="bg-primary/10 p-2 rounded-full">
-					<Box class="text-primary size-5" />
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Content class="p-4 flex items-center justify-between">
-				<div>
-					<p class="text-sm font-medium text-muted-foreground">Running</p>
-					<p class="text-2xl font-bold">{runningContainers}</p>
-				</div>
-				<div class="bg-green-500/10 p-2 rounded-full">
-					<Box class="text-green-500 size-5" />
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Content class="p-4 flex items-center justify-between">
-				<div>
-					<p class="text-sm font-medium text-muted-foreground">Stopped</p>
-					<p class="text-2xl font-bold">{stoppedContainers}</p>
-				</div>
-				<div class="bg-amber-500/10 p-2 rounded-full">
-					<Box class="text-amber-500 size-5" />
-				</div>
-			</Card.Content>
-		</Card.Root>
+		<StatCard title="Total" value={totalContainers} icon={Box} class="hover:shadow-lg transition-shadow border-l-4 border-l-primary" />
+		<StatCard title="Running" value={runningContainers} icon={Box} iconColor="text-green-500" bgColor="bg-green-500/10" class="border-l-4 border-l-green-500" />
+		<StatCard title="Stopped" value={stoppedContainers} icon={Box} iconColor="text-amber-500" class="border-l-4 border-l-amber-500" />
 	</div>
 
 	{#if containers?.length === 0}
