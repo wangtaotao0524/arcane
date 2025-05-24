@@ -1,3 +1,8 @@
+## [0.11.1](https://github.com/ofkm/arcane/compare/v0.11.0...v0.11.1) (2025-05-24)
+
+### Bug Fixes
+
+* largest images differ on dashboard and container images ([9ffd0f6](https://github.com/ofkm/arcane/commit/9ffd0f68378518e2b717a078d4800578395228ba))
 ## [0.11.0](https://github.com/ofkm/arcane/compare/v0.10.0...v0.11.0) (2025-05-23)
 
 ### Features
