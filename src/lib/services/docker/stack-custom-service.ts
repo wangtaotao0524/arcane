@@ -111,7 +111,16 @@ export async function deployStack(stackId: string): Promise<boolean> {
  * Creates all networks defined in the compose file
  */
 async function createStackNetworks(docker: Dockerode, stackId: string, networks: Record<string, any>): Promise<void> {
-	// Always create a default network if no networks are defined
+	// Check if we have any non-external networks to create
+	const networksToCreate = Object.entries(networks).filter(([_, config]) => !config.external);
+
+	// If all networks are external, don't create a default network
+	if (Object.keys(networks).length > 0 && networksToCreate.length === 0) {
+		console.log(`All networks are external for stack ${stackId}, skipping network creation`);
+		return;
+	}
+
+	// Always create a default network if no networks are defined OR if we have non-external networks
 	if (Object.keys(networks).length === 0) {
 		const defaultNetworkName = `${stackId}_default`;
 		console.log(`No networks defined, creating default network: ${defaultNetworkName}`);
@@ -135,15 +144,15 @@ async function createStackNetworks(docker: Dockerode, stackId: string, networks:
 		return;
 	}
 
-	// Process defined networks
+	// Process defined networks (only create non-external ones)
 	for (const [networkName, networkConfig] of Object.entries(networks)) {
 		// Skip external networks
 		if (networkConfig.external) {
-			console.log(`Using external network: ${networkName}`);
+			console.log(`Using external network: ${networkConfig.name || networkName}`);
 			continue;
 		}
 
-		// Network creation logic
+		// Network creation logic for non-external networks
 		const networkToCreate = {
 			Name: networkConfig.name || `${stackId}_${networkName}`,
 			Driver: networkConfig.driver || 'bridge',
@@ -331,40 +340,60 @@ async function createAndStartContainers(docker: Dockerode, stackId: string, comp
 
 		// Connect to additional networks if specified
 		if (serviceConfig.networks && !serviceConfig.network_mode) {
-			for (const [networkName, networkConfig] of Object.entries(serviceConfig.networks)) {
-				// Skip the default network which is already connected
-				if (networkName === 'default') continue;
+			let networkKeys: string[];
 
-				// Get actual network name
-				const actualNetworkName = composeData.networks?.[networkName]?.name || (composeData.networks?.[networkName]?.external ? networkName : `${stackId}_${networkName}`);
+			// Handle both array format and object format
+			if (Array.isArray(serviceConfig.networks)) {
+				networkKeys = serviceConfig.networks;
+			} else {
+				networkKeys = Object.keys(serviceConfig.networks);
+			}
 
-				try {
-					// Verify network exists before connecting
-					const networks = await docker.listNetworks({
-						filters: JSON.stringify({ name: [actualNetworkName] })
-					});
+			// Only process additional networks if there are more than 1
+			if (networkKeys.length > 1) {
+				const composeNetworks = composeData.networks || {};
 
-					if (networks.length === 0) {
-						console.warn(`Network ${actualNetworkName} not found, creating it now...`);
-						await docker.createNetwork({
-							Name: actualNetworkName,
-							Driver: 'bridge',
-							Labels: {
-								'com.docker.compose.project': stackId,
-								'com.docker.compose.network': networkName
-							}
-						});
+				// Skip the first network since it's already set as the primary network
+				for (let i = 1; i < networkKeys.length; i++) {
+					const networkKey = networkKeys[i];
+
+					// Get network config (only available in object format)
+					const networkConfig = Array.isArray(serviceConfig.networks) ? {} : serviceConfig.networks[networkKey];
+
+					// Resolve actual network name using the same logic as primary network
+					let actualNetworkName: string;
+
+					// Strategy 1: Direct network key match
+					if (composeNetworks[networkKey]) {
+						const composeNetworkConfig = composeNetworks[networkKey];
+						if (composeNetworkConfig.external) {
+							actualNetworkName = composeNetworkConfig.name || networkKey;
+						} else {
+							actualNetworkName = composeNetworkConfig.name || `${stackId}_${networkKey}`;
+						}
+					} else {
+						// Strategy 2: Check if service network name matches any external network's name
+						const matchingExternalNetwork = Object.entries(composeNetworks).find(([_, config]: [string, any]) => config.external && config.name === networkKey);
+
+						if (matchingExternalNetwork) {
+							actualNetworkName = networkKey;
+						} else {
+							// Strategy 3: Fallback - assume it's an internal network
+							actualNetworkName = `${stackId}_${networkKey}`;
+						}
 					}
 
-					console.log(`Connecting container ${containerName} to network: ${actualNetworkName}`);
-					const network = docker.getNetwork(actualNetworkName);
-					await network.connect({
-						Container: container.id,
-						EndpointConfig: buildEndpointConfig(networkConfig)
-					});
-				} catch (err) {
-					console.error(`Failed to connect container to network ${actualNetworkName}:`, err);
-					throw err;
+					try {
+						console.log(`Connecting container ${containerName} to additional network: ${actualNetworkName}`);
+						const network = docker.getNetwork(actualNetworkName);
+						await network.connect({
+							Container: container.id,
+							EndpointConfig: buildEndpointConfig(networkConfig)
+						});
+					} catch (err) {
+						console.error(`Failed to connect container to network ${actualNetworkName}:`, err);
+						throw err;
+					}
 				}
 			}
 		}
@@ -606,19 +635,57 @@ async function buildContainerOptions(docker: Dockerode, stackId: string, service
 		options.HostConfig.NetworkMode = serviceConfig.network_mode;
 	} else if (serviceConfig.networks && Object.keys(serviceConfig.networks).length > 0) {
 		// For containers with explicit network configurations
-		const defaultNetwork = Object.keys(serviceConfig.networks)[0];
-		const networkConfig = composeData.networks?.[defaultNetwork];
+		let serviceNetworks: string[];
+		let primaryNetworkKey: string;
 
-		// Get the primary network name
-		const networkName = networkConfig?.name || (networkConfig?.external ? defaultNetwork : `${stackId}_${defaultNetwork}`);
+		// Handle both array format and object format
+		if (Array.isArray(serviceConfig.networks)) {
+			// Array format: networks: [test_ext, other_network]
+			serviceNetworks = serviceConfig.networks;
+			primaryNetworkKey = serviceNetworks[0];
+		} else {
+			// Object format: networks: { test_ext: {}, other_network: {} }
+			serviceNetworks = Object.keys(serviceConfig.networks);
+			primaryNetworkKey = serviceNetworks[0];
+		}
+
+		let networkName: string;
+
+		// Find the network configuration in compose networks section
+		const composeNetworks = composeData.networks || {};
+
+		// Strategy 1: Direct network key match
+		if (composeNetworks[primaryNetworkKey]) {
+			const networkConfig = composeNetworks[primaryNetworkKey];
+			if (networkConfig.external) {
+				// Use the external network's specified name
+				networkName = networkConfig.name || primaryNetworkKey;
+			} else {
+				// Internal network - use Docker Compose naming
+				networkName = networkConfig.name || `${stackId}_${primaryNetworkKey}`;
+			}
+		} else {
+			// Strategy 2: Check if service network name matches any external network's name
+			const matchingExternalNetwork = Object.entries(composeNetworks).find(([_, config]: [string, any]) => config.external && config.name === primaryNetworkKey);
+
+			if (matchingExternalNetwork) {
+				// Service is directly referencing an external network by its actual name
+				networkName = primaryNetworkKey;
+			} else {
+				// Strategy 3: Fallback - assume it's an internal network
+				networkName = `${stackId}_${primaryNetworkKey}`;
+			}
+		}
+
+		console.log(`Service ${serviceName} using primary network: ${networkName} (from service network key: ${primaryNetworkKey})`);
 
 		// Set the primary network
 		options.HostConfig = options.HostConfig || {};
 		options.HostConfig.NetworkMode = networkName;
 
-		// Add advanced network settings for the default network
-		if (serviceConfig.networks[defaultNetwork]) {
-			const endpointConfig = buildEndpointConfig(serviceConfig.networks[defaultNetwork]);
+		// Add advanced network settings for the primary network (only if object format)
+		if (!Array.isArray(serviceConfig.networks) && serviceConfig.networks[primaryNetworkKey]) {
+			const endpointConfig = buildEndpointConfig(serviceConfig.networks[primaryNetworkKey]);
 
 			// If we have DNS settings for the primary network, add them to NetworkingConfig
 			if (Object.keys(endpointConfig).length > 0) {
@@ -631,10 +698,28 @@ async function buildContainerOptions(docker: Dockerode, stackId: string, service
 			}
 		}
 	} else {
-		// No networks specified, use the default network
-		const networkName = `${stackId}_default`;
-		options.HostConfig = options.HostConfig || {};
-		options.HostConfig.NetworkMode = networkName;
+		// No networks specified on the service level
+		const composeNetworks = composeData.networks || {};
+
+		// Check if there's a default external network defined
+		const defaultExternalNetwork = composeNetworks['default'];
+		if (defaultExternalNetwork && defaultExternalNetwork.external) {
+			// Use the external default network
+			const networkName = defaultExternalNetwork.name || 'default';
+			options.HostConfig = options.HostConfig || {};
+			options.HostConfig.NetworkMode = networkName;
+			console.log(`Service ${serviceName} using external default network: ${networkName}`);
+		} else if (Object.keys(composeNetworks).length === 0) {
+			// No networks defined at all - create and use default
+			const networkName = `${stackId}_default`;
+			options.HostConfig = options.HostConfig || {};
+			options.HostConfig.NetworkMode = networkName;
+			console.log(`Service ${serviceName} using stack default network: ${networkName}`);
+		} else {
+			// There are networks defined but service doesn't specify any
+			// In this case, don't set a network mode - let Docker handle it
+			console.log(`Service ${serviceName} has no explicit networks but compose file defines networks - letting Docker handle network assignment`);
+		}
 	}
 
 	// Handle devices
