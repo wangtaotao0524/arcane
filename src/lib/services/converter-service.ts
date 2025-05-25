@@ -1,25 +1,6 @@
-export interface DockerRunCommand {
-	image: string;
-	name?: string;
-	ports?: string[];
-	volumes?: string[];
-	environment?: string[];
-	networks?: string[];
-	restart?: string;
-	workdir?: string;
-	user?: string;
-	entrypoint?: string;
-	command?: string;
-	detached?: boolean;
-	interactive?: boolean;
-	tty?: boolean;
-	remove?: boolean;
-	privileged?: boolean;
-	labels?: string[];
-	healthCheck?: string;
-	memoryLimit?: string;
-	cpuLimit?: string;
-}
+import type { DockerRunCommand, DockerComposeConfig, DockerComposeService, YamlObject, YamlValue } from '../types/converter.type';
+
+export { type DockerRunCommand } from '../types/converter.type';
 
 export function parseDockerRunCommand(command: string): DockerRunCommand {
 	try {
@@ -363,7 +344,7 @@ export function convertToDockerCompose(parsed: DockerRunCommand): string {
 
 		const serviceName = parsed.name || 'app';
 
-		const service: any = {
+		const service: DockerComposeService & YamlObject = {
 			image: parsed.image
 		};
 
@@ -440,7 +421,7 @@ export function convertToDockerCompose(parsed: DockerRunCommand): string {
 			service.deploy.resources.limits.cpus = parsed.cpuLimit;
 		}
 
-		const compose = {
+		const compose: DockerComposeConfig = {
 			services: {
 				[serviceName]: service
 			}
@@ -453,7 +434,7 @@ export function convertToDockerCompose(parsed: DockerRunCommand): string {
 	}
 }
 
-function generateYaml(obj: any, indent = 0): string {
+function generateYaml(obj: YamlObject, indent = 0): string {
 	try {
 		const spaces = '  '.repeat(indent);
 		let result = '';
@@ -466,11 +447,17 @@ function generateYaml(obj: any, indent = 0): string {
 			if (Array.isArray(value)) {
 				result += '\n';
 				for (const item of value) {
-					result += `${spaces}  - ${item}\n`;
+					// Handle array items that could be any YamlValue type
+					if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+						result += `${spaces}  -\n`;
+						result += generateYaml(item as YamlObject, indent + 2);
+					} else {
+						result += `${spaces}  - ${item}\n`;
+					}
 				}
-			} else if (typeof value === 'object') {
+			} else if (typeof value === 'object' && value !== null) {
 				result += '\n';
-				result += generateYaml(value, indent + 1);
+				result += generateYaml(value as YamlObject, indent + 1);
 			} else {
 				result += ` ${value}\n`;
 			}
