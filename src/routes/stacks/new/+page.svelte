@@ -177,7 +177,6 @@
 							</div>
 						</Resizable.Pane>
 					</Resizable.PaneGroup>
-					<!-- <div class="grid grid-cols-1 md:grid-cols-3 gap-4"></div> -->
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex justify-between">
