@@ -17,7 +17,7 @@
 			styles={{
 				'&': {
 					height: '550px',
-					fontSize: '14px',
+					fontSize: '12px',
 					fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace'
 				},
 				'&.cm-editor[contenteditable=false]': {
