@@ -17,6 +17,7 @@
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import DropdownCard from '$lib/components/dropdown-card.svelte';
+	import * as Resizable from '$lib/components/ui/resizable/index.js';
 
 	const stackApi = new StackAPIService();
 	let saving = $state(false);
@@ -155,24 +156,28 @@
 						<Input type="text" id="name" name="name" bind:value={name} required placeholder="e.g., my-web-app" disabled={saving} />
 					</div>
 
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div class="md:col-span-2 space-y-2">
-							<Label for="compose-editor" class="mb-2">Docker Compose File</Label>
-							<div class="border rounded-md overflow-hidden mt-2 h-[550px]">
-								<YamlEditor bind:value={composeContent} readOnly={saving} />
+					<Resizable.PaneGroup direction="horizontal">
+						<Resizable.Pane>
+							<div class="space-y-2 mr-3">
+								<Label for="compose-editor" class="mb-2">Docker Compose File</Label>
+								<div class="border rounded-md overflow-hidden mt-2 h-[550px]">
+									<YamlEditor bind:value={composeContent} readOnly={saving} />
+								</div>
+								<p class="text-xs text-muted-foreground">Enter a valid compose.yaml file.</p>
 							</div>
-							<p class="text-xs text-muted-foreground">Enter a valid compose.yaml file.</p>
-						</div>
-
-						<div class="space-y-2">
-							<Label for="env-editor" class="mb-2">Environment Configuration (.env)</Label>
-
-							<div class="border rounded-md overflow-hidden mt-2 h-[550px]">
-								<EnvEditor bind:value={envContent} readOnly={saving} />
+						</Resizable.Pane>
+						<Resizable.Handle />
+						<Resizable.Pane defaultSize={25}>
+							<div class="space-y-2 ml-3">
+								<Label for="env-editor" class="mb-2">Environment Configuration (.env)</Label>
+								<div class="border rounded-md overflow-hidden mt-2 h-[550px]">
+									<EnvEditor bind:value={envContent} readOnly={saving} />
+								</div>
+								<p class="text-xs text-muted-foreground">Define environment variables in KEY=value format. These will be saved as a .env file in the stack directory.</p>
 							</div>
-							<p class="text-xs text-muted-foreground">Define environment variables in KEY=value format. These will be saved as a .env file in the stack directory.</p>
-						</div>
-					</div>
+						</Resizable.Pane>
+					</Resizable.PaneGroup>
+					<!-- <div class="grid grid-cols-1 md:grid-cols-3 gap-4"></div> -->
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex justify-between">
