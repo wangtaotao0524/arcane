@@ -54,7 +54,7 @@
 			<div>
 				<Card.Title class="flex items-center gap-2 text-xl font-semibold mb-2">
 					{#if icon}{@const Icon = icon}
-						<Icon class="text-primary/80 h-5 w-5" />
+						<Icon class="text-primary/80 size-5" />
 					{/if}
 					{title}
 				</Card.Title>
@@ -63,7 +63,7 @@
 				{/if}
 			</div>
 			<Button class="ml-10 h-8 p-3" variant="ghost" aria-label="Expand Card">
-				<LucideChevronDown class={cn('h-5 w-5 transition-transform duration-200', expanded && 'rotate-180 transform')} />
+				<LucideChevronDown class={cn('size-5 transition-transform duration-200', expanded && 'rotate-180 transform')} />
 			</Button>
 		</div>
 	</Card.Header>

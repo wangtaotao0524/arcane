@@ -30,7 +30,7 @@
 		<div class="flex items-center justify-between mb-8">
 			{#each steps as step, i (step.id)}
 				<div class="flex flex-col items-center">
-					<div class={`rounded-full w-10 h-10 flex items-center justify-center ${i <= currentStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+					<div class={`rounded-full size-10 flex items-center justify-center ${i <= currentStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
 						<step.icon class="size-5" />
 					</div>
 					<span class={`text-sm mt-2 ${i <= currentStep ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</span>

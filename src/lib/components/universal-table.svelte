@@ -252,7 +252,7 @@
 										<Button variant="ghost" class="flex items-center p-0 hover:bg-transparent" onclick={() => handleSortChange(header)} aria-label="Sort by {header.column.columnDef.header}">
 											<FlexRender content={header.column.columnDef.header} context={header.getContext()} />
 											{#if header.column.getIsSorted()}
-												<ChevronDown class={cn('ml-2 h-4 w-4 transition-transform', header.column.getIsSorted() === 'asc' && 'rotate-180')} />
+												<ChevronDown class={cn('ml-2 size-4 transition-transform', header.column.getIsSorted() === 'asc' && 'rotate-180')} />
 											{/if}
 										</Button>
 									{:else}

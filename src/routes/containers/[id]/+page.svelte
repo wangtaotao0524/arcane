@@ -716,7 +716,7 @@
 								<Card.Description>Live container metrics</Card.Description>
 							</div>
 							<Button variant="ghost" size="icon" onclick={refreshData} disabled={isRefreshing} title="Refresh Stats">
-								<RefreshCw class={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+								<RefreshCw class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
 							</Button>
 						</div>
 					</Card.Header>

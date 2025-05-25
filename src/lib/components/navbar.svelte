@@ -103,7 +103,7 @@
 </script>
 
 <!-- Mobile menu button - Modern floating design -->
-<Button variant="ghost" size="icon" class="md:hidden fixed top-4 right-4 z-50 h-11 w-11 rounded-xl shadow-lg bg-background/80 backdrop-blur-xl border border-border/50 hover:shadow-xl hover:scale-105 transition-all duration-200" onclick={() => (isOpen = !isOpen)} aria-label={isOpen ? 'Close menu' : 'Open menu'}>
+<Button variant="ghost" size="icon" class="md:hidden fixed top-4 right-4 z-50 size-11 rounded-xl shadow-lg bg-background/80 backdrop-blur-xl border border-border/50 hover:shadow-xl hover:scale-105 transition-all duration-200" onclick={() => (isOpen = !isOpen)} aria-label={isOpen ? 'Close menu' : 'Open menu'}>
 	{#if isOpen}
 		<X size={20} class="transition-transform duration-200" />
 	{:else}
@@ -133,7 +133,7 @@
 
 	<!-- Collapse toggle button - Modern floating design -->
 	<div class="hidden md:flex justify-end px-3 -mt-[11px] mb-2 relative">
-		<Button variant="outline" size="icon" class="rounded-full bg-background/90 backdrop-blur-sm absolute right-0 translate-x-1/2 h-6 w-6 shadow-md border border-border/50 transition-all duration-200 hover:scale-110 hover:shadow-lg" onclick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+		<Button variant="outline" size="icon" class="rounded-full bg-background/90 backdrop-blur-sm absolute right-0 translate-x-1/2 size-6 shadow-md border border-border/50 transition-all duration-200 hover:scale-110 hover:shadow-lg" onclick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
 			{#if isCollapsed}
 				<ChevronRight size={14} class="transition-transform duration-200" />
 			{:else}
@@ -203,7 +203,7 @@
 										</div>
 										<span class="truncate">{child.label}</span>
 										{#if isActive}
-											<div class="ml-auto w-1.5 h-1.5 rounded-full bg-primary"></div>
+											<div class="ml-auto size-1.5 rounded-full bg-primary"></div>
 										{/if}
 									</a>
 								{/each}
@@ -271,7 +271,7 @@
 	<div class="mt-auto p-4 border-t border-border/30">
 		{#if user && user.displayName && !isCollapsed}
 			<div class="px-3 py-2.5 mb-3 text-sm font-medium text-foreground truncate flex items-center gap-3 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 transition-all duration-200" title={user.displayName}>
-				<div class="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex items-center justify-center text-sm font-semibold border border-primary/20">
+				<div class="size-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex items-center justify-center text-sm font-semibold border border-primary/20">
 					{user.displayName.charAt(0).toUpperCase()}
 				</div>
 				<span class="truncate font-medium">{user.displayName}</span>
