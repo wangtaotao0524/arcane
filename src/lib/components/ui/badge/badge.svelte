@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-	import type { WithElementRef } from 'bits-ui';
+	import type { WithElementRef } from '$lib/utils.js';
 	import type { HTMLAnchorAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils.js';
 
