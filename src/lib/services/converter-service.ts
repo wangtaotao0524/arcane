@@ -58,7 +58,7 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						result.privileged = true;
 						break;
 
-					case '--name':
+					case '--name': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --name flag');
 						}
@@ -68,10 +68,11 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.name = nameValue;
 						break;
+					}
 
 					case '-p':
 					case '--port':
-					case '--publish':
+					case '--publish': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for port flag');
 						}
@@ -82,9 +83,10 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						if (!result.ports) result.ports = [];
 						result.ports.push(portValue);
 						break;
+					}
 
 					case '-v':
-					case '--volume':
+					case '--volume': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for volume flag');
 						}
@@ -95,9 +97,10 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						if (!result.volumes) result.volumes = [];
 						result.volumes.push(volumeValue);
 						break;
+					}
 
 					case '-e':
-					case '--env':
+					case '--env': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for environment flag');
 						}
@@ -108,8 +111,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						if (!result.environment) result.environment = [];
 						result.environment.push(envValue);
 						break;
+					}
 
-					case '--network':
+					case '--network': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --network flag');
 						}
@@ -120,8 +124,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						if (!result.networks) result.networks = [];
 						result.networks.push(networkValue);
 						break;
+					}
 
-					case '--restart':
+					case '--restart': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --restart flag');
 						}
@@ -131,9 +136,10 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.restart = restartValue;
 						break;
+					}
 
 					case '-w':
-					case '--workdir':
+					case '--workdir': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for workdir flag');
 						}
@@ -143,9 +149,10 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.workdir = workdirValue;
 						break;
+					}
 
 					case '-u':
-					case '--user':
+					case '--user': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for user flag');
 						}
@@ -155,8 +162,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.user = userValue;
 						break;
+					}
 
-					case '--entrypoint':
+					case '--entrypoint': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --entrypoint flag');
 						}
@@ -166,8 +174,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.entrypoint = entrypointValue;
 						break;
+					}
 
-					case '--health-cmd':
+					case '--health-cmd': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --health-cmd flag');
 						}
@@ -177,9 +186,10 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.healthCheck = healthValue;
 						break;
+					}
 
 					case '-m':
-					case '--memory':
+					case '--memory': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for memory flag');
 						}
@@ -189,8 +199,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.memoryLimit = memoryValue;
 						break;
+					}
 
-					case '--cpus':
+					case '--cpus': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --cpus flag');
 						}
@@ -200,8 +211,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						}
 						result.cpuLimit = cpusValue;
 						break;
+					}
 
-					case '--label':
+					case '--label': {
 						if (i + 1 >= tokens.length) {
 							throw new Error('Missing value for --label flag');
 						}
@@ -212,8 +224,9 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 						if (!result.labels) result.labels = [];
 						result.labels.push(labelValue);
 						break;
+					}
 
-					default:
+					default: {
 						// Handle unknown flags
 						if (token.startsWith('-')) {
 							// Check if it's a flag that expects a value
@@ -276,6 +289,7 @@ export function parseDockerRunCommand(command: string): DockerRunCommand {
 							}
 						}
 						break;
+					}
 				}
 			} catch (error) {
 				// Add context about which token caused the error
