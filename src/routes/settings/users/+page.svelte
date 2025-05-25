@@ -95,7 +95,7 @@
 	<title>User Management - Arcane</title>
 </svelte:head>
 
-<UserFormDialog bind:open={userPageStates.isUserDialogOpen} bind:userToEdit={userPageStates.userToEdit} {roles} onSubmit={handleDialogSubmit} bind:this={userDialogRef} isLoading={isLoading.saving} />
+<UserFormDialog bind:open={userPageStates.isUserDialogOpen} bind:userToEdit={userPageStates.userToEdit} {roles} onSubmit={handleDialogSubmit} bind:this={userDialogRef} isLoading={isLoading.saving} allowUsernameEdit={true} />
 
 <div class="space-y-6">
 	<div>

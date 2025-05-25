@@ -13,13 +13,15 @@
 		userToEdit = $bindable<User | null>(null),
 		roles = [],
 		isLoading = $bindable(false),
-		onSubmit = $bindable(() => {})
+		onSubmit = $bindable(() => {}),
+		allowUsernameEdit = false
 	}: {
 		open?: boolean;
 		userToEdit?: User | null;
 		roles: { id: string; name: string }[];
 		isLoading?: boolean;
 		onSubmit?: (data: { user: Partial<User> & { password?: string }; isEditMode: boolean; userId?: string }) => void;
+		allowUsernameEdit?: boolean;
 	} = $props();
 
 	let username = $state('');
@@ -33,6 +35,7 @@
 	let dialogTitle = $derived(isEditMode ? 'Edit User' : 'Create User');
 	let submitButtonText = $derived(isEditMode ? 'Save Changes' : 'Create User');
 	let SubmitIcon = $derived(isEditMode ? Save : UserPlus);
+	let canEditUsername = $derived(!isEditMode || allowUsernameEdit);
 
 	$effect(() => {
 		if (open) {
@@ -89,7 +92,7 @@
 		<form class="grid gap-4 py-4" onsubmit={preventDefault(handleSubmit)} autocomplete="off">
 			<div class="grid grid-cols-4 items-center gap-4">
 				<Label for="username" class="text-right">Username</Label>
-				<Input autocomplete="off" id="username" bind:value={username} required class="col-span-3" disabled={isEditMode} />
+				<Input autocomplete="off" id="username" bind:value={username} required class="col-span-3" disabled={!canEditUsername} />
 			</div>
 			<div class="grid grid-cols-4 items-center gap-4">
 				<Label for="password" class="text-right">Password</Label>

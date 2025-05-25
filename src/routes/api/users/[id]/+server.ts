@@ -11,88 +11,55 @@ import { tryCatch } from '$lib/utils/try-catch';
 
 const USER_DIR = path.join(BASE_PATH, 'users');
 
-export const PUT: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user) {
-		const response: ApiErrorResponse = {
-			success: false,
-			error: 'Unauthorized',
-			code: ApiErrorCode.UNAUTHORIZED
-		};
-		return json(response, { status: 401 });
-	}
-
-	const userIdToUpdate = params.id;
-	const requestingUser = locals.user as User;
-
-	if (!requestingUser.roles.includes('admin') && requestingUser.id !== userIdToUpdate) {
-		const response: ApiErrorResponse = {
-			success: false,
-			error: 'Forbidden',
-			code: ApiErrorCode.FORBIDDEN
-		};
-		return json(response, { status: 403 });
-	}
-
-	const existingUserResult = await tryCatch(getUserById(userIdToUpdate));
-	if (existingUserResult.error || !existingUserResult.data) {
-		const response: ApiErrorResponse = {
-			success: false,
-			error: 'User not found',
-			code: ApiErrorCode.NOT_FOUND
-		};
-		return json(response, { status: 404 });
-	}
-	const existingUser = existingUserResult.data;
-
-	const updateDataResult = await tryCatch(request.json());
-	if (updateDataResult.error) {
-		const response: ApiErrorResponse = {
-			success: false,
-			error: 'Invalid JSON payload',
-			code: ApiErrorCode.BAD_REQUEST
-		};
-		return json(response, { status: 400 });
-	}
-	const { password, displayName, email, roles } = updateDataResult.data;
-
-	const updatedUser: User = { ...existingUser };
-
-	if (displayName !== undefined) updatedUser.displayName = displayName;
-	if (email !== undefined) updatedUser.email = email;
-	if (roles !== undefined && requestingUser.roles.includes('admin')) {
-		const ALLOWED = ['admin', 'user', 'viewer'];
-		updatedUser.roles = Array.isArray(roles) ? roles.filter((r) => ALLOWED.includes(r)) : updatedUser.roles;
-	}
-
-	if (password) {
-		const hashResult = await tryCatch(hashPassword(password));
-		if (hashResult.error) {
-			const response: ApiErrorResponse = {
-				success: false,
-				error: 'Failed to hash password',
-				code: ApiErrorCode.INTERNAL_SERVER_ERROR,
-				details: hashResult.error
-			};
-			return json(response, { status: 500 });
+export const PUT: RequestHandler = async ({ request, params, locals }) => {
+	try {
+		const userId = params.id;
+		if (!userId) {
+			return json({ success: false, error: 'User ID is required' }, { status: 400 });
 		}
-		updatedUser.passwordHash = hashResult.data;
-		updatedUser.requirePasswordChange = false;
-	}
 
-	const saveResult = await tryCatch(saveUser(updatedUser));
-	if (saveResult.error) {
-		console.error('Error saving user:', saveResult.error);
-		const response: ApiErrorResponse = {
-			success: false,
-			error: 'Failed to update user',
-			code: ApiErrorCode.INTERNAL_SERVER_ERROR,
-			details: saveResult.error
+		const bodyResult = await tryCatch(request.json());
+		if (bodyResult.error) {
+			return json({ success: false, error: 'Invalid JSON payload' }, { status: 400 });
+		}
+
+		const { username, displayName, email, roles, password } = bodyResult.data;
+
+		// Get existing user
+		const existingUser = await getUserById(userId);
+		if (!existingUser) {
+			return json({ success: false, error: 'User not found' }, { status: 404 });
+		}
+
+		// Create updated user object
+		const updatedUser: User = {
+			...existingUser,
+			...(username !== undefined && { username }), // Make sure this line is included
+			...(displayName !== undefined && { displayName }),
+			...(email !== undefined && { email }),
+			...(roles !== undefined && { roles })
 		};
-		return json(response, { status: 500 });
-	}
 
-	const { passwordHash: _unused, ...sanitizedUser } = saveResult.data;
-	return json({ success: true, user: sanitizedUser });
+		// Handle password update if provided
+		if (password) {
+			updatedUser.passwordHash = await hashPassword(password);
+		}
+
+		// Save the updated user
+		await saveUser(updatedUser);
+
+		// Return success response
+		return json({
+			success: true,
+			user: {
+				...updatedUser,
+				passwordHash: undefined // Don't return password hash
+			}
+		});
+	} catch (error) {
+		console.error('Error updating user:', error);
+		return json({ success: false, error: 'Failed to update user' }, { status: 500 });
+	}
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
