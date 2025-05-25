@@ -1,3 +1,13 @@
+## [0.12.0](https://github.com/ofkm/arcane/compare/v0.11.1...v0.12.0) (2025-05-25)
+
+### Features
+
+* convert docker run to docker compose ([#219](https://github.com/ofkm/arcane/issues/219)) ([3da1db7](https://github.com/ofkm/arcane/commit/3da1db7452de3aca6ef6ad78657f73f6a2b8bece))
+* stack logs tab ([696d74a](https://github.com/ofkm/arcane/commit/696d74a2391acae08c1fb306a6ae26463bf5bf50))
+
+### Bug Fixes
+
+* external networks names not being respected ([712fa00](https://github.com/ofkm/arcane/commit/712fa001b672212a98d61633dca96d3092b29a22))
 ## [0.11.1](https://github.com/ofkm/arcane/compare/v0.11.0...v0.11.1) (2025-05-24)
 
 ### Bug Fixes
