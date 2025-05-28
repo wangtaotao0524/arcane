@@ -1,3 +1,18 @@
+## [0.13.0](https://github.com/ofkm/arcane/compare/v0.12.0...v0.13.0) (2025-05-28)
+
+### Features
+
+* allow changing user usernames ([74321b5](https://github.com/ofkm/arcane/commit/74321b52e891cb25c8d205caf4c451696fc3c200))
+* make compose editor widths resizeable ([64c33e6](https://github.com/ofkm/arcane/commit/64c33e65c87146d9cedc5647b2840b3ca6623a13))
+* simplify container and satck detail pages ([#227](https://github.com/ofkm/arcane/issues/227)) ([65dfa64](https://github.com/ofkm/arcane/commit/65dfa64da8e1ccf82ed6dcfd3292006c7faa26a5))
+
+### Bug Fixes
+
+* container log performance issues ([#222](https://github.com/ofkm/arcane/issues/222)) ([d337474](https://github.com/ofkm/arcane/commit/d337474870d45205d63063650a9d237b06862f70))
+* make font size more consistant in editors ([efbbe75](https://github.com/ofkm/arcane/commit/efbbe75217f292e8a38fb2b6b8985b7e6c79e264))
+* remove old references to app-settings.json ([65f20d1](https://github.com/ofkm/arcane/commit/65f20d1415b4f174172b212a425949356131d03a))
+* theming not applying correct values ([e0d125e](https://github.com/ofkm/arcane/commit/e0d125e5793f242efc787304664fe7166843dfa4))
+* update size classes for consistency across components ([3ceb93d](https://github.com/ofkm/arcane/commit/3ceb93df9bbf3bfce040ca2d277670786bf116db))
 ## [0.12.0](https://github.com/ofkm/arcane/compare/v0.11.1...v0.12.0) (2025-05-25)
 
 ### Features
