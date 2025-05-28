@@ -18,7 +18,7 @@ If you have suggestions, feedback, or feature requests, please open an issue or 
 
 ---
 
-<img width="1685" alt="image" src="https://github.com/user-attachments/assets/2fdbaf8c-3c63-4b04-b059-d484a1477c5b" />
+<img width="1685" alt="image" src="https://github.com/user-attachments/assets/9d081a4f-4f4f-4d96-b196-d25faf788285" />
 
 ---
 
