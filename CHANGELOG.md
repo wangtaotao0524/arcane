@@ -1,3 +1,8 @@
+## [0.13.1](https://github.com/ofkm/arcane/compare/v0.13.0...v0.13.1) (2025-05-28)
+
+### Bug Fixes
+
+* re-release 0.13.0 as 0.13.1 ([bc2e4a2](https://github.com/ofkm/arcane/commit/bc2e4a2edcfe225aee4df50e8d98b06e6b2de7c4))
 ## [0.13.0](https://github.com/ofkm/arcane/compare/v0.12.0...v0.13.0) (2025-05-28)
 
 ### Features
