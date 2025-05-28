@@ -75,11 +75,6 @@ async function setupTestEnvironment() {
 	} catch (e) {
 		/* ignore */
 	}
-	try {
-		await fs.unlink(path.join(TEST_DATA_DIR, 'app-settings.json'));
-	} catch (e) {
-		/* ignore */
-	}
 	console.log('Cleanup complete.');
 
 	console.log('--- Test environment setup finished successfully! ---');

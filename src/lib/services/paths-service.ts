@@ -3,7 +3,6 @@ import fs from 'node:fs/promises';
 
 export const BASE_PATH = 'data';
 
-export const SETTINGS_FILE = path.join(BASE_PATH, 'app-settings.json');
 export const SETTINGS_DIR = path.join(BASE_PATH, 'settings');
 export const KEY_FILE = path.join(BASE_PATH, '.secret_key');
 export const SESSIONS_DIR = path.join(BASE_PATH, 'sessions');

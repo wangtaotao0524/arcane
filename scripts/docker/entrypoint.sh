@@ -96,18 +96,5 @@ echo "Entrypoint: Ensuring data directory exists and setting ownership..."
 mkdir -p "$DATA_DIR"
 chown -R "${PUID}:${PGID}" "$DATA_DIR"
 
-# If settings don't exist, copy the default
-if [ ! -f "${DATA_DIR}/app-settings.json" ]; then
-  if [ -f "${DATA_DIR}/app-settings.json.default" ]; then # Check if default is in data dir
-    echo "Entrypoint: Copying default settings to ${DATA_DIR}/app-settings.json"
-    cp "${DATA_DIR}/app-settings.json.default" "${DATA_DIR}/app-settings.json"
-    chown "${PUID}:${PGID}" "${DATA_DIR}/app-settings.json"
-  elif [ -f "${APP_DIR}/app-settings.json.default" ]; then # Check if default is in app dir (e.g. copied during build)
-    echo "Entrypoint: Copying default settings from ${APP_DIR}/app-settings.json.default to ${DATA_DIR}/app-settings.json"
-    cp "${APP_DIR}/app-settings.json.default" "${DATA_DIR}/app-settings.json"
-    chown "${PUID}:${PGID}" "${DATA_DIR}/app-settings.json"
-  fi
-fi
-
 echo "Entrypoint: Setup complete. Executing command as user ${APP_USER} (UID: ${PUID}, GID: ${PGID})..."
 exec su-exec "$APP_USER" "$@"
