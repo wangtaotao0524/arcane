@@ -1,3 +1,8 @@
+## [0.14.0](https://github.com/ofkm/arcane/compare/v0.13.1...v0.14.0) (2025-05-29)
+
+### Features
+
+* compose and .env template ([#231](https://github.com/ofkm/arcane/issues/231)) ([c47d15f](https://github.com/ofkm/arcane/commit/c47d15f928d5ca75ac2b9a4d945f94e5b8f3fd51))
 ## [0.13.1](https://github.com/ofkm/arcane/compare/v0.13.0...v0.13.1) (2025-05-28)
 
 ### Bug Fixes
