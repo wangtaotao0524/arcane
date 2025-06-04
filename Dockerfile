@@ -21,6 +21,12 @@ ENV OIDC_REDIRECT_URI=$OIDC_REDIRECT_URI_BUILD
 # Copy dependencies from previous stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Create the data directory and database file BEFORE building
+RUN mkdir -p /app/data && \
+    touch /app/data/arcane.db && \
+    chmod 755 /app/data/arcane.db
+
 # When building, set NODE_ENV to "build" to prevent connection attempts
 RUN NODE_ENV=build npm run build
 
@@ -38,9 +44,8 @@ WORKDIR /app
 # These will serve as defaults if not overridden in docker-compose.yml
 ENV DOCKER_GID=998 PUID=2000 PGID=2000
 
-# Set up directories and permissions
+# Set up directories and permissions for runtime
 RUN mkdir -p /app/data && chmod 755 /app/data
-RUN touch /app/data/arcane.db && chmod 755 /app/data/arcane.db
 
 # Copy only necessary files from builder
 COPY --from=builder /app/build ./build
