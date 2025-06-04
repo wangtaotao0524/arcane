@@ -1,35 +1,45 @@
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
+import { building } from '$app/environment';
 import { getUserByUsername } from '$lib/services/user-service';
 import { getSettings } from '$lib/services/settings-service';
 import { checkFirstRun } from '$lib/utils/onboarding.utils';
 import { sessionHandler } from '$lib/services/session-handler';
-import { initComposeService, stackRuntimeUpdater } from '$lib/services/docker/stack-custom-service';
-import { initAutoUpdateScheduler } from '$lib/services/docker/scheduler-service';
-import { initMaturityPollingScheduler } from '$lib/services/docker/image-service';
-import { migrateSettingsToDatabase } from '$lib/services/database/settings-db-service';
-import { migrateUsersToDatabase } from '$lib/services/database/user-db-service';
-import { migrateStacksToDatabase } from '$lib/services/database/compose-db-service';
-import { runMigrations } from './db/migrate';
 
 // Get environment variable
 const isTestEnvironment = process.env.APP_ENV === 'TEST';
 
-// Initialize needed services
-try {
-	await runMigrations();
-	await Promise.all([migrateSettingsToDatabase(), migrateUsersToDatabase(), migrateStacksToDatabase()]);
-	await Promise.all([checkFirstRun(), initComposeService(), initAutoUpdateScheduler(), initMaturityPollingScheduler()]);
+// Only initialize services at runtime, not during build
+if (!building) {
+	try {
+		// Dynamic imports to avoid loading these during build
+		const { runMigrations } = await import('./db/migrate');
+		const { migrateSettingsToDatabase } = await import('$lib/services/database/settings-db-service');
+		const { migrateUsersToDatabase } = await import('$lib/services/database/user-db-service');
+		const { migrateStacksToDatabase } = await import('$lib/services/database/compose-db-service');
+		const { initComposeService, stackRuntimeUpdater } = await import('$lib/services/docker/stack-custom-service');
+		const { initAutoUpdateScheduler } = await import('$lib/services/docker/scheduler-service');
+		const { initMaturityPollingScheduler } = await import('$lib/services/docker/image-service');
 
-	stackRuntimeUpdater.start(2);
-} catch (err) {
-	console.error('Critical service init failed, exiting:', err);
-	process.exit(1);
+		await runMigrations();
+		await Promise.all([migrateSettingsToDatabase(), migrateUsersToDatabase(), migrateStacksToDatabase()]);
+		await Promise.all([checkFirstRun(), initComposeService(), initAutoUpdateScheduler(), initMaturityPollingScheduler()]);
+
+		stackRuntimeUpdater.start(2);
+	} catch (err) {
+		console.error('Critical service init failed, exiting:', err);
+		process.exit(1);
+	}
 }
 
 // Authentication and authorization handler
 const authHandler: Handle = async ({ event, resolve }) => {
+	// Skip auth processing during build
+	if (building) {
+		return resolve(event);
+	}
+
 	const { url } = event;
 	const path = url.pathname;
 

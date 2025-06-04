@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { OAuth2RequestError } from 'arctic';
-import { oidcClient, OIDC_TOKEN_ENDPOINT, OIDC_USERINFO_ENDPOINT } from '$lib/services/oidc-service';
+import { getOIDCClient, getOIDCTokenEndpoint, getOIDCUserinfoEndpoint } from '$lib/services/oidc-service';
 import { getUserByUsername, saveUser, getUserById, getUserByOidcSubjectId } from '$lib/services/user-service';
 import type { User } from '$lib/types/user.type';
 import { nanoid } from 'nanoid';
@@ -23,20 +23,30 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 		throw redirect(302, '/auth/login?error=oidc_invalid_response');
 	}
 
-	if (!OIDC_TOKEN_ENDPOINT) {
+	// Get OIDC configuration at runtime
+	const oidcClient = await getOIDCClient();
+	const tokenEndpoint = await getOIDCTokenEndpoint();
+	const userinfoEndpoint = await getOIDCUserinfoEndpoint();
+
+	if (!oidcClient) {
+		console.error('OIDC client is not configured.');
+		throw redirect(302, '/auth/login?error=oidc_misconfigured');
+	}
+
+	if (!tokenEndpoint) {
 		console.error('OIDC_TOKEN_ENDPOINT is not configured.');
 		throw redirect(302, '/auth/login?error=oidc_misconfigured');
 	}
 
 	try {
-		const tokens = await oidcClient.validateAuthorizationCode(OIDC_TOKEN_ENDPOINT, code, codeVerifier);
+		const tokens = await oidcClient.validateAuthorizationCode(tokenEndpoint, code, codeVerifier);
 
-		if (!OIDC_USERINFO_ENDPOINT) {
+		if (!userinfoEndpoint) {
 			console.error('OIDC_USERINFO_ENDPOINT is not configured. Cannot fetch user details.');
 			throw redirect(302, '/auth/login?error=oidc_misconfigured');
 		}
 
-		const userInfoResponse = await fetch(OIDC_USERINFO_ENDPOINT, {
+		const userInfoResponse = await fetch(userinfoEndpoint, {
 			headers: {
 				Authorization: `Bearer ${tokens.accessToken()}`
 			}

@@ -1,10 +1,20 @@
 import { redirect } from '@sveltejs/kit';
 import { generateState, generateCodeVerifier, CodeChallengeMethod } from 'arctic';
-import { oidcClient, OIDC_AUTHORIZATION_ENDPOINT, OIDC_SCOPES } from '$lib/services/oidc-service';
+import { getOIDCClient, getOIDCAuthorizationEndpoint, getOIDCScopes } from '$lib/services/oidc-service';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ cookies, url }) => {
-	if (!OIDC_AUTHORIZATION_ENDPOINT) {
+	// Get OIDC configuration at runtime
+	const oidcClient = await getOIDCClient();
+	const authorizationEndpoint = await getOIDCAuthorizationEndpoint();
+	const scopes = await getOIDCScopes();
+
+	if (!oidcClient) {
+		console.error('OIDC client is not configured.');
+		throw redirect(302, '/auth/login?error=oidc_misconfigured');
+	}
+
+	if (!authorizationEndpoint) {
 		console.error('OIDC_AUTHORIZATION_ENDPOINT is not configured.');
 		throw redirect(302, '/auth/login?error=oidc_misconfigured');
 	}
@@ -12,7 +22,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 	const state = generateState();
 	const codeVerifier = generateCodeVerifier();
 
-	const authUrl = await oidcClient.createAuthorizationURLWithPKCE(OIDC_AUTHORIZATION_ENDPOINT, state, CodeChallengeMethod.S256, codeVerifier, OIDC_SCOPES);
+	const authUrl = await oidcClient.createAuthorizationURLWithPKCE(authorizationEndpoint, state, CodeChallengeMethod.S256, codeVerifier, scopes);
 
 	cookies.set('oidc_state', state, {
 		path: '/',
