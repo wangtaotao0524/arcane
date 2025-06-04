@@ -40,6 +40,7 @@ ENV DOCKER_GID=998 PUID=2000 PGID=2000
 
 # Set up directories and permissions
 RUN mkdir -p /app/data && chmod 755 /app/data
+RUN touch /app/data/arcane.db && chmod 755 /app/data/arcane.db
 
 # Copy only necessary files from builder
 COPY --from=builder /app/build ./build
