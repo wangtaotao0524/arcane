@@ -3,7 +3,7 @@
 	import type { Stack, StackService, StackPort } from '$lib/types/docker/stack.type';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ArrowLeft, AlertCircle, FileStack, Layers, ArrowRight, ExternalLink, RefreshCw, Terminal, Settings, Activity, FileText, Play, Square, RotateCcw, Trash2, Send, Users, Loader2 } from '@lucide/svelte';
+	import { ArrowLeft, AlertCircle, FileStack, Layers, ArrowRight, ExternalLink, RefreshCw, Terminal, Settings, Activity, FileText, Play, Square, RotateCcw, Trash2, Send, Users, Loader2, TicketCheck } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -448,7 +448,6 @@
 									<Settings class="size-5" />
 									Configuration
 								</h2>
-								<!-- Save Button in its original position -->
 								{#if hasChanges}
 									<ArcaneButton action="save" loading={isLoading.saving} onClick={handleSaveChanges} disabled={!hasChanges} label="Save Changes" loadingLabel="Saving..." class="bg-green-600 hover:bg-green-700 text-white" />
 								{/if}
@@ -479,7 +478,7 @@
 											<Card.Title>Docker Compose File</Card.Title>
 										</Card.Header>
 										<Card.Content>
-											<div class="border rounded-lg overflow-hidden h-[600px]">
+											<div class="overflow-hidden h-[600px]">
 												<YamlEditor bind:value={composeContent} readOnly={isLoading.saving || isLoading.deploying || isLoading.stopping || isLoading.restarting || isLoading.removing} />
 											</div>
 											<p class="text-sm text-muted-foreground mt-2">
@@ -496,7 +495,7 @@
 											<Card.Title>Environment (.env)</Card.Title>
 										</Card.Header>
 										<Card.Content>
-											<div class="border rounded-lg overflow-hidden h-[600px]">
+											<div class="overflow-hidden h-[600px]">
 												<EnvEditor bind:value={envContent} readOnly={isLoading.saving || isLoading.deploying || isLoading.stopping || isLoading.restarting || isLoading.removing} />
 											</div>
 											<p class="text-sm text-muted-foreground mt-2">Define environment variables in KEY=value format.</p>
