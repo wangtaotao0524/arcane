@@ -1,3 +1,32 @@
+## [0.15.0](https://github.com/ofkm/arcane/compare/v0.14.0...v0.15.0) (2025-06-04)
+
+### Features
+
+* remote agents ([#239](https://github.com/ofkm/arcane/issues/239)) ([82cbab5](https://github.com/ofkm/arcane/commit/82cbab506083d6820611b68c3bafea36299a4f7c))
+* system usage meters ([64dde28](https://github.com/ofkm/arcane/commit/64dde28ef34d43ce2bc5fa3390d2db9e013098e0))
+* use drizzle as a database backend ([#248](https://github.com/ofkm/arcane/issues/248)) ([54061d3](https://github.com/ofkm/arcane/commit/54061d303945871bd998c3acf4cb331ce6eee560))
+
+### Bug Fixes
+
+* agents not showing compose projects in table ([0ab2757](https://github.com/ofkm/arcane/commit/0ab2757c47b0dba5d839d6853467febb503243f5))
+* container creation type mismatches not allowing containers to be created ([e8aece6](https://github.com/ofkm/arcane/commit/e8aece65771c56d84360280835edc496130e88c9))
+* container status sorting incorrect ([#242](https://github.com/ofkm/arcane/issues/242)) ([64faad3](https://github.com/ofkm/arcane/commit/64faad3479b541b04addb8ac2d31e0148061ea0a))
+* cpu and ram usage bars not showing correct values ([01fbb16](https://github.com/ofkm/arcane/commit/01fbb166675d1ff34e0a63516014140feecec598))
+* create database in docker build ([24b33e8](https://github.com/ofkm/arcane/commit/24b33e8715faa0cff1d814df4427de8bd2d2415c))
+* deploy to agent dropdown button ([#244](https://github.com/ofkm/arcane/issues/244)) ([6092c4f](https://github.com/ofkm/arcane/commit/6092c4f67900f48ebc88d2463524669f8ad3c8f8))
+* implement main compose spec functionality ([#259](https://github.com/ofkm/arcane/issues/259)) ([e2fc0ac](https://github.com/ofkm/arcane/commit/e2fc0ac7d53d27bb4c03f5bb50b059dd90faf1e4))
+* incorrect github link on login page ([3205312](https://github.com/ofkm/arcane/commit/3205312997badc6e47069dae9ab422052aabb818))
+* missing ) in migrations ([635d932](https://github.com/ofkm/arcane/commit/635d932180395a0b8d2b1ec55f8ec0f0a382ab88))
+* parse ipam config correctly ([2585d69](https://github.com/ofkm/arcane/commit/2585d69e9ebb38fe44a0a71c4895455219a4c1a6))
+* pruning button not showing loading status ([419cd9e](https://github.com/ofkm/arcane/commit/419cd9ede5e905d4858b204e1228383ab8425037))
+* remove duplicate agent sidebar item ([6545794](https://github.com/ofkm/arcane/commit/6545794c47f11566803a1c8772169919471dc439))
+* rename stacks to compose projects ([#243](https://github.com/ofkm/arcane/issues/243)) ([b38b298](https://github.com/ofkm/arcane/commit/b38b29851882d4c3dd91b4385f1ad1fb30035b8c))
+* rework auto update service ([d88178a](https://github.com/ofkm/arcane/commit/d88178a2c2c9edc308cbedccd80b83fbdc0ba2c7))
+* store image maturity in database instead of cache ([#263](https://github.com/ofkm/arcane/issues/263)) ([1b29808](https://github.com/ofkm/arcane/commit/1b298088172b959ea38b8ab624a24c6a3af3b65e))
+* support removing agents ([c33a872](https://github.com/ofkm/arcane/commit/c33a872370ce82cc59839078f90448c6ce90daa1))
+* use new template root url ([55fdacd](https://github.com/ofkm/arcane/commit/55fdacd2bef3cebbba549fb90c2d27ae1ce2d4a8))
+* use system storage on dashboard ([6e7a83c](https://github.com/ofkm/arcane/commit/6e7a83c8cb230f032adeefe8326c57da301f001e))
+* volumes table truncate not being applied ([ce50de7](https://github.com/ofkm/arcane/commit/ce50de7b96ad40fc7ae221517e86a8cea35b1625))
 ## [0.14.0](https://github.com/ofkm/arcane/compare/v0.13.1...v0.14.0) (2025-05-29)
 
 ### Features
