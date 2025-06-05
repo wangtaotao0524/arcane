@@ -469,36 +469,36 @@
 								</Card.Content>
 							</Card.Root>
 
-							<!-- Editors - Better width utilization -->
-							<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-								<!-- Compose Editor -->
-								<div class="xl:col-span-2">
-									<Card.Root class="border">
-										<Card.Header class="pb-4">
+							<!-- Editors - Fixed Layout -->
+							<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+								<!-- Compose Editor - Spans 2 columns -->
+								<div class="lg:col-span-2">
+									<Card.Root class="border h-full">
+										<Card.Header class="pb-4 flex-shrink-0">
 											<Card.Title>Docker Compose File</Card.Title>
 										</Card.Header>
-										<Card.Content>
-											<div class="overflow-hidden h-[600px]">
+										<Card.Content class="p-4 flex flex-col h-full">
+											<div class="w-full h-[590px] rounded-md overflow-hidden flex-shrink-0">
 												<YamlEditor bind:value={composeContent} readOnly={isLoading.saving || isLoading.deploying || isLoading.stopping || isLoading.restarting || isLoading.removing} />
 											</div>
-											<p class="text-sm text-muted-foreground mt-2">
+											<p class="text-sm text-muted-foreground flex-shrink-0">
 												Edit your <span class="font-medium">compose.yaml</span> file directly. Syntax errors will be highlighted.
 											</p>
 										</Card.Content>
 									</Card.Root>
 								</div>
 
-								<!-- Environment Editor -->
-								<div>
-									<Card.Root class="border">
-										<Card.Header class="pb-4">
+								<!-- Environment Editor - Spans 1 column -->
+								<div class="lg:col-span-1">
+									<Card.Root class="border h-full">
+										<Card.Header class="pb-4 flex-shrink-0">
 											<Card.Title>Environment (.env)</Card.Title>
 										</Card.Header>
-										<Card.Content>
-											<div class="overflow-hidden h-[600px]">
+										<Card.Content class="p-4 flex flex-col h-full">
+											<div class="w-full h-[590px] rounded-md overflow-hidden flex-shrink-0">
 												<EnvEditor bind:value={envContent} readOnly={isLoading.saving || isLoading.deploying || isLoading.stopping || isLoading.restarting || isLoading.removing} />
 											</div>
-											<p class="text-sm text-muted-foreground mt-2">Define environment variables in KEY=value format.</p>
+											<p class="text-sm text-muted-foreground flex-shrink-0">Define environment variables in KEY=value format.</p>
 										</Card.Content>
 									</Card.Root>
 								</div>
