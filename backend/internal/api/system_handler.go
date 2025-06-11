@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/services"
@@ -188,20 +187,7 @@ func (h *SystemHandler) GetDockerInfo(c *gin.Context) {
 func (h *SystemHandler) TestDockerConnection(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	host := c.Query("host")
-
-	var dockerClient *client.Client
-	var err error
-
-	if host != "" {
-		dockerClient, err = client.NewClientWithOpts(
-			client.WithHost(host),
-			client.WithAPIVersionNegotiation(),
-		)
-	} else {
-		dockerClient, err = h.dockerService.CreateConnection(ctx)
-	}
-
+	dockerClient, err := h.dockerService.CreateConnection(ctx)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,

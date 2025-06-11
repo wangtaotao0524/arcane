@@ -45,7 +45,7 @@ func SetupRoutes(r *gin.Engine, services *Services, appConfig *config.Config) {
 	setupNetworkRoutes(api, services)
 	setupTemplateRoutes(api, services)
 	setupContainerRegistryRoutes(api, services)
-	setupAutoUpdateRoutes(api, services.AutoUpdate)
+	setupAutoUpdateRoutes(api, services)
 }
 
 func setupContainerRegistryRoutes(api *gin.RouterGroup, services *Services) {
@@ -202,10 +202,11 @@ func setupSystemRoutes(api *gin.RouterGroup, dockerService *services.DockerClien
 	system.POST("/containers/stop-all", systemHandler.StopAllContainers)
 }
 
-func setupAutoUpdateRoutes(api *gin.RouterGroup, autoUpdateService *services.AutoUpdateService) {
+func setupAutoUpdateRoutes(api *gin.RouterGroup, services *Services) {
 	autoUpdate := api.Group("/updates")
+	autoUpdate.Use(middleware.AuthMiddleware(services.Auth))
 
-	autoUpdateHandler := NewAutoUpdateHandler(autoUpdateService)
+	autoUpdateHandler := NewAutoUpdateHandler(services.AutoUpdate)
 
 	autoUpdate.POST("/check/containers", autoUpdateHandler.CheckContainersForUpdates)
 	autoUpdate.POST("/check/compose", autoUpdateHandler.CheckStacksForUpdates)

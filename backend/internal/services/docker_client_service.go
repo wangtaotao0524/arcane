@@ -2,13 +2,10 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/docker/docker/client"
 	"github.com/ofkm/arcane-backend/internal/database"
-	"github.com/ofkm/arcane-backend/internal/models"
-	"gorm.io/gorm"
 )
 
 type DockerClientService struct {
@@ -20,38 +17,14 @@ func NewDockerClientService(db *database.DB) *DockerClientService {
 }
 
 func (s *DockerClientService) CreateConnection(ctx context.Context) (*client.Client, error) {
-	dockerHost, err := s.getDockerHostFromSettings(ctx)
+	cli, err := client.NewClientWithOpts(
+		client.WithHost("unix:///var/run/docker.sock"),
+		client.WithAPIVersionNegotiation(),
+	)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get docker host from settings: %w", err)
+		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
 
-	var cli *client.Client
-
-	if dockerHost != "" || dockerHost == "unix:///var/run/docker.sock" {
-		cli, err = client.NewClientWithOpts(
-			client.WithHost(dockerHost),
-			client.WithAPIVersionNegotiation(),
-		)
-	} else {
-		cli, err = client.NewClientWithOpts(
-			client.FromEnv,
-			client.WithAPIVersionNegotiation(),
-		)
-	}
-
-	return cli, err
-}
-
-func (s *DockerClientService) getDockerHostFromSettings(ctx context.Context) (string, error) {
-	var settings models.Settings
-
-	err := s.db.WithContext(ctx).First(&settings).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil
-		}
-		return "", fmt.Errorf("failed to query settings: %w", err)
-	}
-
-	return settings.DockerHost, nil
+	return cli, nil
 }

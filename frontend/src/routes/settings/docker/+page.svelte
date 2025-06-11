@@ -2,17 +2,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { FormInput as FormInputType } from '$lib/types/form.type';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import {
-		RefreshCw,
-		ImageMinus,
-		Server,
-		Save,
-		Clock,
-		Zap,
-		Settings2,
-		TestTube,
-		InfoIcon
-	} from '@lucide/svelte';
+	import { RefreshCw, ImageMinus, Server, Save, Clock, Zap, InfoIcon } from '@lucide/svelte';
 	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
@@ -43,8 +33,6 @@
 	function handleDockerSettingUpdates() {
 		isLoading.saving = true;
 		updateSettingsConfig({
-			dockerHost: dockerHostInput.value,
-			dockerTLSCert: dockerTLSCertInput.value,
 			pruneMode: 'all',
 			autoUpdate: autoUpdateSwitch.value,
 			pollingEnabled: pollingEnabledSwitch.value,
@@ -58,19 +46,6 @@
 			.finally(() => {
 				isLoading.saving = false;
 			});
-	}
-
-	async function testDockerConnection() {
-		isLoading.testing = true;
-		try {
-			// Add your Docker connection test API call here
-			// const result = await dockerAPI.testConnection();
-			toast.success('Docker connection test successful');
-		} catch (error) {
-			toast.error('Docker connection test failed');
-		} finally {
-			isLoading.testing = false;
-		}
 	}
 
 	let pollingIntervalInput = $state<FormInputType<number>>({
@@ -105,32 +80,13 @@
 		errors: []
 	});
 
-	let dockerHostInput = $state<FormInputType<string>>({
-		value: '',
-		valid: true,
-		touched: false,
-		error: null,
-		errors: []
-	});
-
-	let dockerTLSCertInput = $state<FormInputType<string>>({
-		value: '',
-		valid: true,
-		touched: false,
-		error: null,
-		errors: []
-	});
-
 	$effect(() => {
 		pollingIntervalInput.value = currentSettings.pollingInterval;
 		pollingEnabledSwitch.value = currentSettings.pollingEnabled;
 		autoUpdateSwitch.value = currentSettings.autoUpdate;
 		autoUpdateIntervalInput.value = currentSettings.autoUpdateInterval;
-		dockerHostInput.value = currentSettings.dockerHost;
-		dockerTLSCertInput.value = currentSettings.dockerTLSCert || '';
 	});
 
-	// Computed values for better UX
 	let isPollingConfigValid = $derived(
 		!pollingEnabledSwitch.value ||
 			(pollingIntervalInput.value >= 5 && pollingIntervalInput.value <= 1440)
@@ -141,7 +97,7 @@
 			(autoUpdateIntervalInput.value >= 5 && autoUpdateIntervalInput.value <= 1440)
 	);
 
-	let canSave = $derived(isPollingConfigValid && isAutoUpdateConfigValid && dockerHostInput.valid);
+	let canSave = $derived(isPollingConfigValid && isAutoUpdateConfigValid);
 </script>
 
 <svelte:head>
@@ -149,31 +105,15 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<!-- Header Section -->
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Docker Settings</h1>
 			<p class="text-muted-foreground mt-1 text-sm">
-				Configure Docker daemon connection and automation behavior
+				Configure Docker automation behavior. Remote hosts should use agents.
 			</p>
 		</div>
 
 		<div class="flex gap-2">
-			<Button
-				onclick={() => testDockerConnection()}
-				disabled={isLoading.testing || !dockerHostInput.value}
-				variant="outline"
-				class="h-10"
-			>
-				{#if isLoading.testing}
-					<RefreshCw class="size-4 animate-spin" />
-					Testing...
-				{:else}
-					<TestTube class="size-4" />
-					Test Connection
-				{/if}
-			</Button>
-
 			<Button
 				onclick={() => handleDockerSettingUpdates()}
 				disabled={isLoading.saving || !canSave}
@@ -190,78 +130,18 @@
 		</div>
 	</div>
 
-	<!-- Warning Alert for Important Settings -->
 	{#if currentSettings.autoUpdate && currentSettings.pollingEnabled}
-		<Alert.Root class="border-amber-600">
-			<Zap class="h-4 w-4 text-amber-600" />
-			<Alert.Title class="text-amber-800">Auto-update Enabled</Alert.Title>
-			<Alert.Description class="text-amber-700">
+		<Alert.Root variant="warning">
+			<Zap class="size-4" />
+			<Alert.Title>Auto-update Enabled</Alert.Title>
+			<Alert.Description>
 				Containers will be automatically updated when newer images are detected. Make sure you have
 				proper backup procedures in place.
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
 
-	<!-- Main Settings Grid -->
-	<div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-		<!-- Docker Connection Card -->
-		<Card.Root class="border shadow-sm">
-			<Card.Header class="pb-4">
-				<div class="flex items-center gap-3">
-					<div class="rounded-lg bg-blue-500/10 p-2.5">
-						<Server class="size-5 text-blue-600" />
-					</div>
-					<div>
-						<Card.Title class="text-lg">Docker Connection</Card.Title>
-						<Card.Description>Configure how Arcane connects to the Docker daemon</Card.Description>
-					</div>
-				</div>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<FormInput
-					bind:input={dockerHostInput}
-					type="text"
-					id="dockerHost"
-					label="Docker Host"
-					placeholder="unix:///var/run/docker.sock"
-					description="For local Docker: unix:///var/run/docker.sock (Unix/Linux/macOS)"
-				/>
-
-				<FormInput
-					bind:input={dockerTLSCertInput}
-					type="textarea"
-					id="dockerTLSCert"
-					label="TLS Certificate (Optional)"
-					placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
-					description="Required for secure TCP connections. Paste the PEM-encoded certificate for TLS authentication."
-					rows={4}
-				/>
-
-				<div class="bg-muted/50 rounded-lg p-3 text-sm">
-					<div class="mb-2 flex items-center gap-2 font-medium">
-						<Settings2 class="size-4" />
-						Common Docker Host Examples:
-					</div>
-					<ul class="text-muted-foreground ml-6 space-y-1">
-						<li>
-							• <code class="bg-background rounded px-1 py-0.5 text-xs"
-								>unix:///var/run/docker.sock</code
-							> - Local Unix socket
-						</li>
-						<li>
-							• <code class="bg-background rounded px-1 py-0.5 text-xs">tcp://localhost:2376</code> -
-							TCP with TLS (requires certificate)
-						</li>
-						<li>
-							• <code class="bg-background rounded px-1 py-0.5 text-xs">tcp://localhost:2375</code> -
-							TCP without TLS (not recommended)
-						</li>
-					</ul>
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<!-- Image Automation Card -->
+	<div class="grid grid-cols-1 gap-6">
 		<Card.Root class="border shadow-sm">
 			<Card.Header class="pb-4">
 				<div class="flex items-center gap-3">
@@ -275,7 +155,6 @@
 				</div>
 			</Card.Header>
 			<Card.Content class="space-y-6">
-				<!-- Polling Enabled Toggle -->
 				<div
 					class="from-background to-muted/30 flex items-center justify-between rounded-lg border bg-gradient-to-r p-4"
 				>
@@ -288,7 +167,6 @@
 					/>
 				</div>
 
-				<!-- Polling Configuration -->
 				{#if currentSettings.pollingEnabled}
 					<div class="space-y-4 pl-4">
 						<FormInput
@@ -300,7 +178,6 @@
 							description="How often to check for new images (5-1440 minutes)"
 						/>
 
-						 <!-- Rate Limiting Warning -->
 						{#if pollingIntervalInput.value < 30}
 							<Alert.Root variant="warning">
 								<Zap class="size-4" />
@@ -313,7 +190,6 @@
 							</Alert.Root>
 						{/if}
 
-						<!-- Auto Update Toggle -->
 						<div
 							class="from-background flex items-center justify-between rounded-lg border bg-gradient-to-r to-amber-50/50 p-4"
 						>
@@ -326,7 +202,6 @@
 							/>
 						</div>
 
-						<!-- Auto Update Configuration -->
 						{#if currentSettings.autoUpdate}
 							<div class="pl-4">
 								<FormInput
@@ -341,7 +216,6 @@
 						{/if}
 					</div>
 
-					<!-- Automation Summary -->
 					<Alert.Root>
 						<InfoIcon />
 						<Alert.Title>Automation Summary</Alert.Title>
@@ -360,7 +234,6 @@
 		</Card.Root>
 	</div>
 
-	<!-- Image Pruning Card - Full Width -->
 	<Card.Root>
 		<Card.Header class="pb-4">
 			<div class="flex items-center gap-3">
@@ -433,6 +306,5 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- Hidden CSRF token if needed -->
 	<input type="hidden" id="csrf_token" value={data.csrf} />
 </div>

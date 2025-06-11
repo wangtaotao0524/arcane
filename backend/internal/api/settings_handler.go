@@ -54,9 +54,6 @@ func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	if req.DockerHost != nil {
-		settings.DockerHost = *req.DockerHost
-	}
 	if req.StacksDirectory != nil {
 		settings.StacksDirectory = *req.StacksDirectory
 	}

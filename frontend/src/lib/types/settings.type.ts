@@ -42,8 +42,6 @@ export interface TemplateRegistryConfig {
 }
 
 export interface Settings {
-	dockerHost: string;
-	dockerTLSCert: string;
 	stacksDirectory: string;
 	autoUpdate: boolean;
 	autoUpdateInterval: number;
@@ -51,14 +49,12 @@ export interface Settings {
 	pollingInterval: number;
 	pruneMode: 'all' | 'dangling' | undefined;
 	registryCredentials: RegistryCredential[];
-	templateRegistries: TemplateRegistryConfig[]; // Add this new field
+	templateRegistries: TemplateRegistryConfig[];
 	auth: AuthSettings;
 	onboarding?: Onboarding;
 	baseServerUrl?: string;
 	maturityThresholdDays: number;
 }
-
-// Add these to your existing settings.type.ts file
 
 export interface OidcUserInfo {
 	sub: string;

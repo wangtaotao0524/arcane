@@ -10,8 +10,4 @@ export default class AutoUpdateAPIService extends BaseAPIService {
 		const response = await this.api.post('/updates/check/compose');
 		return response.data;
 	}
-
-	async getStatus(): Promise<void> {
-		await this.api.get('/updates/status');
-	}
 }

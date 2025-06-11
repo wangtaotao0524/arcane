@@ -39,7 +39,6 @@
 		loadImageMaturityBatch
 	} from '$lib/stores/maturity-store';
 
-
 	let { data }: { data: PageData } = $props();
 	let images = $derived(data.images || []);
 	let error = $state(data.error);
@@ -412,7 +411,7 @@
 						/>
 						<ArcaneButton
 							action="inspect"
-							label="Recheck Maturitys"
+							label="Recheck Maturities"
 							onClick={() => handleTriggerBulkMaturityCheck()}
 							loading={isLoading.checking}
 							loadingLabel="Checking..."
@@ -505,7 +504,7 @@
 											{/if}
 										</DropdownMenu.Item>
 										<DropdownMenu.Item
-											class="text-red-500 focus:text-red-700!"
+											class="focus:text-red-700! text-red-500"
 											onclick={() => handleImageRemove(item.Id)}
 										>
 											<Trash2 class="size-4" />

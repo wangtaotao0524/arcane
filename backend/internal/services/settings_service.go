@@ -52,7 +52,6 @@ func (s *SettingsService) createDefaultSettings(ctx context.Context) (*models.Se
 	defaultPruneMode := "dangling"
 
 	settings := &models.Settings{
-		DockerHost:            "unix:///var/run/docker.sock",
 		StacksDirectory:       "data/stacks",
 		AutoUpdate:            false,
 		AutoUpdateInterval:    300,
