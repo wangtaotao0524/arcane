@@ -5,28 +5,12 @@
 	import { Shield, Plus, Users, Settings, Save, RefreshCw } from '@lucide/svelte';
 	import type { PageData } from './$types';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
-	import {
-		settingsStore,
-		saveSettingsToServer,
-		updateSettingsStore
-	} from '$lib/stores/settings-store';
-	import { toast } from 'svelte-sonner';
-	import { invalidateAll } from '$app/navigation';
-	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
-	import { tryCatch } from '$lib/utils/try-catch';
+	import settingsStore from '$lib/stores/config-store';
 
 	let { data }: { data: PageData } = $props();
 
-	// Loading states
 	let isLoading = $state({
 		saving: false
-	});
-
-	// Initialize settings from page data
-	$effect(() => {
-		if (data.settings) {
-			updateSettingsStore(data.settings);
-		}
 	});
 
 	const roles = [
@@ -93,22 +77,6 @@
 	];
 
 	let selectedRole = $state(roles[0]);
-
-	// Save settings function
-	async function saveSettings() {
-		if (isLoading.saving) return;
-		isLoading.saving = true;
-
-		handleApiResultWithCallbacks({
-			result: await tryCatch(saveSettingsToServer()),
-			message: 'Error Saving Settings',
-			setLoadingState: (value) => (isLoading.saving = value),
-			onSuccess: async () => {
-				toast.success(`Settings Saved Successfully`);
-				await invalidateAll();
-			}
-		});
-	}
 </script>
 
 <svelte:head>
@@ -122,7 +90,7 @@
 			<p class="text-muted-foreground mt-1 text-sm">Manage user roles and permissions</p>
 		</div>
 
-		<Button onclick={saveSettings} disabled={isLoading.saving} class="arcane-button-save h-10">
+		<Button disabled={isLoading.saving} class="arcane-button-save h-10">
 			{#if isLoading.saving}
 				<RefreshCw class="size-4 animate-spin" />
 				Saving...
@@ -147,15 +115,7 @@
 				id="rbacEnabledSwitch"
 				name="rbacEnabled"
 				checked={$settingsStore.auth?.rbacEnabled}
-				onCheckedChange={(checked) => {
-					settingsStore.update((current) => ({
-						...current,
-						auth: {
-							...current.auth,
-							rbacEnabled: checked
-						}
-					}));
-				}}
+				onCheckedChange={() => {}}
 			/>
 		</div>
 	</div>

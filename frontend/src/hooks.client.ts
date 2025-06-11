@@ -3,14 +3,12 @@ import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 import { building, dev } from '$app/environment';
 import SessionAPIService from '$lib/services/api/session-api-service';
-import { loadSettingsFromServer } from '$lib/stores/settings-store';
+import { settingsAPI, sessionAPI } from '$lib/services/api';
+import settingsStore from '$lib/stores/config-store';
 
-// Get environment variable
 const isTestEnvironment = process.env.APP_ENV === 'TEST';
 
-// Settings initialization handler
 const settingsHandler: Handle = async ({ event, resolve }) => {
-	// Skip during build
 	if (building) {
 		return resolve(event);
 	}
@@ -18,25 +16,21 @@ const settingsHandler: Handle = async ({ event, resolve }) => {
 	const { url } = event;
 	const path = url.pathname;
 
-	// Only initialize settings for authenticated pages (not auth pages)
 	const isAuthPath = path.startsWith('/auth/') || path.startsWith('/api/');
 
 	if (!isAuthPath) {
 		try {
-			// Load settings from server to populate the store
-			await loadSettingsFromServer();
+			const settings = await settingsAPI.getSettings();
+			settingsStore.set(settings);
 		} catch (error) {
 			console.error('Failed to initialize settings store:', error);
-			// Don't block the request if settings fail to load
 		}
 	}
 
 	return resolve(event);
 };
 
-// Authentication and authorization handler
 const authHandler: Handle = async ({ event, resolve }) => {
-	// Skip auth processing during build
 	if (building) {
 		return resolve(event);
 	}
@@ -44,7 +38,6 @@ const authHandler: Handle = async ({ event, resolve }) => {
 	const { url } = event;
 	const path = url.pathname;
 
-	// Define paths that don't require authentication
 	const publicPaths = [
 		'/auth/login',
 		'/auth/logout',
@@ -59,7 +52,6 @@ const authHandler: Handle = async ({ event, resolve }) => {
 		'/_app'
 	];
 
-	// Check for specific agent polling patterns that should be public
 	const agentPollingPattern = /^\/api\/agents\/[^\/]+\/tasks$/;
 	const agentResultPattern = /^\/api\/agents\/[^\/]+\/tasks\/[^\/]+\/result$/;
 	const agentTaskStatusPattern = /^\/api\/agents\/[^\/]+\/tasks\/[^\/]+\/status$/;
@@ -69,30 +61,22 @@ const authHandler: Handle = async ({ event, resolve }) => {
 	const isAgentResult = agentResultPattern.test(path) && event.request.method === 'POST';
 	const isAgentTaskStatus = agentTaskStatusPattern.test(path) && event.request.method === 'PUT';
 
-	// Allow access to public paths and specific agent endpoints
 	if (isPublicPath || isAgentPolling || isAgentResult || isAgentTaskStatus) {
 		return await resolve(event);
 	}
 
-	// For API routes, just pass through - the Go backend will handle authentication
 	if (path.startsWith('/api/')) {
 		return await resolve(event);
 	}
 
-	// For frontend routes, check session with backend using session-api-service
 	if (dev && !isTestEnvironment) {
 		try {
-			const sessionApiService = new SessionAPIService();
-
-			// Validate session using the session API service
-			const isValidSession = await sessionApiService.validateSession();
+			const isValidSession = await sessionAPI.validateSession();
 
 			if (!isValidSession) {
-				// No valid session - redirect to login
 				throw redirect(302, `/auth/login?redirect=${encodeURIComponent(path)}`);
 			}
 
-			// Check onboarding status
 			const isOnboardingPath = path.startsWith('/onboarding');
 
 			if (!isOnboardingPath) {

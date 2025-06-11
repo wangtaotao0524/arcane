@@ -2,7 +2,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Cog, Save, RefreshCw } from '@lucide/svelte';
+	import { Cog, Save, RefreshCw, Folder, Globe, Calendar } from '@lucide/svelte';
 	import type { FormInput as FormInputType } from '$lib/types/form.type';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
@@ -18,19 +18,23 @@
 			...currentSettings,
 			...updatedSettings
 		});
-
 		settingsStore.reload();
 	}
 
 	function handleGeneralSettingUpdates() {
+		isLoading.saving = true;
 		updateSettingsConfig({
 			stacksDirectory: stacksDirectoryInput.value,
 			baseServerUrl: baseServerUrlInput.value,
 			maturityThresholdDays: maturityThresholdInput.value
-		}).then(async () => {
-			toast.success(`Settings Saved Successfully`);
-			await invalidateAll();
-		});
+		})
+			.then(async () => {
+				toast.success(`Settings Saved Successfully`);
+				await invalidateAll();
+			})
+			.finally(() => {
+				isLoading.saving = false;
+			});
 	}
 
 	let stacksDirectoryInput = $state<FormInputType<string>>({
@@ -73,16 +77,19 @@
 </svelte:head>
 
 <div class="space-y-6">
+	<!-- Header -->
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">General Settings</h1>
-			<p class="text-muted-foreground mt-1 text-sm">Core configuration for how Arcane operates</p>
+			<p class="text-muted-foreground mt-1 text-sm">
+				Core configuration for how Arcane operates and manages your containers
+			</p>
 		</div>
 
 		<Button
 			onclick={() => handleGeneralSettingUpdates()}
 			disabled={isLoading.saving}
-			class="arcane-button-save h-10"
+			class="h-10 min-w-[120px]"
 		>
 			{#if isLoading.saving}
 				<RefreshCw class="size-4 animate-spin" />
@@ -94,54 +101,76 @@
 		</Button>
 	</div>
 
-	<div class="grid auto-cols-auto gap-6 lg:auto-cols-auto">
-		<Card.Root class="border shadow-sm">
-			<Card.Header class="pb-3">
-				<div class="flex items-center gap-2">
-					<div class="bg-primary/10 rounded-full p-2">
-						<Cog class="text-primary size-5" />
+	<!-- Settings Cards -->
+	<div class="grid gap-6">
+		<!-- Storage Configuration -->
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center gap-3">
+					<div class="rounded-lg bg-blue-500/10 p-2">
+						<Folder class="size-5 text-blue-600" />
 					</div>
 					<div>
-						<Card.Title>Core Arcane Configuration</Card.Title>
-						<Card.Description>Essential settings for how Arcane operates.</Card.Description>
+						<Card.Title>Storage Configuration</Card.Title>
+						<Card.Description>Configure where Arcane stores stack files and data</Card.Description>
 					</div>
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<div class="space-y-6">
-					<FormInput
-						bind:input={stacksDirectoryInput}
-						type="text"
-						id="stacksDirectory"
-						label="Stack Projects Directory"
-						placeholder="data/stacks"
-						description="The primary folder where Arcane will store and manage your Docker Compose stack projects. This path is inside Arcane's container."
-						warningText="Important: Changing this path will not automatically move existing stack projects."
-					/>
+				<FormInput
+					label="Stacks Directory"
+					placeholder="data/stacks"
+					bind:input={stacksDirectoryInput}
+					helpText="Directory where Docker Compose stack files are stored"
+				/>
+			</Card.Content>
+		</Card.Root>
 
-					<FormInput
-						bind:input={baseServerUrlInput}
-						type="text"
-						id="baseServerUrl"
-						label="Default Service Access URL"
-						placeholder="localhost"
-						description="When Arcane provides links to your services (e.g., web UIs), this URL (like 'localhost' or an IP address) is used as the default. This is primarily for services not on directly accessible networks (e.g., macvlan)."
-					/>
-
-					<FormInput
-						bind:input={maturityThresholdInput}
-						type="number"
-						id="maturityThresholdDays"
-						label="Image Maturity Threshold (days)"
-						placeholder="30"
-						description="The number of days after an image release before it's considered 'matured'."
-						warningText="Higher values mean more caution with new images."
-					/>
+		<!-- Network Configuration -->
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center gap-3">
+					<div class="rounded-lg bg-green-500/10 p-2">
+						<Globe class="size-5 text-green-600" />
+					</div>
+					<div>
+						<Card.Title>Network Configuration</Card.Title>
+						<Card.Description>Configure base server URL and network settings</Card.Description>
+					</div>
 				</div>
+			</Card.Header>
+			<Card.Content>
+				<FormInput
+					label="Base Server URL"
+					placeholder="localhost"
+					bind:input={baseServerUrlInput}
+					helpText="Base URL for accessing Arcane (used for webhooks and notifications)"
+				/>
+			</Card.Content>
+		</Card.Root>
+
+		<!-- Container Management -->
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center gap-3">
+					<div class="rounded-lg bg-purple-500/10 p-2">
+						<Calendar class="size-5 text-purple-600" />
+					</div>
+					<div>
+						<Card.Title>Container Management</Card.Title>
+						<Card.Description>Configure container lifecycle and update policies</Card.Description>
+					</div>
+				</div>
+			</Card.Header>
+			<Card.Content>
+				<FormInput
+					type="number"
+					label="Image Maturity Threshold (Days)"
+					placeholder="30"
+					bind:input={maturityThresholdInput}
+					helpText="Number of days to wait before considering an image update stable"
+				/>
 			</Card.Content>
 		</Card.Root>
 	</div>
-
-	<!-- Hidden CSRF token if needed -->
-	<input type="hidden" id="csrf_token" value={data.csrf} />
 </div>

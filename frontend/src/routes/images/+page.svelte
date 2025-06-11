@@ -28,7 +28,6 @@
 	import ImageAPIService from '$lib/services/api/image-api-service';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
-	import { settingsStore } from '$lib/stores/settings-store';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { tablePersistence } from '$lib/stores/table-store';
 	import MaturityItem from '$lib/components/maturity-item.svelte';
@@ -58,15 +57,6 @@
 	});
 
 	let isPullingInline = $state<Record<string, boolean>>({});
-
-	$effect(() => {
-		if (data.settings) {
-			settingsStore.update((current) => ({
-				...current,
-				...data.settings
-			}));
-		}
-	});
 
 	const imageApi = new ImageAPIService();
 

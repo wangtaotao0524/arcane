@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
-import { loadSettingsFromServer } from './settings-store';
+import settingsStore from './config-store';
 import { goto } from '$app/navigation';
+import { settingsAPI } from '$lib/services/api';
 
 let isInitialized = false;
 
@@ -10,21 +11,19 @@ export async function initializeClientStores() {
 	}
 
 	try {
-		// Load settings from server
-		await loadSettingsFromServer();
+		const settings = await settingsAPI.getSettings();
+		settingsStore.set(settings);
 		console.log('Settings store initialized successfully');
 		isInitialized = true;
 	} catch (error) {
 		console.error('Failed to initialize client stores:', error);
 
-		// If it's an authentication error, redirect to login
 		if (error instanceof Error && error.message.includes('401')) {
 			goto('/auth/login');
 		}
 	}
 }
 
-// Check authentication status
 export async function checkAuthStatus(): Promise<boolean> {
 	if (!browser) {
 		return false;
@@ -42,7 +41,6 @@ export async function checkAuthStatus(): Promise<boolean> {
 	}
 }
 
-// Auto-initialize when this module is imported in the browser
 if (browser) {
 	initializeClientStores();
 }
