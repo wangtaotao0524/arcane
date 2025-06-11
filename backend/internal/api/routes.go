@@ -198,14 +198,6 @@ func setupSystemRoutes(api *gin.RouterGroup, dockerService *services.DockerClien
 	system.POST("/containers/start-all", systemHandler.StartAllContainers)
 	system.POST("/containers/start-stopped", systemHandler.StartAllStoppedContainers)
 	system.POST("/containers/stop-all", systemHandler.StopAllContainers)
-
-	//		{
-	//	  "containers": true,
-	//	  "images": true,
-	//	  "volumes": true,
-	//	  "networks": true,
-	//	  "dangling": true
-	//	}
 }
 
 func setupContainerRoutes(api *gin.RouterGroup, services *Services) {

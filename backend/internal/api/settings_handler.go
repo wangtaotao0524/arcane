@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -34,24 +35,8 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 	})
 }
 
-type UpdateSettingsRequest struct {
-	DockerHost            *string      `json:"dockerHost,omitempty"`
-	StacksDirectory       *string      `json:"stacksDirectory,omitempty"`
-	AutoUpdate            *bool        `json:"autoUpdate,omitempty"`
-	AutoUpdateInterval    *int         `json:"autoUpdateInterval,omitempty"`
-	PollingEnabled        *bool        `json:"pollingEnabled,omitempty"`
-	PollingInterval       *int         `json:"pollingInterval,omitempty"`
-	PruneMode             *string      `json:"pruneMode,omitempty"`
-	RegistryCredentials   *models.JSON `json:"registryCredentials,omitempty"`
-	TemplateRegistries    *models.JSON `json:"templateRegistries,omitempty"`
-	Auth                  *models.JSON `json:"auth,omitempty"`
-	Onboarding            *models.JSON `json:"onboarding,omitempty"`
-	BaseServerURL         *string      `json:"baseServerUrl,omitempty"`
-	MaturityThresholdDays *int         `json:"maturityThresholdDays,omitempty"`
-}
-
 func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
-	var req UpdateSettingsRequest
+	var req dto.UpdateSettingsDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,

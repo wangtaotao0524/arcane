@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -22,30 +23,6 @@ func NewStackHandler(stackService *services.StackService) *StackHandler {
 		stackService:     stackService,
 		converterService: services.NewConverterService(),
 	}
-}
-
-type CreateStackRequest struct {
-	Name           string  `json:"name" binding:"required"`
-	ComposeContent string  `json:"composeContent" binding:"required"`
-	EnvContent     *string `json:"envContent,omitempty"`
-	AgentID        *string `json:"agentId,omitempty"`
-}
-
-type UpdateStackRequest struct {
-	Name           *string `json:"name,omitempty"`
-	ComposeContent *string `json:"composeContent,omitempty"`
-	EnvContent     *string `json:"envContent,omitempty"`
-	AutoUpdate     *bool   `json:"autoUpdate,omitempty"`
-}
-
-type RedeployStackRequest struct {
-	Profiles     []string          `json:"profiles,omitempty"`
-	EnvOverrides map[string]string `json:"envOverrides,omitempty"`
-}
-
-type DestroyStackRequest struct {
-	RemoveFiles   bool `json:"removeFiles,omitempty"`
-	RemoveVolumes bool `json:"removeVolumes,omitempty"`
 }
 
 func (h *StackHandler) ListStacks(c *gin.Context) {
@@ -103,7 +80,7 @@ func (h *StackHandler) ListStacks(c *gin.Context) {
 }
 
 func (h *StackHandler) CreateStack(c *gin.Context) {
-	var req CreateStackRequest
+	var req dto.CreateStackDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -196,7 +173,7 @@ func (h *StackHandler) GetStack(c *gin.Context) {
 func (h *StackHandler) UpdateStack(c *gin.Context) {
 	stackID := c.Param("id")
 
-	var req UpdateStackRequest
+	var req dto.UpdateStackDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -344,9 +321,9 @@ func (h *StackHandler) RestartStack(c *gin.Context) {
 func (h *StackHandler) RedeployStack(c *gin.Context) {
 	stackID := c.Param("id")
 
-	var req RedeployStackRequest
+	var req dto.RedeployStackDto
 	if err := c.ShouldBindJSON(&req); err != nil {
-		req = RedeployStackRequest{
+		req = dto.RedeployStackDto{
 			Profiles:     []string{},
 			EnvOverrides: map[string]string{},
 		}
@@ -386,9 +363,9 @@ func (h *StackHandler) DownStack(c *gin.Context) {
 func (h *StackHandler) DestroyStack(c *gin.Context) {
 	stackID := c.Param("id")
 
-	var req DestroyStackRequest
+	var req dto.DestroyStackDto
 	if err := c.ShouldBindJSON(&req); err != nil {
-		req = DestroyStackRequest{
+		req = dto.DestroyStackDto{
 			RemoveFiles:   false,
 			RemoveVolumes: false,
 		}

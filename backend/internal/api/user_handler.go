@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"golang.org/x/crypto/bcrypt"
@@ -19,20 +20,6 @@ func NewUserHandler(userService *services.UserService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 	}
-}
-
-type CreateUserRequest struct {
-	Username    string   `json:"username" binding:"required"`
-	Password    string   `json:"password" binding:"required"`
-	DisplayName *string  `json:"displayName,omitempty"`
-	Email       *string  `json:"email,omitempty"`
-	Roles       []string `json:"roles,omitempty"`
-}
-
-type UpdateUserRequest struct {
-	DisplayName *string  `json:"displayName,omitempty"`
-	Email       *string  `json:"email,omitempty"`
-	Roles       []string `json:"roles,omitempty"`
 }
 
 func (h *UserHandler) ListUsers(c *gin.Context) {
@@ -64,7 +51,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	var req CreateUserRequest
+	var req dto.CreateUserDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -146,7 +133,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	userID := c.Param("id")
 
-	var req UpdateUserRequest
+	var req dto.UpdateUserDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,

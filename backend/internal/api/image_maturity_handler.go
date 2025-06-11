@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -95,20 +96,10 @@ func (h *ImageMaturityHandler) GetImageMaturity(c *gin.Context) {
 	})
 }
 
-type SetMaturityRequest struct {
-	Repository       string                 `json:"repository" binding:"required"`
-	Tag              string                 `json:"tag" binding:"required"`
-	Version          string                 `json:"version" binding:"required"`
-	Date             string                 `json:"date"`
-	Status           string                 `json:"status" binding:"required"`
-	UpdatesAvailable bool                   `json:"updatesAvailable"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
-}
-
 func (h *ImageMaturityHandler) SetImageMaturity(c *gin.Context) {
 	imageID := c.Param("imageId")
 
-	var req SetMaturityRequest
+	var req dto.SetMaturityDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
