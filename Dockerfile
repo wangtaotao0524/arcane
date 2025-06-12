@@ -1,45 +1,40 @@
-# Stage 1: Build Frontend Dependencies
-FROM node:22-alpine AS frontend-deps
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
+# This file uses multi-stage builds to build the application from source, including the front-end
 
-# Stage 2: Build Frontend
+# Tags passed to "go build"
+ARG BUILD_TAGS=""
+
+# Stage 1: Build Frontend
 FROM node:22-alpine AS frontend-builder
-WORKDIR /app/frontend
-
-# Copy dependencies from previous stage
-COPY --from=frontend-deps /app/frontend/node_modules ./node_modules
-COPY frontend/ .
-
-# Build the frontend for static serving
+WORKDIR /build
+COPY ./frontend/package*.json ./
+RUN npm ci
+COPY ./frontend ./
 RUN npm run build
 
-# Stage 3: Build Go Backend
+# Stage 2: Build Backend
 FROM golang:1.24-alpine AS backend-builder
-WORKDIR /app
+ARG BUILD_TAGS
+WORKDIR /build
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
 
-# Copy go mod files
-COPY backend/go.mod backend/go.sum ./
+COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
 
-# Copy backend source
-COPY backend/ .
+COPY ./backend ./
+COPY --from=frontend-builder /build/dist ./frontend/dist
 
-# Copy the built frontend files from frontend-builder stage
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+RUN CGO_ENABLED=1 \
+    GOOS=linux \
+    go build \
+    -tags "${BUILD_TAGS}" \
+    -ldflags='-w -s' \
+    -trimpath \
+    -o /build/arcane \
+    ./cmd/main.go
 
-# Build the Go binary with static linking
-RUN apk add --no-cache gcc musl-dev && \
-     CGO_ENABLED=1 go build \
-     -ldflags='-w -s' \
-     -o arcane \
-     ./cmd/main.go
-
-# Stage 4: Production Image
+# Stage 3: Production Image
 FROM alpine:latest AS runner
 
 # Install runtime dependencies
@@ -58,7 +53,7 @@ WORKDIR /app
 RUN mkdir -p /app/data && chmod 755 /app/data
 
 # Copy the binary from builder
-COPY --from=backend-builder /app/arcane .
+COPY --from=backend-builder /build/arcane .
 
 # Copy entrypoint script
 COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
