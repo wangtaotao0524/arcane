@@ -56,8 +56,8 @@ RUN npm install --omit=dev && npm cache clean --force
 EXPOSE 3000
 VOLUME ["/app/data"]
 
-ARG VERSION="0.15.0"
-ARG REVISION="9bc5e5c"
+ARG VERSION="0.15.1"
+ARG REVISION="c052902"
 
 # Add OCI standard labels (reading version/revision from files)
 LABEL org.opencontainers.image.authors="OFKM Technologies"
