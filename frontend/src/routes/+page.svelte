@@ -3,27 +3,9 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import UniversalTable from '$lib/components/universal-table.svelte';
-	import {
-		AlertCircle,
-		Box,
-		HardDrive,
-		Cpu,
-		ArrowRight,
-		PlayCircle,
-		StopCircle,
-		Trash2,
-		Settings,
-		RefreshCw,
-		Loader2,
-		Monitor
-	} from '@lucide/svelte';
+	import { AlertCircle, Box, HardDrive, Cpu, ArrowRight, PlayCircle, StopCircle, Trash2, RefreshCw, Loader2, Monitor } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
-	import {
-		capitalizeFirstLetter,
-		truncateString,
-		shortId,
-		parseStatusTime
-	} from '$lib/utils/string.utils';
+	import { capitalizeFirstLetter, truncateString, shortId, parseStatusTime } from '$lib/utils/string.utils';
 	import { formatBytes } from '$lib/utils/bytes.util';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { invalidateAll } from '$app/navigation';
@@ -33,18 +15,18 @@
 	import { statusVariantMap } from '$lib/types/statuses';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
-	import ContainerAPIService from '$lib/services/api/container-api-service';
-	import SystemAPIService from '$lib/services/api/system-api-service';
+	import { systemAPI, imageAPI } from '$lib/services/api';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import MaturityItem from '$lib/components/maturity-item.svelte';
 	import { onMount } from 'svelte';
 	import { maturityStore } from '$lib/stores/maturity-store';
-	import ImageAPIService from '$lib/services/api/image-api-service';
 	import type { PruneType } from '$lib/types/actions.type';
 	import DropdownCard from '$lib/components/dropdown-card.svelte';
 	import Meter from '$lib/components/meter.svelte';
 	import DockerIcon from '$lib/icons/docker-icon.svelte';
 	import GitHubIcon from '$lib/icons/github-icon.svelte';
+	import type { SystemStats } from '$lib/models/system-stats';
+	import type { ContainerInfo, EnhancedContainerInfo } from '$lib/models/container-info';
 
 	type EnhancedImageInfo = {
 		Id: string;
@@ -63,34 +45,14 @@
 		maturity?: any;
 	};
 
-	type ContainerInfo = {
-		Id: string;
-		Names: string[];
-		Image: string;
-		ImageID: string;
-		Command: string;
-		Created: number;
-		Ports: any[];
-		Labels: Record<string, string>;
-		State: string;
-		Status: string;
-		HostConfig: any;
-		NetworkSettings: any;
-		Mounts: any[];
-	};
-
 	let { data }: { data: PageData } = $props();
 
-	const containerApi = new ContainerAPIService();
-	const systemApi = new SystemAPIService();
-	const imageApi = new ImageAPIService();
-
 	let dashboardStates = $state({
-		dockerInfo: data.dockerInfo,
-		containers: data.containers,
+		dockerInfo: data.dockerInfo as any,
+		containers: data.containers as ContainerInfo[] | null,
 		images: data.images as EnhancedImageInfo[],
 		settings: data.settings,
-		systemStats: null,
+		systemStats: null as SystemStats | null,
 		error: data.error,
 		isPruneDialogOpen: false
 	});
@@ -103,87 +65,88 @@
 		loadingStats: true
 	});
 
-	let liveSystemStats = $state(null);
+	let liveSystemStats = $state(null as SystemStats | null);
 	let statsInterval: NodeJS.Timeout | null = null;
 
-	const runningContainers = $derived(
-		dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'running').length ?? 0
-	);
-	const stoppedContainers = $derived(
-		dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'exited').length ?? 0
-	);
-	const totalImageSize = $derived(
-		dashboardStates.images?.reduce((sum, image) => sum + (image.Size || 0), 0) ?? 0
-	);
-	const containerUsagePercent = $derived(
-		dashboardStates.containers?.length
-			? (runningContainers / dashboardStates.containers.length) * 100
-			: 0
-	);
+	const runningContainers = $derived(dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'running').length ?? 0);
+
+	const stoppedContainers = $derived(dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'exited').length ?? 0);
+
+	const totalImageSize = $derived(dashboardStates.images?.reduce((sum, image) => sum + (image.Size || 0), 0) ?? 0);
+
+	const containerUsagePercent = $derived(dashboardStates.containers?.length ? (runningContainers / dashboardStates.containers.length) * 100 : 0);
+
+	const currentStats = $derived(dashboardStates.systemStats || liveSystemStats);
 
 	function getContainerDisplayName(container: ContainerInfo): string {
 		if (container.Names && container.Names.length > 0) {
-			return container.Names[0].startsWith('/')
-				? container.Names[0].substring(1)
-				: container.Names[0];
+			return container.Names[0].startsWith('/') ? container.Names[0].substring(1) : container.Names[0];
 		}
 		return shortId(container.Id);
 	}
 
 	$effect(() => {
 		dashboardStates.dockerInfo = data.dockerInfo;
-		dashboardStates.containers = data.containers;
+		dashboardStates.containers = data.containers as ContainerInfo[] | null;
 		dashboardStates.images = data.images as EnhancedImageInfo[];
 		dashboardStates.settings = data.settings;
 		dashboardStates.error = data.error;
-		// Don't update systemStats from page data anymore
 	});
 
-	// Add function to fetch live system stats
 	async function fetchLiveSystemStats() {
 		try {
-			const stats = await systemApi.getStats();
-			if (stats.success) {
-				const newStats = {
-					cpuUsage: stats.cpuUsage,
-					memoryUsage: stats.memoryUsage,
-					memoryTotal: stats.memoryTotal,
-					diskUsage: stats.diskUsage,
-					diskTotal: stats.diskTotal,
-					cpuCount: stats.cpuCount,
-					architecture: stats.architecture,
-					platform: stats.platform,
-					hostname: stats.hostname
-				};
+			const response = await systemAPI.getStats();
+			console.log('System stats response:', response); // Debug log
 
-				liveSystemStats = newStats;
-				dashboardStates.systemStats = newStats; // Also update dashboard state
-				isLoading.loadingStats = false;
+			let stats: SystemStats | null = null;
+
+			// Handle different response formats
+			if (response && typeof response === 'object') {
+				if ('success' in response && response.success && 'data' in response) {
+					stats = response.data as SystemStats;
+				} else if ('cpuUsage' in response) {
+					// Direct stats object
+					stats = response as SystemStats;
+				}
 			}
+
+			if (stats) {
+				liveSystemStats = stats;
+				dashboardStates.systemStats = stats;
+				console.log('System stats updated:', stats); // Debug log
+			} else {
+				console.warn('Invalid system stats response format:', response);
+			}
+
+			isLoading.loadingStats = false;
 		} catch (error) {
 			console.error('Failed to fetch live system stats:', error);
 			isLoading.loadingStats = false;
 		}
 	}
 
-	// Setup lazy loading and live stats polling on mount
 	onMount(() => {
-		// Run async operations without blocking the mount
+		let mounted = true;
+
 		(async () => {
-			// Load stats immediately on mount (lazy load)
-			await fetchLiveSystemStats();
-
-			// Load image maturity data
-			await loadTopImagesMaturity();
-
-			// Start live stats polling every 3 seconds after initial load
-			if (!statsInterval) {
-				statsInterval = setInterval(fetchLiveSystemStats, 3000);
+			if (mounted) {
+				await fetchLiveSystemStats();
+				await loadTopImagesMaturity();
 			}
 		})();
 
-		// Cleanup interval on unmount
+		// Set up the interval
+		if (!statsInterval) {
+			statsInterval = setInterval(() => {
+				if (mounted) {
+					fetchLiveSystemStats();
+				}
+			}, 3000);
+		}
+
+		// Cleanup function
 		return () => {
+			mounted = false;
 			if (statsInterval) {
 				clearInterval(statsInterval);
 				statsInterval = null;
@@ -195,8 +158,7 @@
 		if (isLoading.refreshing) return;
 		isLoading.refreshing = true;
 		try {
-			await invalidateAll(); // This will reload core dashboard data
-			// Also refresh live stats immediately
+			await invalidateAll();
 			await fetchLiveSystemStats();
 		} catch (err) {
 			console.error('Error during dashboard refresh:', err);
@@ -210,7 +172,7 @@
 		if (isLoading.starting || !dashboardStates.dockerInfo || stoppedContainers === 0) return;
 		isLoading.starting = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(systemApi.startAllStoppedContainers()),
+			result: await tryCatch(systemAPI.startAllStoppedContainers()),
 			message: 'Failed to Start All Containers',
 			setLoadingState: (value) => (isLoading.starting = value),
 			onSuccess: async () => {
@@ -230,7 +192,7 @@
 				destructive: false,
 				action: async () => {
 					handleApiResultWithCallbacks({
-						result: await tryCatch(systemApi.stopAllContainers()),
+						result: await tryCatch(systemAPI.stopAllContainers()),
 						message: 'Failed to Stop All Running Containers',
 						setLoadingState: (value) => (isLoading.stopping = value),
 						onSuccess: async () => {
@@ -246,7 +208,7 @@
 	async function confirmPrune(selectedTypes: PruneType[]) {
 		if (isLoading.pruning || selectedTypes.length === 0) return;
 		isLoading.pruning = true;
-		
+
 		const pruneOptions = {
 			containers: selectedTypes.includes('containers'),
 			images: selectedTypes.includes('images'),
@@ -254,17 +216,15 @@
 			networks: selectedTypes.includes('networks'),
 			dangling: dashboardStates.settings?.pruneMode === 'dangling'
 		};
-		
+
 		handleApiResultWithCallbacks({
-			result: await tryCatch(systemApi.pruneAll(pruneOptions)),
+			result: await tryCatch(systemAPI.pruneAll(pruneOptions)),
 			message: `Failed to Prune ${selectedTypes.join(', ')}`,
 			setLoadingState: (value) => (isLoading.pruning = value),
 			onSuccess: async () => {
 				dashboardStates.isPruneDialogOpen = false;
 				const formattedTypes = selectedTypes.map((type) => capitalizeFirstLetter(type)).join(', ');
-				toast.success(
-					`${formattedTypes} ${selectedTypes.length > 1 ? 'were' : 'was'} pruned successfully.`
-				);
+				toast.success(`${formattedTypes} ${selectedTypes.length > 1 ? 'were' : 'was'} pruned successfully.`);
 				await invalidateAll();
 			}
 		});
@@ -285,7 +245,7 @@
 			const BATCH_SIZE = 2;
 			for (let i = 0; i < topImageIds.length; i += BATCH_SIZE) {
 				const batch = topImageIds.slice(i, i + BATCH_SIZE);
-				await imageApi.checkMaturityBatch(batch);
+				await imageAPI.checkMaturityBatch(batch);
 
 				dashboardStates.images = dashboardStates.images.map((image) => {
 					const storedMaturity = $maturityStore.maturityData[image.Id];
@@ -311,16 +271,7 @@
 			<h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
 			<p class="text-muted-foreground mt-1 text-sm">Overview of your Container Environment</p>
 		</div>
-		<Button
-			variant="outline"
-			size="sm"
-			class="arcane-button-restart h-9"
-			onclick={refreshData}
-			disabled={isLoading.refreshing ||
-				isLoading.starting ||
-				isLoading.stopping ||
-				isLoading.pruning}
-		>
+		<Button variant="outline" size="sm" class="arcane-button-restart h-9" onclick={refreshData} disabled={isLoading.refreshing || isLoading.starting || isLoading.stopping || isLoading.pruning}>
 			{#if isLoading.refreshing}
 				<Loader2 class="mr-2 size-4 animate-spin" />
 			{:else}
@@ -342,13 +293,7 @@
 	{/if}
 
 	<section>
-		<DropdownCard
-			id="system-overview"
-			title="System Overview"
-			description="Hardware and Docker engine information"
-			icon={Monitor}
-			defaultExpanded={true}
-		>
+		<DropdownCard id="system-overview" title="System Overview" description="Hardware and Docker engine information" icon={Monitor} defaultExpanded={true}>
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 				<!-- Containers & Docker Info Card -->
 				<Card.Root class="overflow-hidden">
@@ -362,9 +307,7 @@
 									<p class="text-muted-foreground text-sm font-medium">Containers</p>
 									<p class="text-2xl font-bold">
 										{runningContainers}
-										<span class="text-muted-foreground text-sm font-normal"
-											>/ {dashboardStates.containers?.length || 0}</span
-										>
+										<span class="text-muted-foreground text-sm font-normal">/ {dashboardStates.containers?.length || 0}</span>
 									</p>
 								</div>
 							</div>
@@ -372,14 +315,7 @@
 
 						{#if dashboardStates.containers?.length}
 							<div class="mb-6">
-								<Meter
-									label="Active Containers"
-									valueLabel="{runningContainers} running"
-									value={runningContainers}
-									max={dashboardStates.containers.length}
-									variant={containerUsagePercent > 80 ? 'warning' : 'success'}
-									size="sm"
-								/>
+								<Meter label="Active Containers" valueLabel="{runningContainers} running" value={runningContainers} max={dashboardStates.containers.length} variant={containerUsagePercent > 80 ? 'warning' : 'success'} size="sm" />
 							</div>
 						{/if}
 
@@ -397,9 +333,7 @@
 								<div>
 									<p class="text-muted-foreground">OS</p>
 									<p class="font-medium">
-										{dashboardStates.dockerInfo?.os ||
-											dashboardStates.systemStats?.platform ||
-											'Unknown'}
+										{dashboardStates.dockerInfo?.os || dashboardStates.systemStats?.platform || 'Unknown'}
 									</p>
 								</div>
 							</div>
@@ -428,33 +362,19 @@
 								<Loader2 class="text-muted-foreground mx-auto mb-2 size-6 animate-spin" />
 								<p class="text-muted-foreground text-sm">Loading storage data...</p>
 							</div>
-						{:else if liveSystemStats?.diskTotal && liveSystemStats?.diskUsage !== undefined}
-							{@const storagePercent = Math.min(
-								Math.max((liveSystemStats.diskUsage / liveSystemStats.diskTotal) * 100, 0),
-								100
-							)}
+						{:else if currentStats?.diskTotal && currentStats?.diskUsage !== undefined}
+							{@const storagePercent = Math.min(Math.max((currentStats.diskUsage / currentStats.diskTotal) * 100, 0), 100)}
 							<div class="mb-4">
-								<Meter
-									label="System Storage"
-									valueLabel="{storagePercent.toFixed(1)}%"
-									value={storagePercent}
-									max={100}
-									variant={storagePercent > 85
-										? 'destructive'
-										: storagePercent > 70
-											? 'warning'
-											: 'success'}
-									size="sm"
-								/>
+								<Meter label="System Storage" valueLabel="{storagePercent.toFixed(1)}%" value={storagePercent} max={100} variant={storagePercent > 85 ? 'destructive' : storagePercent > 70 ? 'warning' : 'success'} size="sm" />
 							</div>
 							<div class="text-muted-foreground space-y-1 text-xs">
 								<div class="flex justify-between">
 									<span>Used:</span>
-									<span class="font-medium">{formatBytes(liveSystemStats.diskUsage)}</span>
+									<span class="font-medium">{formatBytes(currentStats.diskUsage)}</span>
 								</div>
 								<div class="flex justify-between">
 									<span>Total:</span>
-									<span class="font-medium">{formatBytes(liveSystemStats.diskTotal)}</span>
+									<span class="font-medium">{formatBytes(currentStats.diskTotal)}</span>
 								</div>
 								{#if totalImageSize > 0}
 									<div class="border-border/50 flex justify-between border-t pt-1">
@@ -495,18 +415,16 @@
 									<p class="text-muted-foreground text-sm font-medium">Hardware</p>
 									{#if isLoading.loadingStats}
 										<div class="text-muted-foreground mt-1 text-xs">Loading...</div>
-									{:else}
+									{:else if currentStats}
 										<div class="text-muted-foreground mt-1 flex items-center gap-4 text-xs">
-											<span>{liveSystemStats?.cpuCount || 'N/A'} cores</span>
-											<span
-												>{liveSystemStats?.memoryTotal
-													? formatBytes(liveSystemStats.memoryTotal, 0)
-													: 'N/A'}</span
-											>
+											<span>{currentStats.cpuCount || 'N/A'} cores</span>
+											<span>{currentStats.memoryTotal ? formatBytes(currentStats.memoryTotal, 0) : 'N/A'}</span>
 										</div>
-										{#if liveSystemStats?.hostname}
-											<p class="text-muted-foreground mt-1 text-xs">{liveSystemStats.hostname}</p>
+										{#if currentStats.hostname}
+											<p class="text-muted-foreground mt-1 text-xs">{currentStats.hostname}</p>
 										{/if}
+									{:else}
+										<div class="text-muted-foreground mt-1 text-xs">No data available</div>
 									{/if}
 								</div>
 							</div>
@@ -517,50 +435,25 @@
 								<Loader2 class="text-muted-foreground mx-auto mb-2 size-6 animate-spin" />
 								<p class="text-muted-foreground text-sm">Loading system stats...</p>
 							</div>
-						{:else if liveSystemStats}
-							{@const cpuPercent = Math.min(Math.max(liveSystemStats.cpuUsage, 0), 100)}
-							{@const memoryPercent = Math.min(
-								Math.max((liveSystemStats.memoryUsage / liveSystemStats.memoryTotal) * 100, 0),
-								100
-							)}
+						{:else if currentStats}
+							{@const cpuPercent = Math.min(Math.max(currentStats.cpuUsage, 0), 100)}
+							{@const memoryPercent = Math.min(Math.max((currentStats.memoryUsage / currentStats.memoryTotal) * 100, 0), 100)}
 							<div class="space-y-4">
-								<Meter
-									label="CPU Usage"
-									valueLabel="{cpuPercent.toFixed(1)}%"
-									value={cpuPercent}
-									max={100}
-									variant={cpuPercent > 80
-										? 'destructive'
-										: cpuPercent > 60
-											? 'warning'
-											: 'success'}
-									size="sm"
-								/>
+								<Meter label="CPU Usage" valueLabel="{cpuPercent.toFixed(1)}%" value={cpuPercent} max={100} variant={cpuPercent > 80 ? 'destructive' : cpuPercent > 60 ? 'warning' : 'success'} size="sm" />
 
-								<Meter
-									label="Memory Usage"
-									valueLabel="{memoryPercent.toFixed(1)}%"
-									value={memoryPercent}
-									max={100}
-									variant={memoryPercent > 80
-										? 'destructive'
-										: memoryPercent > 60
-											? 'warning'
-											: 'success'}
-									size="sm"
-								/>
+								<Meter label="Memory Usage" valueLabel="{memoryPercent.toFixed(1)}%" value={memoryPercent} max={100} variant={memoryPercent > 80 ? 'destructive' : memoryPercent > 60 ? 'warning' : 'success'} size="sm" />
 							</div>
 							<div class="text-muted-foreground space-y-1 pt-3 text-xs">
-								{#if liveSystemStats.architecture}
+								{#if currentStats.architecture}
 									<div class="flex justify-between">
 										<span>Architecture:</span>
-										<span class="font-medium">{liveSystemStats.architecture}</span>
+										<span class="font-medium">{currentStats.architecture}</span>
 									</div>
 								{/if}
-								{#if liveSystemStats.platform}
+								{#if currentStats.platform}
 									<div class="flex justify-between">
 										<span>Platform:</span>
-										<span class="font-medium capitalize">{liveSystemStats.platform}</span>
+										<span class="font-medium capitalize">{currentStats.platform}</span>
 									</div>
 								{/if}
 							</div>
@@ -578,18 +471,8 @@
 	<section>
 		<h2 class="mb-4 text-lg font-semibold tracking-tight">Quick Actions</h2>
 		<div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-			<button
-				class="group bg-card relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
-				disabled={!dashboardStates.dockerInfo ||
-					stoppedContainers === 0 ||
-					isLoading.starting ||
-					isLoading.stopping ||
-					isLoading.pruning}
-				onclick={handleStartAll}
-			>
-				<div
-					class="mb-4 flex size-12 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20"
-				>
+			<button class="group bg-card relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm" disabled={!dashboardStates.dockerInfo || stoppedContainers === 0 || isLoading.starting || isLoading.stopping || isLoading.pruning} onclick={handleStartAll}>
+				<div class="mb-4 flex size-12 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20">
 					{#if isLoading.starting}
 						<Loader2 class="size-6 animate-spin text-green-500" />
 					{:else}
@@ -600,18 +483,8 @@
 				<span class="text-muted-foreground mt-1 text-sm">{stoppedContainers} containers</span>
 			</button>
 
-			<button
-				class="group bg-card relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
-				disabled={!dashboardStates.dockerInfo ||
-					runningContainers === 0 ||
-					isLoading.starting ||
-					isLoading.stopping ||
-					isLoading.pruning}
-				onclick={handleStopAll}
-			>
-				<div
-					class="mb-4 flex size-12 items-center justify-center rounded-full bg-blue-500/10 transition-colors group-hover:bg-blue-500/20"
-				>
+			<button class="group bg-card relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm" disabled={!dashboardStates.dockerInfo || runningContainers === 0 || isLoading.starting || isLoading.stopping || isLoading.pruning} onclick={handleStopAll}>
+				<div class="mb-4 flex size-12 items-center justify-center rounded-full bg-blue-500/10 transition-colors group-hover:bg-blue-500/20">
 					{#if isLoading.stopping}
 						<Loader2 class="size-6 animate-spin text-blue-500" />
 					{:else}
@@ -622,17 +495,8 @@
 				<span class="text-muted-foreground mt-1 text-sm">{runningContainers}</span>
 			</button>
 
-			<button
-				class="group bg-card hover:border-destructive/50 disabled:hover:border-border relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
-				disabled={!dashboardStates.dockerInfo ||
-					isLoading.starting ||
-					isLoading.stopping ||
-					isLoading.pruning}
-				onclick={() => (dashboardStates.isPruneDialogOpen = true)}
-			>
-				<div
-					class="mb-4 flex size-12 items-center justify-center rounded-full bg-red-500/10 transition-colors group-hover:bg-red-500/20"
-				>
+			<button class="group bg-card hover:border-destructive/50 disabled:hover:border-border relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm" disabled={!dashboardStates.dockerInfo || isLoading.starting || isLoading.stopping || isLoading.pruning} onclick={() => (dashboardStates.isPruneDialogOpen = true)}>
+				<div class="mb-4 flex size-12 items-center justify-center rounded-full bg-red-500/10 transition-colors group-hover:bg-red-500/20">
 					{#if isLoading.pruning}
 						<Loader2 class="size-6 animate-spin text-red-500" />
 					{:else}
@@ -652,35 +516,27 @@
 				<Card.Header class="px-6">
 					<div class="flex items-center justify-between">
 						<div>
-							<Card.Title
-								><a class="font-medium hover:underline" href="/containers">Containers</a
-								></Card.Title
-							>
+							<Card.Title><a class="font-medium hover:underline" href="/containers">Containers</a></Card.Title>
 							<Card.Description class="pb-3">Recent containers</Card.Description>
 						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							href="/containers"
-							disabled={!dashboardStates.dockerInfo}
-						>
+						<Button variant="ghost" size="sm" href="/containers" disabled={!dashboardStates.dockerInfo}>
 							View All
 							<ArrowRight class="ml-2 size-4" />
 						</Button>
 					</div>
 				</Card.Header>
 				<Card.Content class="flex-1 p-0">
-					{#if dashboardStates.containers?.length > 0}
+					{#if dashboardStates.containers && dashboardStates.containers.length > 0}
 						<div class="flex h-full flex-col">
 							<div class="flex-1">
 								<UniversalTable
-									data={dashboardStates.containers
-										.slice(0, 5)
-										.map((c) => ({
+									data={dashboardStates.containers.slice(0, 5).map(
+										(c): EnhancedContainerInfo => ({
 											...c,
 											displayName: getContainerDisplayName(c),
 											statusSortValue: parseStatusTime(c.Status)
-										}))}
+										})
+									)}
 									columns={[
 										{ accessorKey: 'displayName', header: 'Name' },
 										{ accessorKey: 'Image', header: 'Image' },
@@ -702,20 +558,19 @@
 										isDashboardTable: true
 									}}
 								>
-									{#snippet rows({ item }: { item: ContainerInfo & { displayName: string } })}
+									{#snippet rows({ item }: { item: EnhancedContainerInfo })}
 										{@const stateVariant = statusVariantMap[item.State.toLowerCase()]}
-										<Table.Cell
-											><a class="font-medium hover:underline" href="/containers/{item.Id}/"
-												>{item.displayName}</a
-											></Table.Cell
-										>
-										<Table.Cell title={item.Image}>{truncateString(item.Image, 40)}</Table.Cell>
-										<Table.Cell
-											><StatusBadge
-												variant={stateVariant}
-												text={capitalizeFirstLetter(item.State)}
-											/></Table.Cell
-										>
+										<Table.Cell>
+											<a class="font-medium hover:underline" href="/containers/{item.Id}/">
+												{item.displayName}
+											</a>
+										</Table.Cell>
+										<Table.Cell title={item.Image}>
+											{truncateString(item.Image, 40)}
+										</Table.Cell>
+										<Table.Cell>
+											<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.State)} />
+										</Table.Cell>
 										<Table.Cell>{item.Status}</Table.Cell>
 									{/snippet}
 								</UniversalTable>
@@ -730,9 +585,7 @@
 						<div class="flex flex-col items-center justify-center px-6 py-10 text-center">
 							<Box class="text-muted-foreground mb-2 size-8 opacity-40" />
 							<p class="text-muted-foreground text-sm">No containers found</p>
-							<p class="text-muted-foreground mt-1 text-xs">
-								Use Docker CLI or another tool to create containers
-							</p>
+							<p class="text-muted-foreground mt-1 text-xs">Use Docker CLI or another tool to create containers</p>
 						</div>
 					{/if}
 				</Card.Content>
@@ -742,9 +595,7 @@
 				<Card.Header class="px-6">
 					<div class="flex items-center justify-between">
 						<div>
-							<Card.Title
-								><a class="font-medium hover:underline" href="/images">Images</a></Card.Title
-							>
+							<Card.Title><a class="font-medium hover:underline" href="/images">Images</a></Card.Title>
 							<Card.Description class="pb-3">Top 5 Largest Images</Card.Description>
 						</div>
 						<Button variant="ghost" size="sm" href="/images" disabled={!dashboardStates.dockerInfo}>
@@ -787,14 +638,8 @@
 										<Table.Cell>
 											<div class="flex items-center gap-2">
 												<div class="flex flex-1 items-center">
-													<MaturityItem
-														maturity={item.maturity}
-														isLoadingInBackground={!item.maturity}
-													/>
-													<a
-														class="shrink truncate font-medium hover:underline"
-														href="/images/{item.Id}/"
-													>
+													<MaturityItem maturity={item.maturity} isLoadingInBackground={!item.maturity} imageId={item.Id} />
+													<a class="shrink truncate font-medium hover:underline" href="/images/{item.Id}/">
 														{#if item.repo && item.repo !== '<none>'}
 															{item.repo}
 														{:else if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
@@ -836,9 +681,7 @@
 						<div class="flex flex-col items-center justify-center px-6 py-10 text-center">
 							<HardDrive class="text-muted-foreground mb-2 size-8 opacity-40" />
 							<p class="text-muted-foreground text-sm">No images found</p>
-							<p class="text-muted-foreground mt-1 text-xs">
-								Pull images using Docker CLI or another tool
-							</p>
+							<p class="text-muted-foreground mt-1 text-xs">Pull images using Docker CLI or another tool</p>
 						</div>
 					{/if}
 				</Card.Content>
@@ -849,13 +692,7 @@
 	<section class="mt-10 border-t pt-4">
 		<div class="text-muted-foreground flex items-center justify-between text-sm">
 			<div class="flex items-center">
-				<a
-					href="https://github.com/ofkm/arcane"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="hover:text-foreground transition-colors"
-					title="GitHub"
-				>
+				<a href="https://github.com/ofkm/arcane" target="_blank" rel="noopener noreferrer" class="hover:text-foreground transition-colors" title="GitHub">
 					<GitHubIcon class="size-4 fill-current" />
 					<span class="sr-only">GitHub</span>
 				</a>
@@ -864,11 +701,5 @@
 		</div>
 	</section>
 
-	<PruneConfirmationDialog
-		bind:open={dashboardStates.isPruneDialogOpen}
-		isPruning={isLoading.pruning}
-		imagePruneMode={dashboardStates.settings?.pruneMode || 'dangling'}
-		onConfirm={confirmPrune}
-		onCancel={() => (dashboardStates.isPruneDialogOpen = false)}
-	/>
+	<PruneConfirmationDialog bind:open={dashboardStates.isPruneDialogOpen} isPruning={isLoading.pruning} imagePruneMode={dashboardStates.settings?.pruneMode || 'dangling'} onConfirm={confirmPrune} onCancel={() => (dashboardStates.isPruneDialogOpen = false)} />
 </div>
