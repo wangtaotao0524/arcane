@@ -29,14 +29,10 @@ RUN go mod download
 # Copy backend source
 COPY backend/ .
 
+# Copy the built frontend files from frontend-builder stage
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Build the Go binary with static linking
-# RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
-#     -ldflags='-w -s -extldflags "-static"' \
-#     -a -installsuffix cgo \
-#     -o arcane \
-#     ./cmd/main.go
-
 RUN apk add --no-cache gcc musl-dev && \
      CGO_ENABLED=1 go build \
      -ldflags='-w -s' \
