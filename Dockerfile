@@ -62,9 +62,8 @@ COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 EXPOSE 8080
 VOLUME ["/app/data"]
 
-# Build arguments for versioning
-ARG VERSION="0.15.0"
-ARG REVISION="9bc5e5c"
+ARG VERSION="0.15.1"
+ARG REVISION="c052902"
 
 # Add OCI standard labels
 LABEL org.opencontainers.image.authors="OFKM Technologies"

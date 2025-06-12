@@ -1,3 +1,11 @@
+## [0.15.1](https://github.com/ofkm/arcane/compare/v0.15.0...v0.15.1) (2025-06-12)
+
+### Bug Fixes
+
+* compose network race condition ([#274](https://github.com/ofkm/arcane/issues/274)) ([2a4401b](https://github.com/ofkm/arcane/commit/2a4401ba931cf48978cb0b49b7e98048154ceae7))
+* layout of editors in compose details view ([c052902](https://github.com/ofkm/arcane/commit/c05290291f556ac3e45c3479fe6ff2d3c72db6da))
+* proper compose validation ([#272](https://github.com/ofkm/arcane/issues/272)) ([6f1eb03](https://github.com/ofkm/arcane/commit/6f1eb03e68133fd1f456503393d238fd68883a51))
+* remove oidc env and args from docker build ([e462e8b](https://github.com/ofkm/arcane/commit/e462e8bc271cf92f5b93c09c3d4fe8e87f5018bf))
 ## [0.15.0](https://github.com/ofkm/arcane/compare/v0.14.0...v0.15.0) (2025-06-04)
 
 ### Features
