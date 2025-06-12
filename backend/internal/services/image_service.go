@@ -3,6 +3,8 @@ package services
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
@@ -24,12 +27,14 @@ type ImageService struct {
 	db                   *database.DB
 	dockerService        *DockerClientService
 	imageMaturityService *ImageMaturityService
+	registryService      *ContainerRegistryService
 }
 
-func NewImageService(db *database.DB, dockerService *DockerClientService) *ImageService {
+func NewImageService(db *database.DB, dockerService *DockerClientService, registryService *ContainerRegistryService) *ImageService {
 	return &ImageService{
-		db:            db,
-		dockerService: dockerService,
+		db:              db,
+		dockerService:   dockerService,
+		registryService: registryService,
 	}
 }
 
@@ -97,7 +102,15 @@ func (s *ImageService) PullImage(ctx context.Context, imageName string, progress
 	defer dockerClient.Close()
 
 	fmt.Printf("Attempting to pull image: %s\n", imageName)
-	reader, err := dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
+
+	// Get authentication for the registry
+	pullOptions, err := s.getPullOptionsWithAuth(ctx, imageName)
+	if err != nil {
+		fmt.Printf("Warning: Failed to get registry authentication for %s: %v\n", imageName, err)
+		pullOptions = image.PullOptions{} // Fall back to no auth
+	}
+
+	reader, err := dockerClient.ImagePull(ctx, imageName, pullOptions)
 	if err != nil {
 		return fmt.Errorf("failed to initiate image pull for %s: %w", imageName, err)
 	}
@@ -141,6 +154,109 @@ func (s *ImageService) PullImage(ctx context.Context, imageName string, progress
 	}
 
 	return nil
+}
+
+// getPullOptionsWithAuth gets pull options with appropriate registry authentication
+func (s *ImageService) getPullOptionsWithAuth(ctx context.Context, imageRef string) (image.PullOptions, error) {
+	pullOptions := image.PullOptions{}
+
+	if s.registryService == nil {
+		return pullOptions, nil
+	}
+
+	registryHost := s.extractRegistryHost(imageRef)
+
+	registries, err := s.registryService.GetEnabledRegistries(ctx)
+	if err != nil {
+		return pullOptions, fmt.Errorf("failed to get registry credentials: %w", err)
+	}
+
+	for _, reg := range registries {
+		if s.isRegistryMatch(reg.URL, registryHost) {
+			decryptedToken, err := s.registryService.GetDecryptedToken(ctx, reg.ID)
+			if err != nil {
+				return pullOptions, fmt.Errorf("failed to decrypt token for registry %s: %w", reg.URL, err)
+			}
+
+			authConfig := &registry.AuthConfig{
+				Username:      reg.Username,
+				Password:      decryptedToken,
+				ServerAddress: s.normalizeRegistryURL(reg.URL),
+			}
+
+			authBytes, err := json.Marshal(authConfig)
+			if err != nil {
+				return pullOptions, fmt.Errorf("failed to marshal auth config: %w", err)
+			}
+
+			pullOptions.RegistryAuth = base64.URLEncoding.EncodeToString(authBytes)
+			break
+		}
+	}
+
+	return pullOptions, nil
+}
+
+// extractRegistryHost extracts the registry hostname from an image reference
+func (s *ImageService) extractRegistryHost(imageRef string) string {
+	parts := strings.Split(imageRef, "@")
+	if len(parts) > 1 {
+		imageRef = parts[0]
+	}
+
+	parts = strings.Split(imageRef, ":")
+	if len(parts) > 1 {
+		imageRef = parts[0]
+	}
+
+	parts = strings.Split(imageRef, "/")
+
+	if len(parts) == 1 {
+		return "docker.io"
+	}
+
+	firstPart := parts[0]
+	if strings.Contains(firstPart, ".") || strings.Contains(firstPart, ":") {
+		return firstPart
+	}
+
+	return "docker.io"
+}
+
+// isRegistryMatch checks if a credential URL matches a registry host
+func (s *ImageService) isRegistryMatch(credURL, registryHost string) bool {
+	normalizedCred := s.normalizeRegistryForComparison(credURL)
+	normalizedHost := s.normalizeRegistryForComparison(registryHost)
+
+	return normalizedCred == normalizedHost
+}
+
+// normalizeRegistryForComparison normalizes registry URLs for comparison
+func (s *ImageService) normalizeRegistryForComparison(url string) string {
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimSuffix(url, "/")
+
+	if url == "docker.io" || url == "registry-1.docker.io" || url == "index.docker.io" {
+		return "docker.io"
+	}
+
+	return url
+}
+
+// normalizeRegistryURL normalizes registry URL for Docker client
+func (s *ImageService) normalizeRegistryURL(url string) string {
+	normalized := s.normalizeRegistryForComparison(url)
+	if normalized == "docker.io" {
+		return "https://index.docker.io/v1/"
+	}
+
+	// For other registries, return raw hostname without protocol
+	result := strings.TrimPrefix(url, "https://")
+	result = strings.TrimPrefix(result, "http://")
+	result = strings.TrimSuffix(result, "/")
+
+	return result
 }
 
 func (s *ImageService) PruneImages(ctx context.Context, dangling bool) (*image.PruneReport, error) {
