@@ -117,7 +117,7 @@ test.describe('Volumes Page', () => {
     await expect(page.locator('li[data-sonner-toast][data-type="success"] div[data-title]')).toBeVisible();
   });
 
-  test('should create volume via dialog', async ({ page }) => {
+  test('should create volume via form', async ({ page }) => {
     await page.goto('/volumes');
     await page.waitForLoadState('networkidle');
 

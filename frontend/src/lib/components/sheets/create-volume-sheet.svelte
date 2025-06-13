@@ -98,14 +98,14 @@
 					<HardDrive class="size-5 text-primary" />
 				</div>
 				<div>
-					<Sheet.Title class="text-xl font-semibold">Create New Volume</Sheet.Title>
+					<Sheet.Title data-testid="create-volume-header" class="text-xl font-semibold">Create New Volume</Sheet.Title>
 					<Sheet.Description class="text-sm text-muted-foreground mt-1">Enter the details for the new Docker volume.</Sheet.Description>
 				</div>
 			</div>
 		</Sheet.Header>
 
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
-			<FormInput label="Volume Name *" type="text" placeholder="e.g., my-app-data" description="Unique name for the volume" disabled={isLoading} bind:input={$inputs.volumeName} />
+			<FormInput label="Volume Name *" id="volume-name" type="text" placeholder="e.g., my-app-data" description="Unique name for the volume" disabled={isLoading} bind:input={$inputs.volumeName} />
 
 			<SelectWithLabel id="driver-select" bind:value={$inputs.volumeDriver.value} label="Volume Driver" description="Choose the storage driver for your volume" options={drivers} placeholder="Select a driver" />
 
