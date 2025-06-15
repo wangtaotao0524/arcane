@@ -125,7 +125,7 @@ test.describe('Volumes Page', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     const volumeName = `test-volume-${Date.now()}`;
-    await page.locator('input[id="volume-name"]').fill(volumeName);
+    await page.locator('input[id="volume-name-*"]').fill(volumeName);
 
     const createPromise = page.waitForRequest((req) => req.url().includes('/api/volumes') && req.method() === 'POST');
 

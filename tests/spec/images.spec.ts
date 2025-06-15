@@ -146,7 +146,7 @@ test.describe('Images Page', () => {
     });
   });
 
-  test('should pull image via dialog', async ({ page }) => {
+  test('should pull image via form', async ({ page }) => {
     await page.goto('/images');
 
     await page.waitForLoadState('networkidle');
@@ -156,7 +156,7 @@ test.describe('Images Page', () => {
 
     const imageNameFull = 'ghcr.io/linuxserver/nginx:latest';
     const imageName = 'ghcr.io/linuxserver/nginx';
-    await page.locator('input[id="image-ref"]').fill(imageName);
+    await page.locator('input[id="image-name-*"]').fill(imageName);
 
     const pullPromise = page.waitForRequest((req) => req.url().includes('/api/images/pull') && req.method() === 'POST');
     await page.locator('button[type="submit"]:has-text("Pull Image")').click();

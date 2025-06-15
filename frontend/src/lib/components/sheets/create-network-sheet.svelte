@@ -150,7 +150,7 @@
 
 <Sheet.Root bind:open onOpenChange={handleOpenChange}>
 	<Sheet.Content class="p-6">
-		<Sheet.Header class="space-y-3 pb-6 border-b">
+		<Sheet.Header data-testid="create-network-dialog-header" class="space-y-3 pb-6 border-b">
 			<div class="flex items-center gap-3">
 				<div class="flex size-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
 					<Network class="size-5 text-primary" />
