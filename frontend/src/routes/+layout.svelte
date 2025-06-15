@@ -9,6 +9,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { initializeClientStores } from '$lib/stores/client-init';
+	import userStore from '$lib/stores/user-store';
 
 	let { children, data } = $props();
 
@@ -17,7 +18,6 @@
 	const agents = $derived(data.agents);
 	const isNavigating = $derived(navigating.type !== null);
 	const isAuthenticated = $derived(!!user);
-
 	const isOnboardingPage = $derived(page.url.pathname.startsWith('/onboarding'));
 	const isLoginPage = $derived(page.url.pathname === '/login' || page.url.pathname.startsWith('/auth/login') || page.url.pathname === '/auth' || page.url.pathname.includes('/login'));
 	const showSidebar = $derived(isAuthenticated && !isOnboardingPage && !isLoginPage);
@@ -44,12 +44,17 @@
 		}
 	});
 
-	onMount(() => {
-		const init = async () => {
-			await initializeClientStores();
-		};
+	// Update user store when user data changes
+	$effect(() => {
+		if (user) {
+			userStore.setUser(user);
+		} else {
+			userStore.clearUser();
+		}
+	});
 
-		init();
+	onMount(async () => {
+		await initializeClientStores();
 	});
 </script>
 

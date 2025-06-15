@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { oidcAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
+	import userStore from '$lib/stores/user-store';
 
 	let isProcessing = $state(true);
 	let error = $state('');
@@ -34,11 +35,18 @@
 			}
 
 			if (authResult.user) {
-				localStorage.setItem('user_data', JSON.stringify(authResult.user));
+				const user = {
+					id: authResult.user.sub || authResult.user.email,
+					username: authResult.user.preferred_username || authResult.user.email,
+					email: authResult.user.email,
+					roles: (authResult.user as any).roles || [],
+					createdAt: new Date().toISOString()
+				};
+				localStorage.setItem('user_data', JSON.stringify(user));
+				userStore.setUser(user);
 			}
 
 			await invalidateAll();
-
 			toast.success('Successfully logged in!');
 			goto(finalRedirectTo);
 		} catch (err: any) {
