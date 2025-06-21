@@ -15,7 +15,7 @@
 	import { statusVariantMap } from '$lib/types/statuses';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
-	import { systemAPI, imageAPI } from '$lib/services/api';
+	import { systemAPI, imageAPI, environmentAPI } from '$lib/services/api';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import MaturityItem from '$lib/components/maturity-item.svelte';
 	import { onMount } from 'svelte';
@@ -96,7 +96,6 @@
 	async function fetchLiveSystemStats() {
 		try {
 			const response = await systemAPI.getStats();
-			console.log('System stats response:', response); // Debug log
 
 			let stats: SystemStats | null = null;
 
@@ -113,7 +112,6 @@
 			if (stats) {
 				liveSystemStats = stats;
 				dashboardStates.systemStats = stats;
-				console.log('System stats updated:', stats); // Debug log
 			} else {
 				console.warn('Invalid system stats response format:', response);
 			}

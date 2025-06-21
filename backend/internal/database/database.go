@@ -77,10 +77,7 @@ func (db *DB) Migrate() error {
 		&models.User{},
 		&models.UserSession{},
 		&models.Stack{},
-		&models.Agent{},
-		&models.AgentTask{},
-		&models.AgentToken{},
-		&models.Deployment{},
+		&models.Environment{},
 		&models.Container{},
 		&models.Image{},
 		&models.Volume{},
@@ -92,10 +89,9 @@ func (db *DB) Migrate() error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
+		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	log.Println("Database migration completed successfully")
 	return nil
 }
 

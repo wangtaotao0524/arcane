@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/ofkm/arcane-backend/internal/database"
@@ -26,7 +26,34 @@ func NewContainerService(db *database.DB, dockerService *DockerClientService) *C
 	return &ContainerService{db: db, dockerService: dockerService}
 }
 
-func (s *ContainerService) ListContainers(ctx context.Context, includeAll bool) ([]types.Container, error) {
+func (s *ContainerService) PullContainerImage(ctx context.Context, containerID string) error {
+	dockerClient, err := s.dockerService.CreateConnection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Docker: %w", err)
+	}
+	defer dockerClient.Close()
+
+	container, err := s.GetContainerByID(ctx, containerID)
+	if err != nil {
+		return fmt.Errorf("failed to get container: %w", err)
+	}
+
+	imageName := container.Image
+	if imageName == "" {
+		return fmt.Errorf("container has no image to pull")
+	}
+
+	reader, err := dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull image %s: %w", imageName, err)
+	}
+	defer reader.Close()
+
+	_, err = io.Copy(io.Discard, reader)
+	return err
+}
+
+func (s *ContainerService) ListContainers(ctx context.Context, includeAll bool) ([]container.Summary, error) {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
@@ -99,7 +126,7 @@ func (s *ContainerService) GetContainerLogs(ctx context.Context, containerID str
 	return string(logBytes), nil
 }
 
-func (s *ContainerService) GetContainerByID(ctx context.Context, id string) (*types.ContainerJSON, error) {
+func (s *ContainerService) GetContainerByID(ctx context.Context, id string) (*container.InspectResponse, error) {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
@@ -164,12 +191,26 @@ func (s *ContainerService) DeleteContainer(ctx context.Context, containerID stri
 	return nil
 }
 
-func (s *ContainerService) CreateContainer(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (*types.ContainerJSON, error) {
+func (s *ContainerService) CreateContainer(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (*container.InspectResponse, error) {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
 	}
 	defer dockerClient.Close()
+
+	_, err = dockerClient.ImageInspect(ctx, config.Image)
+	if err != nil {
+		reader, pullErr := dockerClient.ImagePull(ctx, config.Image, image.PullOptions{})
+		if pullErr != nil {
+			return nil, fmt.Errorf("failed to pull image %s: %w", config.Image, pullErr)
+		}
+		defer reader.Close()
+
+		_, copyErr := io.Copy(io.Discard, reader)
+		if copyErr != nil {
+			return nil, fmt.Errorf("failed to complete image pull: %w", copyErr)
+		}
+	}
 
 	resp, err := dockerClient.ContainerCreate(ctx, config, hostConfig, networkingConfig, nil, containerName)
 	if err != nil {

@@ -10,9 +10,8 @@ import (
 type Services struct {
 	User              *services.UserService
 	Stack             *services.StackService
-	Agent             *services.AgentService
+	Environment       *services.EnvironmentService
 	Settings          *services.SettingsService
-	Deployment        *services.DeploymentService
 	Container         *services.ContainerService
 	Image             *services.ImageService
 	Volume            *services.VolumeService
@@ -34,9 +33,8 @@ func SetupRoutes(r *gin.Engine, services *Services, appConfig *config.Config) {
 	setupAuthRoutes(api, services, appConfig)
 	setupUserRoutes(api, services)
 	setupStackRoutes(api, services)
-	setupAgentRoutes(api, services)
+	setupEnvironmentRoutes(api, services)
 	setupSettingsRoutes(api, services, appConfig)
-	setupDeploymentRoutes(api, services)
 	setupImageMaturityRoutes(api, services)
 	setupSystemRoutes(api, services.Docker, services)
 	setupContainerRoutes(api, services)
@@ -121,24 +119,75 @@ func setupStackRoutes(router *gin.RouterGroup, services *Services) {
 	stacks.POST("/convert", stackHandler.ConvertDockerRun)
 }
 
-func setupAgentRoutes(api *gin.RouterGroup, services *Services) {
-	agents := api.Group("/agents")
+func setupEnvironmentRoutes(api *gin.RouterGroup, services *Services) {
+	environments := api.Group("/environments")
+	environments.Use(middleware.AuthMiddleware(services.Auth))
 
-	agentHandler := NewAgentHandler(services.Agent, services.Deployment)
-	agents.GET("", middleware.AuthMiddleware(services.Auth), agentHandler.ListAgents)
-	agents.GET("/:agentId", middleware.AuthMiddleware(services.Auth), agentHandler.GetAgent)
-	agents.DELETE("/:agentId", middleware.AuthMiddleware(services.Auth), agentHandler.DeleteAgent)
-	agents.GET("/:agentId/tasks", middleware.AuthMiddleware(services.Auth), agentHandler.GetAgentTasks)
-	agents.POST("/:agentId/tasks", middleware.AuthMiddleware(services.Auth), agentHandler.CreateTask)
-	agents.GET("/:agentId/tasks/:taskId", middleware.AuthMiddleware(services.Auth), agentHandler.GetTask)
-	agents.POST("/:agentId/tasks/:taskId/result", middleware.AuthMiddleware(services.Auth), agentHandler.SubmitTaskResult)
-	agents.GET("/:agentId/deployments", middleware.AuthMiddleware(services.Auth), agentHandler.GetAgentDeployments)
-	agents.POST("/:agentId/deploy/stack", middleware.AuthMiddleware(services.Auth), agentHandler.DeployStack)
-	agents.POST("/:agentId/deploy/container", middleware.AuthMiddleware(services.Auth), agentHandler.DeployContainer)
-	agents.POST("/:agentId/deploy/image", middleware.AuthMiddleware(services.Auth), agentHandler.DeployImage)
-	agents.GET("/:agentId/stacks", middleware.AuthMiddleware(services.Auth), agentHandler.GetAgentStacks)
-	agents.POST("/:agentId/health-check", middleware.AuthMiddleware(services.Auth), agentHandler.SendHealthCheck)
-	agents.POST("/:agentId/stack-list", middleware.AuthMiddleware(services.Auth), agentHandler.GetStackList)
+	environmentHandler := NewEnvironmentHandler(
+		services.Environment,
+		services.Container,
+		services.Image,
+		services.Network,
+		services.Volume,
+		services.Stack,
+	)
+
+	environments.GET("", environmentHandler.ListEnvironments)
+	environments.POST("", environmentHandler.CreateEnvironment)
+	environments.GET("/:id", environmentHandler.GetEnvironment)
+	environments.PUT("/:id", environmentHandler.UpdateEnvironment)
+	environments.DELETE("/:id", environmentHandler.DeleteEnvironment)
+	environments.POST("/:id/test", environmentHandler.TestConnection)
+	environments.POST("/:id/heartbeat", environmentHandler.UpdateHeartbeat)
+
+	environments.POST("/:id/containers", environmentHandler.CreateContainer)
+	environments.GET("/:id/containers", environmentHandler.GetContainers)
+	environments.GET("/:id/containers/:containerId", environmentHandler.GetContainer)
+	environments.POST("/:id/containers/:containerId/pull", environmentHandler.PullContainerImage)
+	environments.POST("/:id/containers/:containerId/start", environmentHandler.StartContainer)
+	environments.POST("/:id/containers/:containerId/stop", environmentHandler.StopContainer)
+	environments.POST("/:id/containers/:containerId/restart", environmentHandler.RestartContainer)
+	environments.DELETE("/:id/containers/:containerId", environmentHandler.RemoveContainer)
+	environments.GET("/:id/containers/:containerId/logs", environmentHandler.GetContainerLogs)
+	environments.GET("/:id/containers/:containerId/stats", environmentHandler.GetContainerStats)
+	environments.GET("/:id/containers/:containerId/stats/stream", environmentHandler.GetContainerStatsStream)
+
+	environments.GET("/:id/images", environmentHandler.GetImages)
+	environments.GET("/:id/images/:imageId", environmentHandler.GetImage)
+	environments.DELETE("/:id/images/:imageId", environmentHandler.RemoveImage)
+	environments.POST("/:id/images/pull", environmentHandler.PullImage)
+	environments.POST("/:id/images/prune", environmentHandler.PruneImages)
+
+	environments.GET("/:id/networks", environmentHandler.GetNetworks)
+	environments.POST("/:id/networks", environmentHandler.CreateNetwork)
+	environments.GET("/:id/networks/:networkId", environmentHandler.GetNetwork)
+	environments.DELETE("/:id/networks/:networkId", environmentHandler.RemoveNetwork)
+
+	environments.GET("/:id/volumes", environmentHandler.GetVolumes)
+	environments.POST("/:id/volumes", environmentHandler.CreateVolume)
+	environments.GET("/:id/volumes/:volumeName", environmentHandler.GetVolume)
+	environments.DELETE("/:id/volumes/:volumeName", environmentHandler.RemoveVolume)
+	environments.GET("/:id/volumes/:volumeName/usage", environmentHandler.GetVolumeUsage)
+
+	environments.POST("/:id/volumes/prune", environmentHandler.PruneVolumes)
+
+	environments.GET("/:id/stacks", environmentHandler.GetStacks)
+	environments.POST("/:id/stacks", environmentHandler.CreateStack)
+	environments.GET("/:id/stacks/:stackId", environmentHandler.GetStack)
+	environments.PUT("/:id/stacks/:stackId", environmentHandler.UpdateStack)
+	environments.DELETE("/:id/stacks/:stackId", environmentHandler.DeleteStack)
+	environments.POST("/:id/stacks/:stackId/start", environmentHandler.StartStack)
+	environments.POST("/:id/stacks/:stackId/deploy", environmentHandler.DeployStack)
+	environments.POST("/:id/stacks/:stackId/stop", environmentHandler.StopStack)
+	environments.POST("/:id/stacks/:stackId/restart", environmentHandler.RestartStack)
+	environments.GET("/:id/stacks/:stackId/services", environmentHandler.GetStackServices)
+	environments.POST("/:id/stacks/:stackId/pull", environmentHandler.PullStackImages)
+	environments.POST("/:id/stacks/:stackId/redeploy", environmentHandler.RedeployStack)
+	environments.POST("/:id/stacks/:stackId/down", environmentHandler.DownStack)
+	environments.DELETE("/:id/stacks/:stackId/destroy", environmentHandler.DestroyStack)
+	environments.GET("/:id/stacks/:stackId/logs/stream", environmentHandler.GetStackLogsStream)
+	environments.POST("/:id/stacks/convert", environmentHandler.ConvertDockerRun)
+
 }
 
 func setupSettingsRoutes(api *gin.RouterGroup, services *Services, appConfig *config.Config) {
@@ -156,20 +205,6 @@ func setupSettingsRoutes(api *gin.RouterGroup, services *Services, appConfig *co
 	settings.GET("/oidc/config", oidcHandler.GetOidcConfig)
 	settings.POST("/oidc/url", oidcHandler.GetOidcAuthUrl)
 	settings.POST("/oidc/callback", oidcHandler.HandleOidcCallback)
-}
-
-func setupDeploymentRoutes(api *gin.RouterGroup, services *Services) {
-	deployments := api.Group("/deployments")
-	deployments.Use(middleware.AuthMiddleware(services.Auth))
-
-	deploymentHandler := NewDeploymentHandler(services.Deployment)
-
-	deployments.GET("", deploymentHandler.ListDeployments)
-	deployments.GET("/recent", deploymentHandler.GetRecentDeployments)
-	deployments.GET("/stats", deploymentHandler.GetDeploymentStats)
-	deployments.GET("/:deploymentId", deploymentHandler.GetDeployment)
-	deployments.PUT("/:deploymentId/status", deploymentHandler.UpdateDeploymentStatus)
-	deployments.DELETE("/:deploymentId", deploymentHandler.DeleteDeployment)
 }
 
 func setupImageMaturityRoutes(api *gin.RouterGroup, services *Services) {
@@ -217,7 +252,7 @@ func setupContainerRoutes(api *gin.RouterGroup, services *Services) {
 	containers := api.Group("/containers")
 	containers.Use(middleware.AuthMiddleware(services.Auth))
 
-	containerHandler := NewContainerHandler(services.Container)
+	containerHandler := NewContainerHandler(services.Container, services.Image)
 
 	containers.GET("", containerHandler.List)
 	containers.POST("", containerHandler.Create)
@@ -254,11 +289,11 @@ func setupVolumeRoutes(api *gin.RouterGroup, services *Services) {
 	volumeHandler := NewVolumeHandler(services.Volume)
 
 	volumes.GET("", volumeHandler.List)
-	volumes.GET("/:name", volumeHandler.GetByName)
+	volumes.GET("/:volumeName", volumeHandler.GetByName)
 	volumes.POST("", volumeHandler.Create)
-	volumes.DELETE("/:name", volumeHandler.Remove)
+	volumes.DELETE("/:volumeName", volumeHandler.Remove)
 	volumes.POST("/prune", volumeHandler.Prune)
-	volumes.GET("/:name/usage", volumeHandler.GetUsage)
+	volumes.GET("/:volumeName/usage", volumeHandler.GetUsage)
 }
 
 func setupNetworkRoutes(api *gin.RouterGroup, services *Services) {

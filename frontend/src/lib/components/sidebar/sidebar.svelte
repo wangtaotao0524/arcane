@@ -12,7 +12,7 @@
 					{ title: 'Docker', url: '/settings/docker', icon: DatabaseIcon },
 					{ title: 'Users', url: '/settings/users', icon: UserIcon },
 					{ title: 'Security', url: '/settings/security', icon: Shield },
-					{ title: 'Agents (Preview)', url: '/agents', icon: ComputerIcon }
+					{ title: 'Environments', url: '/environments', icon: ComputerIcon }
 				]
 			}
 		],
@@ -50,21 +50,16 @@
 	import type { AppVersionInformation } from '$lib/types/application-configuration';
 	import SidebarLogo from './sidebar-logo.svelte';
 	import SidebarUpdatebanner from './sidebar-updatebanner.svelte';
-	import type { Agent } from '$lib/types/agent.type';
 
 	let {
 		ref = $bindable(null),
 		collapsible = 'icon',
 		user,
 		versionInformation,
-		hasLocalDocker,
-		agents,
 		...restProps
 	}: ComponentProps<typeof Sidebar.Root> & {
 		versionInformation: AppVersionInformation;
-		hasLocalDocker: boolean;
 		user?: User | null;
-		agents: Agent[];
 	} = $props();
 
 	const sidebar = useSidebar();
@@ -75,8 +70,7 @@
 <Sidebar.Root {collapsible} {...restProps}>
 	<Sidebar.Header>
 		<SidebarLogo {isCollapsed} {versionInformation} />
-		<!-- Add back once we add in better agent switching -->
-		<!-- <SidebarAgentSwitcher {hasLocalDocker} {agents} /> -->
+		<SidebarAgentSwitcher />
 	</Sidebar.Header>
 	<Sidebar.Content>
 		<SidebarItemGroup label="Management" items={staticData.managementItems} />

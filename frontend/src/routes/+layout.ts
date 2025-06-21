@@ -2,8 +2,8 @@ import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { redirect } from '@sveltejs/kit';
 import type { AppVersionInformation } from '$lib/types/application-configuration';
-import settingsStore from '$lib/stores/config-store';
-import { settingsAPI, userAPI } from '$lib/services/api';
+import { settingsAPI, userAPI, environmentManagementAPI } from '$lib/services/api';
+import { environmentStore } from '$lib/stores/environment.store';
 
 let versionInformation: AppVersionInformation;
 let versionInformationLastUpdated: number;
@@ -18,17 +18,14 @@ export const load = async ({ fetch, url }) => {
 
 	const updateCheckDisabled = env.PUBLIC_UPDATE_CHECK_DISABLED === 'true';
 
-	let agents: any[] = [];
-	let hasLocalDocker = false;
 	let isAuthenticated = false;
 	let user = null;
+	let settings: any = null;
 
 	const path = url.pathname;
-
 	const publicPaths = ['/auth/login', '/auth/logout', '/auth/oidc/login', '/auth/oidc/callback', '/img', '/favicon.ico'];
 	const isPublicPath = publicPaths.some((p) => path.startsWith(p));
 
-	let settings: any = null;
 	try {
 		settings = await settingsAPI.getSettings();
 	} catch (e: any) {
@@ -37,7 +34,7 @@ export const load = async ({ fetch, url }) => {
 				const publicSettingsResponse = await fetch('/api/settings/public');
 				if (publicSettingsResponse.ok) {
 					const publicData = await publicSettingsResponse.json();
-					settings = publicData.data;
+					if (publicData.success) settings = publicData.data;
 				}
 			} catch (publicError) {
 				console.warn('Could not fetch public settings:', publicError);
@@ -51,7 +48,6 @@ export const load = async ({ fetch, url }) => {
 			isAuthenticated = true;
 		}
 	} catch (e: any) {
-		console.error(`Error while checking user authentication status: ${e.message}`);
 		user = null;
 		isAuthenticated = false;
 	}
@@ -61,59 +57,48 @@ export const load = async ({ fetch, url }) => {
 	}
 
 	if (isAuthenticated && !isPublicPath) {
-		const isOnboardingPath = path.startsWith('/onboarding');
+		if (!environmentStore.isInitialized()) {
+			try {
+				const environments = await environmentManagementAPI.list();
+				let hasLocalDocker = false;
+				if (browser) {
+					// Check for local Docker only in browser context
+					try {
+						const localDockerCheckUrl = '/api/environments/0/containers?limit=1';
+						const dockerResponse = await fetch(localDockerCheckUrl);
+						hasLocalDocker = dockerResponse.ok;
+					} catch (e) {
+						console.warn('Failed to check for local Docker:', e);
+						hasLocalDocker = false;
+					}
+				}
+				await environmentStore.initialize(environments, hasLocalDocker);
+			} catch (error) {
+				console.error('Failed to load and initialize environments in layout load:', error);
+				await environmentStore.initialize([], false); // Initialize with empty state
+			}
+		}
 
+		const isOnboardingPath = path.startsWith('/onboarding');
 		if (!isOnboardingPath && settings && settings.onboarding && !settings.onboarding.completed) {
 			throw redirect(302, '/onboarding/welcome');
 		}
 	}
 
-	if (isAuthenticated && user) {
-		try {
-			// Fetch agents
-			const agentsResponse = await fetch('/api/agents', {
-				credentials: 'include'
-			});
-			if (agentsResponse.ok) {
-				const agentsData = await agentsResponse.json();
-				agents = agentsData.data || [];
-			}
-		} catch (error) {
-			console.log('Could not fetch agents:', error);
-		}
-
-		try {
-			// Check if local Docker is available
-			const dockerResponse = await fetch('/api/containers?limit=1', {
-				credentials: 'include'
-			});
-			hasLocalDocker = dockerResponse.ok;
-		} catch (error) {
-			console.log('Docker not available:', error);
-		}
-	}
-
-	// Handle version information
 	if (updateCheckDisabled) {
-		versionInformation = {
-			currentVersion: '0.15.0'
-		} as AppVersionInformation;
+		versionInformation = { currentVersion: '0.15.0' } as AppVersionInformation;
 	} else {
 		const cacheExpired = versionInformationLastUpdated && Date.now() - versionInformationLastUpdated > 1000 * 60 * 60 * 3;
-
 		if (!versionInformation || cacheExpired) {
 			try {
 				const versionResponse = await fetch('/_app/version.json');
 				if (versionResponse.ok) {
 					const versionData = await versionResponse.json();
-					versionInformation = {
-						currentVersion: versionData.version
-					} as AppVersionInformation;
+					versionInformation = { currentVersion: versionData.version } as AppVersionInformation;
+					versionInformationLastUpdated = Date.now();
 				} else {
-					console.error('Version endpoint returned status:', versionResponse.status);
 					throw new Error('Version endpoint not available');
 				}
-				versionInformationLastUpdated = Date.now();
 			} catch (error) {
 				console.error('Error fetching version information:', error);
 				versionInformation = { currentVersion: 'Unknown' } as AppVersionInformation;
@@ -126,8 +111,6 @@ export const load = async ({ fetch, url }) => {
 		user,
 		isAuthenticated,
 		settings,
-		agents,
-		hasLocalDocker,
 		versionInformation,
 		updateCheckDisabled
 	};
