@@ -399,7 +399,7 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo OidcUserInfo) (*mo
 
 	user, err := s.userService.GetUserByOidcSubjectId(ctx, userInfo.Subject)
 
-	if err != nil && err != ErrUserNotFound {
+	if err != nil && !errors.Is(err, ErrUserNotFound) {
 		return nil, nil, err
 	}
 
@@ -421,11 +421,12 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo OidcUserInfo) (*mo
 		username := generateUsernameFromEmail(userInfo.Email, userInfo.Subject)
 
 		var displayName string
-		if userInfo.Name != "" {
+		switch {
+		case userInfo.Name != "":
 			displayName = userInfo.Name
-		} else if userInfo.GivenName != "" || userInfo.FamilyName != "" {
+		case userInfo.GivenName != "" || userInfo.FamilyName != "":
 			displayName = strings.TrimSpace(fmt.Sprintf("%s %s", userInfo.GivenName, userInfo.FamilyName))
-		} else {
+		default:
 			displayName = username
 		}
 
