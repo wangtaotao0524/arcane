@@ -2,8 +2,6 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
-// This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
-
 const config: Config = {
   title: 'Arcane - Documentation',
   tagline: 'Modern Docker management, designed for everyone',
@@ -20,14 +18,8 @@ const config: Config = {
     locales: ['en'],
   },
   future: {
-    v4: {
-      removeLegacyPostBuildHeadAttribute: true,
-    },
+    v4: true,
     experimental_faster: true,
-    experimental_faster: {
-      rspackBundler: true,
-      rspackPersistentCache: true,
-    },
   },
 
   presets: [
@@ -45,6 +37,12 @@ const config: Config = {
   ],
 
   themeConfig: {
+    image: 'img/arcane.png',
+    colorMode: {
+      defaultMode: 'dark',
+      disableSwitch: true,
+      respectPrefersColorScheme: true,
+    },
     navbar: {
       title: 'Arcane',
       logo: {
@@ -60,26 +58,24 @@ const config: Config = {
       ],
     },
     prism: {
-      theme: prismThemes.vsLight,
-      darkTheme: prismThemes.vsDark,
+      theme: prismThemes.github,
+      darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
 
   plugins: [
-    // Only include the analytics plugin if the environment variable exists
-    // This ensures analytics won't run during local development
-    ...(process.env.UMAMI_WEBSITE_ID
-      ? [
-          [
-            '@dipakparmar/docusaurus-plugin-umami',
-            /** @type {import('@dipakparmar/docusaurus-plugin-umami').Options} */
-            {
-              websiteID: process.env.UMAMI_WEBSITE_ID,
-              analyticsDomain: process.env.UMAMI_ANALYTICS_DOMAIN,
-            },
-          ],
-        ]
-      : []),
+    ...(process.env.UMAMI_WEBSITE_ID ?
+      [
+        [
+          '@dipakparmar/docusaurus-plugin-umami',
+          /** @type {import('@dipakparmar/docusaurus-plugin-umami').Options} */
+          {
+            websiteID: process.env.UMAMI_WEBSITE_ID,
+            analyticsDomain: process.env.UMAMI_ANALYTICS_DOMAIN,
+          },
+        ],
+      ]
+    : []),
   ],
 };
 
