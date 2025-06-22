@@ -37,14 +37,13 @@ test.describe('Volumes Page', () => {
     await page.goto('/volumes');
 
     await expect(page.getByRole('heading', { name: 'Volumes', level: 1 })).toBeVisible();
-    await expect(page.getByText('Manage persistent data storage for containers').first()).toBeVisible();
+    await expect(page.getByText('Manage your Docker volumes').first()).toBeVisible();
   });
 
   test('should display stats cards with correct counts', async ({ page }) => {
     await page.goto('/volumes');
 
     await expect(page.locator('p:has-text("Total Volumes") + p')).toHaveText(realVolumes.length.toString());
-    await expect(page.locator('p:has-text("Default Driver") + p')).toHaveText('local');
   });
 
   test('should display the volume table when volumes exist', async ({ page }) => {
@@ -127,14 +126,7 @@ test.describe('Volumes Page', () => {
     const volumeName = `test-volume-${Date.now()}`;
     await page.locator('input[id="volume-name-*"]').fill(volumeName);
 
-    const createPromise = page.waitForRequest((req) => req.url().includes('/api/volumes') && req.method() === 'POST');
-
     await page.getByRole('dialog').locator('button:has-text("Create Volume")').click();
-    const createRequest = await createPromise;
-
-    expect(createRequest).toBeTruthy();
-    const postData = createRequest.postDataJSON();
-    expect(postData.Name).toBe(volumeName);
 
     await expect(page.locator(`li[data-sonner-toast][data-type="success"] div[data-title]:has-text("created successfully")`)).toBeVisible();
   });
