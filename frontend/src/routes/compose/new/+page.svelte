@@ -18,7 +18,7 @@
 	import DropdownCard from '$lib/components/dropdown-card.svelte';
 	import * as Resizable from '$lib/components/ui/resizable/index.js';
 	import TemplateSelectionDialog from '$lib/components/dialogs/template-selection-dialog.svelte';
-	import { environmentAPI } from '$lib/services/api';
+	import { environmentAPI, converterAPI } from '$lib/services/api';
 	import type { Template } from '$lib/types/template.type';
 	import type { PageProps } from './+page';
 
@@ -57,18 +57,13 @@
 		}
 
 		handleApiResultWithCallbacks({
-			result: await tryCatch(environmentAPI.convertDockerRun(dockerRunCommand)),
+			result: await tryCatch(converterAPI.convert(dockerRunCommand)),
 			message: 'Failed to Convert Docker Run Command',
 			setLoadingState: (value) => (converting = value),
 			onSuccess: (data) => {
-				composeContent = data.composeContent;
-
-				if (!name.trim() && dockerRunCommand.includes('--name ')) {
-					const nameMatch = dockerRunCommand.match(/--name\s+(\S+)/);
-					if (nameMatch) {
-						name = nameMatch[1];
-					}
-				}
+				composeContent = data.dockerCompose;
+				envContent = data.envVars;
+				name = data.serviceName;
 
 				toast.success('Docker run command converted successfully!');
 				dockerRunCommand = '';

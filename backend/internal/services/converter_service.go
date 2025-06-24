@@ -15,7 +15,6 @@ func NewConverterService() *ConverterService {
 	return &ConverterService{}
 }
 
-// ParseDockerRunCommand parses a docker run command string into structured data
 func (s *ConverterService) ParseDockerRunCommand(command string) (*models.DockerRunCommand, error) {
 	if command == "" {
 		return nil, fmt.Errorf("docker run command must be a non-empty string")
