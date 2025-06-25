@@ -122,7 +122,7 @@ func (s *StackService) DeployStack(ctx context.Context, stackID string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if updateErr := s.UpdateStackStatus(ctx, stackID, models.StackStatusStopped); updateErr != nil {
-			return fmt.Errorf("failed to deploy stack: %w, also failed to update status: %v", err, updateErr)
+			return fmt.Errorf("failed to deploy stack: %w, also failed to update status: %w", err, updateErr)
 		}
 		return fmt.Errorf("failed to deploy stack: %w\nCommand output: %s", err, string(output))
 	}
