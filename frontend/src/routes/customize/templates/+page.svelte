@@ -5,7 +5,17 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { Trash2, Plus, ExternalLink, RefreshCw, FileText, Globe, FolderOpen, Users, Copy } from '@lucide/svelte';
+	import {
+		Trash2,
+		Plus,
+		ExternalLink,
+		RefreshCw,
+		FileText,
+		Globe,
+		FolderOpen,
+		Users,
+		Copy
+	} from '@lucide/svelte';
 	import type { PageData } from './$types';
 	import { templateAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
@@ -104,7 +114,12 @@
 	}
 
 	// Handle registry form submission
-	async function handleRegistrySubmit(registry: { name: string; url: string; description?: string; enabled: boolean }) {
+	async function handleRegistrySubmit(registry: {
+		name: string;
+		url: string;
+		description?: string;
+		enabled: boolean;
+	}) {
 		isLoading.addingRegistry = true;
 
 		try {
@@ -139,7 +154,10 @@
 			<h1 class="text-3xl font-bold tracking-tight">Template Settings</h1>
 			<p class="text-muted-foreground mt-1 text-sm">
 				Manage Docker Compose template sources and registries
-				<a href="https://arcane.ofkm.dev/docs/templates/use-templates" class="text-primary ml-1 hover:underline">→ Learn more</a>
+				<a
+					href="https://arcane.ofkm.dev/docs/templates/use-templates"
+					class="text-primary ml-1 hover:underline">→ Learn more</a
+				>
 			</p>
 		</div>
 
@@ -182,22 +200,10 @@
 
 	<Separator />
 
-	<!-- Local Templates Info -->
-	<div class="space-y-4">
-		<h2 class="text-xl font-semibold">Local Templates</h2>
-		<Alert.Root>
-			<FolderOpen class="size-4" />
-			<Alert.Title>Local Template Directory</Alert.Title>
-			<Alert.Description>Local templates are stored in the database and can be managed through the templates page. You can create, edit, and delete custom templates that are stored locally on your server.</Alert.Description>
-		</Alert.Root>
-	</div>
-
-	<Separator />
-
 	<!-- Remote Template Registries -->
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
-			<h2 class="text-xl font-semibold">Remote Template Registries</h2>
+			<h2 class="text-xl font-semibold">Template Registries</h2>
 			<Button onclick={() => (showAddRegistrySheet = true)}>
 				<Plus class="mr-2 size-4" />
 				Add Registry
@@ -207,7 +213,10 @@
 		<Alert.Root>
 			<Globe class="size-4" />
 			<Alert.Title>Remote Registries</Alert.Title>
-			<Alert.Description>Add remote template registries to access community templates. Registries should provide a JSON manifest with template definitions and download URLs.</Alert.Description>
+			<Alert.Description
+				>Add remote template registries to access community templates. Registries should provide a
+				JSON manifest with template definitions and download URLs.</Alert.Description
+			>
 		</Alert.Root>
 
 		<Alert.Root class="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
@@ -216,8 +225,14 @@
 			<Alert.Description class="space-y-2">
 				<p>Get started quickly with our community registry containing popular templates:</p>
 				<div class="mt-2 flex items-center gap-2">
-					<code class="rounded bg-white px-2 py-1 text-xs dark:bg-gray-800"> https://templates.arcane.ofkm.dev/registry.json </code>
-					<Button size="sm" variant="outline" onclick={() => copyToClipboard('https://templates.arcane.ofkm.dev/registry.json')}>
+					<code class="rounded bg-white px-2 py-1 text-xs dark:bg-gray-800">
+						https://templates.arcane.ofkm.dev/registry.json
+					</code>
+					<Button
+						size="sm"
+						variant="outline"
+						onclick={() => copyToClipboard('https://templates.arcane.ofkm.dev/registry.json')}
+					>
 						<Copy class="mr-1 size-3" />
 						Copy
 					</Button>
@@ -248,15 +263,28 @@
 							</div>
 							<div class="flex items-center gap-2">
 								<!-- Toggle enabled/disabled -->
-								<Switch checked={registry.enabled} onCheckedChange={(checked) => updateRegistry(registry.id, { enabled: checked })} disabled={isLoading.updating.has(registry.id)} />
+								<Switch
+									checked={registry.enabled}
+									onCheckedChange={(checked) => updateRegistry(registry.id, { enabled: checked })}
+									disabled={isLoading.updating.has(registry.id)}
+								/>
 
 								<!-- Open registry URL -->
-								<Button variant="outline" size="sm" onclick={() => window.open(registry.url, '_blank')}>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => window.open(registry.url, '_blank')}
+								>
 									<ExternalLink class="size-4" />
 								</Button>
 
 								<!-- Remove registry -->
-								<Button variant="destructive" size="sm" onclick={() => removeRegistry(registry.id)} disabled={isLoading.removing.has(registry.id)}>
+								<Button
+									variant="destructive"
+									size="sm"
+									onclick={() => removeRegistry(registry.id)}
+									disabled={isLoading.removing.has(registry.id)}
+								>
 									{#if isLoading.removing.has(registry.id)}
 										<RefreshCw class="size-4 animate-spin" />
 									{:else}
@@ -278,5 +306,9 @@
 	</div>
 
 	<!-- Add Template Registry Sheet -->
-	<AddTemplateRegistrySheet bind:open={showAddRegistrySheet} onSubmit={handleRegistrySubmit} isLoading={isLoading.addingRegistry} />
+	<AddTemplateRegistrySheet
+		bind:open={showAddRegistrySheet}
+		onSubmit={handleRegistrySubmit}
+		isLoading={isLoading.addingRegistry}
+	/>
 </div>
