@@ -6,54 +6,36 @@
 	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import AppSidebar from '$lib/components/sidebar/sidebar.svelte';
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { initializeClientStores } from '$lib/stores/client-init';
 	import userStore from '$lib/stores/user-store';
+	import settingsStore from '$lib/stores/config-store';
+	import { getAuthRedirectPath } from '$lib/utils/redirect.util';
 
 	let { children, data } = $props();
 
-	const versionInformation = data.versionInformation;
-	const user = $derived(data.user);
+	const { versionInformation, user, settings } = data;
+
+	const redirectPath = getAuthRedirectPath(page.url.pathname, user, settings);
+	if (redirectPath) {
+		goto(redirectPath);
+	}
 	const isNavigating = $derived(navigating.type !== null);
-	const isAuthenticated = $derived(!!user);
+
 	const isOnboardingPage = $derived(page.url.pathname.startsWith('/onboarding'));
-	const isLoginPage = $derived(page.url.pathname === '/login' || page.url.pathname.startsWith('/auth/login') || page.url.pathname === '/auth' || page.url.pathname.includes('/login'));
-	const showSidebar = $derived(isAuthenticated && !isOnboardingPage && !isLoginPage);
+	const isLoginPage = $derived(
+		page.url.pathname === '/login' ||
+			page.url.pathname.startsWith('/auth/login') ||
+			page.url.pathname === '/auth' ||
+			page.url.pathname.includes('/login')
+	);
 
-	$effect(() => {
-		const path = page.url.pathname;
+	if (user) {
+		userStore.setUser(user);
+	}
 
-		const publicPaths = ['/auth/login', '/auth/logout', '/auth/oidc/login', '/auth/oidc/callback', '/img', '/favicon.ico'];
-
-		const isPublicPath = publicPaths.some((p) => path.startsWith(p));
-
-		if (!isPublicPath && !data.isAuthenticated) {
-			fetch('/api/auth/me', {
-				credentials: 'include'
-			})
-				.then((response) => {
-					if (!response.ok) {
-						goto(`/auth/login?redirect=${encodeURIComponent(path)}`);
-					}
-				})
-				.catch(() => {
-					goto(`/auth/login?redirect=${encodeURIComponent(path)}`);
-				});
-		}
-	});
-
-	$effect(() => {
-		if (user) {
-			userStore.setUser(user);
-		} else {
-			userStore.clearUser();
-		}
-	});
-
-	onMount(async () => {
-		await initializeClientStores();
-	});
+	if (settings) {
+		settingsStore.set(settings);
+	}
 </script>
 
 <svelte:head><title>Arcane</title></svelte:head>
@@ -70,7 +52,7 @@
 {/if}
 
 <div class="bg-background flex min-h-screen">
-	{#if showSidebar}
+	{#if !!$userStore && !isOnboardingPage && !isLoginPage}
 		<Sidebar.Provider>
 			<AppSidebar {versionInformation} {user} />
 			<main class="flex-1">

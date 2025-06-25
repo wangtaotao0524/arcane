@@ -5,10 +5,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
+		host: process.env.HOST,
 		proxy: {
 			'/api': {
-				target: 'http://localhost:8080',
-				changeOrigin: true
+				target: process.env.DEV_BACKEND_URL || 'http://localhost:8080'
 			}
 		}
 	}

@@ -9,12 +9,6 @@ const config = {
 			pages: process.env.BUILD_PATH ?? '../backend/frontend/dist',
 			fallback: 'index.html'
 		}),
-		paths: {
-			base: process.env.NODE_ENV === 'production' ? '' : ''
-		},
-		csrf: {
-			checkOrigin: process.env.NODE_ENV === 'production'
-		},
 		version: {
 			name: packageJson.version
 		}

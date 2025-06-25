@@ -2,7 +2,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Cog, Save, RefreshCw, Folder, Globe, Calendar } from '@lucide/svelte';
+	import { Save, RefreshCw, Folder, Globe, Calendar } from '@lucide/svelte';
 	import type { FormInput as FormInputType } from '$lib/utils/form.utils';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
@@ -68,10 +68,16 @@
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">General Settings</h1>
-			<p class="text-muted-foreground mt-1 text-sm">Core configuration for how Arcane operates and manages your containers</p>
+			<p class="text-muted-foreground mt-1 text-sm">
+				Core configuration for how Arcane operates and manages your containers
+			</p>
 		</div>
 
-		<Button onclick={() => handleGeneralSettingUpdates()} disabled={isLoading.saving} class="h-10 min-w-[120px]">
+		<Button
+			onclick={() => handleGeneralSettingUpdates()}
+			disabled={isLoading.saving}
+			class="h-10 min-w-[120px]"
+		>
 			{#if isLoading.saving}
 				<RefreshCw class="size-4 animate-spin" />
 				Saving...
@@ -98,7 +104,12 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<FormInput label="Stacks Directory" placeholder="data/stacks" bind:input={stacksDirectoryInput} helpText="Directory where Docker Compose stack files are stored" />
+				<FormInput
+					label="Stacks Directory"
+					placeholder="data/stacks"
+					bind:input={stacksDirectoryInput}
+					helpText="Directory where Docker Compose stack files are stored"
+				/>
 			</Card.Content>
 		</Card.Root>
 
@@ -116,7 +127,12 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<FormInput label="Base Server URL" placeholder="localhost" bind:input={baseServerUrlInput} helpText="Base URL for accessing Arcane (used for webhooks and notifications)" />
+				<FormInput
+					label="Base Server URL"
+					placeholder="localhost"
+					bind:input={baseServerUrlInput}
+					helpText="Base URL for accessing Arcane (used for webhooks and notifications)"
+				/>
 			</Card.Content>
 		</Card.Root>
 
@@ -134,7 +150,13 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<FormInput type="number" label="Image Maturity Threshold (Days)" placeholder="30" bind:input={maturityThresholdInput} helpText="Number of days to wait before considering an image update stable" />
+				<FormInput
+					type="number"
+					label="Image Maturity Threshold (Days)"
+					placeholder="30"
+					bind:input={maturityThresholdInput}
+					helpText="Number of days to wait before considering an image update stable"
+				/>
 			</Card.Content>
 		</Card.Root>
 	</div>
