@@ -2,10 +2,14 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
@@ -14,12 +18,112 @@ import (
 	"github.com/ofkm/arcane-backend/internal/models"
 )
 
+type Argon2Params struct {
+	memory      uint32
+	iterations  uint32
+	parallelism uint8
+	saltLength  uint32
+	keyLength   uint32
+}
+
+func DefaultArgon2Params() *Argon2Params {
+	return &Argon2Params{
+		memory:      64 * 1024,
+		iterations:  3,
+		parallelism: 2,
+		saltLength:  16,
+		keyLength:   32,
+	}
+}
+
 type UserService struct {
-	db *database.DB
+	db           *database.DB
+	argon2Params *Argon2Params
 }
 
 func NewUserService(db *database.DB) *UserService {
-	return &UserService{db: db}
+	return &UserService{
+		db:           db,
+		argon2Params: DefaultArgon2Params(),
+	}
+}
+
+func (s *UserService) hashPassword(password string) (string, error) {
+	salt := make([]byte, s.argon2Params.saltLength)
+	_, err := rand.Read(salt)
+	if err != nil {
+		return "", err
+	}
+
+	hash := argon2.IDKey([]byte(password), salt, s.argon2Params.iterations, s.argon2Params.memory, s.argon2Params.parallelism, s.argon2Params.keyLength)
+
+	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
+	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
+
+	encodedHash := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, s.argon2Params.memory, s.argon2Params.iterations, s.argon2Params.parallelism, b64Salt, b64Hash)
+
+	return encodedHash, nil
+}
+
+func (s *UserService) ValidatePassword(encodedHash, password string) error {
+	// Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+	if strings.HasPrefix(encodedHash, "$2a$") || strings.HasPrefix(encodedHash, "$2b$") || strings.HasPrefix(encodedHash, "$2y$") {
+		return s.validateBcryptPassword(encodedHash, password)
+	}
+
+	// Otherwise, assume it's Argon2
+	return s.validateArgon2Password(encodedHash, password)
+}
+
+func (s *UserService) validateBcryptPassword(hash, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
+
+func (s *UserService) validateArgon2Password(encodedHash, password string) error {
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 6 {
+		return fmt.Errorf("invalid hash format")
+	}
+
+	var version int
+	_, err := fmt.Sscanf(parts[2], "v=%d", &version)
+	if err != nil {
+		return err
+	}
+	if version != argon2.Version {
+		return fmt.Errorf("incompatible version of argon2")
+	}
+
+	var memory, iterations uint32
+	var parallelism uint8
+	_, err = fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism)
+	if err != nil {
+		return err
+	}
+
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
+	if err != nil {
+		return err
+	}
+
+	decodedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
+	if err != nil {
+		return err
+	}
+
+	comparisonHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(decodedHash)))
+
+	if len(comparisonHash) != len(decodedHash) {
+		return fmt.Errorf("invalid password")
+	}
+
+	for i := range comparisonHash {
+		if comparisonHash[i] != decodedHash[i] {
+			return fmt.Errorf("invalid password")
+		}
+	}
+
+	return nil
 }
 
 func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
@@ -30,7 +134,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*model
 }
 
 func (s *UserService) CreateUserWithPassword(username, password, email, role string, displayName string) (*models.User, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := s.hashPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -40,7 +144,7 @@ func (s *UserService) CreateUserWithPassword(username, password, email, role str
 		Username:     username,
 		Email:        &email,
 		DisplayName:  &displayName,
-		PasswordHash: string(hashedPassword),
+		PasswordHash: hashedPassword,
 		Roles:        models.StringSlice{role},
 	}
 
@@ -103,10 +207,6 @@ func (s *UserService) CountUsers() (int64, error) {
 	return count, nil
 }
 
-func (s *UserService) ValidatePassword(hashedPassword, password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-}
-
 func (s *UserService) CreateDefaultAdmin() error {
 	count, err := s.CountUsers()
 	if err != nil {
@@ -143,4 +243,23 @@ func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 	return nil
+}
+
+func (s *UserService) HashPassword(password string) (string, error) {
+	return s.hashPassword(password)
+}
+
+func (s *UserService) NeedsPasswordUpgrade(hash string) bool {
+	return strings.HasPrefix(hash, "$2a$") || strings.HasPrefix(hash, "$2b$") || strings.HasPrefix(hash, "$2y$")
+}
+
+func (s *UserService) UpgradePasswordHash(ctx context.Context, userID, password string) error {
+	newHash, err := s.hashPassword(password)
+	if err != nil {
+		return fmt.Errorf("failed to create new hash: %w", err)
+	}
+
+	return s.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("password_hash", newHash).Error
 }

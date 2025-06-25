@@ -14,7 +14,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/models"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Common errors
@@ -360,8 +359,18 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 		return nil, nil, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+	if err := s.userService.ValidatePassword(user.PasswordHash, password); err != nil {
 		return nil, nil, ErrInvalidCredentials
+	}
+
+	// Check if password needs upgrade from bcrypt to Argon2
+	if s.userService.NeedsPasswordUpgrade(user.PasswordHash) {
+		if err := s.userService.UpgradePasswordHash(ctx, user.ID, password); err != nil {
+			// Log the error but don't fail the login
+			fmt.Printf("Warning: Failed to upgrade password hash for user %s: %v\n", user.ID, err)
+		} else {
+			fmt.Printf("Successfully upgraded password hash for user %s from bcrypt to Argon2\n", user.Username)
+		}
 	}
 
 	if user.RequirePasswordChange {
@@ -537,26 +546,25 @@ func (s *AuthService) VerifyToken(ctx context.Context, accessToken string) (*mod
 }
 
 // ChangePassword changes a user's password
-func (s *AuthService) ChangePassword(ctx context.Context, userId, currentPassword, newPassword string) error {
-	user, err := s.userService.GetUserByID(ctx, userId)
+func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	user, err := s.userService.GetUserByID(ctx, userID)
 	if err != nil {
 		return err
 	}
 
-	if currentPassword != "" {
-		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+	if user.PasswordHash != "" {
+		if err := s.userService.ValidatePassword(user.PasswordHash, currentPassword); err != nil {
 			return ErrInvalidCredentials
 		}
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := s.userService.hashPassword(newPassword)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	user.PasswordHash = string(hashedPassword)
+	user.PasswordHash = hashedPassword
 	user.RequirePasswordChange = false
-
 	_, err = s.userService.UpdateUser(ctx, user)
 	return err
 }
