@@ -35,9 +35,24 @@ Thank you for your interest in contributing to Arcane! We welcome contributions 
 
 4.  **Set Up Development Environment:** Follow the instructions in the [**Building from Source**](./building.md) guide to set up your development environment:
 
-    ```bash
-    ./build.sh
-    ```
+### Backend
+
+For the backend you can use `air` for hot reloading for quick development:
+
+```bash
+go install github.com/air-verse/air@latest
+```
+
+Then just run `air` in arcane/backend folder.
+
+### Frontend
+
+The frontend uses vite for development:
+
+```bash
+cd frontend
+npm run dev
+```
 
 5.  **Make Changes:** Implement your feature or bug fix. Write clear, concise code.
 
