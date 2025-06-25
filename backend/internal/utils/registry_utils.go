@@ -51,21 +51,52 @@ func BuildRegistryURL(domain string) string {
 // GetRegistryToken gets an authentication token for the specified registry
 func GetRegistryToken(ctx context.Context, domain, repo string, creds *RegistryCredentials) (string, error) {
 	switch domain {
-	case "docker.io", "index.docker.io", "":
+	case "docker.io", "index.docker.io", "registry-1.docker.io":
 		return getDockerHubToken(ctx, repo, creds)
 	case "gcr.io":
 		return getGCRToken(ctx, repo, creds)
 	case "ghcr.io":
-		return getGitHubRegistryToken(ctx, repo, creds)
+		return getGHCRToken(ctx, repo, creds)
 	case "quay.io":
 		return getQuayToken(ctx, repo, creds)
 	default:
-		// For custom registries, return the token directly
-		if creds != nil {
-			return creds.Token, nil
-		}
+		return getGenericRegistryToken(ctx, domain, repo, creds)
+	}
+}
+
+func getGenericRegistryToken(ctx context.Context, domain, repo string, creds *RegistryCredentials) (string, error) {
+	authURL := fmt.Sprintf("https://%s/v2/", domain)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, authURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create auth request: %w", err)
+	}
+
+	if creds != nil && creds.Username != "" {
+		req.SetBasicAuth(creds.Username, creds.Token)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to authenticate: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
 		return "", nil
 	}
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		return "", fmt.Errorf("unexpected auth response: %d", resp.StatusCode)
+	}
+
+	authHeader := resp.Header.Get("Www-Authenticate")
+	if authHeader == "" {
+		return "", fmt.Errorf("no auth challenge")
+	}
+
+	return parseAndGetToken(ctx, authHeader, creds)
 }
 
 // getDockerHubToken gets a token for Docker Hub
@@ -110,42 +141,21 @@ func getDockerHubToken(ctx context.Context, repo string, creds *RegistryCredenti
 
 // getGCRToken gets a token for Google Container Registry
 func getGCRToken(ctx context.Context, repo string, creds *RegistryCredentials) (string, error) {
-	if creds == nil {
-		return "", fmt.Errorf("GCR requires authentication")
-	}
-
-	// GCR uses different auth mechanisms:
-	// - Service account key (JSON key file)
-	// - OAuth token
-	// - Docker credential helper
-
-	// For simplicity, we'll use the token directly if it's a service account token
-	// In production, you might want to implement proper OAuth flow
-	return creds.Token, nil
+	return getGenericRegistryToken(ctx, "gcr.io", repo, creds)
 }
 
 // getGitHubRegistryToken gets a token for GitHub Container Registry
-func getGitHubRegistryToken(ctx context.Context, repo string, creds *RegistryCredentials) (string, error) {
-	if creds == nil {
-		// Try anonymous access for public repos
-		return "", nil
-	}
-
-	// GitHub Container Registry uses Personal Access Tokens
-	// The token can be used directly as a bearer token or with basic auth
-	return creds.Token, nil
+func getGHCRToken(ctx context.Context, repo string, creds *RegistryCredentials) (string, error) {
+	return getGenericRegistryToken(ctx, "ghcr.io", repo, creds)
 }
 
 // getQuayToken gets a token for Quay.io
 func getQuayToken(ctx context.Context, repo string, creds *RegistryCredentials) (string, error) {
-	if creds == nil {
-		// Try anonymous access for public repos
-		return "", nil
-	}
+	return getGenericRegistryToken(ctx, "quay.io", repo, creds)
+}
 
-	// Quay.io uses robot accounts or user credentials
-	// The token can be used directly
-	return creds.Token, nil
+func parseAndGetToken(ctx context.Context, authHeader string, creds *RegistryCredentials) (string, error) {
+	return "", fmt.Errorf("token parsing not implemented")
 }
 
 // TestRegistryConnection tests connectivity to a registry with credentials

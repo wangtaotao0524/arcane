@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
@@ -138,7 +137,7 @@ func (h *ImageMaturityHandler) SetImageMaturity(c *gin.Context) {
 }
 
 func (h *ImageMaturityHandler) ListMaturityRecords(c *gin.Context) {
-	records, err := h.imageMaturityService.ListAllMaturityRecords(c.Request.Context())
+	records, err := h.imageMaturityService.ListMaturityRecords(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -341,34 +340,19 @@ func (h *ImageMaturityHandler) CheckMaturityBatch(c *gin.Context) {
 		return
 	}
 
-	results := make(map[string]interface{})
-	successCount := 0
-
-	for _, imageID := range req.ImageIDs {
-		err := h.imageMaturityService.UpdateCheckStatus(c.Request.Context(), imageID, models.ImageStatusChecking, nil)
-		if err != nil {
-			results[imageID] = gin.H{
-				"success": false,
-				"error":   err.Error(),
-			}
-		} else {
-			results[imageID] = gin.H{
-				"success":    true,
-				"status":     models.ImageStatusChecking,
-				"checked_at": time.Now(),
-			}
-			successCount++
-		}
+	result, err := h.imageMaturityService.CheckMaturityBatch(c.Request.Context(), req.ImageIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to check maturity batch",
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"results": results,
-		"summary": gin.H{
-			"total":      len(req.ImageIDs),
-			"successful": successCount,
-			"failed":     len(req.ImageIDs) - successCount,
-		},
+		"results": result["results"],
+		"summary": result["summary"],
 		"message": "Batch maturity check completed",
 	})
 }
