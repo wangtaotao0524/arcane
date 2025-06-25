@@ -34,3 +34,4 @@ vite.config.ts.timestamp-*
 tests/test-results/*
 tests/.report/*
 tests/.auth/
+backend/.bin
