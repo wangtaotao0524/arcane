@@ -35,37 +35,30 @@ RUN CGO_ENABLED=1 \
     ./cmd/main.go
 
 # Stage 3: Production Image
-FROM alpine:latest AS runner
+FROM alpine:3.21 AS runner
 
-# Install runtime dependencies
-RUN apk upgrade && apk --no-cache add ca-certificates tzdata curl shadow su-exec
+RUN apk upgrade && apk --no-cache add ca-certificates tzdata curl shadow su-exec docker docker-compose
 
 RUN delgroup ping && apk del iputils
 
-# Set up environment variables
 ENV DOCKER_GID=998 PUID=2000 PGID=2000
 ENV GIN_MODE=release
 ENV PORT=8080
 
 WORKDIR /app
 
-# Create necessary directories
 RUN mkdir -p /app/data && chmod 755 /app/data
 
-# Copy the binary from builder
 COPY --from=backend-builder /build/arcane .
 
-# Copy entrypoint script
 COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Configure container
 EXPOSE 8080
 VOLUME ["/app/data"]
 
 ARG VERSION="0.15.1"
 ARG REVISION="c052902"
 
-# Add OCI standard labels
 LABEL org.opencontainers.image.authors="OFKM Technologies"
 LABEL org.opencontainers.image.url="https://github.com/ofkm/arcane"
 LABEL org.opencontainers.image.documentation="https://github.com/ofkm/arcane/blob/main/README.md"
@@ -75,8 +68,7 @@ LABEL org.opencontainers.image.revision=$REVISION
 LABEL org.opencontainers.image.licenses="BSD-3-Clause"
 LABEL org.opencontainers.image.ref.name="arcane"
 LABEL org.opencontainers.image.title="Arcane"
-LABEL org.opencontainers.image.description="Simple and Elegant Docker Management UI with Go backend and SvelteKit frontend"
+LABEL org.opencontainers.image.description="Modern Docker Management, Made for Everyone"
 
-# Set the entrypoint and command
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["./arcane"]

@@ -38,37 +38,20 @@ func (h *StackHandler) ListStacks(c *gin.Context) {
 
 	var stackList []map[string]interface{}
 	for _, stack := range stacks {
-		services, err := h.stackService.GetStackServices(c.Request.Context(), stack.ID)
-		var serviceCount, runningCount int
-		if err != nil {
-			fmt.Printf("Warning: failed to get services for stack %s: %v\n", stack.ID, err)
-			serviceCount = stack.ServiceCount
-			runningCount = stack.RunningCount
-			services = nil
-		} else {
-			serviceCount = len(services)
-			runningCount = 0
-			for _, service := range services {
-				if service.Status == "running" {
-					runningCount++
-				}
-			}
-		}
-
 		stackResponse := map[string]interface{}{
 			"id":           stack.ID,
 			"name":         stack.Name,
 			"path":         stack.Path,
 			"status":       stack.Status,
-			"serviceCount": serviceCount,
-			"runningCount": runningCount,
+			"serviceCount": stack.ServiceCount,
+			"runningCount": stack.RunningCount,
 			"createdAt":    stack.CreatedAt,
 			"updatedAt":    stack.UpdatedAt,
 			"autoUpdate":   stack.AutoUpdate,
 			"isExternal":   stack.IsExternal,
 			"isLegacy":     stack.IsLegacy,
 			"isRemote":     stack.IsRemote,
-			"services":     services,
+			"services":     nil, // Services are not fetched in the list view for performance.
 		}
 		stackList = append(stackList, stackResponse)
 	}

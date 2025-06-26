@@ -46,12 +46,12 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 	}
 
 	gormLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
 		logger.Config{
-			SlowThreshold:             time.Second,                  // Slow SQL threshold
-			LogLevel:                  logLevel,                     // Log level based on environment
-			IgnoreRecordNotFoundError: true,                         // Ignore ErrRecordNotFound error for logger
-			Colorful:                  environment == "development", // Enable color in development
+			SlowThreshold:             time.Second,
+			LogLevel:                  logLevel,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  environment == "development",
 		},
 	)
 
@@ -60,11 +60,21 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
+		PrepareStmt: true,
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
+	}
+
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return &DB{db}, nil
 }
