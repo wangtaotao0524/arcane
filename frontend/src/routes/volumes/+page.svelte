@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { Trash2, HardDrive, Ellipsis, ScanSearch, Loader2, ChevronDown } from '@lucide/svelte';
+	import {
+		Trash2,
+		HardDrive,
+		Ellipsis,
+		ScanSearch,
+		Loader2,
+		ChevronDown,
+		ArchiveRestore,
+		ArchiveX
+	} from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
@@ -8,7 +17,6 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import type { PageData } from './$types';
 	import UniversalTable from '$lib/components/universal-table.svelte';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
@@ -20,8 +28,7 @@
 	import { tablePersistence } from '$lib/stores/table-store';
 	import { environmentAPI } from '$lib/services/api';
 	import { onMount } from 'svelte';
-
-	let { data }: { data: PageData } = $props();
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	let volumes = $state<EnhancedVolumeInfo[]>([]);
 	let error = $state<string | null>(null);
@@ -61,7 +68,7 @@
 
 	async function loadVolumes() {
 		try {
-			isLoadingVolumes = true;
+			isLoading.refresh = true;
 			const response = await environmentAPI.getVolumes();
 			volumes = response || [];
 			error = null;
@@ -70,6 +77,7 @@
 			error = err instanceof Error ? err.message : 'Failed to load volumes';
 			volumes = [];
 		} finally {
+			isLoading.refresh = false;
 			isLoadingVolumes = false;
 		}
 	}
@@ -100,6 +108,7 @@
 				label: 'Remove',
 				destructive: true,
 				action: async () => {
+					isLoading.remove = true;
 					handleApiResultWithCallbacks({
 						result: await tryCatch(environmentAPI.deleteVolume(name)),
 						message: `Failed to Remove Volume "${name}"`,
@@ -218,175 +227,173 @@
 			</Card.Content>
 		</Card.Root>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Total Volumes</p>
-						<p class="text-2xl font-bold">{totalVolumes}</p>
-					</div>
-					<div class="rounded-full bg-blue-500/10 p-2">
-						<HardDrive class="size-5 text-blue-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Used Volumes</p>
-						<p class="text-2xl font-bold">{usedVolumes}</p>
-					</div>
-					<div class="rounded-full bg-green-500/10 p-2">
-						<HardDrive class="size-5 text-green-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+			<StatCard
+				title="Total Volumes"
+				value={totalVolumes}
+				icon={HardDrive}
+				iconColor="text-blue-500"
+				class="border-l-4 border-l-blue-500"
+			/>
+			<StatCard
+				title="Used Volumes"
+				value={usedVolumes}
+				icon={ArchiveRestore}
+				iconColor="text-green-500"
+				class="border-l-4 border-l-green-500"
+			/>
+			<StatCard
+				title="Unused Volumes"
+				value={unusedVolumes}
+				icon={ArchiveX}
+				iconColor="text-red-500"
+				class="border-l-4 border-l-red-500"
+			/>
 		</div>
+	{/if}
 
-		{#if filteredVolumes.length > 0}
-			<Card.Root class="border shadow-sm">
-				<Card.Header class="px-6">
-					<div class="flex items-center justify-between">
-						<div>
-							<Card.Title>Volumes List</Card.Title>
-						</div>
-						<div class="flex items-center gap-2">
+	{#if filteredVolumes.length > 0}
+		<Card.Root class="border shadow-sm">
+			<Card.Header class="px-6">
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>Volumes List</Card.Title>
+					</div>
+					<div class="flex items-center gap-2">
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger>
+								{#snippet child({ props })}
+									<Button {...props} variant="outline" size="sm">
+										Filter <ChevronDown class="ml-2 size-4" />
+									</Button>
+								{/snippet}
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content>
+								<DropdownMenu.Label>Volume Usage</DropdownMenu.Label>
+								<DropdownMenu.CheckboxItem
+									checked={volumeFilters.showUsed}
+									onCheckedChange={(checked) => {
+										volumeFilters.showUsed = checked;
+									}}
+								>
+									Show Used Volumes
+								</DropdownMenu.CheckboxItem>
+								<DropdownMenu.CheckboxItem
+									checked={volumeFilters.showUnused}
+									onCheckedChange={(checked) => {
+										volumeFilters.showUnused = checked;
+									}}
+								>
+									Show Unused Volumes
+								</DropdownMenu.CheckboxItem>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+						{#if selectedIds.length > 0}
+							<ArcaneButton
+								action="remove"
+								onClick={handleDeleteSelected}
+								loading={isLoading.remove}
+								disabled={isLoading.remove}
+							/>
+						{/if}
+						<ArcaneButton
+							action="create"
+							label="Create Volume"
+							onClick={() => (isDialogOpen.create = true)}
+							loading={isLoading.creating}
+							disabled={isLoading.creating}
+						/>
+					</div>
+				</div>
+			</Card.Header>
+			<Card.Content>
+				<UniversalTable
+					data={filteredVolumes}
+					columns={[
+						{ accessorKey: 'Name', header: 'Name' },
+						{ accessorKey: 'inUse', header: 'Status' },
+						{ accessorKey: 'Driver', header: 'Driver' },
+						{ accessorKey: 'CreatedAt', header: 'Created' },
+						{ accessorKey: 'actions', header: ' ', enableSorting: false }
+					]}
+					pagination={{
+						pageSize: tablePersistence.getPageSize('volumes')
+					}}
+					onPageSizeChange={(newSize) => {
+						tablePersistence.setPageSize('volumes', newSize);
+					}}
+					sort={{
+						defaultSort: { id: 'Name', desc: false }
+					}}
+					bind:selectedIds
+				>
+					{#snippet rows({ item })}
+						<Table.Cell>
+							<a class="font-medium hover:underline" href="/volumes/{item.Name}/">{item.Name}</a>
+						</Table.Cell>
+						<Table.Cell>
+							{#if item.inUse}
+								<StatusBadge text="In Use" variant="green" />
+							{:else}
+								<StatusBadge text="Unused" variant="amber" />
+							{/if}
+						</Table.Cell>
+						<Table.Cell>{item.Driver}</Table.Cell>
+						<Table.Cell>{formatFriendlyDate(item.CreatedAt)}</Table.Cell>
+						<Table.Cell>
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger>
 									{#snippet child({ props })}
-										<Button {...props} variant="outline" size="sm">
-											Filter <ChevronDown class="ml-2 size-4" />
+										<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
+											<span class="sr-only">Open menu</span>
+											<Ellipsis />
 										</Button>
 									{/snippet}
 								</DropdownMenu.Trigger>
-								<DropdownMenu.Content>
-									<DropdownMenu.Label>Volume Usage</DropdownMenu.Label>
-									<DropdownMenu.CheckboxItem
-										checked={volumeFilters.showUsed}
-										onCheckedChange={(checked) => {
-											volumeFilters.showUsed = checked;
-										}}
-									>
-										Show Used Volumes
-									</DropdownMenu.CheckboxItem>
-									<DropdownMenu.CheckboxItem
-										checked={volumeFilters.showUnused}
-										onCheckedChange={(checked) => {
-											volumeFilters.showUnused = checked;
-										}}
-									>
-										Show Unused Volumes
-									</DropdownMenu.CheckboxItem>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Group>
+										<DropdownMenu.Item onclick={() => goto(`/volumes/${item.Name}`)}>
+											<ScanSearch class="size-4" />
+											Inspect
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											class="focus:text-red-700! text-red-500"
+											onclick={() => handleRemoveVolumeConfirm(item.Name)}
+										>
+											<Trash2 class="size-4" />
+											Remove
+										</DropdownMenu.Item>
+									</DropdownMenu.Group>
 								</DropdownMenu.Content>
 							</DropdownMenu.Root>
-							{#if selectedIds.length > 0}
-								<ArcaneButton
-									action="remove"
-									onClick={handleDeleteSelected}
-									loading={isLoading.remove}
-									disabled={isLoading.remove}
-								/>
-							{/if}
-							<ArcaneButton
-								action="create"
-								label="Create Volume"
-								onClick={() => (isDialogOpen.create = true)}
-								loading={isLoading.creating}
-								disabled={isLoading.creating}
-							/>
-						</div>
-					</div>
-				</Card.Header>
-				<Card.Content>
-					<UniversalTable
-						data={filteredVolumes}
-						columns={[
-							{ accessorKey: 'Name', header: 'Name' },
-							{ accessorKey: 'inUse', header: 'Status' },
-							{ accessorKey: 'Driver', header: 'Driver' },
-							{ accessorKey: 'CreatedAt', header: 'Created' },
-							{ accessorKey: 'actions', header: ' ', enableSorting: false }
-						]}
-						pagination={{
-							pageSize: tablePersistence.getPageSize('volumes')
-						}}
-						onPageSizeChange={(newSize) => {
-							tablePersistence.setPageSize('volumes', newSize);
-						}}
-						sort={{
-							defaultSort: { id: 'Name', desc: false }
-						}}
-						bind:selectedIds
-					>
-						{#snippet rows({ item })}
-							<Table.Cell>
-								<a class="font-medium hover:underline" href="/volumes/{item.Name}/">{item.Name}</a>
-							</Table.Cell>
-							<Table.Cell>
-								{#if item.inUse}
-									<StatusBadge text="In Use" variant="green" />
-								{:else}
-									<StatusBadge text="Unused" variant="amber" />
-								{/if}
-							</Table.Cell>
-							<Table.Cell>{item.Driver}</Table.Cell>
-							<Table.Cell>{formatFriendlyDate(item.CreatedAt)}</Table.Cell>
-							<Table.Cell>
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										{#snippet child({ props })}
-											<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-												<span class="sr-only">Open menu</span>
-												<Ellipsis />
-											</Button>
-										{/snippet}
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="end">
-										<DropdownMenu.Group>
-											<DropdownMenu.Item onclick={() => goto(`/volumes/${item.Name}`)}>
-												<ScanSearch class="size-4" />
-												Inspect
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												class="focus:text-red-700! text-red-500"
-												onclick={() => handleRemoveVolumeConfirm(item.Name)}
-											>
-												<Trash2 class="size-4" />
-												Remove
-											</DropdownMenu.Item>
-										</DropdownMenu.Group>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							</Table.Cell>
-						{/snippet}
-					</UniversalTable>
-				</Card.Content>
-			</Card.Root>
-		{:else if !error}
-			<div
-				class="bg-card flex flex-col items-center justify-center rounded-lg border px-6 py-12 text-center"
-			>
-				<HardDrive class="text-muted-foreground mb-4 size-12 opacity-40" />
-				<p class="text-lg font-medium">No volumes found</p>
-				<p class="text-muted-foreground mt-1 max-w-md text-sm">
-					Create a new volume using the "Create Volume" button above
-				</p>
-				<div class="mt-4 flex gap-3">
-					<ArcaneButton
-						action="create"
-						label="Create Volume"
-						onClick={() => (isDialogOpen.create = true)}
-						size="sm"
-					/>
-				</div>
+						</Table.Cell>
+					{/snippet}
+				</UniversalTable>
+			</Card.Content>
+		</Card.Root>
+	{:else if !error}
+		<div
+			class="bg-card flex flex-col items-center justify-center rounded-lg border px-6 py-12 text-center"
+		>
+			<HardDrive class="text-muted-foreground mb-4 size-12 opacity-40" />
+			<p class="text-lg font-medium">No volumes found</p>
+			<p class="text-muted-foreground mt-1 max-w-md text-sm">
+				Create a new volume using the "Create Volume" button above
+			</p>
+			<div class="mt-4 flex gap-3">
+				<ArcaneButton
+					action="create"
+					label="Create Volume"
+					onClick={() => (isDialogOpen.create = true)}
+					size="sm"
+				/>
 			</div>
-		{/if}
-
-		<CreateVolumeSheet
-			bind:open={isDialogOpen.create}
-			isLoading={isLoading.creating}
-			onSubmit={handleCreateVolumeSubmit}
-		/>
+		</div>
 	{/if}
+
+	<CreateVolumeSheet
+		bind:open={isDialogOpen.create}
+		isLoading={isLoading.creating}
+		onSubmit={handleCreateVolumeSubmit}
+	/>
 </div>

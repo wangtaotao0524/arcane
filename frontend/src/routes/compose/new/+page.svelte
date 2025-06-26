@@ -18,7 +18,7 @@
 	import DropdownCard from '$lib/components/dropdown-card.svelte';
 	import * as Resizable from '$lib/components/ui/resizable/index.js';
 	import TemplateSelectionDialog from '$lib/components/dialogs/template-selection-dialog.svelte';
-	import { environmentAPI, converterAPI } from '$lib/services/api';
+	import { environmentAPI, converterAPI, templateAPI } from '$lib/services/api';
 	import type { Template } from '$lib/types/template.type';
 	import type { PageProps } from './+page';
 
@@ -27,6 +27,7 @@
 	let saving = $state(false);
 	let converting = $state(false);
 	let showTemplateDialog = $state(false);
+	let isLoadingTemplateContent = $state(false);
 
 	let name = $state('');
 	let composeContent = $state(data.defaultTemplate || defaultComposeTemplate);
@@ -71,18 +72,42 @@
 		});
 	}
 
-	function handleTemplateSelect(template: Template) {
-		composeContent = template.content;
+	async function handleTemplateSelect(template: Template) {
+		showTemplateDialog = false; // Close the dialog immediately
 
-		if (template.envContent) {
-			envContent = template.envContent;
+		if (template.isRemote) {
+			isLoadingTemplateContent = true;
+			handleApiResultWithCallbacks({
+				result: await tryCatch(templateAPI.getTemplateContent(template.id)),
+				message: `Failed to load content for template "${template.name}"`,
+				setLoadingState: (value) => (isLoadingTemplateContent = value),
+				onSuccess: (data) => {
+					composeContent = data.content;
+					envContent = data.envContent;
+					if (!name.trim()) {
+						name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+					}
+					toast.success(`Template "${template.name}" loaded successfully!`);
+				},
+				onError: () => {
+					// Re-open dialog or show error state if fetching fails
+					showTemplateDialog = true;
+				}
+			});
+		} else {
+			// Handle local templates which should have content already
+			composeContent = template.content;
+			if (template.envContent) {
+				envContent = template.envContent;
+			} else {
+				envContent = defaultEnvTemplate;
+			}
+
+			if (!name.trim()) {
+				name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+			}
+			toast.success(`Template "${template.name}" loaded successfully!`);
 		}
-
-		if (!name.trim()) {
-			name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-		}
-
-		toast.success(`Template "${template.name}" loaded successfully!`);
 	}
 
 	const exampleCommands = [
@@ -120,15 +145,32 @@
 	</div>
 
 	<!-- Docker Run to Compose Converter -->
-	<DropdownCard id="docker-run-converter" title="Docker Run to Compose Converter" description="Convert existing docker run commands to Docker Compose format" icon={Terminal}>
+	<DropdownCard
+		id="docker-run-converter"
+		title="Docker Run to Compose Converter"
+		description="Convert existing docker run commands to Docker Compose format"
+		icon={Terminal}
+	>
 		<div class="space-y-4">
 			<div class="space-y-2">
 				<Label for="dockerRunCommand">Docker Run Command</Label>
-				<Textarea id="dockerRunCommand" bind:value={dockerRunCommand} placeholder="docker run -d --name my-app -p 8080:80 nginx:alpine" rows={3} disabled={converting} class="font-mono text-sm" />
+				<Textarea
+					id="dockerRunCommand"
+					bind:value={dockerRunCommand}
+					placeholder="docker run -d --name my-app -p 8080:80 nginx:alpine"
+					rows={3}
+					disabled={converting}
+					class="font-mono text-sm"
+				/>
 			</div>
 
 			<div class="flex items-center gap-2">
-				<Button type="button" disabled={!dockerRunCommand.trim() || converting} size="sm" onclick={handleConvertDockerRun}>
+				<Button
+					type="button"
+					disabled={!dockerRunCommand.trim() || converting}
+					size="sm"
+					onclick={handleConvertDockerRun}
+				>
 					{#if converting}
 						<Loader2 class="mr-2 size-4 animate-spin" />
 						Converting...
@@ -143,7 +185,13 @@
 				<Label class="text-muted-foreground text-xs">Example Commands:</Label>
 				<div class="space-y-1">
 					{#each exampleCommands as command}
-						<Button type="button" variant="ghost" size="sm" class="h-auto w-full justify-start p-2 text-left font-mono text-xs" onclick={() => useExample(command)}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							class="h-auto w-full justify-start p-2 text-left font-mono text-xs"
+							onclick={() => useExample(command)}
+						>
 							<Copy class="mr-2 size-3" />
 							{command}
 						</Button>
@@ -163,12 +211,28 @@
 						</div>
 						<div>
 							<Card.Title>Compose Project Configuration</Card.Title>
-							<Card.Description>Create a new Docker Compose Project with environment variables</Card.Description>
+							<Card.Description
+								>Create a new Docker Compose Project with environment variables</Card.Description
+							>
 						</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<ArcaneButton action="template" onClick={() => (showTemplateDialog = true)} loading={saving} disabled={saving || converting} />
-						<ArcaneButton action="create" onClick={handleSubmit} loading={saving} disabled={!name || !composeContent} />
+						<ArcaneButton
+							action="template"
+							onClick={() => (showTemplateDialog = true)}
+							loading={saving || isLoadingTemplateContent}
+							disabled={saving || converting || isLoadingTemplateContent}
+						/>
+						<ArcaneButton
+							action="create"
+							onClick={handleSubmit}
+							loading={saving}
+							disabled={!name ||
+								!composeContent ||
+								saving ||
+								converting ||
+								isLoadingTemplateContent}
+						/>
 					</div>
 				</div>
 			</Card.Header>
@@ -176,7 +240,15 @@
 				<div class="space-y-4">
 					<div class="grid w-full max-w-sm items-center gap-1.5">
 						<Label for="name">Compose Project Name</Label>
-						<Input type="text" id="name" name="name" bind:value={name} required placeholder="e.g., my-web-app" disabled={saving} />
+						<Input
+							type="text"
+							id="name"
+							name="name"
+							bind:value={name}
+							required
+							placeholder="e.g., my-web-app"
+							disabled={saving || isLoadingTemplateContent}
+						/>
 					</div>
 
 					<Resizable.PaneGroup direction="horizontal">
@@ -184,7 +256,10 @@
 							<div class="mr-3 space-y-2">
 								<Label for="compose-editor" class="mb-2">Docker Compose File</Label>
 								<div class="mt-2 h-[550px] overflow-hidden rounded-md border">
-									<YamlEditor bind:value={composeContent} readOnly={saving} />
+									<YamlEditor
+										bind:value={composeContent}
+										readOnly={saving || isLoadingTemplateContent}
+									/>
 								</div>
 							</div>
 						</Resizable.Pane>
@@ -195,7 +270,10 @@
 								<div class="mt-2 h-[550px] overflow-hidden rounded-md border">
 									<!-- Add a unique key to force re-render -->
 									{#key `env-${envContent.length}`}
-										<EnvEditor bind:value={envContent} readOnly={saving} />
+										<EnvEditor
+											bind:value={envContent}
+											readOnly={saving || isLoadingTemplateContent}
+										/>
 									{/key}
 								</div>
 							</div>
@@ -204,7 +282,12 @@
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex justify-between">
-				<Button variant="outline" type="button" onclick={() => window.history.back()} disabled={saving}>
+				<Button
+					variant="outline"
+					type="button"
+					onclick={() => window.history.back()}
+					disabled={saving || isLoadingTemplateContent}
+				>
 					<ArrowLeft class="mr-2 size-4" />
 					Cancel
 				</Button>
@@ -214,4 +297,8 @@
 </div>
 
 <!-- Template Selection Dialog -->
-<TemplateSelectionDialog bind:open={showTemplateDialog} templates={data.composeTemplates || []} onSelect={handleTemplateSelect} />
+<TemplateSelectionDialog
+	bind:open={showTemplateDialog}
+	templates={data.composeTemplates || []}
+	onSelect={handleTemplateSelect}
+/>

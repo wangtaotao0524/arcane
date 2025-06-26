@@ -5,7 +5,7 @@ import (
 )
 
 type TemplateRegistry struct {
-	ID          uint      `json:"id" gorm:"primaryKey"`
+	ID          string    `json:"id" gorm:"primaryKey"`
 	Name        string    `json:"name" gorm:"not null"`
 	URL         string    `json:"url" gorm:"not null;unique"`
 	Enabled     bool      `json:"enabled" gorm:"default:true"`
@@ -22,7 +22,7 @@ type ComposeTemplate struct {
 	EnvContent  *string                  `json:"envContent,omitempty" gorm:"type:text"`
 	IsCustom    bool                     `json:"isCustom" gorm:"default:true"`
 	IsRemote    bool                     `json:"isRemote" gorm:"default:false"`
-	RegistryID  *uint                    `json:"registryId,omitempty"`
+	RegistryID  *string                  `json:"registryId,omitempty"`
 	Registry    *TemplateRegistry        `json:"registry,omitempty" gorm:"foreignKey:RegistryID"`
 	Metadata    *ComposeTemplateMetadata `json:"metadata,omitempty" gorm:"embedded;embeddedPrefix:meta_"`
 	CreatedAt   time.Time                `json:"createdAt"`

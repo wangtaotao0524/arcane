@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { Trash2, Plus, Network, Ellipsis, ScanSearch, Loader2 } from '@lucide/svelte';
+	import {
+		Trash2,
+		Plus,
+		Network,
+		Ellipsis,
+		ScanSearch,
+		Loader2,
+		EthernetPort
+	} from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
@@ -19,6 +27,7 @@
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { tablePersistence } from '$lib/stores/table-store';
 	import { onMount } from 'svelte';
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -172,6 +181,7 @@
 			<ArcaneButton
 				action="restart"
 				onClick={refreshNetworks}
+				label="Refresh"
 				loading={isLoading.refresh}
 				disabled={isLoading.refresh}
 			/>
@@ -218,42 +228,21 @@
 			</Card.Content>
 		</Card.Root>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Total Networks</p>
-						<p class="text-2xl font-bold">{totalNetworks}</p>
-					</div>
-					<div class="rounded-full bg-blue-500/10 p-2">
-						<Network class="size-5 text-blue-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Bridge Networks</p>
-						<p class="text-2xl font-bold">{bridgeNetworks}</p>
-					</div>
-					<div class="rounded-full bg-green-500/10 p-2">
-						<Network class="size-5 text-green-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Overlay Networks</p>
-						<p class="text-2xl font-bold">{overlayNetworks}</p>
-					</div>
-					<div class="rounded-full bg-purple-500/10 p-2">
-						<Network class="size-5 text-purple-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<StatCard
+				title="Total Networks"
+				value={totalNetworks}
+				icon={Network}
+				iconColor="text-blue-500"
+				class="border-l-4 border-l-blue-500"
+			/>
+			<StatCard
+				title="Bridge Networks"
+				value={bridgeNetworks}
+				icon={EthernetPort}
+				iconColor="text-green-500"
+				class="border-l-4 border-l-green-500"
+			/>
 		</div>
 
 		{#if networks && networks.length > 0}

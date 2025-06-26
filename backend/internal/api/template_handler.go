@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -135,9 +135,13 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	}
 
 	template := &models.ComposeTemplate{
+		// Generate a UUID for the new template
+		ID:          uuid.NewString(),
 		Name:        req.Name,
 		Description: req.Description,
 		Content:     req.Content,
+		IsCustom:    true, // New templates created via API are custom
+		IsRemote:    false,
 	}
 
 	if req.EnvContent != "" {
@@ -192,6 +196,9 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 
 	if req.EnvContent != "" {
 		updates.EnvContent = &req.EnvContent
+	} else {
+		// If envContent is empty in the request, explicitly set it to nil
+		updates.EnvContent = nil
 	}
 
 	err := h.templateService.UpdateTemplate(c.Request.Context(), id, updates)
@@ -210,9 +217,21 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 		return
 	}
 
+	// Fetch the updated template to return in the response
+	updatedTemplate, err := h.templateService.GetTemplate(c.Request.Context(), id)
+	if err != nil {
+		// Handle error fetching the updated template, though the update succeeded
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "Template updated successfully, but failed to fetch updated template details.",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Template updated successfully",
+		"success":  true,
+		"message":  "Template updated successfully",
+		"template": updatedTemplate, // Return the updated template
 	})
 }
 
@@ -317,6 +336,8 @@ func (h *TemplateHandler) CreateRegistry(c *gin.Context) {
 	}
 
 	registry := &models.TemplateRegistry{
+		// Generate a UUID for the registry ID
+		ID:          uuid.NewString(),
 		Name:        req.Name,
 		URL:         req.URL,
 		Description: req.Description,
@@ -339,12 +360,11 @@ func (h *TemplateHandler) CreateRegistry(c *gin.Context) {
 }
 
 func (h *TemplateHandler) UpdateRegistry(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
+	id := c.Param("id")
+	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid registry ID",
+			"error":   "Registry ID is required",
 		})
 		return
 	}
@@ -371,7 +391,8 @@ func (h *TemplateHandler) UpdateRegistry(c *gin.Context) {
 		Enabled:     req.Enabled,
 	}
 
-	err = h.templateService.UpdateRegistry(c.Request.Context(), uint(id), updates)
+	// Pass the string ID to the service layer
+	err := h.templateService.UpdateRegistry(c.Request.Context(), id, updates)
 	if err != nil {
 		if err.Error() == "registry not found" {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -394,17 +415,17 @@ func (h *TemplateHandler) UpdateRegistry(c *gin.Context) {
 }
 
 func (h *TemplateHandler) DeleteRegistry(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
+	id := c.Param("id")
+	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid registry ID",
+			"error":   "Registry ID is required",
 		})
 		return
 	}
 
-	err = h.templateService.DeleteRegistry(c.Request.Context(), uint(id))
+	// Pass the string ID to the service layer
+	err := h.templateService.DeleteRegistry(c.Request.Context(), id)
 	if err != nil {
 		if err.Error() == "registry not found" {
 			c.JSON(http.StatusNotFound, gin.H{

@@ -12,7 +12,8 @@
 		ChevronDown,
 		Ellipsis,
 		ScanSearch,
-		Funnel
+		Funnel,
+		Package
 	} from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -38,6 +39,7 @@
 	} from '$lib/stores/maturity-store';
 	import { environmentAPI } from '$lib/services/api';
 	import { onMount } from 'svelte';
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -271,29 +273,20 @@
 		</Card.Root>
 	{:else}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Total Images</p>
-						<p class="text-2xl font-bold">{totalImages}</p>
-					</div>
-					<div class="rounded-full bg-blue-500/10 p-2">
-						<HardDrive class="size-5 text-blue-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Total Size</p>
-						<p class="text-2xl font-bold">{formatBytes(totalSize)}</p>
-					</div>
-					<div class="rounded-full bg-purple-500/10 p-2">
-						<HardDrive class="size-5 text-purple-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
+			<StatCard
+				title="Total Images"
+				value={totalImages}
+				icon={HardDrive}
+				iconColor="text-blue-500"
+				class="border-l-4 border-l-blue-500"
+			/>
+			<StatCard
+				title="Total Size"
+				value={formatBytes(totalSize)}
+				icon={Package}
+				iconColor="text-amber-500"
+				class="border-l-4 border-l-amber-500"
+			/>
 		</div>
 
 		{#if filteredImages.length > 0}

@@ -12,7 +12,8 @@
 		StopCircle,
 		Trash2,
 		Ellipsis,
-		Pen
+		Pen,
+		PlayCircle
 	} from '@lucide/svelte';
 	import UniversalTable from '$lib/components/universal-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
@@ -33,6 +34,7 @@
 	import { autoUpdateAPI, environmentAPI } from '$lib/services/api';
 	import { onMount } from 'svelte';
 	import type { Stack } from '$lib/models/stack.type';
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -215,41 +217,27 @@
 		</Card.Root>
 	{:else}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Total Compose Projects</p>
-						<p class="text-2xl font-bold">{totalStacks}</p>
-					</div>
-					<div class="bg-primary/10 rounded-full p-2">
-						<FileStack class="text-primary size-5" />
-					</div>
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Running</p>
-						<p class="text-2xl font-bold">{runningStacks}</p>
-					</div>
-					<div class="rounded-full bg-green-500/10 p-2">
-						<Layers class="size-5 text-green-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Content class="flex items-center justify-between p-4">
-					<div>
-						<p class="text-muted-foreground text-sm font-medium">Stopped</p>
-						<p class="text-2xl font-bold">{stoppedStacks}</p>
-					</div>
-					<div class="rounded-full bg-gray-500/10 p-2">
-						<Layers class="size-5 text-gray-500" />
-					</div>
-				</Card.Content>
-			</Card.Root>
+			<StatCard
+				title="Total Compose Projects"
+				value={totalStacks}
+				icon={FileStack}
+				iconColor="text-amber-500"
+				class="border-l-4 border-l-amber-500"
+			/>
+			<StatCard
+				title="Running"
+				value={runningStacks}
+				icon={PlayCircle}
+				iconColor="text-green-500"
+				class="border-l-4 border-l-green-500"
+			/>
+			<StatCard
+				title="Stopped"
+				value={stoppedStacks}
+				icon={StopCircle}
+				iconColor="text-red-500"
+				class="border-l-4 border-l-red-500"
+			/>
 		</div>
 
 		<Card.Root class="border shadow-sm">
