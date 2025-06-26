@@ -5,6 +5,7 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { Snippet } from '$lib/components/ui/snippet';
 	import {
 		Trash2,
 		Plus,
@@ -21,14 +22,13 @@
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
 	import AddTemplateRegistrySheet from '$lib/components/sheets/add-template-registry-sheet.svelte';
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	// Reactive data
 	let templates = $state(data.templates || []);
 	let registries = $state(data.registries || []);
 
-	// Loading states
 	let isLoading = $state({
 		addingRegistry: false,
 		removing: new Set<number>(),
@@ -37,11 +37,9 @@
 
 	let showAddRegistrySheet = $state(false);
 
-	// Computed values
 	const localTemplateCount = $derived(templates.filter((t) => !t.isRemote).length);
 	const remoteTemplateCount = $derived(templates.filter((t) => t.isRemote).length);
 
-	// Update registry
 	async function updateRegistry(id: number, updates: { enabled?: boolean }) {
 		if (isLoading.updating.has(id)) return;
 		isLoading.updating.add(id);
@@ -73,7 +71,6 @@
 		}
 	}
 
-	// Remove registry
 	async function removeRegistry(id: number) {
 		if (isLoading.removing.has(id)) return;
 		isLoading.removing.add(id);
@@ -91,7 +88,6 @@
 		}
 	}
 
-	// Refresh templates (reload all data)
 	async function refreshTemplates() {
 		try {
 			await invalidateAll();
@@ -169,33 +165,27 @@
 
 	<!-- Template Statistics -->
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-		<Card class="p-4">
-			<div class="flex items-center gap-3">
-				<FolderOpen class="size-8 text-blue-500" />
-				<div>
-					<p class="text-2xl font-bold">{localTemplateCount}</p>
-					<p class="text-muted-foreground text-sm">Local Templates</p>
-				</div>
-			</div>
-		</Card>
-		<Card class="p-4">
-			<div class="flex items-center gap-3">
-				<Globe class="size-8 text-green-500" />
-				<div>
-					<p class="text-2xl font-bold">{remoteTemplateCount}</p>
-					<p class="text-muted-foreground text-sm">Remote Templates</p>
-				</div>
-			</div>
-		</Card>
-		<Card class="p-4">
-			<div class="flex items-center gap-3">
-				<FileText class="size-8 text-purple-500" />
-				<div>
-					<p class="text-2xl font-bold">{registries.length}</p>
-					<p class="text-muted-foreground text-sm">Registries</p>
-				</div>
-			</div>
-		</Card>
+		<StatCard
+			title="Local Templates"
+			value={localTemplateCount}
+			icon={FolderOpen}
+			iconColor="text-blue-500"
+			class="border-l-4 border-l-blue-500"
+		/>
+		<StatCard
+			title="Remote Templates"
+			value={remoteTemplateCount}
+			icon={Globe}
+			iconColor="text-green-500"
+			class="border-l-4 border-l-green-500"
+		/>
+		<StatCard
+			title="Registries"
+			value={registries.length}
+			icon={FileText}
+			iconColor="text-purple-500"
+			class="border-l-4 border-l-purple-500"
+		/>
 	</div>
 
 	<Separator />
@@ -209,37 +199,27 @@
 				Add Registry
 			</Button>
 		</div>
+		{#if registries.length == 0}
+			<Alert.Root>
+				<Globe class="size-4" />
+				<Alert.Title>Remote Registries</Alert.Title>
+				<Alert.Description
+					>Add remote template registries to access community templates. Registries should provide a
+					JSON manifest with template definitions and download URLs.</Alert.Description
+				>
+			</Alert.Root>
 
-		<Alert.Root>
-			<Globe class="size-4" />
-			<Alert.Title>Remote Registries</Alert.Title>
-			<Alert.Description
-				>Add remote template registries to access community templates. Registries should provide a
-				JSON manifest with template definitions and download URLs.</Alert.Description
-			>
-		</Alert.Root>
-
-		<Alert.Root class="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-			<Users class="size-4" />
-			<Alert.Title>Community Registry</Alert.Title>
-			<Alert.Description class="space-y-2">
-				<p>Get started quickly with our community registry containing popular templates:</p>
-				<div class="mt-2 flex items-center gap-2">
-					<code class="rounded bg-white px-2 py-1 text-xs dark:bg-gray-800">
-						https://templates.arcane.ofkm.dev/registry.json
-					</code>
-					<Button
-						size="sm"
-						variant="outline"
-						onclick={() => copyToClipboard('https://templates.arcane.ofkm.dev/registry.json')}
-					>
-						<Copy class="mr-1 size-3" />
-						Copy
-					</Button>
-				</div>
-			</Alert.Description>
-		</Alert.Root>
-
+			<Alert.Root class="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+				<Users class="size-4" />
+				<Alert.Title>Community Registry</Alert.Title>
+				<Alert.Description class="space-y-2">
+					<p>Get started quickly with our community registry containing popular templates:</p>
+					<div class="flex w-full max-w-[475px] flex-col gap-2">
+						<Snippet text="https://templates.arcane.ofkm.dev/registry.json" />
+					</div>
+				</Alert.Description>
+			</Alert.Root>
+		{/if}
 		<!-- Registry List -->
 		{#if registries.length > 0}
 			<div class="space-y-3">
