@@ -79,16 +79,17 @@
 		stopping: false,
 		refreshing: false,
 		pruning: false,
-		loadingStats: true, // For live system stats (CPU, Memory, Disk)
-		loadingMaturity: true, // For image maturity checks
-		loadingDockerInfo: true, // For initial docker info
-		loadingContainers: true, // For initial containers list
-		loadingImages: true, // For initial images list
-		loadingSettings: true // For initial settings
+		loadingStats: true,
+		loadingMaturity: true,
+		loadingDockerInfo: true,
+		loadingContainers: true,
+		loadingImages: true,
+		loadingSettings: true
 	});
 
 	let liveSystemStats = $state(null as SystemStats | null);
 	let statsInterval: NodeJS.Timeout | null = null;
+	let hasInitialStatsLoaded = $state(false);
 
 	const runningContainers = $derived(
 		dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'running').length ?? 0
@@ -124,7 +125,7 @@
 		isLoading.loadingContainers = true;
 		isLoading.loadingImages = true;
 		isLoading.loadingSettings = true;
-		dashboardStates.error = null; // Clear previous errors
+		dashboardStates.error = null;
 
 		const [dockerInfoResult, containersResult, imagesResult, settingsResult] =
 			await Promise.allSettled([
@@ -156,7 +157,7 @@
 					? containersResult.reason
 					: containersResult.value.error
 			);
-			dashboardStates.containers = []; // Ensure it's an array even on error
+			dashboardStates.containers = [];
 			dashboardStates.error = dashboardStates.error || 'Failed to load Containers.';
 		}
 		isLoading.loadingContainers = false;
@@ -168,7 +169,7 @@
 				'Failed to load Images:',
 				imagesResult.status === 'rejected' ? imagesResult.reason : imagesResult.value.error
 			);
-			dashboardStates.images = []; // Ensure it's an array even on error
+			dashboardStates.images = [];
 			dashboardStates.error = dashboardStates.error || 'Failed to load Images.';
 		}
 		isLoading.loadingImages = false;
@@ -184,7 +185,6 @@
 		}
 		isLoading.loadingSettings = false;
 
-		// After images are loaded, load maturity data
 		if (dashboardStates.images && dashboardStates.images.length > 0) {
 			loadTopImagesMaturity();
 		} else {
@@ -193,7 +193,10 @@
 	}
 
 	async function fetchLiveSystemStats() {
-		isLoading.loadingStats = true;
+		if (!hasInitialStatsLoaded) {
+			isLoading.loadingStats = true;
+		}
+
 		try {
 			const response = await systemAPI.getStats();
 
@@ -215,9 +218,11 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch live system stats:', error);
-			// Don't set dashboardStates.error here, as it's live data, not critical for initial load
 		} finally {
-			isLoading.loadingStats = false;
+			if (!hasInitialStatsLoaded) {
+				isLoading.loadingStats = false;
+				hasInitialStatsLoaded = true;
+			}
 		}
 	}
 
@@ -268,8 +273,8 @@
 	onMount(() => {
 		let mounted = true;
 
-		loadInitialData(); // Start loading initial data immediately
-		fetchLiveSystemStats(); // Start loading live stats immediately
+		loadInitialData();
+		fetchLiveSystemStats();
 
 		if (!statsInterval) {
 			statsInterval = setInterval(() => {
@@ -291,7 +296,6 @@
 	async function refreshData() {
 		if (isLoading.refreshing) return;
 		isLoading.refreshing = true;
-		// Refresh all data sources
 		await Promise.all([loadInitialData(), fetchLiveSystemStats()]);
 		isLoading.refreshing = false;
 	}
@@ -305,7 +309,7 @@
 			setLoadingState: (value) => (isLoading.starting = value),
 			onSuccess: async () => {
 				toast.success('All Containers Started Successfully.');
-				await loadInitialData(); // Refresh data after action
+				await loadInitialData();
 			}
 		});
 	}
@@ -325,7 +329,7 @@
 						setLoadingState: (value) => (isLoading.stopping = value),
 						onSuccess: async () => {
 							toast.success('All Containers Stopped Successfully.');
-							await loadInitialData(); // Refresh data after action
+							await loadInitialData();
 						}
 					});
 				}
@@ -355,7 +359,7 @@
 				toast.success(
 					`${formattedTypes} ${selectedTypes.length > 1 ? 'were' : 'was'} pruned successfully.`
 				);
-				await loadInitialData(); // Refresh data after action
+				await loadInitialData();
 			}
 		});
 	}
@@ -501,7 +505,7 @@
 							</div>
 						</div>
 
-						{#if isLoading.loadingStats}
+						{#if isLoading.loadingStats && !hasInitialStatsLoaded}
 							<div class="py-6 text-center">
 								<Loader2 class="text-muted-foreground mx-auto mb-2 size-6 animate-spin" />
 								<p class="text-muted-foreground text-sm">Loading storage data...</p>
@@ -571,7 +575,7 @@
 								</div>
 								<div>
 									<p class="text-muted-foreground text-sm font-medium">Hardware</p>
-									{#if isLoading.loadingStats}
+									{#if isLoading.loadingStats && !hasInitialStatsLoaded}
 										<div class="bg-muted h-4 w-24 animate-pulse rounded mt-1 text-xs"></div>
 									{:else if currentStats}
 										<div class="text-muted-foreground mt-1 flex items-center gap-4 text-xs">
@@ -592,7 +596,7 @@
 							</div>
 						</div>
 
-						{#if isLoading.loadingStats}
+						{#if isLoading.loadingStats && !hasInitialStatsLoaded}
 							<div class="py-6 text-center">
 								<Loader2 class="text-muted-foreground mx-auto mb-2 size-6 animate-spin" />
 								<p class="text-muted-foreground text-sm">Loading system stats...</p>
