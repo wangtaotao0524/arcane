@@ -1,9 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@theme {
-	--font-sans: 'Kantumruy Pro', sans-serif;
+@font-face {
+	font-family: 'Geist';
+	src: url('/fonts/Geist/geist.woff2') format('woff2');
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Geist Mono';
+	src: url('/fonts/Geist/geist-mono.woff2') format('woff2');
+	font-style: normal;
+	font-display: swap;
 }
 
 /*
