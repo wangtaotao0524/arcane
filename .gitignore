@@ -9,7 +9,6 @@ node_modules
 frontend/.svelte-kit
 frontend/build
 build
-static/
 data/
 dist/
 docker/
