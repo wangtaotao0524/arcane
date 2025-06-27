@@ -5,7 +5,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation'; // Import invalidateAll
 	import { toast } from 'svelte-sonner';
 	import YamlEditor from '$lib/components/yaml-editor.svelte';
 	import { preventDefault } from '$lib/utils/form.utils';
@@ -75,39 +75,25 @@
 	async function handleTemplateSelect(template: Template) {
 		showTemplateDialog = false; // Close the dialog immediately
 
-		if (template.isRemote) {
-			isLoadingTemplateContent = true;
-			handleApiResultWithCallbacks({
-				result: await tryCatch(templateAPI.getTemplateContent(template.id)),
-				message: `Failed to load content for template "${template.name}"`,
-				setLoadingState: (value) => (isLoadingTemplateContent = value),
-				onSuccess: (data) => {
-					composeContent = data.content;
-					envContent = data.envContent;
-					if (!name.trim()) {
-						name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-					}
-					toast.success(`Template "${template.name}" loaded successfully!`);
-				},
-				onError: () => {
-					// Re-open dialog or show error state if fetching fails
-					showTemplateDialog = true;
-				}
-			});
+		// The template object passed here already has content and envContent
+		// because the TemplateSelectionDialog now calls getTemplateContent
+		// before calling onSelect.
+		composeContent = template.content;
+		if (template.envContent) {
+			envContent = template.envContent;
 		} else {
-			// Handle local templates which should have content already
-			composeContent = template.content;
-			if (template.envContent) {
-				envContent = template.envContent;
-			} else {
-				envContent = defaultEnvTemplate;
-			}
-
-			if (!name.trim()) {
-				name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-			}
-			toast.success(`Template "${template.name}" loaded successfully!`);
+			envContent = defaultEnvTemplate;
 		}
+
+		if (!name.trim()) {
+			name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+		}
+		toast.success(`Template "${template.name}" loaded successfully!`);
+
+		// No need for isLoadingTemplateContent state or API call here anymore
+		// as the dialog handles fetching content before calling onSelect.
+		// The state was primarily for the API call within this function.
+		// Keep it if other parts of the page depend on it.
 	}
 
 	const exampleCommands = [
@@ -296,9 +282,9 @@
 	</form>
 </div>
 
-<!-- Template Selection Dialog -->
 <TemplateSelectionDialog
 	bind:open={showTemplateDialog}
 	templates={data.composeTemplates || []}
 	onSelect={handleTemplateSelect}
+	onDownloadSuccess={invalidateAll}
 />

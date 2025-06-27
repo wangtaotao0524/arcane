@@ -12,9 +12,10 @@
 		open: boolean;
 		templates: Template[];
 		onSelect: (template: Template) => void;
+		onDownloadSuccess?: () => void;
 	}
 
-	let { open = $bindable(), templates, onSelect }: Props = $props();
+	let { open = $bindable(), templates, onSelect, onDownloadSuccess }: Props = $props(); // Include new prop
 
 	let loadingStates = $state(new Map<string, boolean>());
 
@@ -66,13 +67,15 @@
 
 			if (result) {
 				toast.success(`Template "${template.name}" downloaded successfully!`);
+				if (onDownloadSuccess) {
+					onDownloadSuccess();
+				}
 			} else {
 				toast.error('Failed to download template');
 			}
 		} catch (error) {
 			console.error('Error downloading template:', error);
 
-			// Extract the actual error message from the API response
 			let errorMessage = 'Failed to download template';
 			if (error instanceof Error) {
 				errorMessage = error.message;
