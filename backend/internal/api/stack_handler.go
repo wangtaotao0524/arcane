@@ -569,7 +569,8 @@ func (h *StackHandler) GetStackLogsStream(c *gin.Context) {
 			if !ok {
 				return false
 			}
-			c.SSEvent("log", gin.H{"message": log})
+			parsedLog := h.parseStackLogLine(log)
+			c.SSEvent("log", parsedLog)
 			return true
 		case <-ctx.Done():
 			return false
@@ -580,21 +581,15 @@ func (h *StackHandler) GetStackLogsStream(c *gin.Context) {
 	})
 }
 
-// Helper method to parse stack log lines and extract service information
 func (h *StackHandler) parseStackLogLine(logLine string) gin.H {
-	// Docker compose logs format: service_name | log message
-	// or with timestamps: 2024-01-01T12:00:00.000000000Z service_name | log message
-
 	var service, message, timestamp string
 	var level = "info"
 
-	// Check if line has stderr prefix
 	if strings.HasPrefix(logLine, "[STDERR] ") {
 		level = "stderr"
 		logLine = strings.TrimPrefix(logLine, "[STDERR] ")
 	}
 
-	// Try to extract timestamp if present
 	parts := strings.SplitN(logLine, " ", 2)
 	if len(parts) == 2 && strings.Contains(parts[0], "T") && strings.Contains(parts[0], "Z") {
 		timestamp = parts[0]
@@ -603,7 +598,6 @@ func (h *StackHandler) parseStackLogLine(logLine string) gin.H {
 		timestamp = time.Now().Format(time.RFC3339Nano)
 	}
 
-	// Extract service name and message
 	if strings.Contains(logLine, " | ") {
 		serviceParts := strings.SplitN(logLine, " | ", 2)
 		if len(serviceParts) == 2 {

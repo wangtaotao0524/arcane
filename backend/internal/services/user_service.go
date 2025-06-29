@@ -111,7 +111,12 @@ func (s *UserService) validateArgon2Password(encodedHash, password string) error
 		return err
 	}
 
-	comparisonHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(decodedHash)))
+	hashLen := len(decodedHash)
+	if hashLen < 0 || hashLen > 0x7fffffff {
+		return fmt.Errorf("invalid hash length")
+	}
+
+	comparisonHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(hashLen))
 
 	if len(comparisonHash) != len(decodedHash) {
 		return fmt.Errorf("invalid password")
