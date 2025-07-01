@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> **⚠️** All Development on the `main` branch is halted. In preparation for `1.0`. The `1.0.0` branch should be used for any pull requests or contributions until 1.0 has been released.
+
 <h1 align="center">Arcane - Docker Management UI</h1>
 
 <p align="center">
