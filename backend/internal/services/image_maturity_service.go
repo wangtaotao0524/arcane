@@ -14,17 +14,20 @@ import (
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
+	"gorm.io/gorm"
 )
 
 type ImageMaturityService struct {
 	db              *database.DB
 	settingsService *SettingsService
+	registryService *ContainerRegistryService
 }
 
-func NewImageMaturityService(db *database.DB, settingsService *SettingsService) *ImageMaturityService {
+func NewImageMaturityService(db *database.DB, settingsService *SettingsService, registryService *ContainerRegistryService) *ImageMaturityService {
 	return &ImageMaturityService{
 		db:              db,
 		settingsService: settingsService,
+		registryService: registryService,
 	}
 }
 
@@ -36,7 +39,7 @@ func (s *ImageMaturityService) GetImageMaturity(ctx context.Context, imageID str
 	return &record, nil
 }
 
-func (s *ImageMaturityService) CheckImageMaturity(ctx context.Context, imageID, repository, tag string, imageCreatedAt time.Time, registryCredentials *RegistryCredentials) (*models.ImageMaturity, error) {
+func (s *ImageMaturityService) CheckImageMaturity(ctx context.Context, imageID, repository, tag string, imageCreatedAt time.Time) (*models.ImageMaturity, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get settings: %w", err)
@@ -54,7 +57,8 @@ func (s *ImageMaturityService) CheckImageMaturity(ctx context.Context, imageID, 
 	latestVersion := ""
 	var checkError error
 
-	registryManifest, err := s.getImageManifest(ctx, repository, tag, registryCredentials)
+	registry := s.getRegistryForImage(ctx, repository)
+	registryManifest, err := s.getImageManifest(ctx, repository, tag, registry)
 	if err != nil {
 		checkError = err
 	} else {
@@ -62,7 +66,7 @@ func (s *ImageMaturityService) CheckImageMaturity(ctx context.Context, imageID, 
 	}
 
 	if checkError == nil && !s.isSpecialTag(tag) {
-		allTags, err := s.getImageTags(ctx, repository, registryCredentials)
+		allTags, err := s.getImageTags(ctx, repository, registry)
 		if err == nil {
 			hasNewerVersions, newerVersion := s.hasNewerVersions(tag, allTags)
 			if hasNewerVersions {
@@ -72,7 +76,7 @@ func (s *ImageMaturityService) CheckImageMaturity(ctx context.Context, imageID, 
 		}
 	}
 
-	status := s.determineMaturityStatus(tag, isMaturedByAge, hasUpdates, checkError)
+	status := s.determineMaturityStatus(isMaturedByAge, hasUpdates, checkError)
 
 	maturity := &models.ImageMaturity{
 		Version:          tag,
@@ -83,7 +87,7 @@ func (s *ImageMaturityService) CheckImageMaturity(ctx context.Context, imageID, 
 	}
 
 	metadata := map[string]interface{}{
-		"registryDomain":    s.extractRegistryDomain(repository),
+		"registryDomain":    utils.ExtractRegistryDomain(repository),
 		"isPrivateRegistry": s.isPrivateRegistry(repository),
 		"currentImageDate":  imageCreatedAt,
 		"daysSinceCreation": int(imageAge.Hours() / 24),
@@ -158,7 +162,46 @@ func (s *ImageMaturityService) SetImageMaturity(ctx context.Context, imageID, re
 	return nil
 }
 
-func (s *ImageMaturityService) getImageManifest(ctx context.Context, repository, tag string, credentials *RegistryCredentials) (*RegistryManifest, error) {
+func (s *ImageMaturityService) getRegistryForImage(ctx context.Context, repository string) *models.ContainerRegistry {
+	registryDomain := utils.ExtractRegistryDomain(repository)
+	normalizedImageDomain := s.normalizeRegistryURL(registryDomain)
+
+	registries, err := s.registryService.GetAllRegistries(ctx)
+	if err != nil {
+		return nil
+	}
+
+	for _, reg := range registries {
+		if !reg.Enabled {
+			continue
+		}
+
+		normalizedRegURL := s.normalizeRegistryURL(reg.URL)
+		if normalizedRegURL == normalizedImageDomain {
+			return &reg
+		}
+	}
+
+	return nil
+}
+
+func (s *ImageMaturityService) normalizeRegistryURL(url string) string {
+	url = strings.TrimSpace(url)
+	url = strings.ToLower(url)
+
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+
+	url = strings.TrimSuffix(url, "/")
+
+	if url == "docker.io" || url == "registry-1.docker.io" || url == "index.docker.io" {
+		return "docker.io"
+	}
+
+	return url
+}
+
+func (s *ImageMaturityService) getImageManifest(ctx context.Context, repository, tag string, registry *models.ContainerRegistry) (*RegistryManifest, error) {
 	registryURL := s.buildRegistryURL(repository)
 	normalizedRepo := s.normalizeRepository(repository)
 
@@ -170,8 +213,8 @@ func (s *ImageMaturityService) getImageManifest(ctx context.Context, repository,
 		return nil, fmt.Errorf("failed to create manifest request: %w", err)
 	}
 
-	if credentials != nil {
-		token, err := s.getRegistryToken(ctx, repository, credentials)
+	if registry != nil {
+		token, err := s.getRegistryToken(ctx, repository, registry)
 		if err == nil && token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
@@ -215,7 +258,7 @@ func (s *ImageMaturityService) getImageManifest(ctx context.Context, repository,
 	}, nil
 }
 
-func (s *ImageMaturityService) getImageTags(ctx context.Context, repository string, credentials *RegistryCredentials) ([]string, error) {
+func (s *ImageMaturityService) getImageTags(ctx context.Context, repository string, registry *models.ContainerRegistry) ([]string, error) {
 	registryURL := s.buildRegistryURL(repository)
 	normalizedRepo := s.normalizeRepository(repository)
 
@@ -227,8 +270,8 @@ func (s *ImageMaturityService) getImageTags(ctx context.Context, repository stri
 		return nil, fmt.Errorf("failed to create tags request: %w", err)
 	}
 
-	if credentials != nil {
-		token, err := s.getRegistryToken(ctx, repository, credentials)
+	if registry != nil {
+		token, err := s.getRegistryToken(ctx, repository, registry)
 		if err == nil && token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
@@ -254,17 +297,17 @@ func (s *ImageMaturityService) getImageTags(ctx context.Context, repository stri
 	return tagsResp.Tags, nil
 }
 
-func (s *ImageMaturityService) getRegistryToken(ctx context.Context, repository string, credentials *RegistryCredentials) (string, error) {
+func (s *ImageMaturityService) getRegistryToken(ctx context.Context, repository string, registry *models.ContainerRegistry) (string, error) {
 	domain := s.extractRegistryDomain(repository)
 
 	switch domain {
 	case "docker.io", "registry-1.docker.io", "index.docker.io":
 		return utils.GetDockerHubToken(ctx, repository)
 	default:
-		if credentials != nil {
+		if registry != nil {
 			creds := &utils.RegistryCredentials{
-				Username: credentials.Username,
-				Token:    credentials.Password,
+				Username: registry.Username,
+				Token:    registry.Token,
 			}
 			return utils.GetRegistryToken(ctx, domain, repository, creds)
 		}
@@ -273,35 +316,36 @@ func (s *ImageMaturityService) getRegistryToken(ctx context.Context, repository 
 }
 
 func (s *ImageMaturityService) buildRegistryURL(repository string) string {
-	domain := s.extractRegistryDomain(repository)
+	domain := utils.ExtractRegistryDomain(repository)
 
-	switch domain {
-	case "docker.io", "index.docker.io":
+	if domain == "docker.io" {
 		return "https://registry-1.docker.io"
-	case "registry-1.docker.io":
-		return "https://registry-1.docker.io"
-	default:
-		if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
-			return domain
-		}
+	}
+
+	if !strings.HasPrefix(domain, "http") {
 		return "https://" + domain
 	}
+
+	return domain
 }
 
 func (s *ImageMaturityService) normalizeRepository(repository string) string {
-	parts := strings.Split(repository, "/")
+	domain := utils.ExtractRegistryDomain(repository)
 
-	if s.extractRegistryDomain(repository) == "docker.io" || s.extractRegistryDomain(repository) == "registry-1.docker.io" {
-		repoWithoutRegistry := strings.TrimPrefix(repository, s.extractRegistryDomain(repository)+"/")
-		if !strings.Contains(repoWithoutRegistry, "/") {
-			return "library/" + repoWithoutRegistry
+	if domain == "docker.io" {
+		if !strings.Contains(repository, "/") {
+			return "library/" + repository
 		}
-		return repoWithoutRegistry
+
+		if utils.ExtractRegistryDomain(repository) == "docker.io" || utils.ExtractRegistryDomain(repository) == "registry-1.docker.io" {
+			repoWithoutRegistry := strings.TrimPrefix(repository, utils.ExtractRegistryDomain(repository)+"/")
+			if !strings.Contains(repoWithoutRegistry, "/") {
+				return "library/" + repoWithoutRegistry
+			}
+			return repoWithoutRegistry
+		}
 	}
 
-	if len(parts) > 1 {
-		return strings.Join(parts[1:], "/")
-	}
 	return repository
 }
 
@@ -321,7 +365,7 @@ func (s *ImageMaturityService) extractRegistryDomain(repository string) string {
 }
 
 func (s *ImageMaturityService) isPrivateRegistry(repository string) bool {
-	domain := s.extractRegistryDomain(repository)
+	domain := utils.ExtractRegistryDomain(repository)
 	publicRegistries := []string{"docker.io", "registry-1.docker.io", "index.docker.io", "ghcr.io", "quay.io", "gcr.io"}
 
 	for _, public := range publicRegistries {
@@ -372,7 +416,7 @@ func (s *ImageMaturityService) hasNewerVersions(currentTag string, allTags []str
 	return hasNewer, newestTag
 }
 
-func (s *ImageMaturityService) determineMaturityStatus(tag string, isMaturedByAge, hasUpdates bool, checkError error) string {
+func (s *ImageMaturityService) determineMaturityStatus(isMaturedByAge, hasUpdates bool, checkError error) string {
 	if checkError != nil {
 		if isMaturedByAge {
 			return models.ImageStatusMatured
@@ -500,7 +544,7 @@ func (s *ImageMaturityService) ProcessImagesForMaturityCheck(ctx context.Context
 		tag := parts[1]
 
 		imageCreatedAt := time.Unix(img.Created, 0)
-		_, err := s.CheckImageMaturity(ctx, img.ID, repo, tag, imageCreatedAt, nil)
+		_, err := s.CheckImageMaturity(ctx, img.ID, repo, tag, imageCreatedAt)
 		if err != nil {
 			continue
 		}
@@ -613,19 +657,18 @@ func (s *ImageMaturityService) UpdateCheckStatus(ctx context.Context, imageID st
 }
 
 func (s *ImageMaturityService) CleanupOrphanedRecords(ctx context.Context, existingImageIDs []string) (int64, error) {
-	var result any
+	var result *gorm.DB
 	if len(existingImageIDs) == 0 {
 		result = s.db.WithContext(ctx).Delete(&models.ImageMaturityRecord{})
 	} else {
 		result = s.db.WithContext(ctx).Where("id NOT IN ?", existingImageIDs).Delete(&models.ImageMaturityRecord{})
 	}
 
-	dbResult := result.(*database.DB)
-	if dbResult.Error != nil {
-		return 0, fmt.Errorf("failed to cleanup orphaned records: %w", dbResult.Error)
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to cleanup orphaned records: %w", result.Error)
 	}
 
-	return dbResult.RowsAffected, nil
+	return result.RowsAffected, nil
 }
 
 func (s *ImageMaturityService) CheckMaturityBatch(ctx context.Context, imageIDs []string) (map[string]interface{}, error) {
