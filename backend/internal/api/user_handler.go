@@ -39,7 +39,8 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		req.Pagination.Limit = 20
 	}
 
-	if req.Pagination.Page == 0 && req.Pagination.Limit == 0 {
+	// For non-paginated requests (when both page and limit are default/zero)
+	if req.Pagination.Page == 1 && req.Pagination.Limit == 20 && req.Search == "" && req.Sort.Column == "" {
 		users, err := h.userService.ListUsers(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -49,9 +50,9 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 			return
 		}
 
-		var userResponses []UserResponse
+		var userResponses []dto.UserResponseDto
 		for _, user := range users {
-			userResponses = append(userResponses, UserResponse{
+			userResponses = append(userResponses, dto.UserResponseDto{
 				ID:          user.ID,
 				Username:    user.Username,
 				DisplayName: user.DisplayName,
@@ -129,7 +130,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"user": UserResponse{
+		"user": dto.UserResponseDto{
 			ID:          createdUser.ID,
 			Username:    createdUser.Username,
 			DisplayName: createdUser.DisplayName,
@@ -153,7 +154,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"user": UserResponse{
+		"user": dto.UserResponseDto{
 			ID:          user.ID,
 			Username:    user.Username,
 			DisplayName: user.DisplayName,
@@ -208,7 +209,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"user": UserResponse{
+		"user": dto.UserResponseDto{
 			ID:          updatedUser.ID,
 			Username:    updatedUser.Username,
 			DisplayName: updatedUser.DisplayName,

@@ -16,7 +16,7 @@ export const load = async () => {
     }
 
     const arcaneUser = await tryCatch(userAPI.getCurrentUser());
-    const user = arcaneUser.error ? null : arcaneUser.data?.data;
+    const user = arcaneUser.error ? null : arcaneUser.data;
 
     if (!environmentStore.isInitialized() && user) {
         const environments = await tryCatch(environmentManagementAPI.list());

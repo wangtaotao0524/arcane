@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -270,78 +272,63 @@ func (s *UserService) UpgradePasswordHash(ctx context.Context, userID, password 
 		Update("password_hash", newHash).Error
 }
 
-func (s *UserService) ListUsersPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
+func (s *UserService) ListUsersPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]dto.UserResponseDto, utils.PaginationResponse, error) {
 	users, err := s.ListUsers(ctx)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list users: %w", err)
 	}
 
-	var result []map[string]interface{}
+	var result []dto.UserResponseDto
 	for _, user := range users {
-		userData := map[string]interface{}{
-			"ID":          user.ID,
-			"Username":    user.Username,
-			"DisplayName": user.DisplayName,
-			"Email":       user.Email,
-			"Roles":       user.Roles,
-			"CreatedAt":   user.CreatedAt,
-			"UpdatedAt":   user.UpdatedAt,
+		userResponse := dto.UserResponseDto{
+			ID:          user.ID,
+			Username:    user.Username,
+			DisplayName: user.DisplayName,
+			Email:       user.Email,
+			Roles:       user.Roles,
+			CreatedAt:   user.CreatedAt.Format("2006-01-02T15:04:05.999999Z"),
+			UpdatedAt:   user.UpdatedAt.Format("2006-01-02T15:04:05.999999Z"),
 		}
-
-		result = append(result, userData)
+		result = append(result, userResponse)
 	}
 
+	// Apply search filter if provided
 	if req.Search != "" {
-		filtered := make([]map[string]interface{}, 0)
+		var filteredResult []dto.UserResponseDto
 		searchLower := strings.ToLower(req.Search)
-		for _, user := range result {
-			if username, ok := user["Username"].(string); ok {
-				if strings.Contains(strings.ToLower(username), searchLower) {
-					filtered = append(filtered, user)
-					continue
-				}
-			}
-			if displayName, ok := user["DisplayName"].(*string); ok && displayName != nil {
-				if strings.Contains(strings.ToLower(*displayName), searchLower) {
-					filtered = append(filtered, user)
-					continue
-				}
-			}
-			if email, ok := user["Email"].(*string); ok && email != nil {
-				if strings.Contains(strings.ToLower(*email), searchLower) {
-					filtered = append(filtered, user)
-					continue
-				}
+
+		for _, userResponse := range result {
+			if strings.Contains(strings.ToLower(userResponse.Username), searchLower) ||
+				(userResponse.Email != nil && strings.Contains(strings.ToLower(*userResponse.Email), searchLower)) ||
+				(userResponse.DisplayName != nil && strings.Contains(strings.ToLower(*userResponse.DisplayName), searchLower)) {
+				filteredResult = append(filteredResult, userResponse)
 			}
 		}
-		result = filtered
+		result = filteredResult
 	}
 
 	totalItems := len(result)
 
-	if req.Sort.Column != "" {
-		utils.SortSliceByField(result, req.Sort.Column, req.Sort.Direction)
+	// Apply sorting if specified
+	if req.Sort.Column != "" && req.Sort.Direction != "" {
+		utils.SortUserResponses(result, req.Sort.Column, req.Sort.Direction)
 	}
 
-	startIdx := (req.Pagination.Page - 1) * req.Pagination.Limit
-	endIdx := startIdx + req.Pagination.Limit
+	// Apply pagination
+	start := (req.Pagination.Page - 1) * req.Pagination.Limit
+	end := start + req.Pagination.Limit
 
-	if startIdx > len(result) {
-		startIdx = len(result)
-	}
-	if endIdx > len(result) {
-		endIdx = len(result)
-	}
-
-	if startIdx < endIdx {
-		result = result[startIdx:endIdx]
+	if start > len(result) {
+		result = []dto.UserResponseDto{}
 	} else {
-		result = []map[string]interface{}{}
+		if end > len(result) {
+			end = len(result)
+		}
+		result = result[start:end]
 	}
 
-	totalPages := (totalItems + req.Pagination.Limit - 1) / req.Pagination.Limit
 	pagination := utils.PaginationResponse{
-		TotalPages:   int64(totalPages),
+		TotalPages:   int64(math.Ceil(float64(totalItems) / float64(req.Pagination.Limit))),
 		TotalItems:   int64(totalItems),
 		CurrentPage:  req.Pagination.Page,
 		ItemsPerPage: req.Pagination.Limit,

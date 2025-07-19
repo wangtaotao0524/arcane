@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -30,21 +31,13 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Success               bool          `json:"success"`
-	Token                 string        `json:"token,omitempty"`
-	RefreshToken          string        `json:"refreshToken,omitempty"`
-	ExpiresAt             time.Time     `json:"expiresAt,omitempty"`
-	User                  *UserResponse `json:"user,omitempty"`
-	Error                 string        `json:"error,omitempty"`
-	RequirePasswordChange bool          `json:"requirePasswordChange,omitempty"`
-}
-
-type UserResponse struct {
-	ID          string   `json:"id"`
-	Username    string   `json:"username"`
-	DisplayName *string  `json:"displayName,omitempty"`
-	Email       *string  `json:"email,omitempty"`
-	Roles       []string `json:"roles"`
+	Success               bool                 `json:"success"`
+	Token                 string               `json:"token,omitempty"`
+	RefreshToken          string               `json:"refreshToken,omitempty"`
+	ExpiresAt             time.Time            `json:"expiresAt,omitempty"`
+	User                  *dto.UserResponseDto `json:"user,omitempty"`
+	Error                 string               `json:"error,omitempty"`
+	RequirePasswordChange bool                 `json:"requirePasswordChange,omitempty"`
 }
 
 type RefreshRequest struct {
@@ -95,7 +88,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusOK, LoginResponse{
 			Success:               true,
 			RequirePasswordChange: true,
-			User: &UserResponse{
+			User: &dto.UserResponseDto{
 				ID:          user.ID,
 				Username:    user.Username,
 				DisplayName: user.DisplayName,
@@ -147,7 +140,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Token:        tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt,
-		User: &UserResponse{
+		User: &dto.UserResponseDto{
 			ID:          user.ID,
 			Username:    user.Username,
 			DisplayName: user.DisplayName,
@@ -178,15 +171,12 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": UserResponse{
-			ID:          user.ID,
-			Username:    user.Username,
-			DisplayName: user.DisplayName,
-			Email:       user.Email,
-			Roles:       user.Roles,
-		},
+	c.JSON(http.StatusOK, dto.UserResponseDto{
+		ID:          user.ID,
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		Email:       user.Email,
+		Roles:       user.Roles,
 	})
 }
 

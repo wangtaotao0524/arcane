@@ -43,11 +43,11 @@
 	});
 
 	let formData = $derived({
-		username: userToEdit?.Username || '',
+		username: userToEdit?.username || '',
 		password: '',
-		displayName: userToEdit?.DisplayName || '',
-		email: userToEdit?.Email || '',
-		isAdmin: Boolean(userToEdit?.Roles?.includes('admin'))
+		displayName: userToEdit?.displayName || '',
+		email: userToEdit?.email || '',
+		isAdmin: Boolean(userToEdit?.roles?.includes('admin'))
 	});
 
 	let { inputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, formData));
@@ -57,10 +57,10 @@
 		if (!data) return;
 
 		const userData: Partial<User> & { password?: string } = {
-			Username: data.username,
-			DisplayName: data.displayName,
-			Email: data.email,
-			Roles: [data.isAdmin ? 'admin' : 'user']
+			username: data.username,
+			displayName: data.displayName,
+			email: data.email,
+			roles: [data.isAdmin ? 'admin' : 'user']
 		};
 
 		// Only include password if it's provided (for create) or if editing and password is not empty
@@ -68,7 +68,7 @@
 			userData.password = data.password;
 		}
 
-		onSubmit({ user: userData, isEditMode, userId: userToEdit?.ID });
+		onSubmit({ user: userData, isEditMode, userId: userToEdit?.id });
 	}
 
 	function handleOpenChange(newOpenState: boolean) {
@@ -92,7 +92,7 @@
 					</Sheet.Title>
 					<Sheet.Description class="text-sm text-muted-foreground mt-1">
 						{isEditMode
-							? `Update the details for ${userToEdit?.Username || 'this user'}`
+							? `Update the details for ${userToEdit?.username || 'this user'}`
 							: 'Add a new user to your system with the required permissions'}
 					</Sheet.Description>
 				</div>

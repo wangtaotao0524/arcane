@@ -33,8 +33,8 @@
 	});
 
 	const totalUsers = $derived(users.length);
-	const adminUsers = $derived(users.filter((u) => u.Roles?.includes('admin')).length);
-	const regularUsers = $derived(users.filter((u) => !u.Roles?.includes('admin')).length);
+	const adminUsers = $derived(users.filter((u) => u.roles?.includes('admin')).length);
+	const regularUsers = $derived(users.filter((u) => !u.roles?.includes('admin')).length);
 
 	async function loadUsers() {
 		try {
@@ -109,38 +109,38 @@
 				const result = await tryCatch(userAPI.update(userId, user));
 				handleApiResultWithCallbacks({
 					result,
-					message: `Failed to update user "${user.Username}"`,
+					message: `Failed to update user "${user.username}"`,
 					setLoadingState: (value) => (isLoading[loading] = value),
 					onSuccess: async () => {
-						toast.success(`User "${user.Username}" updated successfully.`);
+						toast.success(`User "${user.username}" updated successfully.`);
 						await loadUsers();
 						isDialogOpen.edit = false;
 						userToEdit = null;
 					}
 				});
 			} else {
-				if (!user.Username) {
+				if (!user.username) {
 					toast.error('Username is required');
 					isLoading[loading] = false;
 					return;
 				}
 
-				const createUser: Omit<User, 'ID' | 'CreatedAt' | 'UpdatedAt'> = {
-					Username: user.Username,
-					DisplayName: user.DisplayName,
-					Email: user.Email,
-					Roles: user.Roles || ['user'],
-					PasswordHash: user.password,
-					RequirePasswordChange: false
+				const createUser: Omit<User, 'id' | 'createdAt' | 'updatedAt'> = {
+					username: user.username,
+					displayName: user.displayName,
+					email: user.email,
+					roles: user.roles || ['user'],
+					passwordHash: user.password,
+					requirePasswordChange: false
 				};
 
 				const result = await tryCatch(userAPI.create(createUser));
 				handleApiResultWithCallbacks({
 					result,
-					message: `Failed to create user "${user.Username}"`,
+					message: `Failed to create user "${user.username}"`,
 					setLoadingState: (value) => (isLoading[loading] = value),
 					onSuccess: async () => {
-						toast.success(`User "${user.Username}" created successfully.`);
+						toast.success(`User "${user.username}" created successfully.`);
 						await loadUsers();
 						isDialogOpen.create = false;
 					}

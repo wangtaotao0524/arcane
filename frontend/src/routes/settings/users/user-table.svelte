@@ -41,7 +41,7 @@
 	const usersWithId = $derived(
 		(users || []).map((user) => ({
 			...user,
-			id: user.ID
+			id: user.id
 		}))
 	);
 
@@ -164,11 +164,11 @@
 				bind:selectedIds
 				{onRefresh}
 				columns={[
-					{ label: 'Username', sortColumn: 'Username' },
-					{ label: 'Display Name', sortColumn: 'DisplayName' },
-					{ label: 'Email', sortColumn: 'Email' },
-					{ label: 'Role', sortColumn: 'Roles' },
-					{ label: 'Created', sortColumn: 'CreatedAt' },
+					{ label: 'Username', sortColumn: 'username' },
+					{ label: 'Display Name', sortColumn: 'displayName' },
+					{ label: 'Email', sortColumn: 'email' },
+					{ label: 'Role', sortColumn: 'roles' },
+					{ label: 'Created', sortColumn: 'createdAt' },
 					{ label: ' ' }
 				]}
 				filterPlaceholder="Search users..."
@@ -176,14 +176,14 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell>
-						<span class="font-medium">{item.Username}</span>
+						<span class="font-medium">{item.username}</span>
 					</Table.Cell>
-					<Table.Cell>{item.DisplayName || '-'}</Table.Cell>
-					<Table.Cell>{item.Email || '-'}</Table.Cell>
+					<Table.Cell>{item.displayName || '-'}</Table.Cell>
+					<Table.Cell>{item.email || '-'}</Table.Cell>
 					<Table.Cell>
-						<StatusBadge text={getRoleText(item.Roles)} variant={getRoleBadgeVariant(item.Roles)} />
+						<StatusBadge text={getRoleText(item.roles)} variant={getRoleBadgeVariant(item.roles)} />
 					</Table.Cell>
-					<Table.Cell>{formatFriendlyDate(item.CreatedAt)}</Table.Cell>
+					<Table.Cell>{formatFriendlyDate(item.createdAt)}</Table.Cell>
 					<Table.Cell>
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger>
@@ -202,7 +202,7 @@
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										class="focus:text-red-700! text-red-500"
-										onclick={() => handleDeleteUser(item.ID, item.Username)}
+										onclick={() => handleDeleteUser(item.id, item.username)}
 									>
 										<Trash2 class="size-4" />
 										Delete

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -12,6 +13,12 @@ import (
 const DEFAULT_REGISTRY = "registry-1.docker.io"
 
 type RegistryUtils struct{}
+
+var (
+	SemanticVersionRegex = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-.*)?$`)
+	DateVersionRegex     = regexp.MustCompile(`^(\d{4})\.(\d{1,2})\.(\d{1,2})$`)
+	NumericVersionRegex  = regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?$`)
+)
 
 type RegistryCredentials struct {
 	Username string

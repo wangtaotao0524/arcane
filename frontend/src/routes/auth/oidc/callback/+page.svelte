@@ -37,17 +37,17 @@
 
 			if (authResult.user) {
 				const user: User = {
-					ID: authResult.user.sub || authResult.user.email || '',
-					Username: authResult.user.preferred_username || authResult.user.email || '',
-					Email: authResult.user.email,
-					DisplayName:
+					id: authResult.user.sub || authResult.user.email || '',
+					username: authResult.user.preferred_username || authResult.user.email || '',
+					email: authResult.user.email,
+					displayName:
 						authResult.user.name ||
 						authResult.user.given_name ||
 						authResult.user.preferred_username ||
 						authResult.user.email ||
 						'User',
-					Roles: ['user'],
-					CreatedAt: new Date().toISOString()
+					roles: ['user'],
+					createdAt: new Date().toISOString()
 				};
 
 				userStore.setUser(user);
