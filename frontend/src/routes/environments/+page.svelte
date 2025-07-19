@@ -1,22 +1,33 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import type { Environment } from '$lib/stores/environment.store';
-	import type { ColumnDef } from '@tanstack/table-core';
 	import { formatDistanceToNow } from 'date-fns';
-	import { RefreshCw, AlertCircle, Loader2, Monitor, Eye, Trash2, Terminal, Key, Server, Ellipsis, Plus } from '@lucide/svelte';
+	import {
+		RefreshCw,
+		AlertCircle,
+		Loader2,
+		Monitor,
+		Eye,
+		Trash2,
+		Terminal,
+		Server,
+		Ellipsis,
+		Plus
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/index.js';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util.js';
 	import { tryCatch } from '$lib/utils/try-catch.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import UniversalTable from '$lib/components/universal-table.svelte';
+	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import NewEnvironmentSheet from '$lib/components/sheets/new-environment-sheet.svelte';
 	import { environmentManagementAPI } from '$lib/services/api';
+	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 
 	let { data } = $props();
 
@@ -27,14 +38,96 @@
 	let showEnvironmentSheet = $state(false);
 	let refreshInProgress = false;
 
-	const columns: ColumnDef<Environment>[] = [
-		{ accessorKey: 'hostname', header: 'Environment' },
-		{ accessorKey: 'status', header: 'Status' },
-		{ accessorKey: 'apiUrl', header: 'API URL' },
-		{ accessorKey: 'enabled', header: 'Enabled' },
-		{ accessorKey: 'lastSeen', header: 'Last Seen' },
-		{ accessorKey: 'actions', header: ' ' }
+	// Convert environments array to Paginated structure for ArcaneTable
+	let paginatedEnvironments = $derived<Paginated<Environment & { id: string }>>({
+		data: environments.map((env) => ({ ...env, id: env.id })),
+		pagination: {
+			totalPages: 1,
+			totalItems: environments.length,
+			currentPage: 1,
+			itemsPerPage: environments.length
+		}
+	});
+
+	let requestOptions = $state<SearchPaginationSortRequest>({
+		search: '',
+		pagination: { page: 1, limit: 100 },
+		sort: { column: 'lastSeen', direction: 'desc' }
+	});
+
+	const columns = [
+		{ label: 'Environment', sortColumn: 'hostname' },
+		{ label: 'Status', sortColumn: 'status' },
+		{ label: 'API URL' },
+		{ label: 'Enabled', sortColumn: 'enabled' },
+		{ label: 'Last Seen', sortColumn: 'lastSeen' },
+		{ label: ' ' }
 	];
+
+	// Define valid sortable keys for Environment
+	const validSortColumns: (keyof Environment)[] = [
+		'hostname',
+		'status',
+		'enabled',
+		'lastSeen',
+		'apiUrl',
+		'id'
+	];
+
+	function isValidEnvironmentKey(key: string): key is keyof Environment {
+		return validSortColumns.includes(key as keyof Environment);
+	}
+
+	function sortEnvironments(
+		data: Environment[],
+		column: keyof Environment,
+		direction: 'asc' | 'desc'
+	): Environment[] {
+		return [...data].sort((a, b) => {
+			const aVal = a[column];
+			const bVal = b[column];
+
+			// Handle date fields
+			if (column === 'lastSeen') {
+				const aTime = aVal ? new Date(aVal as string).getTime() : 0;
+				const bTime = bVal ? new Date(bVal as string).getTime() : 0;
+				return direction === 'asc' ? aTime - bTime : bTime - aTime;
+			}
+
+			// Handle string comparison
+			if (typeof aVal === 'string' && typeof bVal === 'string') {
+				const comparison = aVal.toLowerCase().localeCompare(bVal.toLowerCase());
+				return direction === 'asc' ? comparison : -comparison;
+			}
+
+			// Handle boolean comparison
+			if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+				if (aVal === bVal) return 0;
+				const comparison = aVal ? 1 : -1;
+				return direction === 'asc' ? comparison : -comparison;
+			}
+
+			// Handle undefined values
+			const aComp = aVal ?? '';
+			const bComp = bVal ?? '';
+
+			if (aComp < bComp) return direction === 'asc' ? -1 : 1;
+			if (aComp > bComp) return direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+	}
+
+	function filterEnvironments(data: Environment[], searchTerm: string): Environment[] {
+		if (!searchTerm) return data;
+
+		const term = searchTerm.toLowerCase();
+		return data.filter(
+			(env) =>
+				env.hostname.toLowerCase().includes(term) ||
+				env.apiUrl.toLowerCase().includes(term) ||
+				env.status.toLowerCase().includes(term)
+		);
+	}
 
 	onMount(() => {
 		const interval = setInterval(refreshEnvironments, 30000);
@@ -68,6 +161,39 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	/**
+	 * Handle local filtering and sorting of environments data
+	 * Used by ArcaneTable for client-side data manipulation
+	 */
+	async function handleLocalFilter(
+		options: SearchPaginationSortRequest
+	): Promise<Paginated<Environment & { id: string }>> {
+		// Apply search filter
+		let filteredData = filterEnvironments(environments, options.search || '');
+
+		// Apply sorting if provided
+		if (options.sort) {
+			const { column, direction } = options.sort;
+
+			// Validate column is a valid Environment key before sorting
+			if (!isValidEnvironmentKey(column)) {
+				console.warn(`Invalid sort column: ${column}. Skipping sort.`);
+			} else {
+				filteredData = sortEnvironments(filteredData, column, direction);
+			}
+		}
+
+		return {
+			data: filteredData.map((env) => ({ ...env, id: env.id })),
+			pagination: {
+				totalPages: 1,
+				totalItems: filteredData.length,
+				currentPage: 1,
+				itemsPerPage: filteredData.length
+			}
+		};
 	}
 
 	async function deleteEnvironment(environmentId: string, hostname: string) {
@@ -117,13 +243,29 @@
 				destructive: true,
 				action: async () => {
 					try {
-						await Promise.all(selectedEnvironmentIds.map((id) => environmentManagementAPI.delete(id)));
-						toast.success(`${selectedEnvironmentIds.length} environment(s) removed successfully`);
+						const results = await Promise.allSettled(
+							selectedEnvironmentIds.map((id) => environmentManagementAPI.delete(id))
+						);
+
+						const successful = results.filter((result) => result.status === 'fulfilled');
+						const failed = results.filter((result) => result.status === 'rejected');
+
+						if (successful.length > 0) {
+							toast.success(`${successful.length} environment(s) removed successfully`);
+						}
+
+						if (failed.length > 0) {
+							console.error('Failed delete operations:', failed);
+							toast.error(
+								`Failed to remove ${failed.length} environment(s). Check console for details.`
+							);
+						}
+
 						selectedEnvironmentIds = [];
 						await loadEnvironments();
 					} catch (err) {
-						console.error('Failed to remove environments:', err);
-						toast.error('Failed to remove some environments');
+						console.error('Unexpected error during bulk delete:', err);
+						toast.error('An unexpected error occurred during bulk deletion');
 					}
 				}
 			}
@@ -132,7 +274,9 @@
 
 	function handleEnvironmentCreated() {
 		showEnvironmentSheet = false;
-		toast.success('Environment added successfully! You can now select it from the environment switcher.');
+		toast.success(
+			'Environment added successfully! You can now select it from the environment switcher.'
+		);
 		loadEnvironments();
 	}
 </script>
@@ -144,7 +288,9 @@
 	</div>
 
 	{#if error}
-		<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+		<div
+			class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+		>
 			<div class="flex items-center gap-2">
 				<AlertCircle class="h-5 w-5" />
 				<strong>Error:</strong>
@@ -190,10 +336,16 @@
 				{#if environments.length === 0 && !loading}
 					<div class="py-16 text-center">
 						<Monitor class="mx-auto mb-4 h-16 w-16 text-gray-400" />
-						<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">No environments registered</h3>
-						<p class="mb-4 text-gray-600 dark:text-gray-400">Get started by adding your first environment</p>
+						<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">
+							No environments registered
+						</h3>
+						<p class="mb-4 text-gray-600 dark:text-gray-400">
+							Get started by adding your first environment
+						</p>
 						<div class="mx-auto max-w-md rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-							<p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Add a new environment to connect to an Arcane agent running as an API server.</p>
+							<p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+								Add a new environment to connect to an Arcane agent running as an API server.
+							</p>
 							<Button onclick={() => (showEnvironmentSheet = true)} class="w-full">
 								<Plus class="mr-2 h-4 w-4" />
 								Add Environment
@@ -202,55 +354,59 @@
 					</div>
 				{:else if environments.length > 0}
 					<div class="flex h-full flex-1 flex-col">
-						<UniversalTable
-							data={environments}
-							{columns}
-							idKey="id"
+						<ArcaneTable
+							items={paginatedEnvironments}
+							bind:requestOptions
 							bind:selectedIds={selectedEnvironmentIds}
-							features={{
-								sorting: true,
-								filtering: true,
-								selection: true
-							}}
-							display={{
-								filterPlaceholder: 'Search environments...',
-								noResultsMessage: 'No environments found'
-							}}
-							pagination={{
-								pageSize: 10,
-								pageSizeOptions: [10, 20, 50]
-							}}
-							sort={{
-								defaultSort: { id: 'lastSeen', desc: true }
-							}}
+							withoutPagination={true}
+							onRefresh={handleLocalFilter}
+							{columns}
+							filterPlaceholder="Search environments..."
+							noResultsMessage="No environments found"
 						>
 							{#snippet rows({ item })}
 								<Table.Cell>
 									<div class="flex items-center gap-3">
 										<div class="relative">
-											<div class="flex size-8 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+											<div
+												class="flex size-8 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700"
+											>
 												<Monitor class="size-4 text-gray-600 dark:text-gray-400" />
 											</div>
-											<div class="absolute -top-1 -right-1 size-3 {item.status === 'online' ? 'bg-green-500' : 'bg-red-500'} rounded-full border-2 border-white dark:border-gray-800"></div>
+											<div
+												class="absolute -top-1 -right-1 size-3 {item.status === 'online'
+													? 'bg-green-500'
+													: 'bg-red-500'} rounded-full border-2 border-white dark:border-gray-800"
+											></div>
 										</div>
 										<div>
 											<div class="font-medium text-gray-900 dark:text-white">{item.hostname}</div>
-											<div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{item.id}</div>
+											<div class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+												{item.id}
+											</div>
 										</div>
 									</div>
 								</Table.Cell>
 								<Table.Cell>
-									<StatusBadge text={item.status === 'online' ? 'Online' : 'Offline'} variant={item.status === 'online' ? 'green' : 'red'} />
+									<StatusBadge
+										text={item.status === 'online' ? 'Online' : 'Offline'}
+										variant={item.status === 'online' ? 'green' : 'red'}
+									/>
 								</Table.Cell>
 								<Table.Cell>
 									<span class="text-sm font-mono text-muted-foreground">{item.apiUrl}</span>
 								</Table.Cell>
 								<Table.Cell>
-									<StatusBadge text={item.enabled ? 'Enabled' : 'Disabled'} variant={item.enabled ? 'green' : 'gray'} />
+									<StatusBadge
+										text={item.enabled ? 'Enabled' : 'Disabled'}
+										variant={item.enabled ? 'green' : 'gray'}
+									/>
 								</Table.Cell>
 								<Table.Cell>
 									{#if item.lastSeen}
-										<span class="text-sm text-gray-600 dark:text-gray-400">{formatDistanceToNow(new Date(item.lastSeen))} ago</span>
+										<span class="text-sm text-gray-600 dark:text-gray-400"
+											>{formatDistanceToNow(new Date(item.lastSeen))} ago</span
+										>
 									{:else}
 										<span class="text-sm text-gray-400">Never</span>
 									{/if}
@@ -273,7 +429,10 @@
 													<Eye class="size-4" />
 													View Details
 												</DropdownMenu.Item>
-												<DropdownMenu.Item class="text-red-500 focus:text-red-700!" onclick={() => deleteEnvironment(item.id, item.hostname)}>
+												<DropdownMenu.Item
+													class="text-red-500 focus:text-red-700!"
+													onclick={() => deleteEnvironment(item.id, item.hostname)}
+												>
 													<Trash2 class="size-4" />
 													Delete Environment
 												</DropdownMenu.Item>
@@ -282,7 +441,7 @@
 									</DropdownMenu.Root>
 								</Table.Cell>
 							{/snippet}
-						</UniversalTable>
+						</ArcaneTable>
 					</div>
 				{:else}
 					<div class="text-muted-foreground py-8 text-center italic">Loading environments...</div>
@@ -292,11 +451,16 @@
 	</div>
 
 	{#if loading && environments.length > 0}
-		<div class="fixed right-4 bottom-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg">
+		<div
+			class="fixed right-4 bottom-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg"
+		>
 			<Loader2 class="h-4 w-4 animate-spin" />
 			<span class="text-sm">Refreshing...</span>
 		</div>
 	{/if}
 </div>
 
-<NewEnvironmentSheet bind:open={showEnvironmentSheet} onEnvironmentCreated={handleEnvironmentCreated} />
+<NewEnvironmentSheet
+	bind:open={showEnvironmentSheet}
+	onEnvironmentCreated={handleEnvironmentCreated}
+/>

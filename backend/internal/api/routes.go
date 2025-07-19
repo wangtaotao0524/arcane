@@ -16,7 +16,7 @@ type Services struct {
 	Image             *services.ImageService
 	Volume            *services.VolumeService
 	Network           *services.NetworkService
-	ImageMaturity     *services.ImageMaturityService
+	ImageUpdate       *services.ImageUpdateService
 	Auth              *services.AuthService
 	Oidc              *services.OidcService
 	Docker            *services.DockerClientService
@@ -35,7 +35,6 @@ func SetupRoutes(r *gin.Engine, services *Services, appConfig *config.Config) {
 	setupStackRoutes(api, services)
 	setupEnvironmentRoutes(api, services)
 	setupSettingsRoutes(api, services, appConfig)
-	setupImageMaturityRoutes(api, services)
 	setupSystemRoutes(api, services.Docker, services)
 	setupContainerRoutes(api, services)
 	setupImageRoutes(api, services)
@@ -45,6 +44,7 @@ func SetupRoutes(r *gin.Engine, services *Services, appConfig *config.Config) {
 	setupContainerRegistryRoutes(api, services)
 	setupAutoUpdateRoutes(api, services)
 	setupConverterRoutes(api, services)
+	setupImageUpdateRoutes(api, services)
 }
 
 func setupContainerRegistryRoutes(api *gin.RouterGroup, services *Services) {
@@ -60,6 +60,20 @@ func setupContainerRegistryRoutes(api *gin.RouterGroup, services *Services) {
 	registries.DELETE("/:id", registryHandler.DeleteRegistry)
 
 	registries.POST("/:id/test", registryHandler.TestRegistry)
+}
+
+func setupImageUpdateRoutes(api *gin.RouterGroup, services *Services) {
+	imageUpdates := api.Group("/image-updates")
+	imageUpdates.Use(middleware.AuthMiddleware(services.Auth))
+	imageUpdateHandler := NewImageUpdateHandler(services.ImageUpdate)
+
+	imageUpdates.GET("/check", imageUpdateHandler.CheckImageUpdate)
+	imageUpdates.GET("/check/:imageId", imageUpdateHandler.CheckImageUpdateByID)
+	imageUpdates.POST("/check-batch", imageUpdateHandler.CheckMultipleImages)
+	imageUpdates.GET("/check-all", imageUpdateHandler.CheckAllImages)
+	imageUpdates.GET("/summary", imageUpdateHandler.GetUpdateSummary)
+	imageUpdates.GET("/versions", imageUpdateHandler.GetImageVersions)
+	imageUpdates.POST("/compare", imageUpdateHandler.CompareVersions)
 }
 
 func setupAuthRoutes(api *gin.RouterGroup, services *Services, appConfig *config.Config) {
@@ -217,21 +231,6 @@ func setupSettingsRoutes(api *gin.RouterGroup, services *Services, appConfig *co
 	settings.POST("/oidc/callback", oidcHandler.HandleOidcCallback)
 }
 
-func setupImageMaturityRoutes(api *gin.RouterGroup, services *Services) {
-	imageMaturity := api.Group("/images/maturity")
-	imageMaturity.Use(middleware.AuthMiddleware(services.Auth))
-
-	imageMaturityHandler := NewImageMaturityHandler(services.ImageMaturity, services.Image)
-
-	imageMaturity.GET("", imageMaturityHandler.ListMaturityRecords)
-	imageMaturity.GET("/stats", imageMaturityHandler.GetMaturityStats)
-	imageMaturity.GET("/updates", imageMaturityHandler.GetImagesWithUpdates)
-	imageMaturity.GET("/needs-check", imageMaturityHandler.GetImagesNeedingCheck)
-	imageMaturity.POST("/check", imageMaturityHandler.TriggerMaturityCheck)
-	imageMaturity.GET("/repository/:repository", imageMaturityHandler.GetMaturityByRepository)
-	imageMaturity.GET("/:imageId", imageMaturityHandler.GetImageMaturity)
-}
-
 func setupSystemRoutes(api *gin.RouterGroup, dockerService *services.DockerClientService, services *Services) {
 	system := api.Group("/system")
 	system.Use(middleware.AuthMiddleware(services.Auth))
@@ -283,7 +282,7 @@ func setupImageRoutes(api *gin.RouterGroup, services *Services) {
 	images := api.Group("/images")
 	images.Use(middleware.AuthMiddleware(services.Auth))
 
-	imageHandler := NewImageHandler(services.Image, services.ImageMaturity)
+	imageHandler := NewImageHandler(services.Image, services.ImageUpdate)
 
 	images.GET("", imageHandler.List)
 	images.GET("/:id", imageHandler.GetByID)
@@ -291,7 +290,6 @@ func setupImageRoutes(api *gin.RouterGroup, services *Services) {
 	images.POST("/pull", imageHandler.Pull)
 	images.POST("/prune", imageHandler.Prune)
 	images.GET("/:id/history", imageHandler.GetHistory)
-	images.POST("/:id/maturity", imageHandler.CheckMaturity)
 }
 
 func setupVolumeRoutes(api *gin.RouterGroup, services *Services) {
