@@ -5,10 +5,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - 'docs/**'
+  workflow_dispatch:
+  # pull_request:
+  #   types: [opened, synchronize]
+  #   paths:
+  #     - 'docs/**'
 
 permissions:
   contents: read
