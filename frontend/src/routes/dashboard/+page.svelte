@@ -391,6 +391,96 @@
 	{/if}
 
 	<section>
+		<h2 class="mb-4 text-lg font-semibold tracking-tight">Quick Actions</h2>
+		{#if isLoading.loadingDockerInfo}
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				{#each Array(3) as _}
+					<div class="bg-card flex items-center rounded-lg border p-3">
+						<div class="bg-muted mr-3 size-6 animate-pulse rounded-full"></div>
+						<div class="flex-1">
+							<div class="bg-muted h-3 w-16 animate-pulse rounded mb-1"></div>
+							<div class="bg-muted h-2 w-12 animate-pulse rounded"></div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<button
+					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
+					disabled={!dashboardStates.dockerInfo ||
+						stoppedContainers === 0 ||
+						isLoading.starting ||
+						isLoading.stopping ||
+						isLoading.pruning}
+					onclick={handleStartAll}
+				>
+					<div
+						class="mr-3 flex size-6 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20"
+					>
+						{#if isLoading.starting}
+							<Loader2 class="size-3 animate-spin text-green-500" />
+						{:else}
+							<PlayCircle class="size-3 text-green-500" />
+						{/if}
+					</div>
+					<div class="flex-1 text-left">
+						<div class="text-sm font-medium">Start All Stopped</div>
+						<div class="text-muted-foreground text-xs">{stoppedContainers} containers</div>
+					</div>
+				</button>
+
+				<button
+					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
+					disabled={!dashboardStates.dockerInfo ||
+						runningContainers === 0 ||
+						isLoading.starting ||
+						isLoading.stopping ||
+						isLoading.pruning}
+					onclick={handleStopAll}
+				>
+					<div
+						class="mr-3 flex size-6 items-center justify-center rounded-full bg-blue-500/10 transition-colors group-hover:bg-blue-500/20"
+					>
+						{#if isLoading.stopping}
+							<Loader2 class="size-3 animate-spin text-blue-500" />
+						{:else}
+							<StopCircle class="size-3 text-blue-500" />
+						{/if}
+					</div>
+					<div class="flex-1 text-left">
+						<div class="text-sm font-medium">Stop All Running</div>
+						<div class="text-muted-foreground text-xs">{runningContainers} containers</div>
+					</div>
+				</button>
+
+				<button
+					class="group bg-card hover:border-destructive/50 disabled:hover:border-border flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
+					disabled={!dashboardStates.dockerInfo ||
+						isLoading.starting ||
+						isLoading.stopping ||
+						isLoading.pruning}
+					onclick={() => (dashboardStates.isPruneDialogOpen = true)}
+				>
+					<div
+						class="mr-3 flex size-6 items-center justify-center rounded-full bg-red-500/10 transition-colors group-hover:bg-red-500/20"
+					>
+						{#if isLoading.pruning}
+							<Loader2 class="size-3 animate-spin text-red-500" />
+						{:else}
+							<Trash2 class="size-3 text-red-500" />
+						{/if}
+					</div>
+					<div class="flex-1 text-left">
+						<div class="text-sm font-medium">Prune System</div>
+						<div class="text-muted-foreground text-xs">Clean unused resources</div>
+					</div>
+				</button>
+			</div>
+		{/if}
+	</section>
+
+	<section>
 		<DropdownCard
 			id="system-overview"
 			title="System Overview"
@@ -498,88 +588,6 @@
 				</Card.Root>
 			</div>
 		</DropdownCard>
-	</section>
-
-	<section>
-		<h2 class="mb-4 text-lg font-semibold tracking-tight">Quick Actions</h2>
-		{#if isLoading.loadingDockerInfo}
-			<div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-				{#each Array(3) as _}
-					<div class="bg-card flex flex-col items-center rounded-xl border p-6">
-						<div class="bg-muted mb-4 size-12 animate-pulse rounded-full"></div>
-						<div class="bg-muted h-4 w-24 animate-pulse rounded"></div>
-						<div class="bg-muted mt-2 h-3 w-16 animate-pulse rounded"></div>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-				<button
-					class="group bg-card relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
-					disabled={!dashboardStates.dockerInfo ||
-						stoppedContainers === 0 ||
-						isLoading.starting ||
-						isLoading.stopping ||
-						isLoading.pruning}
-					onclick={handleStartAll}
-				>
-					<div
-						class="mb-4 flex size-12 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20"
-					>
-						{#if isLoading.starting}
-							<Loader2 class="size-6 animate-spin text-green-500" />
-						{:else}
-							<PlayCircle class="size-6 text-green-500" />
-						{/if}
-					</div>
-					<span class="text-center text-base font-medium">Start All Stopped</span>
-					<span class="text-muted-foreground mt-1 text-sm">{stoppedContainers} containers</span>
-				</button>
-
-				<button
-					class="group bg-card relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
-					disabled={!dashboardStates.dockerInfo ||
-						runningContainers === 0 ||
-						isLoading.starting ||
-						isLoading.stopping ||
-						isLoading.pruning}
-					onclick={handleStopAll}
-				>
-					<div
-						class="mb-4 flex size-12 items-center justify-center rounded-full bg-blue-500/10 transition-colors group-hover:bg-blue-500/20"
-					>
-						{#if isLoading.stopping}
-							<Loader2 class="size-6 animate-spin text-blue-500" />
-						{:else}
-							<StopCircle class="size-6 text-blue-500" />
-						{/if}
-					</div>
-					<span class="text-center text-base font-medium">Stop All Running</span>
-					<span class="text-muted-foreground mt-1 text-sm">{runningContainers}</span>
-				</button>
-
-				<button
-					class="group bg-card hover:border-destructive/50 disabled:hover:border-border relative flex flex-col items-center rounded-xl border p-6 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
-					disabled={!dashboardStates.dockerInfo ||
-						isLoading.starting ||
-						isLoading.stopping ||
-						isLoading.pruning}
-					onclick={() => (dashboardStates.isPruneDialogOpen = true)}
-				>
-					<div
-						class="mb-4 flex size-12 items-center justify-center rounded-full bg-red-500/10 transition-colors group-hover:bg-red-500/20"
-					>
-						{#if isLoading.pruning}
-							<Loader2 class="size-6 animate-spin text-red-500" />
-						{:else}
-							<Trash2 class="size-6 text-red-500" />
-						{/if}
-					</div>
-					<span class="text-center text-base font-medium">Prune System</span>
-					<span class="text-muted-foreground mt-1 text-sm">Clean unused resources</span>
-				</button>
-			</div>
-		{/if}
 	</section>
 
 	<section>
