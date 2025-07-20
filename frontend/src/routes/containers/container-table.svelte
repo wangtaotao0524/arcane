@@ -259,7 +259,7 @@
 									<DropdownMenu.Separator />
 
 									<DropdownMenu.Item
-										class="focus:text-red-700! text-red-500"
+										variant="destructive"
 										onclick={() => handleRemoveContainer(item.Id || item.id)}
 										disabled={isLoading.remove || isAnyLoading}
 									>

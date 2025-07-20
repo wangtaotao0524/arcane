@@ -333,7 +333,7 @@
 									</DropdownMenu.Item>
 									<DropdownMenu.Separator />
 									<DropdownMenu.Item
-										class="focus:text-red-700! text-red-500"
+										variant="destructive"
 										onclick={() => handleDeleteSelected()}
 										disabled={isLoading.removing}
 									>

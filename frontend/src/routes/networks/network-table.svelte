@@ -238,7 +238,7 @@
 										Inspect
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
-										class="focus:text-red-700! text-red-500"
+										variant="destructive"
 										onclick={() => handleDeleteNetwork(item.ID, item.Name)}
 										disabled={DEFAULT_NETWORK_NAMES.has(item.Name) || isAnyLoading}
 									>

@@ -123,7 +123,7 @@
 
 	async function handleRemoveVolumeConfirm(name: string) {
 		openConfirmDialog({
-			title: `Remove Volume "${name}"`,
+			title: `Remove Volume`,
 			message: `Are you sure you want to remove the volume "${name}"? This action cannot be undone and will permanently delete all data stored in this volume.`,
 			confirm: {
 				label: 'Remove',
@@ -201,7 +201,7 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell>
-						<a class="font-medium hover:underline" href="/volumes/{item.Name}/">{item.Name}</a>
+						<a class="font-medium hover:underline" href="/volumes/{item.id}/">{item.Name}</a>
 					</Table.Cell>
 					<Table.Cell>
 						{#if item.InUse}
@@ -229,7 +229,7 @@
 										Inspect
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
-										class="focus:text-red-700! text-red-500"
+										variant="destructive"
 										onclick={() => handleRemoveVolumeConfirm(item.Name)}
 									>
 										<Trash2 class="size-4" />
