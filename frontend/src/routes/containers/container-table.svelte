@@ -25,6 +25,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { formatFriendlyDate } from '$lib/utils/date.utils';
+	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 
 	interface ContainerWithId extends ContainerInfo {
 		id: string;
@@ -182,7 +183,7 @@
 								: item.State === 'exited'
 									? 'red'
 									: 'amber'}
-							text={item.State}
+							text={capitalizeFirstLetter(item.State)}
 						/>
 					</Table.Cell>
 					<Table.Cell>
