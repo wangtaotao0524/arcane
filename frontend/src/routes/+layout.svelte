@@ -60,7 +60,7 @@
 	</div>
 {/if}
 
-<div class="bg-background flex min-h-screen">
+<div class="bg-background min-h-screen">
 	{#if currentUser && !isOnboardingPage && !isLoginPage}
 		<Sidebar.Provider>
 			<AppSidebar {versionInformation} user={currentUser} />

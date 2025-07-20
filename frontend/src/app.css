@@ -153,7 +153,6 @@
 	}
 }
 
-/* Dashboard tables styling */
 .dashboard-table-wrapper :global(.space-y-4) {
 	margin-top: 0 !important;
 	margin-bottom: 0 !important;
@@ -191,17 +190,14 @@
 	border-bottom: none !important;
 }
 
-/* Hide the search/filter area */
 .dashboard-table-wrapper > :global(div) > :global(div:first-child) {
 	display: none !important;
 }
 
-/* Remove vertical spacing between elements */
 .dashboard-table-wrapper > :global(div.space-y-4) > :global(div) {
 	margin-top: 0 !important;
 }
 
-/* Hide pagination when not needed */
 .dashboard-table-wrapper > :global(div.space-y-4) > :global(div:last-child) {
 	display: none !important;
 }
@@ -213,26 +209,21 @@
 	opacity: 0.7;
 }
 
-/* Button Styles - Minimalist design with purple accent */
-
-/* Common button styles for all arcane buttons */
 [class*='arcane-button-'] {
 	position: relative;
 	transition: all 0.2s ease;
-	border-radius: 0.5rem !important; /* Slightly smaller radius for a cleaner look */
+	border-radius: 0.5rem !important;
 	overflow: visible !important;
 	z-index: 0;
 	font-weight: 500;
 	letter-spacing: 0.01em;
-	box-shadow: none !important; /* Remove default shadows */
+	box-shadow: none !important;
 }
 
-/* Subtle hover effect */
 [class*='arcane-button-']:hover {
-	transform: translateY(-1px); /* Subtle lift effect */
+	transform: translateY(-1px);
 }
 
-/* Primary action buttons - solid purple */
 .arcane-button-start,
 .arcane-button-deploy,
 .arcane-button-confirm,
@@ -250,7 +241,6 @@
 	background-color: hsl(262.1 83.3% 52%) !important;
 }
 
-/* Add specific styles for create button (slightly brighter accent) */
 .arcane-button-create {
 	background-color: hsl(262.1 83.3% 62%) !important;
 }
@@ -258,7 +248,6 @@
 	background-color: hsl(262.1 83.3% 57%) !important;
 }
 
-/* Destructive action buttons - outlined red (matching secondary button style) */
 .arcane-button-stop,
 .arcane-button-remove {
 	background-color: transparent !important;
@@ -270,7 +259,6 @@
 	background-color: hsla(0, 72.22%, 50.59%, 0.1) !important;
 }
 
-/* Dark mode overrides for destructive buttons */
 .dark .arcane-button-stop,
 .dark .arcane-button-remove {
 	color: hsl(0 72.22% 65%) !important;
@@ -281,7 +269,6 @@
 	background-color: hsla(0, 72.22%, 50%, 0.15) !important;
 }
 
-/* Secondary action buttons - borderless with purple text */
 .arcane-button-restart,
 .arcane-button-pull,
 .arcane-button-redeploy,
@@ -297,7 +284,6 @@
 	background-color: hsla(262.1, 83.3%, 50%, 0.1) !important;
 }
 
-/* Dark mode overrides for secondary buttons */
 .dark .arcane-button-restart,
 .dark .arcane-button-pull,
 .dark .arcane-button-redeploy,
@@ -312,7 +298,6 @@
 	background-color: hsla(263.4, 70%, 60%, 0.15) !important;
 }
 
-/* Subtle action buttons */
 .arcane-button-inspect,
 .arcane-button-logs,
 .arcane-button-cancel {
@@ -337,33 +322,22 @@
 	background-color: hsla(215, 27.9%, 40%, 0.15) !important;
 }
 
-/* Prevent horizontal overflow globally */
 html,
 body {
 	overflow-x: hidden;
 	max-width: 100vw;
 }
 
-/* Ensure main containers respect viewport width */
 main {
 	min-width: 0;
 	max-width: 100%;
 	overflow-x: hidden;
 }
 
-/* Fix flex containers that might cause overflow */
-.flex {
-	min-width: 0;
-}
-
-/* Settings Page Styles */
-
-/* Unified page structure */
 .settings-page {
 	@apply space-y-8;
 }
 
-/* Header section styling */
 .settings-header {
 	@apply flex flex-col justify-between gap-4;
 }
@@ -459,11 +433,6 @@ main {
 /* Alert styling */
 .settings-alert {
 	@apply mb-6;
-}
-
-/* Loading states */
-.settings-loading {
-	@apply pointer-events-none opacity-60;
 }
 
 /* Responsive styles for settings */

@@ -153,10 +153,10 @@
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}
-								<Button {...props} variant="outline" size="sm">
-									<Funnel class="mr-2 size-4" />
+								<Button {...props} variant="outline">
+									<Funnel class="size-4" />
 									Filter
-									<ChevronDown class="ml-2 size-4" />
+									<ChevronDown class="size-4" />
 								</Button>
 							{/snippet}
 						</DropdownMenu.Trigger>
