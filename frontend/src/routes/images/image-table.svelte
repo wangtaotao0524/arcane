@@ -281,7 +281,8 @@
 					{@const { repo, tag } = extractRepoAndTag(item.RepoTags)}
 					<Table.Cell>
 						{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
-							{item.RepoTags[0]}
+							<a class="font-medium hover:underline" href="/images/{item.Id}/">{item.RepoTags[0]}</a
+							>
 						{:else}
 							<span class="text-muted-foreground italic">Untagged</span>
 						{/if}
