@@ -16,6 +16,7 @@
 	import { formatFriendlyDate } from '$lib/utils/date.utils';
 	import { environmentAPI } from '$lib/services/api';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import FilterDropdown from '$lib/components/dropdowns/filter-dropdown.svelte';
 
 	type EnhancedVolumeInfo = VolumeInspectInfo & {
 		InUse: boolean;
@@ -150,36 +151,27 @@
 			<div class="flex items-center justify-between">
 				<Card.Title>Volumes List</Card.Title>
 				<div class="flex items-center gap-2">
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger>
-							{#snippet child({ props })}
-								<Button {...props} variant="outline">
-									<Funnel class="size-4" />
-									Filter
-									<ChevronDown class="size-4" />
-								</Button>
-							{/snippet}
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Content>
+					<FilterDropdown bind:filters={volumeFilters}>
+						{#snippet children({ filters })}
 							<DropdownMenu.Label>Volume Usage</DropdownMenu.Label>
 							<DropdownMenu.CheckboxItem
-								checked={volumeFilters.showUsed}
+								checked={filters.showUsed}
 								onCheckedChange={(checked) => {
-									volumeFilters.showUsed = checked;
+									filters.showUsed = checked;
 								}}
 							>
 								Show Used Volumes
 							</DropdownMenu.CheckboxItem>
 							<DropdownMenu.CheckboxItem
-								checked={volumeFilters.showUnused}
+								checked={filters.showUnused}
 								onCheckedChange={(checked) => {
-									volumeFilters.showUnused = checked;
+									filters.showUnused = checked;
 								}}
 							>
 								Show Unused Volumes
 							</DropdownMenu.CheckboxItem>
-						</DropdownMenu.Content>
-					</DropdownMenu.Root>
+						{/snippet}
+					</FilterDropdown>
 					{#if selectedIds.length > 0}
 						<ArcaneButton
 							action="remove"

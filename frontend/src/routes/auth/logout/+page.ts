@@ -14,6 +14,5 @@ export const load: PageLoad = async ({ fetch }) => {
 		}
 	}
 
-	// Redirect to login page
 	throw redirect(302, '/auth/login');
 };

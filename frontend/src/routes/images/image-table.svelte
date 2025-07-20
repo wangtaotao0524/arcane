@@ -26,6 +26,7 @@
 	import ImageUpdateItem from '$lib/components/image-update-item.svelte';
 	import { environmentAPI } from '$lib/services/api';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import FilterDropdown from '$lib/components/dropdowns/filter-dropdown.svelte';
 
 	interface ImageWithId extends EnhancedImageInfo {
 		id: string;
@@ -199,30 +200,21 @@
 					<Card.Title>Images List</Card.Title>
 				</div>
 				<div class="flex items-center gap-2">
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger>
-							{#snippet child({ props })}
-								<Button {...props} variant="outline">
-									<Funnel class="size-4" />
-									Filter
-									<ChevronDown class="size-4" />
-								</Button>
-							{/snippet}
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Content class="border-primary" align="end">
+					<FilterDropdown bind:filters={imageFilters}>
+						{#snippet children({ filters })}
 							<DropdownMenu.Label>Image Usage</DropdownMenu.Label>
 							<DropdownMenu.CheckboxItem
-								checked={imageFilters.showUsed}
+								checked={filters.showUsed}
 								onCheckedChange={(checked) => {
-									imageFilters.showUsed = checked;
+									filters.showUsed = checked;
 								}}
 							>
 								Show Used Images
 							</DropdownMenu.CheckboxItem>
 							<DropdownMenu.CheckboxItem
-								checked={imageFilters.showUnused}
+								checked={filters.showUnused}
 								onCheckedChange={(checked) => {
-									imageFilters.showUnused = checked;
+									filters.showUnused = checked;
 								}}
 							>
 								Show Unused Images
@@ -230,23 +222,23 @@
 							<DropdownMenu.Separator />
 							<DropdownMenu.Label>Update Status</DropdownMenu.Label>
 							<DropdownMenu.CheckboxItem
-								checked={imageFilters.showWithUpdates}
+								checked={filters.showWithUpdates}
 								onCheckedChange={(checked) => {
-									imageFilters.showWithUpdates = checked;
+									filters.showWithUpdates = checked;
 								}}
 							>
 								Show Images with Updates
 							</DropdownMenu.CheckboxItem>
 							<DropdownMenu.CheckboxItem
-								checked={imageFilters.showWithoutUpdates}
+								checked={filters.showWithoutUpdates}
 								onCheckedChange={(checked) => {
-									imageFilters.showWithoutUpdates = checked;
+									filters.showWithoutUpdates = checked;
 								}}
 							>
 								Show Images without Updates
 							</DropdownMenu.CheckboxItem>
-						</DropdownMenu.Content>
-					</DropdownMenu.Root>
+						{/snippet}
+					</FilterDropdown>
 					{#if selectedIds.length > 0}
 						<ArcaneButton
 							action="remove"
