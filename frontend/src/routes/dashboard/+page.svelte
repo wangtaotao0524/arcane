@@ -11,7 +11,10 @@
 		Monitor,
 		PlayCircle,
 		StopCircle,
-		Trash2
+		Trash2,
+		MemoryStick,
+		Cpu,
+		Container
 	} from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
@@ -27,7 +30,6 @@
 	import DropdownCard from '$lib/components/dropdown-card.svelte';
 	import MeterMetric from '$lib/components/meter-metric.svelte';
 	import DockerIcon from '$lib/icons/docker-icon.svelte';
-	import GitHubIcon from '$lib/icons/github-icon.svelte';
 	import type { SystemStats } from '$lib/models/system-stats';
 	import type { ContainerInfo } from '$lib/models/container-info';
 	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -399,11 +401,10 @@
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
 				<MeterMetric
 					title="Running Containers"
+					icon={Container}
 					description="Active containers"
 					currentValue={runningContainers}
-					data={historicalData.containers}
 					formatValue={(v) => v.toString()}
-					color="var(--chart-1)"
 					maxValue={dashboardStates.containers?.length || 10}
 					unit="containers"
 				/>
@@ -411,11 +412,10 @@
 				{#if currentStats?.cpuUsage !== undefined}
 					<MeterMetric
 						title="CPU Usage"
+						icon={Cpu}
 						description="Processor utilization"
 						currentValue={currentStats.cpuUsage}
-						data={historicalData.cpu}
 						unit="%"
-						color="var(--chart-2)"
 						maxValue={100}
 					/>
 				{/if}
@@ -423,25 +423,23 @@
 				{#if currentStats?.memoryUsage !== undefined && currentStats?.memoryTotal !== undefined}
 					<MeterMetric
 						title="Memory Usage"
+						icon={MemoryStick}
 						description="RAM utilization"
 						currentValue={(currentStats.memoryUsage / currentStats.memoryTotal) * 100}
-						data={historicalData.memory}
 						unit="%"
 						formatValue={(v) => `${v.toFixed(1)}`}
-						color="var(--chart-3)"
 						maxValue={100}
 					/>
 				{/if}
 
 				{#if currentStats?.diskUsage !== undefined && currentStats?.diskTotal !== undefined}
 					<MeterMetric
+						icon={HardDrive}
 						title="Disk Usage"
 						description="Storage utilization"
 						currentValue={(currentStats.diskUsage / currentStats.diskTotal) * 100}
-						data={historicalData.disk}
 						unit="%"
 						formatValue={(v) => `${v.toFixed(1)}`}
-						color="var(--chart-4)"
 						maxValue={100}
 					/>
 				{/if}
@@ -599,24 +597,6 @@
 				isLoading={isLoading.loadingImages}
 				onRefresh={onImageRefresh}
 			/>
-		</div>
-	</section>
-
-	<section class="mt-10 border-t pt-4">
-		<div class="text-muted-foreground flex items-center justify-between text-sm">
-			<div class="flex items-center">
-				<a
-					href="https://github.com/ofkm/arcane"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="hover:text-foreground transition-colors"
-					title="GitHub"
-				>
-					<GitHubIcon class="size-4 fill-current" />
-					<span class="sr-only">GitHub</span>
-				</a>
-			</div>
-			<div></div>
 		</div>
 	</section>
 

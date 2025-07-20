@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
 	import Meter from '$lib/components/ui/meter/meter.svelte';
+	import type { icons, Icon as IconType } from '@lucide/svelte';
 
 	interface MetricDataPoint {
 		date: Date;
@@ -11,25 +11,24 @@
 		title: string;
 		description?: string;
 		currentValue: number;
-		data: MetricDataPoint[];
 		unit?: string;
 		formatValue?: (value: number) => string;
-		color?: string;
 		maxValue?: number;
+		icon: typeof IconType;
 	}
 
 	let {
 		title,
 		description,
 		currentValue,
-		data,
 		unit = '',
 		formatValue = (v) => `${v.toFixed(1)}${unit}`,
-		color = 'var(--chart-1)',
-		maxValue = 100
+		maxValue = 100,
+		icon
 	}: Props = $props();
 
 	const percentage = $derived((currentValue / maxValue) * 100);
+	const Icon = icon;
 </script>
 
 <div
@@ -43,7 +42,7 @@
 			<div
 				class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25"
 			>
-				<div class="text-sm font-bold text-primary-foreground">📊</div>
+				<Icon />
 			</div>
 			<div>
 				<div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</div>
