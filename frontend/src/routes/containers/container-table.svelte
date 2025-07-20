@@ -138,11 +138,6 @@
 						loadingLabel="Updating..."
 						disabled={isLoading.updating}
 					/>
-					<ArcaneButton
-						action="create"
-						customLabel="Create Container"
-						onClick={() => goto('/containers/create')}
-					/>
 				</div>
 			</div>
 		</Card.Header>

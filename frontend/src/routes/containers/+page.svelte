@@ -10,6 +10,7 @@
 	import { autoUpdateAPI, environmentAPI } from '$lib/services/api';
 	import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
 	import ContainerTable from './container-table.svelte';
+	import ArcaneButton from '$lib/components/arcane-button.svelte';
 
 	interface ContainerWithId extends ContainerInfo {
 		id: string;
@@ -132,6 +133,22 @@
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Containers</h1>
 			<p class="text-muted-foreground mt-1 text-sm">View and Manage your Containers</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<ArcaneButton
+				action="create"
+				label="Create Container"
+				onClick={() => (isCreateDialogOpen = true)}
+				loading={isLoading.create}
+				disabled={isLoading.create}
+			/>
+			<ArcaneButton
+				action="restart"
+				onClick={refreshContainers}
+				label="Refresh"
+				loading={isLoading.refreshing}
+				disabled={isLoading.refreshing}
+			/>
 		</div>
 	</div>
 
