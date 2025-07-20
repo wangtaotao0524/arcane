@@ -21,36 +21,54 @@
 	});
 
 	function handleConfirm() {
-		console.log('Final checkbox states before confirm:', checkboxStates);
 		$confirmDialogStore.confirm.action(checkboxStates);
 		$confirmDialogStore.open = false;
 	}
 </script>
 
 <Dialog.Root bind:open={$confirmDialogStore.open}>
-	<Dialog.Content class="w-full max-w-md">
-		<Dialog.Header>
-			<Dialog.Title class="flex items-center gap-2 text-lg font-semibold">
-				<AlertTriangle class="text-destructive size-5 shrink-0" />
-				{$confirmDialogStore.title}
+	<Dialog.Content class="w-full max-w-md sm:max-w-lg">
+		<Dialog.Header class="space-y-3">
+			<Dialog.Title class="flex items-start gap-3 text-lg font-semibold leading-tight">
+				<AlertTriangle class="text-destructive mt-0.5 size-5 shrink-0" />
+				<span class="min-w-0 break-words">
+					{$confirmDialogStore.title}
+				</span>
 			</Dialog.Title>
 		</Dialog.Header>
 
-		<div class="text-muted-foreground mt-2 min-w-0 text-sm break-words">
+		<div
+			class="text-muted-foreground mt-4 min-w-0 text-sm leading-relaxed break-words whitespace-pre-wrap"
+		>
 			{$confirmDialogStore.message}
 		</div>
 
 		<!-- Checkboxes -->
 		{#if $confirmDialogStore.checkboxes && $confirmDialogStore.checkboxes.length > 0}
-			<div class="border-border mt-4 flex flex-col gap-3 border-t pt-4 pb-2">
+			<div class="border-border mt-6 flex flex-col gap-4 border-t pt-4">
 				{#each $confirmDialogStore.checkboxes as checkbox (checkbox.id)}
-					<div class="flex items-center space-x-2">
+					<div class="flex items-start space-x-3">
 						{#if checkboxStates[checkbox.id] !== undefined}
-							<Checkbox id={checkbox.id} bind:checked={checkboxStates[checkbox.id]} aria-labelledby={`${checkbox.id}-label`} />
+							<Checkbox
+								id={checkbox.id}
+								bind:checked={checkboxStates[checkbox.id]}
+								aria-labelledby={`${checkbox.id}-label`}
+								class="mt-0.5"
+							/>
 						{:else}
-							<Checkbox id={checkbox.id} checked={false} onchange={(e) => (checkboxStates[checkbox.id] = true)} aria-labelledby={`${checkbox.id}-label`} />
+							<Checkbox
+								id={checkbox.id}
+								checked={false}
+								onchange={(e) => (checkboxStates[checkbox.id] = true)}
+								aria-labelledby={`${checkbox.id}-label`}
+								class="mt-0.5"
+							/>
 						{/if}
-						<Label id={`${checkbox.id}-label`} for={checkbox.id} class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+						<Label
+							id={`${checkbox.id}-label`}
+							for={checkbox.id}
+							class="text-sm leading-relaxed font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 min-w-0 break-words"
+						>
 							{checkbox.label}
 						</Label>
 					</div>
@@ -59,9 +77,19 @@
 		{/if}
 
 		<Dialog.Footer class="mt-6">
-			<div class="flex justify-end gap-2">
-				<Button class="arcane-button-cancel" variant="outline" onclick={() => ($confirmDialogStore.open = false)}>Cancel</Button>
-				<Button class="arcane-button-create" variant={$confirmDialogStore.confirm.destructive ? 'destructive' : 'default'} onclick={handleConfirm}>
+			<div class="flex justify-end gap-3 w-full">
+				<Button
+					class="min-w-[80px]"
+					variant="outline"
+					onclick={() => ($confirmDialogStore.open = false)}
+				>
+					Cancel
+				</Button>
+				<Button
+					class="min-w-[80px]"
+					variant={$confirmDialogStore.confirm.destructive ? 'destructive' : 'default'}
+					onclick={handleConfirm}
+				>
 					{$confirmDialogStore.confirm.label}
 				</Button>
 			</div>
