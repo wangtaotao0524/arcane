@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { AlertCircle, LogIn, Lock, User } from '@lucide/svelte';
 	import type { PageData } from './$types';
@@ -54,184 +55,185 @@
 	const showDivider = $derived(showOidcLoginButton && showLocalLoginForm);
 </script>
 
-<div
-	class="bg-background/50 flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8"
->
-	<div class="w-full max-w-md space-y-8">
-		<!-- Logo and Title -->
-		<div class="text-center">
-			<div class="flex justify-center">
-				<img class="h-40 w-auto" src="/img/arcane.svg" alt="Arcane" />
-			</div>
-			<h1 class="text-2xl font-bold tracking-tight">Sign in to Arcane</h1>
-			<p class="text-muted-foreground mt-2 text-sm">Manage your Container Environment</p>
-		</div>
-
-		<!-- Login Card -->
-		<div class="bg-card rounded-xl border p-6 shadow-sm sm:p-8">
-			<!-- Error Messages -->
-			{#if data.error}
-				<Alert.Root class="mb-6" variant="destructive">
-					<AlertCircle class="mr-2 size-4" />
-					<Alert.Title>Login Problem</Alert.Title>
-					<Alert.Description>
-						{#if data.error === 'oidc_invalid_response'}
-							There was an issue with the OIDC login response. Please try again.
-						{:else if data.error === 'oidc_misconfigured'}
-							OIDC is not configured correctly on the server. Please contact an administrator.
-						{:else if data.error === 'oidc_userinfo_failed'}
-							Could not retrieve your user information from the OIDC provider.
-						{:else if data.error === 'oidc_missing_sub'}
-							Your OIDC provider did not return a subject identifier.
-						{:else if data.error === 'oidc_email_collision'}
-							An account with your email already exists but is linked to a different OIDC identity.
-							Please contact an administrator.
-						{:else if data.error === 'oidc_token_error'}
-							There was an error obtaining tokens from the OIDC provider.
-						{:else if data.error === 'user_processing_failed'}
-							An error occurred while processing your user account.
-						{:else}
-							An unexpected error occurred. Please try again.
-						{/if}
-					</Alert.Description>
-				</Alert.Root>
-			{/if}
-
-			{#if error}
-				<Alert.Root class="mb-6" variant="destructive">
-					<AlertCircle class="mr-2 size-4" />
-					<Alert.Title>Authentication Failed</Alert.Title>
-					<Alert.Description>{error}</Alert.Description>
-				</Alert.Root>
-			{/if}
-
-			{#if !showLocalLoginForm && !showOidcLoginButton}
-				<Alert.Root variant="destructive">
-					<AlertCircle class="mr-2 size-4" />
-					<Alert.Title>No Login Methods Configured</Alert.Title>
-					<Alert.Description
-						>There are currently no login methods enabled. Please contact an administrator.</Alert.Description
-					>
-				</Alert.Root>
-			{/if}
-
-			<!-- OIDC Login Button (when only OIDC is available) -->
-			{#if showOidcLoginButton && !showLocalLoginForm}
-				<div class="pt-2">
-					<Button
-						onclick={handleOidcLogin}
-						variant="default"
-						class="arcane-button-restart w-full py-6 text-base"
-					>
-						<LogIn class="mr-3 size-5" />
-						Sign in with OIDC Provider
-					</Button>
-				</div>
-			{/if}
-
-			<!-- Local Login Form -->
-			{#if showLocalLoginForm}
-				<form onsubmit={handleLogin} class="space-y-6">
-					<div class="space-y-4">
-						<!-- Username Field -->
-						<div>
-							<Label for="username" class="mb-1.5 block text-sm font-medium">Username</Label>
-							<div class="relative">
-								<div
-									class="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-								>
-									<User class="size-4" />
-								</div>
-								<Input
-									id="username"
-									name="username"
-									type="text"
-									autocomplete="username"
-									required
-									bind:value={username}
-									class="pl-10"
-									placeholder="Enter your username or email"
-									disabled={loading}
-								/>
+<div class="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+	<div class="w-full max-w-sm md:max-w-3xl">
+		<div class="flex flex-col gap-6">
+			<Card.Root class="overflow-hidden p-0">
+				<Card.Content class="grid p-0 md:grid-cols-2">
+					<div class="p-6 md:p-8">
+						<div class="flex flex-col gap-6">
+							<div class="flex flex-col items-center text-center">
+								<h1 class="text-2xl font-bold">Welcome back</h1>
+								<p class="text-muted-foreground text-balance">Sign in to manage your containers</p>
 							</div>
-						</div>
 
-						<!-- Password Field -->
-						<div>
-							<Label for="password" class="mb-1.5 block text-sm font-medium">Password</Label>
-							<div class="relative">
-								<div
-									class="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-								>
-									<Lock class="size-4" />
-								</div>
-								<Input
-									id="password"
-									name="password"
-									type="password"
-									autocomplete="current-password"
-									required
-									bind:value={password}
-									class="pl-10"
-									placeholder="Enter your password"
-									disabled={loading}
-								/>
-							</div>
-						</div>
-					</div>
-
-					<!-- Sign In Button -->
-					<div class="pt-2">
-						<Button
-							type="submit"
-							class="arcane-button-create w-full py-6 text-base"
-							disabled={loading}
-							aria-busy={loading}
-						>
-							{#if loading}
-								<div
-									class="mr-2 size-4 animate-spin rounded-full border-2 border-t-transparent"
-								></div>
+							{#if data.error}
+								<Alert.Root variant="destructive">
+									<AlertCircle class="size-4" />
+									<Alert.Title>Login Problem</Alert.Title>
+									<Alert.Description>
+										{#if data.error === 'oidc_invalid_response'}
+											There was an issue with the OIDC login response. Please try again.
+										{:else if data.error === 'oidc_misconfigured'}
+											OIDC is not configured correctly on the server. Please contact an
+											administrator.
+										{:else if data.error === 'oidc_userinfo_failed'}
+											Could not retrieve your user information from the OIDC provider.
+										{:else if data.error === 'oidc_missing_sub'}
+											Your OIDC provider did not return a subject identifier.
+										{:else if data.error === 'oidc_email_collision'}
+											An account with your email already exists but is linked to a different OIDC
+											identity. Please contact an administrator.
+										{:else if data.error === 'oidc_token_error'}
+											There was an error obtaining tokens from the OIDC provider.
+										{:else if data.error === 'user_processing_failed'}
+											An error occurred while processing your user account.
+										{:else}
+											An unexpected error occurred. Please try again.
+										{/if}
+									</Alert.Description>
+								</Alert.Root>
 							{/if}
-							Sign in
-						</Button>
-					</div>
-				</form>
 
-				<!-- Divider -->
-				{#if showDivider}
-					<div class="relative my-8">
-						<div class="absolute inset-0 flex items-center">
-							<div class="border-border w-full border-t"></div>
-						</div>
-						<div class="relative flex justify-center text-xs">
-							<span class="bg-card text-muted-foreground px-4">Or continue with</span>
+							{#if error}
+								<Alert.Root variant="destructive">
+									<AlertCircle class="size-4" />
+									<Alert.Title>Authentication Failed</Alert.Title>
+									<Alert.Description>{error}</Alert.Description>
+								</Alert.Root>
+							{/if}
+
+							{#if !showLocalLoginForm && !showOidcLoginButton}
+								<Alert.Root variant="destructive">
+									<AlertCircle class="size-4" />
+									<Alert.Title>No Login Methods Configured</Alert.Title>
+									<Alert.Description>
+										There are currently no login methods enabled. Please contact an administrator.
+									</Alert.Description>
+								</Alert.Root>
+							{/if}
+
+							{#if showOidcLoginButton && !showLocalLoginForm}
+								<Button onclick={handleOidcLogin} class="w-full">
+									<LogIn class="mr-2 size-4" />
+									Sign in with OIDC Provider
+								</Button>
+							{/if}
+
+							{#if showLocalLoginForm}
+								<form onsubmit={handleLogin} class="contents">
+									<div class="grid gap-3">
+										<Label for="username">Username</Label>
+										<div class="relative">
+											<div
+												class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+											>
+												<User class="size-4 text-muted-foreground" />
+											</div>
+											<Input
+												id="username"
+												name="username"
+												type="text"
+												autocomplete="username"
+												required
+												bind:value={username}
+												class="pl-9"
+												placeholder="Enter your username or email"
+												disabled={loading}
+											/>
+										</div>
+									</div>
+									<div class="grid gap-3">
+										<Label for="password">Password</Label>
+										<div class="relative">
+											<div
+												class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+											>
+												<Lock class="size-4 text-muted-foreground" />
+											</div>
+											<Input
+												id="password"
+												name="password"
+												type="password"
+												autocomplete="current-password"
+												required
+												bind:value={password}
+												class="pl-9"
+												placeholder="Enter your password"
+												disabled={loading}
+											/>
+										</div>
+									</div>
+									<Button type="submit" class="w-full" disabled={loading} aria-busy={loading}>
+										{#if loading}
+											<div
+												class="mr-2 size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+											></div>
+											Signing in...
+										{:else}
+											<LogIn class="mr-2 size-4" />
+											Sign in to Arcane
+										{/if}
+									</Button>
+								</form>
+
+								{#if showDivider}
+									<div
+										class="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t"
+									>
+										<span class="bg-card text-muted-foreground relative z-10 px-2">
+											Or continue with
+										</span>
+									</div>
+								{/if}
+
+								{#if showOidcLoginButton && showDivider}
+									<Button onclick={handleOidcLogin} variant="outline" class="w-full">
+										<LogIn class="mr-2 size-4" />
+										Sign in with OIDC Provider
+									</Button>
+								{/if}
+							{/if}
 						</div>
 					</div>
-				{/if}
 
-				<!-- OIDC Login Button (when both methods are available) -->
-				{#if showOidcLoginButton && showDivider}
-					<Button
-						onclick={handleOidcLogin}
-						variant="outline"
-						class="arcane-button-restart w-full py-5"
-					>
-						<LogIn class="mr-2 size-4" />
-						Sign in with OIDC Provider
-					</Button>
-				{/if}
-			{/if}
+					<div class="bg-muted relative hidden md:block">
+						<div
+							class="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-purple-600/10"
+						>
+							<div
+								class="absolute inset-0 bg-[url(&quot;data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e2e8f0' fill-opacity='0.2'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='7' cy='37' r='1'/%3E%3Ccircle cx='37' cy='7' r='1'/%3E%3Ccircle cx='37' cy='37' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E&quot;)] dark:bg-[url(&quot;data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23475569' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='7' cy='37' r='1'/%3E%3Ccircle cx='37' cy='7' r='1'/%3E%3Ccircle cx='37' cy='37' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E&quot;)]"
+							></div>
+						</div>
+						<div class="absolute inset-0 flex items-center justify-center">
+							<div class="text-center space-y-4 p-8">
+								<div class="mb-8">
+									<img class="h-32 w-auto mx-auto opacity-60" src="/img/arcane.svg" alt="Arcane" />
+								</div>
+								<h2 class="text-2xl font-bold text-foreground/80">Arcane</h2>
+								<p class="text-muted-foreground text-balance max-w-xs">
+									Modern Docker Management, Designed for Everyone.
+								</p>
+							</div>
+						</div>
+					</div>
+				</Card.Content>
+			</Card.Root>
 		</div>
+	</div>
+</div>
 
-		<!-- Footer Text -->
-		<p class="text-muted-foreground text-center text-xs">
+<div class="fixed bottom-0 left-0 right-0 p-4">
+	<div class="text-muted-foreground text-balance text-center text-xs">
+		<div class="flex items-center justify-center gap-4">
 			<a
 				href="https://github.com/ofkm/arcane"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="text-primary hover:underline">View on GitHub</a
+				class="hover:text-primary underline underline-offset-4"
 			>
-		</p>
+				View on GitHub
+			</a>
+		</div>
 	</div>
 </div>
