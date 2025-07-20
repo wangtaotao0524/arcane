@@ -185,8 +185,6 @@
 					{ label: 'Network ID', sortColumn: 'ID' },
 					{ label: 'Driver', sortColumn: 'Driver' },
 					{ label: 'Scope', sortColumn: 'Scope' },
-					{ label: 'Connected', sortColumn: 'connected' },
-					{ label: 'Created', sortColumn: 'Created' },
 					{ label: ' ' }
 				]}
 				filterPlaceholder="Search networks..."
@@ -211,14 +209,6 @@
 						<StatusBadge variant={item.Scope === 'local' ? 'green' : 'amber'} text={item.Scope} />
 					</Table.Cell>
 					<Table.Cell>
-						<span class="text-sm">{getConnectedContainers(item)} containers</span>
-					</Table.Cell>
-					<Table.Cell>
-						<span class="text-sm">
-							{item.Created ? formatFriendlyDate(item.Created) : 'N/A'}
-						</span>
-					</Table.Cell>
-					<Table.Cell>
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger>
 								{#snippet child({ props })}
@@ -237,14 +227,16 @@
 										<ScanSearch class="size-4" />
 										Inspect
 									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										variant="destructive"
-										onclick={() => handleDeleteNetwork(item.ID, item.Name)}
-										disabled={DEFAULT_NETWORK_NAMES.has(item.Name) || isAnyLoading}
-									>
-										<Trash2 class="size-4" />
-										Remove
-									</DropdownMenu.Item>
+									{#if !DEFAULT_NETWORK_NAMES.has(item.Name)}
+										<DropdownMenu.Item
+											variant="destructive"
+											onclick={() => handleDeleteNetwork(item.ID, item.Name)}
+											disabled={DEFAULT_NETWORK_NAMES.has(item.Name) || isAnyLoading}
+										>
+											<Trash2 class="size-4" />
+											Remove
+										</DropdownMenu.Item>
+									{/if}
 								</DropdownMenu.Group>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>

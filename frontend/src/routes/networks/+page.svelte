@@ -36,7 +36,7 @@
 			if (Array.isArray(data.networks)) {
 				networks = data.networks;
 				const paginatedData: Paginated<NetworkWithId & { ID: string }> = {
-					data: data.networks.map((n) => ({ ...n, id: n.Id, ID: n.Id })),
+					data: data.networks.map((n) => ({ ...n, id: n.ID, ID: n.ID })),
 					pagination: {
 						totalPages: 1,
 						totalItems: data.networks.length,
@@ -47,7 +47,7 @@
 				paginatedNetworks = paginatedData;
 			} else {
 				const paginatedData: Paginated<NetworkWithId & { ID: string }> = {
-					data: data.networks.data.map((n) => ({ ...n, id: n.Id, ID: n.Id })),
+					data: data.networks.data.map((n) => ({ ...n, id: n.ID, ID: n.ID })),
 					pagination: data.networks.pagination
 				};
 				paginatedNetworks = paginatedData;
