@@ -400,11 +400,190 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string) erro
 }
 
 func (s *StackService) ListStacks(ctx context.Context) ([]models.Stack, error) {
+	// First, sync with filesystem to discover new stacks and update existing ones
+	if err := s.SyncAllStacksFromFilesystem(ctx); err != nil {
+		// Log error but don't fail - continue with what we have in DB
+		fmt.Printf("Warning: failed to sync with filesystem: %v\n", err)
+	}
+
 	var stacks []models.Stack
 	if err := s.db.WithContext(ctx).Find(&stacks).Error; err != nil {
 		return nil, fmt.Errorf("failed to get stacks: %w", err)
 	}
+
+	// Update each stack with live status from filesystem
+	for i := range stacks {
+		s.syncStackWithFilesystem(ctx, &stacks[i])
+	}
+
 	return stacks, nil
+}
+
+func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
+	// First, sync with filesystem to discover new stacks and update existing ones
+	if err := s.SyncAllStacksFromFilesystem(ctx); err != nil {
+		// Log error but don't fail - continue with what we have in DB
+		fmt.Printf("Warning: failed to sync with filesystem: %v\n", err)
+	}
+
+	var stacks []models.Stack
+	query := s.db.WithContext(ctx).Model(&models.Stack{})
+
+	pagination, err := utils.PaginateAndSort(req, query, &stacks)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate stacks: %w", err)
+	}
+
+	// Update each stack with live status from filesystem
+	for i := range stacks {
+		s.syncStackWithFilesystem(ctx, &stacks[i])
+	}
+
+	var result []map[string]interface{}
+	for _, stack := range stacks {
+		stackData := map[string]interface{}{
+			"id":           stack.ID,
+			"name":         stack.Name,
+			"path":         stack.Path,
+			"status":       stack.Status,
+			"serviceCount": stack.ServiceCount,
+			"runningCount": stack.RunningCount,
+			"createdAt":    stack.CreatedAt,
+			"updatedAt":    stack.UpdatedAt,
+			"autoUpdate":   stack.AutoUpdate,
+			"isExternal":   stack.IsExternal,
+			"isLegacy":     stack.IsLegacy,
+			"isRemote":     stack.IsRemote,
+		}
+		result = append(result, stackData)
+	}
+
+	return result, pagination, nil
+}
+
+// GetAllStacksWithDiscovery returns both tracked and untracked stacks
+func (s *StackService) GetAllStacksWithDiscovery(ctx context.Context) (tracked []models.Stack, external []models.Stack, err error) {
+	// Get tracked stacks with live sync
+	tracked, err = s.ListStacks(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Discover external stacks
+	external, err = s.DiscoverExternalStacks(ctx)
+	if err != nil {
+		return tracked, nil, err
+	}
+
+	return tracked, external, nil
+}
+
+// SyncAllStacksFromFilesystem scans the stacks directory and ensures database is in sync
+func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
+	stacksDir, err := s.getStacksDirectory(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get stacks directory: %w", err)
+	}
+
+	entries, err := os.ReadDir(stacksDir)
+	if err != nil {
+		return fmt.Errorf("failed to read stacks directory: %w", err)
+	}
+
+	// Track which directories we've seen
+	seenDirs := make(map[string]bool)
+
+	// Process each directory in the stacks folder
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		dirName := entry.Name()
+		dirPath := filepath.Join(stacksDir, dirName)
+		seenDirs[dirPath] = true
+
+		// Skip if no compose file
+		if s.findComposeFile(dirPath) == "" {
+			continue
+		}
+
+		// Check if already tracked
+		var existingStack models.Stack
+		err := s.db.WithContext(ctx).Where("path = ? OR dir_name = ?", dirPath, dirName).First(&existingStack).Error
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Auto-import external stack
+			if _, importErr := s.ImportExternalStack(ctx, dirName, dirName); importErr != nil {
+				fmt.Printf("Warning: failed to auto-import stack %s: %v\n", dirName, importErr)
+			}
+		} else if err == nil {
+			// Update existing stack with live data
+			s.syncStackWithFilesystem(ctx, &existingStack)
+		}
+	}
+
+	// Mark stacks as "not found" if their directories no longer exist
+	var allStacks []models.Stack
+	s.db.WithContext(ctx).Find(&allStacks)
+
+	for _, stack := range allStacks {
+		if !seenDirs[stack.Path] {
+			stack.Status = "unknown"
+			stack.ServiceCount = 0
+			stack.RunningCount = 0
+			s.updateStackInDB(ctx, &stack)
+		}
+	}
+
+	return nil
+}
+
+// syncStackWithFilesystem updates the stack with current filesystem/docker status
+func (s *StackService) syncStackWithFilesystem(ctx context.Context, stack *models.Stack) {
+	// Check if directory still exists
+	if _, err := os.Stat(stack.Path); os.IsNotExist(err) {
+		stack.Status = "unknown"
+		stack.ServiceCount = 0
+		stack.RunningCount = 0
+		s.updateStackInDB(ctx, stack)
+		return
+	}
+
+	// Check if compose file still exists
+	if s.findComposeFile(stack.Path) == "" {
+		stack.Status = "unknown"
+		stack.ServiceCount = 0
+		stack.RunningCount = 0
+		s.updateStackInDB(ctx, stack)
+		return
+	}
+
+	// Get live status from docker-compose
+	if status, total, running, err := s.getLiveStackStatus(ctx, stack.Path, stack.Name); err == nil {
+		// Only update if there's a change to avoid unnecessary DB writes
+		if stack.Status != status || stack.ServiceCount != total || stack.RunningCount != running {
+			stack.Status = status
+			stack.ServiceCount = total
+			stack.RunningCount = running
+			s.updateStackInDB(ctx, stack)
+		}
+	}
+}
+
+// updateStackInDB updates the stack record in database (async to avoid blocking)
+func (s *StackService) updateStackInDB(ctx context.Context, stack *models.Stack) {
+	go func() {
+		if err := s.db.WithContext(ctx).Model(stack).Updates(map[string]interface{}{
+			"status":        stack.Status,
+			"service_count": stack.ServiceCount,
+			"running_count": stack.RunningCount,
+			"updated_at":    time.Now(),
+		}).Error; err != nil {
+			// Log error but don't fail the main operation
+			fmt.Printf("Warning: failed to update stack %s in database: %v\n", stack.ID, err)
+		}
+	}()
 }
 
 func (s *StackService) UpdateStack(ctx context.Context, stack *models.Stack) (*models.Stack, error) {
@@ -570,44 +749,82 @@ func (s *StackService) DiscoverExternalStacks(ctx context.Context) ([]models.Sta
 		if count > 0 {
 			continue
 		}
+
+		// Invoke docker-compose ps to get real status & counts
+		status, svcCount, runningCount := models.StackStatusUnknown, 0, 0
+		if st, tot, run, err := s.getLiveStackStatus(ctx, path, name); err == nil {
+			status, svcCount, runningCount = st, tot, run
+		}
+
 		externals = append(externals, models.Stack{
-			ID:      "", // not yet persisted
-			Name:    name,
-			DirName: &name,
-			Path:    path,
-			Status:  models.StackStatusUnknown,
+			ID:           "", // not yet persisted
+			Name:         name,
+			DirName:      &name,
+			Path:         path,
+			Status:       status,
+			ServiceCount: svcCount,
+			RunningCount: runningCount,
 		})
 	}
 	return externals, nil
 }
 
-// ImportExternalStack takes a directory name under the stacks dir and a desired
-// stack name, then registers it in the database.
-func (s *StackService) ImportExternalStack(ctx context.Context, dirName, stackName string) (*models.Stack, error) {
-	baseDir, err := s.getStacksDirectory(ctx)
+// getLiveStackStatus runs `docker-compose ps --format json` in the stackDir
+// and returns a status plus total / running service counts.
+func (s *StackService) getLiveStackStatus(ctx context.Context, stackDir, projectName string) (models.StackStatus, int, int, error) {
+	cmd := exec.CommandContext(ctx, "docker-compose", "ps", "--format", "json")
+	cmd.Dir = stackDir
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("COMPOSE_PROJECT_NAME=%s", projectName),
+	)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stacks directory: %w", err)
+		// Only return unknown if the command itself failed (e.g., compose file invalid)
+		return models.StackStatusUnknown, 0, 0, err
 	}
-	path := filepath.Join(baseDir, dirName)
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("stack directory does not exist: %s", path)
+
+	svcs, err := s.parseComposePS(string(out))
+	if err != nil {
+		// If we can't parse the output, that's unknown
+		return models.StackStatusUnknown, 0, 0, err
 	}
-	if s.findComposeFile(path) == "" {
-		return nil, fmt.Errorf("no compose file found in %s", path)
+
+	// Get service count from compose file to know the expected total
+	composeFile := s.findComposeFile(stackDir)
+	if composeFile != "" {
+		if expectedServices, err := s.parseServicesFromComposeFile(ctx, composeFile, projectName); err == nil {
+			expectedTotal := len(expectedServices)
+			total, running := s.getServiceCounts(svcs)
+
+			switch {
+			case total == 0 && expectedTotal > 0:
+				// No containers running but compose file has services = stopped
+				return models.StackStatusStopped, expectedTotal, 0, nil
+			case running == total && total > 0:
+				return models.StackStatusRunning, total, running, nil
+			case running > 0:
+				return models.StackStatusPartiallyRunning, total, running, nil
+			case total == 0 && expectedTotal == 0:
+				// Edge case: empty compose file
+				return models.StackStatusStopped, 0, 0, nil
+			default:
+				return models.StackStatusStopped, total, running, nil
+			}
+		}
 	}
-	stack := &models.Stack{
-		ID:           uuid.New().String(),
-		Name:         stackName,
-		DirName:      &dirName,
-		Path:         path,
-		Status:       models.StackStatusUnknown,
-		ServiceCount: 0,
-		RunningCount: 0,
+
+	// Fallback to original logic if we can't read compose file
+	total, running := s.getServiceCounts(svcs)
+	switch {
+	case total == 0:
+		return models.StackStatusStopped, total, running, nil
+	case running == total:
+		return models.StackStatusRunning, total, running, nil
+	case running > 0:
+		return models.StackStatusPartiallyRunning, total, running, nil
+	default:
+		return models.StackStatusStopped, total, running, nil
 	}
-	if err := s.db.WithContext(ctx).Create(stack).Error; err != nil {
-		return nil, fmt.Errorf("failed to import stack: %w", err)
-	}
-	return stack, nil
 }
 
 func (s *StackService) ValidateStackCompose(ctx context.Context, composeContent string) error {
@@ -1016,33 +1233,40 @@ func (s *StackService) getServiceCounts(services []StackServiceInfo) (total int,
 	return total, running
 }
 
-func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
-	var stacks []models.Stack
-	query := s.db.WithContext(ctx).Model(&models.Stack{})
-
-	pagination, err := utils.PaginateAndSort(req, query, &stacks)
+// ImportExternalStack creates a DB record for a compose directory
+// that isn’t yet tracked by Arcane.
+func (s *StackService) ImportExternalStack(ctx context.Context, dirName, stackName string) (*models.Stack, error) {
+	// base path that DiscoverExternalStacks scanned
+	stacksDir, err := s.getStacksDirectory(ctx)
 	if err != nil {
-		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate stacks: %w", err)
+		return nil, fmt.Errorf("failed to get stacks directory: %w", err)
 	}
 
-	var result []map[string]interface{}
-	for _, stack := range stacks {
-		stackData := map[string]interface{}{
-			"id":           stack.ID,
-			"name":         stack.Name,
-			"path":         stack.Path,
-			"status":       stack.Status,
-			"serviceCount": stack.ServiceCount,
-			"runningCount": stack.RunningCount,
-			"createdAt":    stack.CreatedAt,
-			"updatedAt":    stack.UpdatedAt,
-			"autoUpdate":   stack.AutoUpdate,
-			"isExternal":   stack.IsExternal,
-			"isLegacy":     stack.IsLegacy,
-			"isRemote":     stack.IsRemote,
-		}
-		result = append(result, stackData)
+	path := filepath.Join(stacksDir, dirName)
+	if s.findComposeFile(path) == "" {
+		return nil, fmt.Errorf("no compose file found in %q", path)
 	}
 
-	return result, pagination, nil
+	// probe live status & counts
+	status, svcCount, runCount, err := s.getLiveStackStatus(ctx, path, stackName)
+	if err != nil {
+		// we’ll still import it, but mark unknown
+		status = models.StackStatusUnknown
+	}
+
+	stack := &models.Stack{
+		ID:           uuid.New().String(),
+		Name:         stackName,
+		DirName:      &dirName,
+		Path:         path,
+		Status:       status,
+		ServiceCount: svcCount,
+		RunningCount: runCount,
+		IsExternal:   true,
+	}
+
+	if err := s.db.WithContext(ctx).Create(stack).Error; err != nil {
+		return nil, fmt.Errorf("failed to import external stack: %w", err)
+	}
+	return stack, nil
 }

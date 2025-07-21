@@ -22,34 +22,20 @@ func RegisterStackSyncJob(
 	taskFunc := func(jobCtx context.Context) error {
 		slog.Info("Running stack sync job", "jobName", StackSyncJobName)
 
-		externals, err := stackService.DiscoverExternalStacks(jobCtx)
-		if err != nil {
-			slog.Error("Failed to discover external stacks", "jobName", StackSyncJobName, slog.Any("error", err))
+		// Sync all stacks with filesystem (this handles both discovery and updates)
+		if err := stackService.SyncAllStacksFromFilesystem(jobCtx); err != nil {
+			slog.Error("Failed to sync stacks with filesystem",
+				"jobName", StackSyncJobName,
+				slog.Any("error", err))
 			return err
 		}
 
-		imported := 0
-		for _, external := range externals {
-			if external.DirName != nil {
-				if _, err := stackService.ImportExternalStack(jobCtx, *external.DirName, external.Name); err != nil {
-					slog.Warn("Failed to import external stack",
-						"jobName", StackSyncJobName,
-						"dirName", *external.DirName,
-						slog.Any("error", err))
-				} else {
-					imported++
-				}
-			}
-		}
-
-		slog.Info("Stack sync job completed",
-			"jobName", StackSyncJobName,
-			"discovered", len(externals),
-			"imported", imported)
+		slog.Info("Stack sync job completed", "jobName", StackSyncJobName)
 		return nil
 	}
 
-	jobDefinition := gocron.DurationJob(5 * time.Minute)
+	// Run more frequently since we're now the source of truth
+	jobDefinition := gocron.DurationJob(2 * time.Minute)
 
 	err := scheduler.RegisterJob(
 		ctx,

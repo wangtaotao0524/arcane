@@ -166,11 +166,6 @@
 						loadingLabel="Updating..."
 						disabled={isLoading.updating}
 					/>
-					<ArcaneButton
-						action="create"
-						customLabel="Create Compose Project"
-						onClick={() => goto(`/compose/new`)}
-					/>
 				</div>
 			</div>
 		</Card.Header>
