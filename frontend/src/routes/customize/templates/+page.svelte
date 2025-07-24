@@ -14,8 +14,7 @@
 		FileText,
 		Globe,
 		FolderOpen,
-		Users,
-		Copy
+		Users
 	} from '@lucide/svelte';
 	import type { PageData } from './$types';
 	import { templateAPI } from '$lib/services/api';
