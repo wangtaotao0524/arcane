@@ -15,6 +15,7 @@ func initializeDBAndMigrate(cfg *config.Config) (*database.DB, error) {
 	}
 
 	log.Printf("Running database migrations...")
+	log.Printf("DB URL: %s", cfg.DatabaseURL)
 	if err := db.Migrate(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)

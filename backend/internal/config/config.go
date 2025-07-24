@@ -5,6 +5,10 @@ import (
 	"strconv"
 )
 
+const (
+	defaultSqliteString string = "file:data/arcane.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate"
+)
+
 type Config struct {
 	AppUrl      string
 	DatabaseURL string
@@ -29,9 +33,9 @@ func Load() *Config {
 
 	return &Config{
 		AppUrl:        getEnvOrDefault("APP_URL", "http://localhost:8080"),
-		DatabaseURL:   getEnvOrDefault("DATABASE_URL", "sqlite3://./data/arcane.db"),
+		DatabaseURL:   getEnvOrDefault("DATABASE_URL", defaultSqliteString),
 		Port:          getEnvOrDefault("PORT", "8080"),
-		Environment:   getEnvOrDefault("ENVIRONMENT", "development"),
+		Environment:   getEnvOrDefault("ENVIRONMENT", "production"),
 		JWTSecret:     getEnvOrDefault("JWT_SECRET", "default-jwt-secret-change-me"),
 		EncryptionKey: getEnvOrDefault("ENCRYPTION_KEY", "arcane-dev-key-32-characters!!!"),
 

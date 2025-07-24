@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -23,44 +24,27 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 	var dialector gorm.Dialector
 
 	switch {
-	case strings.HasPrefix(databaseURL, "sqlite://"):
-		dbPath := strings.TrimPrefix(databaseURL, "sqlite://")
-		dialector = sqlite.Open(dbPath)
-	case strings.HasPrefix(databaseURL, "sqlite3://"):
-		dbPath := strings.TrimPrefix(databaseURL, "sqlite3://")
-		dialector = sqlite.Open(dbPath)
+	case strings.HasPrefix(databaseURL, "file:"):
+		connString, err := parseSqliteConnectionString(databaseURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse SQLite connection string: %w", err)
+		}
+		dialector = sqlite.Open(connString)
 	case strings.HasPrefix(databaseURL, "postgres"):
 		dialector = postgres.Open(databaseURL)
 	default:
 		return nil, fmt.Errorf("unsupported database type in URL: %s", databaseURL)
 	}
 
-	var logLevel logger.LogLevel
-	switch environment {
-	case "development":
-		logLevel = logger.Info // Show all SQL queries and info
-	case "production":
-		logLevel = logger.Silent // Show nothing
-	default:
-		logLevel = logger.Warn // Show warnings and errors only
-	}
-
-	gormLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logLevel,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  environment == "development",
-		},
-	)
+	gormLogger := getLogger(environment)
 
 	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: gormLogger,
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
-		PrepareStmt: true,
+		PrepareStmt:                      true,
+		IgnoreRelationshipsWhenMigrating: true,
 	})
 
 	if err != nil {
@@ -77,6 +61,60 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return &DB{db}, nil
+}
+
+func parseSqliteConnectionString(connString string) (string, error) {
+	if !strings.HasPrefix(connString, "file:") {
+		connString = "file:" + connString
+	}
+
+	connStringUrl, err := url.Parse(connString)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse SQLite connection string: %w", err)
+	}
+
+	qs := make(url.Values, len(connStringUrl.Query()))
+	for k, v := range connStringUrl.Query() {
+		switch k {
+		case "_journal_mode":
+			qs.Add("_pragma", "journal_mode("+v[0]+")")
+		case "_busy_timeout", "_timeout":
+			qs.Add("_pragma", "busy_timeout("+v[0]+")")
+		case "_foreign_keys", "_fk":
+			qs.Add("_pragma", "foreign_keys("+v[0]+")")
+		case "_synchronous", "_sync":
+			qs.Add("_pragma", "synchronous("+v[0]+")")
+		case "_txlock":
+			qs.Add("_txlock", v[0])
+		default:
+			qs[k] = v
+		}
+	}
+
+	connStringUrl.RawQuery = qs.Encode()
+	return connStringUrl.String(), nil
+}
+
+func getLogger(environment string) logger.Interface {
+	var logLevel logger.LogLevel
+	switch environment {
+	case "development":
+		logLevel = logger.Info
+	case "production":
+		logLevel = logger.Silent
+	default:
+		logLevel = logger.Warn
+	}
+
+	return logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logLevel,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  environment == "development",
+		},
+	)
 }
 
 func (db *DB) Migrate() error {
