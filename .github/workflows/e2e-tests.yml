@@ -74,15 +74,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('tests/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
       - name: Create Docker volumes for tests
         run: |
           docker volume create my-app-data || true
@@ -102,7 +93,7 @@ jobs:
         id: test-images-cache
         with:
           path: /tmp/test-images.tar
-          key: test-images-${{ runner.os }}-nginx-latest
+          key: test-images-${{ runner.os }}-latest
 
       - name: Pull and save test images
         if: steps.test-images-cache.outputs.cache-hit != 'true'
@@ -121,12 +112,11 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: tests
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright E2E tests
         working-directory: tests
-        run: npx playwright test
+        run: npm test
 
       - name: Upload Playwright HTML report
         if: always()
