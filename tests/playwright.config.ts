@@ -29,7 +29,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'docker compose -f setup/compose.yaml up --build --abort-on-container-exit',
+    command: 'docker compose -f setup/compose.yaml up --abort-on-container-exit',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
