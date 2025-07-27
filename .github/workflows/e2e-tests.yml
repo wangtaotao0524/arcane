@@ -117,7 +117,7 @@ jobs:
 
       - name: Install test dependencies
         working-directory: tests
-        run: npm ci
+        run: npm install
 
       - name: Install Playwright browsers
         working-directory: tests
