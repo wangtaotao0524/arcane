@@ -14,6 +14,7 @@
 	import { tryCatch } from '$lib/utils/try-catch';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { formatFriendlyDate } from '$lib/utils/date.utils';
+	import { truncateString } from '$lib/utils/string.utils';
 	import { environmentAPI } from '$lib/services/api';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import FilterDropdown from '$lib/components/dropdowns/filter-dropdown.svelte';
@@ -201,7 +202,9 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell>
-						<a class="font-medium hover:underline" href="/volumes/{item.id}/">{item.Name}</a>
+						<a class="font-medium hover:underline" href="/volumes/{item.id}/" title={item.Name}>
+							{truncateString(item.Name, 40)}
+						</a>
 					</Table.Cell>
 					<Table.Cell>
 						{#if item.InUse}
