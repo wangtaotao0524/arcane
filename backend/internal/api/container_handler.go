@@ -204,7 +204,7 @@ func (h *ContainerHandler) GetLogs(c *gin.Context) {
 }
 
 func (h *ContainerHandler) Delete(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("containerId")
 	force := c.Query("force") == "true"
 	removeVolumes := c.Query("volumes") == "true"
 
