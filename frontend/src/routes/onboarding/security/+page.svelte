@@ -14,10 +14,10 @@
 
 	let securitySettings = $state({
 		authType: 'local',
-		oidcIssuer: '',
+		oidcIssuerUrl: '',
 		oidcClientId: '',
 		oidcClientSecret: '',
-		oidcScope: 'openid profile email',
+		oidcScopes: 'openid email profile',
 		sessionTimeout: '24',
 		requireTLS: false
 	});
@@ -29,18 +29,15 @@
 			const authSettings = {
 				localAuthEnabled: securitySettings.authType === 'local',
 				oidcEnabled: securitySettings.authType === 'oidc',
-				sessionTimeout: parseInt(securitySettings.sessionTimeout),
+				sessionTimeout: parseInt(securitySettings.sessionTimeout) * 60, // Convert hours to minutes
 				passwordPolicy: 'strong',
 				rbacEnabled: false,
 				...(securitySettings.authType === 'oidc' && {
 					oidc: {
 						clientId: securitySettings.oidcClientId,
 						clientSecret: securitySettings.oidcClientSecret,
-						redirectUri: `${window.location.origin}/auth/oidc/callback`,
-						authorizationEndpoint: `${securitySettings.oidcIssuer}/auth`,
-						tokenEndpoint: `${securitySettings.oidcIssuer}/token`,
-						userinfoEndpoint: `${securitySettings.oidcIssuer}/userinfo`,
-						scopes: securitySettings.oidcScope
+						issuerUrl: securitySettings.oidcIssuerUrl,
+						scopes: securitySettings.oidcScopes
 					}
 				})
 			};
@@ -122,10 +119,10 @@
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-2">
-						<Label for="oidc-issuer">OIDC Issuer URL</Label>
+						<Label for="oidc-issuer-url">Issuer URL</Label>
 						<Input
-							id="oidc-issuer"
-							bind:value={securitySettings.oidcIssuer}
+							id="oidc-issuer-url"
+							bind:value={securitySettings.oidcIssuerUrl}
 							placeholder="https://your-provider.com"
 						/>
 						<p class="text-xs text-muted-foreground">
@@ -153,11 +150,11 @@
 					</div>
 
 					<div class="space-y-2">
-						<Label for="oidc-scope">Scopes</Label>
+						<Label for="oidc-scopes">Scopes</Label>
 						<Input
-							id="oidc-scope"
-							bind:value={securitySettings.oidcScope}
-							placeholder="openid profile email"
+							id="oidc-scopes"
+							bind:value={securitySettings.oidcScopes}
+							placeholder="openid email profile"
 						/>
 						<p class="text-xs text-muted-foreground">Space-separated list of OAuth scopes</p>
 					</div>
