@@ -9,11 +9,8 @@ export interface AuthSettings {
 
 export interface OidcConfig {
 	clientId: string;
-	clientSecret: string;
-	redirectUri: string;
-	authorizationEndpoint: string;
-	tokenEndpoint: string;
-	userinfoEndpoint: string;
+	clientSecret?: string;
+	issuerUrl: string;
 	scopes: string;
 }
 

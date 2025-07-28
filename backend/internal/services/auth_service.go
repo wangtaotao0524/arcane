@@ -123,13 +123,10 @@ func (s *AuthService) SyncOidcEnvToDatabase(ctx context.Context) error {
 	}
 
 	envOidcConfig := models.OidcConfig{
-		ClientID:              s.config.OidcClientID,
-		ClientSecret:          s.config.OidcClientSecret,
-		RedirectURI:           s.config.OidcRedirectURI,
-		AuthorizationEndpoint: s.config.OidcAuthorizationEndpoint,
-		TokenEndpoint:         s.config.OidcTokenEndpoint,
-		UserinfoEndpoint:      s.config.OidcUserinfoEndpoint,
-		Scopes:                s.config.OidcScopes,
+		ClientID:     s.config.OidcClientID,
+		ClientSecret: s.config.OidcClientSecret,
+		IssuerURL:    s.config.OidcIssuerURL,
+		Scopes:       s.config.OidcScopes,
 	}
 
 	oidcConfigBytes, err := json.Marshal(envOidcConfig)
@@ -150,10 +147,6 @@ func (s *AuthService) SyncOidcEnvToDatabase(ctx context.Context) error {
 	_, err = s.settingsService.UpdateSettings(ctx, settings)
 	if err != nil {
 		return fmt.Errorf("failed to update settings in DB with OIDC env config: %w", err)
-	}
-
-	if s.config.OidcClientID == "" || s.config.OidcRedirectURI == "" || s.config.OidcAuthorizationEndpoint == "" || s.config.OidcTokenEndpoint == "" {
-		log.Println("⚠️ Warning: Synced OIDC settings from environment, but one or more critical OIDC environment variables (ClientID, RedirectURI, AuthEndpoint, TokenEndpoint) were empty. OIDC may not function correctly.")
 	}
 
 	return nil
@@ -197,30 +190,23 @@ func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*OidcStat
 	status := &OidcStatusInfo{}
 
 	status.EnvForced = s.config.OidcEnabled
-	if status.EnvForced {
-		// This reflects if the env vars themselves were complete at load time
-		status.EnvConfigured = s.config.OidcClientID != "" &&
-			// s.config.OidcClientSecret != "" && // ClientSecret might be optional for "configured" status display
-			s.config.OidcRedirectURI != "" &&
-			s.config.OidcAuthorizationEndpoint != "" &&
-			s.config.OidcTokenEndpoint != "" &&
-			s.config.OidcUserinfoEndpoint != ""
+
+	if s.config.OidcEnabled {
+		status.EnvConfigured = s.config.OidcClientID != "" && s.config.OidcIssuerURL != ""
 	}
 
-	// Get effective settings which are now purely from the database
 	effectiveAuthSettings, err := s.getAuthSettings(ctx)
 	if err != nil {
-		// If we can't get settings, we can't determine DB/effective status
 		return status, fmt.Errorf("failed to get effective auth settings for OIDC status: %w", err)
 	}
 
 	status.DbEnabled = effectiveAuthSettings.OidcEnabled
 	if effectiveAuthSettings.Oidc != nil {
 		status.DbConfigured = effectiveAuthSettings.Oidc.ClientID != "" &&
-			effectiveAuthSettings.Oidc.RedirectURI != "" &&
-			effectiveAuthSettings.Oidc.AuthorizationEndpoint != "" &&
-			effectiveAuthSettings.Oidc.TokenEndpoint != "" &&
-			effectiveAuthSettings.Oidc.UserinfoEndpoint != ""
+			(effectiveAuthSettings.Oidc.IssuerURL != "" ||
+				(effectiveAuthSettings.Oidc.AuthorizationEndpoint != "" &&
+					effectiveAuthSettings.Oidc.TokenEndpoint != "" &&
+					effectiveAuthSettings.Oidc.UserinfoEndpoint != ""))
 	}
 
 	status.EffectivelyEnabled = status.DbEnabled
@@ -229,14 +215,12 @@ func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*OidcStat
 	return status, nil
 }
 
-// updateAuthSettings updates the auth settings in the database
 func (s *AuthService) updateAuthSettings(ctx context.Context, authSettings *AuthSettings) error {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Convert AuthSettings struct to map[string]interface{}
 	authBytes, err := json.Marshal(authSettings)
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth settings: %w", err)
@@ -266,7 +250,6 @@ func (s *AuthService) GetSessionTimeout(ctx context.Context) (int, error) {
 	return authSettings.SessionTimeout, nil
 }
 
-// UpdateSessionTimeout updates the session timeout in the auth settings
 func (s *AuthService) UpdateSessionTimeout(ctx context.Context, minutes int) error {
 	if minutes <= 0 {
 		return errors.New("session timeout must be positive")

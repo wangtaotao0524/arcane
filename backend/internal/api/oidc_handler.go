@@ -50,6 +50,7 @@ func (h *OidcHandler) GetOidcStatus(c *gin.Context) {
 
 func (h *OidcHandler) GetOidcAuthUrl(c *gin.Context) {
 	var req OidcAuthUrlRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request format"})
 		return
@@ -74,7 +75,7 @@ func (h *OidcHandler) GetOidcAuthUrl(c *gin.Context) {
 	c.SetCookie(
 		"oidc_state",
 		stateCookieValue,
-		600,
+		600, // 10 minutes
 		"/",
 		"",
 		c.Request.TLS != nil,
@@ -151,7 +152,8 @@ func (h *OidcHandler) GetOidcConfig(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"clientId":              config.ClientID,
-		"redirectUri":           config.RedirectURI,
+		"redirectUri":           h.appConfig.GetOidcRedirectURI(),
+		"issuerUrl":             config.IssuerURL,
 		"authorizationEndpoint": config.AuthorizationEndpoint,
 		"tokenEndpoint":         config.TokenEndpoint,
 		"userinfoEndpoint":      config.UserinfoEndpoint,
