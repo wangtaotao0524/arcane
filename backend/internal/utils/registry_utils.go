@@ -53,13 +53,14 @@ func (r *RegistryUtils) SplitImageReference(reference string) (string, string, s
 		registry = DEFAULT_REGISTRY
 		repositoryAndTag = reference
 	default:
-		if splits[0] == "docker.io" {
+		switch {
+		case splits[0] == "docker.io":
 			registry = DEFAULT_REGISTRY
 			repositoryAndTag = strings.Join(splits[1:], "/")
-		} else if splits[0] == "localhost" || strings.Contains(splits[0], ".") || strings.Contains(splits[0], ":") {
+		case splits[0] == "localhost" || strings.Contains(splits[0], ".") || strings.Contains(splits[0], ":"):
 			registry = splits[0]
 			repositoryAndTag = strings.Join(splits[1:], "/")
-		} else {
+		default:
 			registry = DEFAULT_REGISTRY
 			repositoryAndTag = reference
 		}

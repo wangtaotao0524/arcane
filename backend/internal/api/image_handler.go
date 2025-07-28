@@ -94,6 +94,7 @@ func (h *ImageHandler) Remove(c *gin.Context) {
 }
 
 func (h *ImageHandler) Pull(c *gin.Context) {
+	ctx := c.Request.Context()
 	var req dto.ImagePullDto
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -109,7 +110,7 @@ func (h *ImageHandler) Pull(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 
-	err := h.imageService.PullImage(c.Request.Context(), req.ImageName, c.Writer)
+	err := h.imageService.PullImage(ctx, req.ImageName, c.Writer)
 
 	if err != nil {
 		if !c.Writer.Written() {
@@ -125,7 +126,9 @@ func (h *ImageHandler) Pull(c *gin.Context) {
 				})
 			}
 		} else {
-			slog.Error("Error during image pull stream or post-stream operation", "imageName", req.ImageName, "error", err.Error())
+			slog.ErrorContext(ctx, "Error during image pull stream or post-stream operation",
+				slog.String("imageName", req.ImageName),
+				slog.String("error", err.Error()))
 			fmt.Fprintf(c.Writer, `{"error": {"code": 500, "message": "Stream interrupted or post-stream operation failed: %s"}}\n`, strings.ReplaceAll(err.Error(), "\"", "'"))
 			if flusher, ok := c.Writer.(http.Flusher); ok {
 				flusher.Flush()
@@ -134,7 +137,8 @@ func (h *ImageHandler) Pull(c *gin.Context) {
 		return
 	}
 
-	slog.Info("Image pull stream completed and database sync attempted", "imageName", req.ImageName)
+	slog.InfoContext(ctx, "Image pull stream completed and database sync attempted",
+		slog.String("imageName", req.ImageName))
 }
 
 func (h *ImageHandler) Prune(c *gin.Context) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -33,12 +32,14 @@ type App struct {
 }
 
 func InitializeApp() (*App, error) {
+	ctx := context.Background()
+
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		slog.InfoContext(ctx, "No .env file found, using environment variables")
 	}
 
 	cfg := config.Load()
-	appCtx, cancelApp := context.WithCancel(context.Background())
+	appCtx, cancelApp := context.WithCancel(ctx)
 
 	utils.InitEncryption(cfg)
 
@@ -65,25 +66,29 @@ func InitializeApp() (*App, error) {
 	router := setupRouter(cfg, appServices)
 
 	if dockerClient, err := dockerClientService.CreateConnection(context.Background()); err != nil {
-		log.Printf("Warning: Docker connection failed during init: %v. Local Docker features may be unavailable.", err)
+		slog.WarnContext(appCtx, "Docker connection failed during init, local Docker features may be unavailable",
+			slog.String("error", err.Error()))
 	} else {
 		dockerClient.Close()
 	}
 
-	log.Println("Performing initial Docker image synchronization with the database...")
+	slog.InfoContext(appCtx, "Performing initial Docker image synchronization with the database")
 	if _, err := appServices.Image.ListImages(appCtx); err != nil {
-		log.Printf("⚠️ Warning: Initial Docker image synchronization failed: %v. Image data may be stale.", err)
+		slog.WarnContext(appCtx, "Initial Docker image synchronization failed, image data may be stale",
+			slog.String("error", err.Error()))
 	} else {
-		log.Println("Initial Docker image synchronization complete.")
+		slog.InfoContext(appCtx, "Initial Docker image synchronization complete")
 	}
 
 	if err := appServices.User.CreateDefaultAdmin(); err != nil {
-		log.Printf("Warning: failed to create default admin user: %v", err)
+		slog.WarnContext(appCtx, "Failed to create default admin user",
+			slog.String("error", err.Error()))
 	}
 
 	if cfg.OidcEnabled {
 		if err := appServices.Auth.SyncOidcEnvToDatabase(context.Background()); err != nil {
-			log.Printf("⚠️ Warning: Failed to sync OIDC environment variables to database: %v", err)
+			slog.WarnContext(appCtx, "Failed to sync OIDC environment variables to database",
+				slog.String("error", err.Error()))
 		}
 	}
 
@@ -105,13 +110,13 @@ func (app *App) Start() {
 	registerJobs(app.AppCtx, app.Scheduler, app.Services)
 
 	go func() {
-		slog.Info("Starting scheduler goroutine")
+		slog.InfoContext(app.AppCtx, "Starting scheduler goroutine")
 		if err := app.Scheduler.Run(app.AppCtx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				slog.Error("Job scheduler exited with error", slog.Any("error", err))
+				slog.ErrorContext(app.AppCtx, "Job scheduler exited with error", slog.Any("error", err))
 			}
 		}
-		slog.Info("Scheduler goroutine finished")
+		slog.InfoContext(app.AppCtx, "Scheduler goroutine finished")
 	}()
 
 	srv := &http.Server{
@@ -121,16 +126,17 @@ func (app *App) Start() {
 	}
 
 	go func() {
-		log.Printf("Starting server on port %s", app.Config.Port)
+		slog.InfoContext(app.AppCtx, "Starting server", slog.String("port", app.Config.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			slog.ErrorContext(app.AppCtx, "Failed to start server", slog.String("error", err.Error()))
+			os.Exit(1)
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server and scheduler...")
+	slog.InfoContext(app.AppCtx, "Shutting down server and scheduler")
 
 	app.CancelApp()
 
@@ -138,8 +144,8 @@ func (app *App) Start() {
 	defer cancelShutdown()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		slog.ErrorContext(shutdownCtx, "Server forced to shutdown", slog.String("error", err.Error()))
 	}
 
-	log.Println("Server exiting")
+	slog.InfoContext(app.AppCtx, "Server exiting")
 }

@@ -135,7 +135,9 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 			result.Failed++
 		}
 
-		s.recordAutoUpdate(ctx, res)
+		if err := s.recordAutoUpdate(ctx, res); err != nil {
+			log.Printf("Failed to record auto-update result: %v", err)
+		}
 	}
 
 	for err := range errorsChan {
@@ -802,17 +804,14 @@ func (s *AutoUpdateService) checkStackImagesForUpdates(ctx context.Context, stac
 	hasUpdates := false
 	imageUpdates := make(map[string]string)
 
-	// Get current service information to retrieve actual image IDs
 	services, err := s.stackService.GetStackServices(ctx, stack.ID)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get stack services: %w", err)
 	}
 
-	// Create a map of service name to current image ID for quick lookup
 	serviceImageIDs := make(map[string]string)
 	for _, svc := range services {
 		if svc.Image != "" {
-			// Extract the current image ID from the service
 			currentImageID, err := s.getImageDigest(ctx, svc.Image)
 			if err != nil {
 				log.Printf("Warning: Failed to get current image digest for service %s: %v", svc.Name, err)
@@ -827,7 +826,6 @@ func (s *AutoUpdateService) checkStackImagesForUpdates(ctx context.Context, stac
 			continue
 		}
 
-		// Get the current image ID for this service, or use empty string if not found
 		currentImageID := serviceImageIDs[serviceName]
 
 		hasUpdate, newDigest, err := s.checkImageForUpdate(ctx, imageRef, currentImageID, settings)

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/docker/docker/api/types/image"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
@@ -98,8 +100,12 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 			CheckTime:      time.Now(),
 			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
 		}
-		s.saveUpdateResult(ctx, imageRef, result)
-		return result, nil
+		if saveErr := s.saveUpdateResult(ctx, imageRef, result); saveErr != nil {
+			slog.WarnContext(ctx, "Failed to save update result",
+				slog.String("imageRef", imageRef),
+				slog.String("error", saveErr.Error()))
+		}
+		return result, err
 	}
 
 	if !digestResult.HasUpdate && !s.isSpecialTag(parts.Tag) {
@@ -110,18 +116,30 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 				CheckTime:      time.Now(),
 				ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
 			}
-			s.saveUpdateResult(ctx, imageRef, result)
-			return result, nil
+			if saveErr := s.saveUpdateResult(ctx, imageRef, result); saveErr != nil {
+				slog.WarnContext(ctx, "Failed to save update result",
+					slog.String("imageRef", imageRef),
+					slog.String("error", saveErr.Error()))
+			}
+			return result, err
 		}
 		if tagResult.HasUpdate {
 			tagResult.ResponseTimeMs = int(time.Since(startTime).Milliseconds())
-			s.saveUpdateResult(ctx, imageRef, tagResult)
+			if saveErr := s.saveUpdateResult(ctx, imageRef, tagResult); saveErr != nil {
+				slog.WarnContext(ctx, "Failed to save update result",
+					slog.String("imageRef", imageRef),
+					slog.String("error", saveErr.Error()))
+			}
 			return tagResult, nil
 		}
 	}
 
 	digestResult.ResponseTimeMs = int(time.Since(startTime).Milliseconds())
-	s.saveUpdateResult(ctx, imageRef, digestResult)
+	if saveErr := s.saveUpdateResult(ctx, imageRef, digestResult); saveErr != nil {
+		slog.WarnContext(ctx, "Failed to save update result",
+			slog.String("imageRef", imageRef),
+			slog.String("error", saveErr.Error()))
+	}
 	return digestResult, nil
 }
 
@@ -378,7 +396,8 @@ func (s *ImageUpdateService) parseImageReference(imageRef string) *ImageParts {
 	} else {
 		parts := strings.Split(imageRef, "/")
 
-		if len(parts) == 1 {
+		switch {
+		case len(parts) == 1:
 			registry = "docker.io"
 			if strings.Contains(parts[0], ":") {
 				repoParts := strings.Split(parts[0], ":")
@@ -388,7 +407,7 @@ func (s *ImageUpdateService) parseImageReference(imageRef string) *ImageParts {
 				repository = "library/" + parts[0]
 				tag = "latest"
 			}
-		} else if strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":") {
+		case strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":"):
 			registry = parts[0]
 			repository = strings.Join(parts[1:], "/")
 
@@ -399,7 +418,7 @@ func (s *ImageUpdateService) parseImageReference(imageRef string) *ImageParts {
 			} else {
 				tag = "latest"
 			}
-		} else {
+		default:
 			registry = "docker.io"
 			repository = imageRef
 
@@ -602,7 +621,11 @@ func (s *ImageUpdateService) CheckImageUpdateByID(ctx context.Context, imageID s
 		return nil, err
 	}
 
-	s.saveUpdateResultByID(ctx, imageID, result)
+	if saveErr := s.saveUpdateResultByID(ctx, imageID, result); saveErr != nil {
+		slog.WarnContext(ctx, "Failed to save update result by ID",
+			slog.String("imageID", imageID),
+			slog.String("error", saveErr.Error()))
+	}
 	return result, nil
 }
 
@@ -816,11 +839,12 @@ func (s *ImageUpdateService) CompareVersions(ctx context.Context, imageRef, curr
 
 	var changeLevel string
 	if currentVer.Major != nil && targetVer.Major != nil {
-		if *targetVer.Major > *currentVer.Major {
+		switch {
+		case *targetVer.Major > *currentVer.Major:
 			changeLevel = "major"
-		} else if targetVer.Minor != nil && currentVer.Minor != nil && *targetVer.Minor > *currentVer.Minor {
+		case targetVer.Minor != nil && currentVer.Minor != nil && *targetVer.Minor > *currentVer.Minor:
 			changeLevel = "minor"
-		} else {
+		default:
 			changeLevel = "patch"
 		}
 	} else {

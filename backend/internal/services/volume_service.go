@@ -173,6 +173,7 @@ func (s *VolumeService) GetVolumeUsage(ctx context.Context, name string) (bool, 
 	return inUse, usingContainers, nil
 }
 
+//nolint:gocognit
 func (s *VolumeService) ListVolumesPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
 	volumes, err := s.ListVolumes(ctx)
 	if err != nil {

@@ -224,7 +224,7 @@ func (s *NetworkService) GetUserDefinedNetworks(ctx context.Context) ([]network.
 	return userDefined, nil
 }
 
-// ListNetworksPaginated returns paginated Docker networks
+//nolint:gocognit
 func (s *NetworkService) ListNetworksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
 	networks, err := s.ListNetworks(ctx)
 	if err != nil {

@@ -215,11 +215,12 @@ func (h *SystemHandler) TestDockerConnection(c *gin.Context) {
 }
 
 func (h *SystemHandler) PruneAll(c *gin.Context) {
-	slog.Info("System prune operation initiated")
+	ctx := c.Request.Context()
+	slog.InfoContext(ctx, "System prune operation initiated")
 
 	var req dto.PruneSystemDto
 	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.Error("Failed to bind prune request JSON",
+		slog.ErrorContext(ctx, "Failed to bind prune request JSON",
 			slog.String("error", err.Error()),
 			slog.String("client_ip", c.ClientIP()))
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -229,16 +230,16 @@ func (h *SystemHandler) PruneAll(c *gin.Context) {
 		return
 	}
 
-	slog.Info("Prune request parsed successfully",
+	slog.InfoContext(ctx, "Prune request parsed successfully",
 		slog.Bool("containers", req.Containers),
 		slog.Bool("images", req.Images),
 		slog.Bool("volumes", req.Volumes),
 		slog.Bool("networks", req.Networks),
 		slog.Bool("dangling", req.Dangling))
 
-	result, err := h.systemService.PruneAll(c.Request.Context(), req)
+	result, err := h.systemService.PruneAll(ctx, req)
 	if err != nil {
-		slog.Error("System prune operation failed",
+		slog.ErrorContext(ctx, "System prune operation failed",
 			slog.String("error", err.Error()),
 			slog.String("client_ip", c.ClientIP()))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -248,7 +249,7 @@ func (h *SystemHandler) PruneAll(c *gin.Context) {
 		return
 	}
 
-	slog.Info("System prune operation completed successfully",
+	slog.InfoContext(ctx, "System prune operation completed successfully",
 		slog.Int("containers_pruned", len(result.ContainersPruned)),
 		slog.Int("images_deleted", len(result.ImagesDeleted)),
 		slog.Int("volumes_deleted", len(result.VolumesDeleted)),

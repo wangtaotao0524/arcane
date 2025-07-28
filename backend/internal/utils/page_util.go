@@ -227,6 +227,7 @@ func CalculateTotalPages(totalItems int64, pageSize int) int64 {
 	return (totalItems + int64(pageSize) - 1) / int64(pageSize)
 }
 
+//nolint:gocognit
 func SortSliceByField(data []map[string]interface{}, field, direction string) {
 	if field == "" {
 		return

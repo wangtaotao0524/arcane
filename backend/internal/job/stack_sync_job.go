@@ -17,20 +17,20 @@ func RegisterStackSyncJob(
 	scheduler *Scheduler,
 	stackService *services.StackService,
 ) error {
-	slog.Info("Registering stack sync job", "jobName", StackSyncJobName)
+	slog.InfoContext(ctx, "Registering stack sync job", "jobName", StackSyncJobName)
 
 	taskFunc := func(jobCtx context.Context) error {
-		slog.Info("Running stack sync job", "jobName", StackSyncJobName)
+		slog.InfoContext(jobCtx, "Running stack sync job", "jobName", StackSyncJobName)
 
 		// Sync all stacks with filesystem (this handles both discovery and updates)
 		if err := stackService.SyncAllStacksFromFilesystem(jobCtx); err != nil {
-			slog.Error("Failed to sync stacks with filesystem",
+			slog.ErrorContext(jobCtx, "Failed to sync stacks with filesystem",
 				"jobName", StackSyncJobName,
 				slog.Any("error", err))
 			return err
 		}
 
-		slog.Info("Stack sync job completed", "jobName", StackSyncJobName)
+		slog.InfoContext(jobCtx, "Stack sync job completed", "jobName", StackSyncJobName)
 		return nil
 	}
 
@@ -49,6 +49,6 @@ func RegisterStackSyncJob(
 		return fmt.Errorf("failed to register stack sync job %q: %w", StackSyncJobName, err)
 	}
 
-	slog.Info("Stack sync job registered successfully", "jobName", StackSyncJobName)
+	slog.InfoContext(ctx, "Stack sync job registered successfully", "jobName", StackSyncJobName)
 	return nil
 }

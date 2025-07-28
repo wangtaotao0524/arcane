@@ -434,6 +434,7 @@ func (s *ContainerService) readAllLogs(logs io.ReadCloser, logsChan chan<- strin
 	return nil
 }
 
+//nolint:gocognit
 func (s *ContainerService) ListContainersPaginated(ctx context.Context, req utils.SortedPaginationRequest, includeAll bool) ([]map[string]interface{}, utils.PaginationResponse, error) {
 	dockerContainers, err := s.ListContainers(ctx, includeAll)
 	if err != nil {
