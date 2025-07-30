@@ -139,9 +139,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Template Settings - Arcane</title>
-</svelte:head>
+<svelte:head><title>Arcane</title></svelte:head>
 
 <div class="space-y-6">
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

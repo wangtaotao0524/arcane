@@ -51,9 +51,7 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Redirecting to Login... - Arcane</title>
-</svelte:head>
+<svelte:head><title>Arcane</title></svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-background">
 	<div class="w-full max-w-md space-y-8">

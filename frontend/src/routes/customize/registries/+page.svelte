@@ -145,9 +145,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Container Registries - Arcane</title>
-</svelte:head>
+<svelte:head><title>Arcane</title></svelte:head>
 
 <ContainerRegistryFormSheet
 	bind:open={isRegistryDialogOpen}
