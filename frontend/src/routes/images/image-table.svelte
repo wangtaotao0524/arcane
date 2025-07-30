@@ -96,6 +96,33 @@
 		}
 	});
 
+	async function deleteImage(id: string) {
+		openConfirmDialog({
+			title: 'Remove Image',
+			message: 'Are you sure you want to remove this image? This action cannot be undone.',
+			confirm: {
+				label: 'Remove',
+				destructive: true,
+				action: async () => {
+					isLoading.removing = true;
+
+					const result = await tryCatch(environmentAPI.deleteImage(id));
+					handleApiResultWithCallbacks({
+						result,
+						message: 'Failed to remove image',
+						setLoadingState: () => {},
+						onSuccess: async () => {
+							toast.success('Image removed successfully');
+							await onImagesChanged();
+						}
+					});
+
+					isLoading.removing = false;
+				}
+			}
+		});
+	}
+
 	async function handleDeleteSelected() {
 		if (selectedIds.length === 0) return;
 
@@ -335,7 +362,7 @@
 									<DropdownMenu.Separator />
 									<DropdownMenu.Item
 										variant="destructive"
-										onclick={() => handleDeleteSelected()}
+										onclick={() => deleteImage(item.Id)}
 										disabled={isLoading.removing}
 									>
 										{#if isLoading.removing}
