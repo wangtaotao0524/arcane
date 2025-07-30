@@ -40,6 +40,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/ofkm/arcane:next
+          tags: ghcr.io/ofkm/arcane:1.0-preview
           cache-from: type=gha
           cache-to: type=gha,mode=max
