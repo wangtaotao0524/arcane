@@ -25,7 +25,7 @@
 	const showLocalLoginForm = $derived(localAuthEnabledBySettings);
 
 	function handleOidcLogin() {
-		const currentRedirect = data.redirectTo || '/';
+		const currentRedirect = data.redirectTo || '/dashboard';
 		goto(`/auth/oidc/login?redirect=${encodeURIComponent(currentRedirect)}`);
 	}
 
