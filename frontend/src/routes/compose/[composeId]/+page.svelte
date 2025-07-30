@@ -276,7 +276,6 @@
 								remove: isLoading.removing
 							}}
 							onActionComplete={() => invalidateAll()}
-							compact={true}
 						/>
 					</div>
 				</div>
