@@ -226,6 +226,20 @@
 							{/if}
 						</div>
 					</div>
+					<div class="flex items-center gap-2">
+						<ActionButtons
+							id={stack.id}
+							type="stack"
+							itemState={stack.status}
+							loading={{
+								start: isLoading.deploying,
+								stop: isLoading.stopping,
+								restart: isLoading.restarting,
+								remove: isLoading.removing
+							}}
+							onActionComplete={() => invalidateAll()}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -262,6 +276,7 @@
 								remove: isLoading.removing
 							}}
 							onActionComplete={() => invalidateAll()}
+							compact={true}
 						/>
 					</div>
 				</div>
@@ -278,7 +293,7 @@
 			</div>
 		{/if}
 
-		<div class="flex">
+		<div class="flex min-h-0 overflow-hidden">
 			<div class="bg-background/50 w-16 shrink-0 border-r">
 				<div class="sticky top-16 p-2">
 					<nav class="space-y-1">
@@ -306,7 +321,7 @@
 				</div>
 			</div>
 
-			<div class="flex-1" bind:this={mainContainer}>
+			<div class="flex-1 min-w-0 overflow-hidden">
 				<div class="max-w-none p-6">
 					<div class="space-y-8">
 						<section id="overview" class="scroll-mt-20">
@@ -543,11 +558,11 @@
 								</div>
 							</div>
 
-							<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-								<div class="lg:col-span-2">
+							<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 min-w-0 overflow-hidden">
+								<div class="lg:col-span-2 min-w-0 overflow-hidden">
 									<div class="space-y-4">
 										<h3 class="text-lg font-semibold">Docker Compose File</h3>
-										<div class="h-[590px] w-full overflow-hidden rounded-md">
+										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
 											<CodeEditor
 												bind:value={composeContent}
 												language="yaml"
@@ -557,10 +572,10 @@
 									</div>
 								</div>
 
-								<div class="lg:col-span-1">
+								<div class="lg:col-span-1 min-w-0 overflow-hidden">
 									<div class="space-y-4">
 										<h3 class="text-lg font-semibold">Environment (.env)</h3>
-										<div class="h-[590px] w-full overflow-hidden rounded-md">
+										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
 											<CodeEditor
 												bind:value={envContent}
 												language="env"
@@ -617,21 +632,23 @@
 								</div>
 							</div>
 
-							<Card.Root class="border">
-								<Card.Content class="p-0">
-									<LogViewer
-										bind:this={stackLogViewer}
-										bind:autoScroll={autoScrollStackLogs}
-										stackId={stack?.id}
-										type="stack"
-										maxLines={500}
-										showTimestamps={true}
-										height="600px"
-										onStart={handleStackLogStart}
-										onStop={handleStackLogStop}
-										onClear={handleStackLogClear}
-										onToggleAutoScroll={handleToggleStackAutoScroll}
-									/>
+							<Card.Root class="border min-w-0 overflow-hidden">
+								<Card.Content class="p-0 min-w-0 overflow-hidden">
+									<div class="w-full min-w-0 overflow-hidden">
+										<LogViewer
+											bind:this={stackLogViewer}
+											bind:autoScroll={autoScrollStackLogs}
+											stackId={stack?.id}
+											type="stack"
+											maxLines={500}
+											showTimestamps={true}
+											height="600px"
+											onStart={handleStackLogStart}
+											onStop={handleStackLogStop}
+											onClear={handleStackLogClear}
+											onToggleAutoScroll={handleToggleStackAutoScroll}
+										/>
+									</div>
 								</Card.Content>
 							</Card.Root>
 						</section>

@@ -33,18 +33,18 @@
 	}
 
 	let {
-		stacks,
+		Compose,
 		selectedIds = $bindable(),
 		requestOptions = $bindable(),
 		onRefresh,
-		onStacksChanged,
+		onComposeChanged,
 		onCheckForUpdates
 	}: {
-		stacks: Stack[];
+		Compose: Stack[];
 		selectedIds: string[];
 		requestOptions: SearchPaginationSortRequest;
 		onRefresh: (options: SearchPaginationSortRequest) => Promise<any>;
-		onStacksChanged: () => Promise<void>;
+		onComposeChanged: () => Promise<void>;
 		onCheckForUpdates: () => Promise<void>;
 	} = $props();
 
@@ -58,18 +58,18 @@
 		updating: false
 	});
 
-	const stacksWithId = $derived(
-		stacks.map((stack) => ({
+	const ComposeWithId = $derived(
+		Compose.map((stack) => ({
 			...stack,
 			id: stack.id || stack.name
 		}))
 	);
 
-	const paginatedStacks: Paginated<StackWithId> = $derived({
-		data: stacksWithId,
+	const paginatedCompose: Paginated<StackWithId> = $derived({
+		data: ComposeWithId,
 		pagination: {
-			totalPages: Math.ceil(stacksWithId.length / (requestOptions.pagination?.limit || 20)),
-			totalItems: stacksWithId.length,
+			totalPages: Math.ceil(ComposeWithId.length / (requestOptions.pagination?.limit || 20)),
+			totalItems: ComposeWithId.length,
 			currentPage: requestOptions.pagination?.page || 1,
 			itemsPerPage: requestOptions.pagination?.limit || 20
 		}
@@ -86,7 +86,7 @@
 					setLoadingState: (value) => (isLoading.start = value),
 					onSuccess: async () => {
 						toast.success('Stack Started Successfully.');
-						await onStacksChanged();
+						await onComposeChanged();
 					}
 				});
 			} else if (action === 'stop') {
@@ -96,7 +96,7 @@
 					setLoadingState: (value) => (isLoading.stop = value),
 					onSuccess: async () => {
 						toast.success('Stack Stopped Successfully.');
-						await onStacksChanged();
+						await onComposeChanged();
 					}
 				});
 			} else if (action === 'restart') {
@@ -106,7 +106,7 @@
 					setLoadingState: (value) => (isLoading.restart = value),
 					onSuccess: async () => {
 						toast.success('Stack Restarted Successfully.');
-						await onStacksChanged();
+						await onComposeChanged();
 					}
 				});
 			} else if (action === 'pull') {
@@ -116,7 +116,7 @@
 					setLoadingState: (value) => (isLoading.pull = value),
 					onSuccess: async () => {
 						toast.success('Stack Pulled successfully.');
-						await onStacksChanged();
+						await onComposeChanged();
 					}
 				});
 			} else if (action === 'destroy') {
@@ -133,7 +133,7 @@
 								setLoadingState: (value) => (isLoading.destroy = value),
 								onSuccess: async () => {
 									toast.success('Stack Removed Successfully');
-									await onStacksChanged();
+									await onComposeChanged();
 								}
 							});
 						}
@@ -150,7 +150,7 @@
 	const isAnyLoading = $derived(Object.values(isLoading).some((loading) => loading));
 </script>
 
-{#if stacksWithId.length > 0}
+{#if ComposeWithId.length > 0}
 	<Card.Root class="border shadow-sm">
 		<Card.Header class="px-6">
 			<div class="flex items-center justify-between">
@@ -171,7 +171,7 @@
 		</Card.Header>
 		<Card.Content>
 			<ArcaneTable
-				items={paginatedStacks}
+				items={paginatedCompose}
 				bind:requestOptions
 				bind:selectedIds
 				{onRefresh}

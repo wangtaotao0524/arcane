@@ -18,10 +18,10 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let stacks = $state<Stack[]>(Array.isArray(data.stacks) ? data.stacks : data.stacks.data || []);
+	let Compose = $state<Stack[]>(Array.isArray(data.stacks) ? data.stacks : data.stacks.data || []);
 	let error = $state<string | null>(null);
 	let selectedIds = $state<string[]>([]);
-	let isLoadingStacks = $state(false);
+	let isLoadingCompose = $state(false);
 	let requestOptions = $state<SearchPaginationSortRequest>(data.stackRequestOptions);
 
 	let isLoading = $state({
@@ -29,43 +29,43 @@
 		refreshing: false
 	});
 
-	const totalStacks = $derived(stacks.length);
-	const runningStacks = $derived(stacks.filter((s) => s.status === 'running').length);
-	const stoppedStacks = $derived(stacks.filter((s) => s.status === 'stopped').length);
+	const totalCompose = $derived(Compose.length);
+	const runningCompose = $derived(Compose.filter((s) => s.status === 'running').length);
+	const stoppedCompose = $derived(Compose.filter((s) => s.status === 'stopped').length);
 
-	async function loadStacks() {
+	async function loadCompose() {
 		try {
-			isLoadingStacks = true;
+			isLoadingCompose = true;
 			const response = await environmentAPI.getStacks(
 				requestOptions.pagination,
 				requestOptions.sort,
 				requestOptions.search,
 				requestOptions.filters
 			);
-			stacks = Array.isArray(response) ? response : response.data || [];
+			Compose = Array.isArray(response) ? response : response.data || [];
 			error = null;
 		} catch (err) {
 			console.error('Failed to load compose page:', err);
-			error = err instanceof Error ? err.message : 'Failed to load Docker Compose stacks';
-			stacks = [];
+			error = err instanceof Error ? err.message : 'Failed to load Docker Compose Compose';
+			Compose = [];
 		} finally {
-			isLoadingStacks = false;
+			isLoadingCompose = false;
 		}
 	}
 
 	onMount(() => {
-		if (stacks.length === 0) {
-			loadStacks();
+		if (Compose.length === 0) {
+			loadCompose();
 		}
 	});
 
-	async function refreshStacks() {
+	async function refreshCompose() {
 		isLoading.refreshing = true;
 		try {
-			await loadStacks();
+			await loadCompose();
 		} catch (error) {
-			console.error('Failed to refresh stacks:', error);
-			toast.error('Failed to refresh stacks');
+			console.error('Failed to refresh Compose:', error);
+			toast.error('Failed to refresh Compose');
 		} finally {
 			isLoading.refreshing = false;
 		}
@@ -79,19 +79,19 @@
 			setLoadingState: (value) => (isLoading.updating = value),
 			async onSuccess() {
 				toast.success('Compose Projects Updated Successfully.');
-				await loadStacks();
+				await loadCompose();
 			}
 		});
 	}
 
 	async function onRefresh(options: SearchPaginationSortRequest) {
 		requestOptions = options;
-		await loadStacks();
+		await loadCompose();
 		return {
-			data: stacks,
+			data: Compose,
 			pagination: {
-				totalPages: Math.ceil(stacks.length / (requestOptions.pagination?.limit || 20)),
-				totalItems: stacks.length,
+				totalPages: Math.ceil(Compose.length / (requestOptions.pagination?.limit || 20)),
+				totalItems: Compose.length,
 				currentPage: requestOptions.pagination?.page || 1,
 				itemsPerPage: requestOptions.pagination?.limit || 20
 			}
@@ -108,7 +108,7 @@
 		<div class="flex items-center gap-2">
 			<ArcaneButton
 				action="restart"
-				onClick={refreshStacks}
+				onClick={refreshCompose}
 				label="Refresh"
 				loading={isLoading.refreshing}
 				disabled={isLoading.refreshing}
@@ -129,7 +129,7 @@
 		</Alert.Root>
 	{/if}
 
-	{#if isLoadingStacks}
+	{#if isLoadingCompose}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 			{#each Array(3) as _}
 				<Card.Root>
@@ -168,21 +168,21 @@
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 			<StatCard
 				title="Total Compose Projects"
-				value={totalStacks}
+				value={totalCompose}
 				icon={FileStack}
 				iconColor="text-amber-500"
 				class="border-l-4 border-l-amber-500"
 			/>
 			<StatCard
 				title="Running"
-				value={runningStacks}
+				value={runningCompose}
 				icon={PlayCircle}
 				iconColor="text-green-500"
 				class="border-l-4 border-l-green-500"
 			/>
 			<StatCard
 				title="Stopped"
-				value={stoppedStacks}
+				value={stoppedCompose}
 				icon={StopCircle}
 				iconColor="text-red-500"
 				class="border-l-4 border-l-red-500"
@@ -190,11 +190,11 @@
 		</div>
 
 		<StackTable
-			{stacks}
+			{Compose}
 			bind:selectedIds
 			{requestOptions}
 			{onRefresh}
-			onStacksChanged={loadStacks}
+			onComposeChanged={loadCompose}
 			onCheckForUpdates={handleCheckForUpdates}
 		/>
 	{/if}
