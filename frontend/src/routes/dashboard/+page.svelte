@@ -221,6 +221,11 @@
 		if (isLoading.refreshing) return;
 		isLoading.refreshing = true;
 
+		// Set all loading states to true at start
+		isLoading.loadingDockerInfo = true;
+		isLoading.loadingContainers = true;
+		isLoading.loadingImages = true;
+
 		const [dockerInfoResult, containersResult, imagesResult, settingsResult] =
 			await Promise.allSettled([
 				tryCatch(systemAPI.getDockerInfo()),
@@ -243,9 +248,11 @@
 				tryCatch(settingsAPI.getSettings())
 			]);
 
+		// Handle results and clear individual loading states
 		if (dockerInfoResult.status === 'fulfilled' && !dockerInfoResult.value.error) {
 			dashboardStates.dockerInfo = dockerInfoResult.value.data;
 		}
+		isLoading.loadingDockerInfo = false;
 
 		if (containersResult.status === 'fulfilled' && !containersResult.value.error) {
 			const containerData = containersResult.value.data;
@@ -253,11 +260,13 @@
 				? containerData
 				: containerData?.data || [];
 		}
+		isLoading.loadingContainers = false;
 
 		if (imagesResult.status === 'fulfilled' && !imagesResult.value.error) {
 			const imageData = imagesResult.value.data;
 			dashboardStates.images = Array.isArray(imageData) ? imageData : imageData?.data || [];
 		}
+		isLoading.loadingImages = false;
 
 		if (settingsResult.status === 'fulfilled' && !settingsResult.value.error) {
 			dashboardStates.settings = settingsResult.value.data;
@@ -493,61 +502,81 @@
 					title="Running Containers"
 					icon={Container}
 					description="Active containers"
-					currentValue={runningContainers}
+					currentValue={isLoading.loadingContainers ? undefined : runningContainers}
 					formatValue={(v) => v.toString()}
 					maxValue={dashboardStates.containers?.length || 10}
 					unit="containers"
+					loading={isLoading.loadingContainers}
 				/>
 
-				{#if currentStats?.cpuUsage !== undefined}
-					<MeterMetric
-						title="CPU Usage"
-						icon={Cpu}
-						description="Processor utilization"
-						currentValue={currentStats.cpuUsage}
-						unit="%"
-						maxValue={100}
-					/>
-				{/if}
+				<MeterMetric
+					title="CPU Usage"
+					icon={Cpu}
+					description="Processor utilization"
+					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
+						? undefined
+						: currentStats?.cpuUsage}
+					unit="%"
+					maxValue={100}
+					loading={isLoading.loadingStats || !hasInitialStatsLoaded}
+				/>
 
-				{#if currentStats?.memoryUsage !== undefined && currentStats?.memoryTotal !== undefined}
-					<MeterMetric
-						title="Memory Usage"
-						icon={MemoryStick}
-						description="RAM utilization"
-						currentValue={(currentStats.memoryUsage / currentStats.memoryTotal) * 100}
-						unit="%"
-						formatValue={(v) => `${v.toFixed(1)}`}
-						maxValue={100}
-					/>
-				{/if}
+				<MeterMetric
+					title="Memory Usage"
+					icon={MemoryStick}
+					description="RAM utilization"
+					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
+						? undefined
+						: currentStats?.memoryUsage !== undefined && currentStats?.memoryTotal !== undefined
+							? (currentStats.memoryUsage / currentStats.memoryTotal) * 100
+							: undefined}
+					unit="%"
+					formatValue={(v) => `${v.toFixed(1)}`}
+					maxValue={100}
+					loading={isLoading.loadingStats || !hasInitialStatsLoaded}
+				/>
 
-				{#if currentStats?.diskUsage !== undefined && currentStats?.diskTotal !== undefined}
-					<MeterMetric
-						icon={HardDrive}
-						title="Disk Usage"
-						description="Storage utilization"
-						currentValue={(currentStats.diskUsage / currentStats.diskTotal) * 100}
-						unit="%"
-						formatValue={(v) => `${v.toFixed(1)}`}
-						maxValue={100}
-					/>
-				{/if}
+				<MeterMetric
+					icon={HardDrive}
+					title="Disk Usage"
+					description="Storage utilization"
+					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
+						? undefined
+						: currentStats?.diskUsage !== undefined && currentStats?.diskTotal !== undefined
+							? (currentStats.diskUsage / currentStats.diskTotal) * 100
+							: undefined}
+					unit="%"
+					formatValue={(v) => `${v.toFixed(1)}`}
+					maxValue={100}
+					loading={isLoading.loadingStats || !hasInitialStatsLoaded}
+				/>
 			</div>
 
+			<!-- Always show these cards but with loading states -->
 			<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 				<Card.Root>
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-blue-500/10 p-2">
-								<DockerIcon class="size-5 text-blue-500" />
+								{#if isLoading.loadingDockerInfo}
+									<Loader2 class="size-5 text-blue-500 animate-spin" />
+								{:else}
+									<DockerIcon class="size-5 text-blue-500" />
+								{/if}
 							</div>
-							<div>
-								<p class="text-sm font-medium">Docker Engine</p>
-								<p class="text-xs text-muted-foreground">
-									{dashboardStates.dockerInfo?.version || 'Unknown'} •
-									{dashboardStates.dockerInfo?.os || 'Unknown'}
-								</p>
+							<div class="flex-1 min-w-0">
+								{#if isLoading.loadingDockerInfo}
+									<div class="space-y-2">
+										<div class="h-4 w-24 bg-muted animate-pulse rounded"></div>
+										<div class="h-3 w-32 bg-muted animate-pulse rounded"></div>
+									</div>
+								{:else}
+									<p class="text-sm font-medium">Docker Engine</p>
+									<p class="text-xs text-muted-foreground">
+										{dashboardStates.dockerInfo?.version || 'Unknown'} •
+										{dashboardStates.dockerInfo?.os || 'Unknown'}
+									</p>
+								{/if}
 							</div>
 						</div>
 					</Card.Content>
@@ -557,14 +586,25 @@
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-green-500/10 p-2">
-								<Box class="size-5 text-green-500" />
+								{#if isLoading.loadingContainers}
+									<Loader2 class="size-5 text-green-500 animate-spin" />
+								{:else}
+									<Box class="size-5 text-green-500" />
+								{/if}
 							</div>
-							<div>
-								<p class="text-sm font-medium">Total Containers</p>
-								<p class="text-xs text-muted-foreground">
-									{dashboardStates.containers?.length || 0} total •
-									{stoppedContainers} stopped
-								</p>
+							<div class="flex-1 min-w-0">
+								{#if isLoading.loadingContainers}
+									<div class="space-y-2">
+										<div class="h-4 w-28 bg-muted animate-pulse rounded"></div>
+										<div class="h-3 w-20 bg-muted animate-pulse rounded"></div>
+									</div>
+								{:else}
+									<p class="text-sm font-medium">Total Containers</p>
+									<p class="text-xs text-muted-foreground">
+										{dashboardStates.containers?.length || 0} total •
+										{stoppedContainers} stopped
+									</p>
+								{/if}
 							</div>
 						</div>
 					</Card.Content>
@@ -574,14 +614,25 @@
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-purple-500/10 p-2">
-								<HardDrive class="size-5 text-purple-500" />
+								{#if isLoading.loadingImages}
+									<Loader2 class="size-5 text-purple-500 animate-spin" />
+								{:else}
+									<HardDrive class="size-5 text-purple-500" />
+								{/if}
 							</div>
-							<div>
-								<p class="text-sm font-medium">Docker Images</p>
-								<p class="text-xs text-muted-foreground">
-									{dashboardStates.dockerInfo?.images || 0} images •
-									{formatBytes(totalImageSize)}
-								</p>
+							<div class="flex-1 min-w-0">
+								{#if isLoading.loadingImages}
+									<div class="space-y-2">
+										<div class="h-4 w-24 bg-muted animate-pulse rounded"></div>
+										<div class="h-3 w-28 bg-muted animate-pulse rounded"></div>
+									</div>
+								{:else}
+									<p class="text-sm font-medium">Docker Images</p>
+									<p class="text-xs text-muted-foreground">
+										{dashboardStates.dockerInfo?.images || 0} images •
+										{formatBytes(totalImageSize)}
+									</p>
+								{/if}
 							</div>
 						</div>
 					</Card.Content>

@@ -86,7 +86,7 @@
 					noResultsMessage="No containers found"
 				>
 					{#snippet rows({ item })}
-						{@const stateVariant = statusVariantMap[item.State?.toLowerCase()] || 'secondary'}
+						{@const stateVariant = statusVariantMap[item.State?.toLowerCase()] || 'red'}
 						<Table.Cell>
 							<a class="font-medium hover:underline" href="/containers/{item.Id}/">
 								{getContainerDisplayName(item)}
