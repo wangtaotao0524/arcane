@@ -132,6 +132,7 @@ func (db *DB) Migrate() error {
 		&models.TemplateRegistry{},
 		&models.ComposeTemplate{},
 		&models.ContainerRegistry{},
+		&models.AutoUpdateRecord{},
 	)
 
 	if err != nil {

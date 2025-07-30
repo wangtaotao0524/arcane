@@ -36,8 +36,9 @@ func (j *AutoUpdateJob) Execute(ctx context.Context) error {
 		return nil
 	}
 
+	// Use image-based approach for scheduled updates
 	req := dto.AutoUpdateCheckDto{
-		Type:        "all",
+		Type:        "all", // This will trigger image-based updates
 		ForceUpdate: false,
 		DryRun:      false,
 	}
@@ -101,7 +102,7 @@ func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, autoUpdate
 		"auto-update",
 		jobDefinition,
 		job.Execute,
-		false,
+		true,
 	)
 }
 

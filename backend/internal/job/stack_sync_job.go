@@ -34,7 +34,6 @@ func RegisterStackSyncJob(
 		return nil
 	}
 
-	// Run more frequently since we're now the source of truth
 	jobDefinition := gocron.DurationJob(2 * time.Minute)
 
 	err := scheduler.RegisterJob(

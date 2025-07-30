@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"slices"
 	"strings"
@@ -10,6 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/google/uuid"
@@ -28,6 +32,7 @@ type AutoUpdateService struct {
 	containerService   *ContainerService
 	stackService       *StackService
 	imageService       *ImageService
+	imageUpdateService *ImageUpdateService
 	registryService    *ContainerRegistryService
 	updatingContainers map[string]bool
 	updatingStacks     map[string]bool
@@ -41,6 +46,7 @@ func NewAutoUpdateService(
 	containerService *ContainerService,
 	stackService *StackService,
 	imageService *ImageService,
+	imageUpdateService *ImageUpdateService,
 	registryService *ContainerRegistryService,
 ) *AutoUpdateService {
 	return &AutoUpdateService{
@@ -50,6 +56,7 @@ func NewAutoUpdateService(
 		containerService:   containerService,
 		stackService:       stackService,
 		imageService:       imageService,
+		imageUpdateService: imageUpdateService,
 		registryService:    registryService,
 		updatingContainers: make(map[string]bool),
 		updatingStacks:     make(map[string]bool),
@@ -76,6 +83,111 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 		return result, nil
 	}
 
+	// Use image-based update approach instead of checking containers individually
+	if req.Type == "" || req.Type == "all" || req.Type == "images" {
+		if err := s.processImageUpdates(ctx, req, result, settings); err != nil {
+			log.Printf("Image update process failed, falling back to container-based approach: %v", err)
+			// Fall back to original approach
+			return s.processContainerBasedUpdates(ctx, req, result, settings, startTime)
+		}
+	} else {
+		// For specific container/stack requests, use original approach
+		return s.processContainerBasedUpdates(ctx, req, result, settings, startTime)
+	}
+
+	result.EndTime = time.Now().Format(time.RFC3339)
+	result.Duration = time.Since(startTime).String()
+	return result, nil
+}
+
+// New method to handle image-based updates
+func (s *AutoUpdateService) processImageUpdates(ctx context.Context, req dto.AutoUpdateCheckDto, result *dto.AutoUpdateResultDto, settings *models.Settings) error {
+	imageUpdates, err := s.imageUpdateService.CheckAllImages(ctx, 0)
+	if err != nil {
+		return fmt.Errorf("failed to check image updates: %w", err)
+	}
+
+	imagesToUpdate := make(map[string]string)
+	for imageRef, updateResult := range imageUpdates {
+		if updateResult.HasUpdate && updateResult.Error == "" {
+			newImageRef := imageRef
+			if updateResult.UpdateType == "tag" && updateResult.LatestVersion != "" {
+				newImageRef = s.constructImageRefWithTag(imageRef, updateResult.LatestVersion)
+			}
+			imagesToUpdate[imageRef] = newImageRef
+		}
+	}
+
+	if len(imagesToUpdate) == 0 {
+		return nil
+	}
+
+	pulledImages := make(map[string]string)
+	for oldImageRef, newImageRef := range imagesToUpdate {
+		imageResult := dto.AutoUpdateResourceResult{
+			ResourceID:      oldImageRef,
+			ResourceName:    oldImageRef,
+			ResourceType:    "image",
+			Status:          "checked",
+			UpdateAvailable: true,
+			UpdateApplied:   false,
+			OldImages:       map[string]string{"main": oldImageRef},
+			NewImages:       map[string]string{"main": newImageRef},
+		}
+
+		if !req.DryRun {
+			if err := s.pullImageWithAuth(ctx, newImageRef); err != nil {
+				log.Printf("Failed to pull image %s: %v", newImageRef, err)
+				imageResult.Status = "failed"
+				imageResult.Error = fmt.Sprintf("Failed to pull image: %v", err)
+				result.Failed++
+			} else {
+				pulledImages[oldImageRef] = newImageRef
+				imageResult.Status = "updated"
+				imageResult.UpdateApplied = true
+				result.Updated++
+			}
+		} else {
+			imageResult.Status = "skipped"
+			result.Skipped++
+		}
+
+		result.Results = append(result.Results, imageResult)
+		result.Checked++
+
+		// Record the image update result (success or failure)
+		if err := s.recordAutoUpdate(ctx, imageResult); err != nil {
+			log.Printf("Failed to record auto-update result for image %s: %v", oldImageRef, err)
+		}
+	}
+
+	// Only restart containers if we successfully pulled some images
+	if !req.DryRun && len(pulledImages) > 0 {
+		containerResults, err := s.restartContainersUsingImages(ctx, pulledImages)
+		if err != nil {
+			log.Printf("Error restarting containers: %v", err)
+		}
+
+		for _, containerResult := range containerResults {
+			result.Results = append(result.Results, containerResult)
+			result.Checked++
+			if containerResult.UpdateApplied {
+				result.Updated++
+			} else if containerResult.Error != "" {
+				result.Failed++
+			}
+
+			if err := s.recordAutoUpdate(ctx, containerResult); err != nil {
+				log.Printf("Failed to record auto-update result for container %s: %v", containerResult.ResourceName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Refactored method to handle container-based updates (original approach)
+func (s *AutoUpdateService) processContainerBasedUpdates(ctx context.Context, req dto.AutoUpdateCheckDto, result *dto.AutoUpdateResultDto, settings *models.Settings, startTime time.Time) (*dto.AutoUpdateResultDto, error) {
 	var wg sync.WaitGroup
 	resultsChan := make(chan dto.AutoUpdateResourceResult, 1000)
 	errorsChan := make(chan error, 100)
@@ -88,13 +200,7 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 	if checkType == "all" || checkType == "containers" {
 		wg.Add(1)
 		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Panic in container check goroutine: %v", r)
-					errorsChan <- fmt.Errorf("container check panic: %v", r)
-				}
-				wg.Done()
-			}()
+			defer wg.Done()
 			s.checkContainers(ctx, req, settings, resultsChan, errorsChan)
 		}()
 	}
@@ -102,13 +208,7 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 	if checkType == "all" || checkType == "stacks" {
 		wg.Add(1)
 		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Panic in stack check goroutine: %v", r)
-					errorsChan <- fmt.Errorf("stack check panic: %v", r)
-				}
-				wg.Done()
-			}()
+			defer wg.Done()
 			s.checkStacks(ctx, req, settings, resultsChan, errorsChan)
 		}()
 	}
@@ -146,8 +246,131 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 
 	result.EndTime = time.Now().Format(time.RFC3339)
 	result.Duration = time.Since(startTime).String()
-
 	return result, nil
+}
+
+// Refactored from pullImage and restartContainersUsingUpdatedImages
+func (s *AutoUpdateService) pullImageWithAuth(ctx context.Context, imageRef string) error {
+	dockerClient, err := s.dockerService.CreateConnection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Docker: %w", err)
+	}
+	defer dockerClient.Close()
+
+	pullOptions := image.PullOptions{}
+	authConfig, err := s.getAuthConfigForImage(ctx, imageRef)
+	if err != nil {
+		log.Printf("Warning: Failed to get auth config for image %s: %v", imageRef, err)
+	} else if authConfig != nil {
+		authJSON, err := json.Marshal(authConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal auth config: %w", err)
+		}
+		pullOptions.RegistryAuth = base64.URLEncoding.EncodeToString(authJSON)
+	}
+
+	reader, err := dockerClient.ImagePull(ctx, imageRef, pullOptions)
+	if err != nil {
+		return fmt.Errorf("failed to pull image %s: %w", imageRef, err)
+	}
+	defer reader.Close()
+
+	if _, err := io.Copy(io.Discard, reader); err != nil {
+		return fmt.Errorf("failed to complete image pull: %w", err)
+	}
+
+	log.Printf("Successfully pulled image: %s", imageRef)
+	return nil
+}
+
+// Refactored from restartContainersUsingUpdatedImages
+func (s *AutoUpdateService) restartContainersUsingImages(ctx context.Context, updatedImages map[string]string) ([]dto.AutoUpdateResourceResult, error) {
+	dockerClient, err := s.dockerService.CreateConnection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
+	}
+	defer dockerClient.Close()
+
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: false})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	var results []dto.AutoUpdateResourceResult
+
+	for _, cnt := range containers {
+		containerJSON, err := dockerClient.ContainerInspect(ctx, cnt.ID)
+		if err != nil {
+			continue
+		}
+
+		containerImageRef := containerJSON.Config.Image
+		var newImageRef string
+		var found bool
+
+		for oldImageRef, updatedImageRef := range updatedImages {
+			if s.imageMatches(containerImageRef, oldImageRef) {
+				newImageRef = updatedImageRef
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
+
+		containerName := s.getContainerName(cnt)
+		result := dto.AutoUpdateResourceResult{
+			ResourceID:   cnt.ID,
+			ResourceName: containerName,
+			ResourceType: "container",
+			Status:       "checked",
+			OldImages:    map[string]string{"main": containerImageRef},
+			NewImages:    map[string]string{"main": newImageRef},
+		}
+
+		s.mutex.Lock()
+		if s.updatingContainers[cnt.ID] {
+			s.mutex.Unlock()
+			result.Status = "skipped"
+			result.Error = "Already updating"
+			results = append(results, result)
+			continue
+		}
+		s.updatingContainers[cnt.ID] = true
+		s.mutex.Unlock()
+
+		// Use existing updateContainerWithLatestImage method
+		if err := s.updateContainerWithLatestImage(ctx, cnt, containerJSON, newImageRef, nil); err != nil {
+			result.Status = "failed"
+			result.Error = fmt.Sprintf("Failed to restart container: %v", err)
+		} else {
+			result.Status = "updated"
+			result.UpdateAvailable = true
+			result.UpdateApplied = true
+			log.Printf("Successfully restarted container %s with updated image %s", containerName, newImageRef)
+		}
+
+		s.mutex.Lock()
+		delete(s.updatingContainers, cnt.ID)
+		s.mutex.Unlock()
+
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
+// Helper method to check if container image matches updated image
+func (s *AutoUpdateService) imageMatches(containerImage, updatedImage string) bool {
+	containerBase := strings.Split(containerImage, "@")[0]
+	updatedBase := strings.Split(updatedImage, "@")[0]
+
+	containerRepo := strings.Split(containerBase, ":")[0]
+	updatedRepo := strings.Split(updatedBase, ":")[0]
+
+	return containerRepo == updatedRepo
 }
 
 func (s *AutoUpdateService) checkContainers(
@@ -235,19 +458,32 @@ func (s *AutoUpdateService) checkSingleContainer(
 	imageRef := containerJSON.Config.Image
 	result.OldImages["main"] = fmt.Sprintf("%s@%s", imageRef, cnt.ImageID)
 
-	hasUpdate, newImageID, err := s.checkImageForUpdate(ctx, imageRef, cnt.ImageID, settings)
+	// Use ImageUpdateService to check for updates
+	updateResult, err := s.imageUpdateService.CheckImageUpdate(ctx, imageRef)
 	if err != nil {
 		result.Status = "failed"
 		result.Error = fmt.Sprintf("Failed to check for updates: %v", err)
 		return result
 	}
 
-	result.UpdateAvailable = hasUpdate
-	if hasUpdate {
-		result.NewImages["main"] = fmt.Sprintf("%s@%s", imageRef, newImageID)
+	if updateResult.Error != "" {
+		result.Status = "failed"
+		result.Error = updateResult.Error
+		return result
+	}
 
-		if !dryRun {
-			if err := s.updateContainer(ctx, cnt, containerJSON, settings); err != nil {
+	result.UpdateAvailable = updateResult.HasUpdate
+	if updateResult.HasUpdate {
+		// Set the new image reference based on update type
+		newImageRef := imageRef
+		if updateResult.UpdateType == "tag" && updateResult.LatestVersion != "" {
+			// For tag updates, construct new image reference with latest tag
+			newImageRef = s.constructImageRefWithTag(imageRef, updateResult.LatestVersion)
+		}
+		result.NewImages["main"] = newImageRef
+
+		if !dryRun && settings.AutoUpdate {
+			if err := s.updateContainerWithLatestImage(ctx, cnt, containerJSON, newImageRef, settings); err != nil {
 				result.Status = "failed"
 				result.Error = fmt.Sprintf("Failed to update container: %v", err)
 				return result
@@ -262,6 +498,92 @@ func (s *AutoUpdateService) checkSingleContainer(
 	}
 
 	return result
+}
+
+// New method to update container with latest image
+func (s *AutoUpdateService) updateContainerWithLatestImage(
+	ctx context.Context,
+	cnt container.Summary,
+	containerJSON container.InspectResponse,
+	newImageRef string,
+	settings *models.Settings,
+) error {
+	dockerClient, err := s.dockerService.CreateConnection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Docker: %w", err)
+	}
+	defer dockerClient.Close()
+
+	log.Printf("Pulling latest image %s for container %s", newImageRef, s.getContainerName(cnt))
+
+	pullOptions := image.PullOptions{}
+
+	// Use existing getAuthConfigForImage method
+	authConfig, err := s.getAuthConfigForImage(ctx, newImageRef)
+	if err != nil {
+		log.Printf("Warning: Failed to get auth config for image %s: %v", newImageRef, err)
+		// Continue without authentication - may work for public registries
+	} else if authConfig != nil {
+		// Encode auth config for Docker API
+		authJSON, err := json.Marshal(authConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal auth config: %w", err)
+		}
+		pullOptions.RegistryAuth = base64.URLEncoding.EncodeToString(authJSON)
+	}
+
+	reader, err := dockerClient.ImagePull(ctx, newImageRef, pullOptions)
+	if err != nil {
+		return fmt.Errorf("failed to pull image %s: %w", newImageRef, err)
+	}
+	defer reader.Close()
+
+	if _, err := io.Copy(io.Discard, reader); err != nil {
+		return fmt.Errorf("failed to complete image pull: %w", err)
+	}
+
+	if err := dockerClient.ContainerStop(ctx, cnt.ID, container.StopOptions{}); err != nil {
+		return fmt.Errorf("failed to stop container: %w", err)
+	}
+
+	if err := dockerClient.ContainerRemove(ctx, cnt.ID, container.RemoveOptions{}); err != nil {
+		return fmt.Errorf("failed to remove old container: %w", err)
+	}
+
+	containerJSON.Config.Image = newImageRef
+
+	resp, err := dockerClient.ContainerCreate(
+		ctx,
+		containerJSON.Config,
+		containerJSON.HostConfig,
+		&network.NetworkingConfig{
+			EndpointsConfig: containerJSON.NetworkSettings.Networks,
+		},
+		nil,
+		containerJSON.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create new container: %w", err)
+	}
+
+	if err := dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return fmt.Errorf("failed to start new container: %w", err)
+	}
+
+	log.Printf("Successfully updated container %s with image %s", s.getContainerName(cnt), newImageRef)
+	return nil
+}
+
+// Helper method to construct image reference with new tag
+func (s *AutoUpdateService) constructImageRefWithTag(imageRef, newTag string) string {
+	parts := strings.Split(imageRef, ":")
+	if len(parts) > 1 {
+		// Replace the tag part
+		parts[len(parts)-1] = newTag
+		return strings.Join(parts, ":")
+	}
+	// If no tag, append the new tag
+	return imageRef + ":" + newTag
 }
 
 func (s *AutoUpdateService) checkStacks(
@@ -365,43 +687,6 @@ func (s *AutoUpdateService) checkSingleStack(
 	}
 
 	return result
-}
-
-func (s *AutoUpdateService) updateContainer(
-	ctx context.Context,
-	cnt container.Summary,
-	containerJSON container.InspectResponse,
-	settings *models.Settings,
-) error {
-	log.Printf("Updating container: %s", s.getContainerName(cnt))
-
-	if err := s.containerService.StopContainer(ctx, cnt.ID); err != nil {
-		return fmt.Errorf("failed to stop container: %w", err)
-	}
-
-	if err := s.containerService.DeleteContainer(ctx, cnt.ID, false, false); err != nil {
-		return fmt.Errorf("failed to remove container: %w", err)
-	}
-
-	config := containerJSON.Config
-	hostConfig := containerJSON.HostConfig
-	networkingConfig := &network.NetworkingConfig{
-		EndpointsConfig: containerJSON.NetworkSettings.Networks,
-	}
-
-	containerName := strings.TrimPrefix(containerJSON.Name, "/")
-
-	newContainer, err := s.containerService.CreateContainer(ctx, config, hostConfig, networkingConfig, containerName)
-	if err != nil {
-		return fmt.Errorf("failed to create new container: %w", err)
-	}
-
-	if err := s.containerService.StartContainer(ctx, newContainer.ID); err != nil {
-		return fmt.Errorf("failed to start new container: %w", err)
-	}
-
-	log.Printf("Successfully updated container: %s", s.getContainerName(cnt))
-	return nil
 }
 
 func (s *AutoUpdateService) updateStack(
@@ -604,6 +889,11 @@ func (s *AutoUpdateService) recordAutoUpdate(ctx context.Context, result dto.Aut
 
 	if result.Error != "" {
 		record.Error = &result.Error
+		if result.Details == nil {
+			result.Details = make(map[string]interface{})
+		}
+		result.Details["errorType"] = s.categorizeError(result.Error)
+		result.Details["timestamp"] = time.Now().Format(time.RFC3339)
 	}
 
 	if len(result.OldImages) > 0 {
@@ -638,6 +928,32 @@ func (s *AutoUpdateService) recordAutoUpdate(ctx context.Context, result dto.Aut
 	}
 
 	return nil
+}
+
+// Helper method to categorize errors for better notification handling
+func (s *AutoUpdateService) categorizeError(errorMsg string) string {
+	errorMsg = strings.ToLower(errorMsg)
+
+	switch {
+	case strings.Contains(errorMsg, "no matching manifest"):
+		return "platform_incompatible"
+	case strings.Contains(errorMsg, "manifest unknown"):
+		return "image_not_found"
+	case strings.Contains(errorMsg, "unauthorized"):
+		return "authentication_failed"
+	case strings.Contains(errorMsg, "forbidden"):
+		return "permission_denied"
+	case strings.Contains(errorMsg, "timeout"):
+		return "network_timeout"
+	case strings.Contains(errorMsg, "connection refused"):
+		return "registry_unavailable"
+	case strings.Contains(errorMsg, "failed to pull"):
+		return "pull_failed"
+	case strings.Contains(errorMsg, "failed to restart"):
+		return "restart_failed"
+	default:
+		return "unknown"
+	}
 }
 
 func (s *AutoUpdateService) GetAutoUpdateHistory(ctx context.Context, limit int) ([]models.AutoUpdateRecord, error) {
@@ -841,4 +1157,44 @@ func (s *AutoUpdateService) checkStackImagesForUpdates(ctx context.Context, stac
 	}
 
 	return hasUpdates, imageUpdates, nil
+}
+
+func (s *AutoUpdateService) GetRecentErrors(ctx context.Context, since time.Time) ([]models.AutoUpdateRecord, error) {
+	var records []models.AutoUpdateRecord
+
+	err := s.db.WithContext(ctx).
+		Where("start_time >= ? AND error IS NOT NULL", since).
+		Order("start_time DESC").
+		Find(&records).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent auto-update errors: %w", err)
+	}
+
+	return records, nil
+}
+
+func (s *AutoUpdateService) GetErrorSummary(ctx context.Context, since time.Time) (map[string]int, error) {
+	var results []struct {
+		ErrorType string `json:"error_type"`
+		Count     int    `json:"count"`
+	}
+
+	err := s.db.WithContext(ctx).
+		Model(&models.AutoUpdateRecord{}).
+		Select("JSON_EXTRACT(details, '$.errorType') as error_type, COUNT(*) as count").
+		Where("start_time >= ? AND error IS NOT NULL", since).
+		Group("JSON_EXTRACT(details, '$.errorType')").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get error summary: %w", err)
+	}
+
+	summary := make(map[string]int)
+	for _, result := range results {
+		summary[result.ErrorType] = result.Count
+	}
+
+	return summary, nil
 }
