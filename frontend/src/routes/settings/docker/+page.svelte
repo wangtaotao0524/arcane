@@ -144,17 +144,13 @@
 					</div>
 				</Card.Header>
 				<Card.Content class="space-y-6">
-					<div
-						class="from-background to-muted/30 flex items-center justify-between rounded-lg border bg-gradient-to-r p-4"
-					>
-						<FormInput
-							bind:input={pollingEnabledSwitch}
-							type="switch"
-							id="pollingEnabled"
-							label="Enable Image Polling"
-							description="Periodically check registries for newer image versions"
-						/>
-					</div>
+					<FormInput
+						bind:input={pollingEnabledSwitch}
+						type="switch"
+						id="pollingEnabled"
+						label="Enable Image Polling"
+						description="Periodically check registries for newer image versions"
+					/>
 
 					{#if currentSettings.pollingEnabled}
 						<div class="space-y-4 pl-4">
@@ -179,17 +175,13 @@
 								</Alert.Root>
 							{/if}
 
-							<div
-								class="from-background flex items-center justify-between rounded-lg border bg-gradient-to-r to-amber-50/50 p-4"
-							>
-								<FormInput
-									bind:input={autoUpdateSwitch}
-									type="switch"
-									id="autoUpdateSwitch"
-									label="Auto-update Containers"
-									description="Automatically update containers when newer images are found"
-								/>
-							</div>
+							<FormInput
+								bind:input={autoUpdateSwitch}
+								type="switch"
+								id="autoUpdateSwitch"
+								label="Auto-update Containers"
+								description="Automatically update containers when newer images are found"
+							/>
 
 							{#if currentSettings.autoUpdate}
 								<div class="pl-4">

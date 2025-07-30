@@ -1,7 +1,7 @@
 {
 	"name": "arcane",
 	"private": true,
-	"version": "0.15.1",
+	"version": "1.0.0-preview.1",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev --port 3000",
