@@ -56,6 +56,14 @@ func InitializeApp() (*App, error) {
 		return nil, fmt.Errorf("services initialization failed: %w", err)
 	}
 
+	slog.InfoContext(appCtx, "Ensuring default settings are initialized")
+	if err := appServices.Settings.EnsureDefaultSettings(appCtx); err != nil {
+		slog.WarnContext(appCtx, "Failed to initialize default settings",
+			slog.String("error", err.Error()))
+	} else {
+		slog.InfoContext(appCtx, "Default settings initialized successfully")
+	}
+
 	scheduler, err := initializeScheduler()
 	if err != nil {
 		db.Close()
@@ -65,7 +73,7 @@ func InitializeApp() (*App, error) {
 
 	router := setupRouter(cfg, appServices)
 
-	if dockerClient, err := dockerClientService.CreateConnection(context.Background()); err != nil {
+	if dockerClient, err := dockerClientService.CreateConnection(appCtx); err != nil {
 		slog.WarnContext(appCtx, "Docker connection failed during init, local Docker features may be unavailable",
 			slog.String("error", err.Error()))
 	} else {
@@ -86,7 +94,7 @@ func InitializeApp() (*App, error) {
 	}
 
 	if cfg.OidcEnabled {
-		if err := appServices.Auth.SyncOidcEnvToDatabase(context.Background()); err != nil {
+		if _, err := appServices.Settings.SyncOidcEnvToDatabase(appCtx); err != nil {
 			slog.WarnContext(appCtx, "Failed to sync OIDC environment variables to database",
 				slog.String("error", err.Error()))
 		}
