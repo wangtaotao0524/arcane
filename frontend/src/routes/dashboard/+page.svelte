@@ -344,7 +344,7 @@
 			images: selectedTypes.includes('images'),
 			volumes: selectedTypes.includes('volumes'),
 			networks: selectedTypes.includes('networks'),
-			dangling: dashboardStates.settings?.pruneMode === 'dangling'
+			dangling: dashboardStates.settings?.dockerPruneMode === 'dangling'
 		};
 
 		handleApiResultWithCallbacks({
@@ -662,7 +662,7 @@
 	<PruneConfirmationDialog
 		bind:open={dashboardStates.isPruneDialogOpen}
 		isPruning={isLoading.pruning}
-		imagePruneMode={(dashboardStates.settings?.pruneMode as 'dangling' | 'all') || 'dangling'}
+		imagePruneMode={(dashboardStates.settings?.dockerPruneMode as 'dangling' | 'all') || 'dangling'}
 		onConfirm={confirmPrune}
 		onCancel={() => (dashboardStates.isPruneDialogOpen = false)}
 	/>
