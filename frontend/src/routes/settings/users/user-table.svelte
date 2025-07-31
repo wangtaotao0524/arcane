@@ -168,7 +168,6 @@
 					{ label: 'Display Name', sortColumn: 'displayName' },
 					{ label: 'Email', sortColumn: 'email' },
 					{ label: 'Role', sortColumn: 'roles' },
-					{ label: 'Created', sortColumn: 'createdAt' },
 					{ label: ' ' }
 				]}
 				filterPlaceholder="Search users..."
@@ -183,7 +182,6 @@
 					<Table.Cell>
 						<StatusBadge text={getRoleText(item.roles)} variant={getRoleBadgeVariant(item.roles)} />
 					</Table.Cell>
-					<Table.Cell>{formatFriendlyDate(item.createdAt)}</Table.Cell>
 					<Table.Cell>
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger>
@@ -196,10 +194,12 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end">
 								<DropdownMenu.Group>
-									<DropdownMenu.Item onclick={() => onEditUser(item)}>
-										<Edit class="size-4" />
-										Edit
-									</DropdownMenu.Item>
+									{#if !item.oidcSubjectId}
+										<DropdownMenu.Item onclick={() => onEditUser(item)}>
+											<Edit class="size-4" />
+											Edit
+										</DropdownMenu.Item>
+									{/if}
 									<DropdownMenu.Item
 										class="focus:text-red-700! text-red-500"
 										onclick={() => handleDeleteUser(item.id, item.username)}
