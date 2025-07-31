@@ -201,7 +201,7 @@
 										</DropdownMenu.Item>
 									{/if}
 									<DropdownMenu.Item
-										class="focus:text-red-700! text-red-500"
+										variant="destructive"
 										onclick={() => handleDeleteUser(item.id, item.username)}
 									>
 										<Trash2 class="size-4" />
