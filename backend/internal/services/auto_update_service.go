@@ -96,7 +96,7 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 	return result, nil
 }
 
-// New method to handle image-based updates
+//nolint:gocognit
 func (s *AutoUpdateService) processImageUpdates(ctx context.Context, req dto.AutoUpdateCheckDto, result *dto.AutoUpdateResultDto) error {
 	imageUpdates, err := s.imageUpdateService.CheckAllImages(ctx, 0)
 	if err != nil {
@@ -182,7 +182,6 @@ func (s *AutoUpdateService) processImageUpdates(ctx context.Context, req dto.Aut
 	return nil
 }
 
-// Refactored method to handle container-based updates (original approach)
 func (s *AutoUpdateService) processContainerBasedUpdates(ctx context.Context, req dto.AutoUpdateCheckDto, result *dto.AutoUpdateResultDto, startTime time.Time) (*dto.AutoUpdateResultDto, error) {
 	var wg sync.WaitGroup
 	resultsChan := make(chan dto.AutoUpdateResourceResult, 1000)
@@ -279,7 +278,6 @@ func (s *AutoUpdateService) pullImageWithAuth(ctx context.Context, imageRef stri
 	return nil
 }
 
-// Refactored from restartContainersUsingUpdatedImages
 func (s *AutoUpdateService) restartContainersUsingImages(ctx context.Context, updatedImages map[string]string) ([]dto.AutoUpdateResourceResult, error) {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
@@ -699,7 +697,6 @@ func (s *AutoUpdateService) updateStack(
 func (s *AutoUpdateService) checkImageForUpdate(
 	ctx context.Context,
 	imageRef string,
-	currentImageID string,
 ) (bool, string, error) {
 	if s.isDigestBasedImage(imageRef) {
 		return false, "", nil
@@ -1126,9 +1123,7 @@ func (s *AutoUpdateService) checkStackImagesForUpdates(ctx context.Context, stac
 			continue
 		}
 
-		currentImageID := serviceImageIDs[serviceName]
-
-		hasUpdate, newDigest, err := s.checkImageForUpdate(ctx, imageRef, currentImageID)
+		hasUpdate, newDigest, err := s.checkImageForUpdate(ctx, imageRef)
 		if err != nil {
 			log.Printf("Error checking updates for %s in stack %s: %v", imageRef, stack.Name, err)
 			continue

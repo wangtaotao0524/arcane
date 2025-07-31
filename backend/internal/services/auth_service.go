@@ -12,7 +12,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ofkm/arcane-backend/internal/config"
-	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -71,7 +70,6 @@ type UserClaims struct {
 	Roles       []string `json:"roles"`
 }
 
-// AuthService handles authentication related operations
 type AuthService struct {
 	userService     *UserService
 	settingsService *SettingsService
@@ -82,20 +80,10 @@ type AuthService struct {
 }
 
 func NewAuthService(userService *UserService, settingsService *SettingsService, jwtSecret string, cfg *config.Config) *AuthService {
-	var secretBytes []byte
-	if jwtSecret != "" {
-		secretBytes = []byte(jwtSecret)
-	} else {
-		secretBytes = make([]byte, 32)
-		if _, err := rand.Read(secretBytes); err != nil {
-			panic(fmt.Errorf("failed to generate random JWT secret: %w", err))
-		}
-	}
-
 	return &AuthService{
 		userService:     userService,
 		settingsService: settingsService,
-		jwtSecret:       secretBytes,
+		jwtSecret:       utils.CheckOrGenerateJwtSecret(jwtSecret),
 		accessExpiry:    30 * time.Minute,
 		refreshExpiry:   7 * 24 * time.Hour,
 		config:          cfg,
@@ -114,7 +102,6 @@ func (s *AuthService) getAuthSettings(ctx context.Context) (*AuthSettings, error
 		SessionTimeout:   settings.AuthSessionTimeout.AsInt() / 60, // Convert seconds to minutes
 	}
 
-	// Parse OIDC config from JSON if enabled
 	if authSettings.OidcEnabled && settings.AuthOidcConfig.Value != "" {
 		var oidcConfig models.OidcConfig
 		if err := json.Unmarshal([]byte(settings.AuthOidcConfig.Value), &oidcConfig); err == nil {
@@ -154,34 +141,6 @@ func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*OidcStat
 	return status, nil
 }
 
-func (s *AuthService) updateAuthSettings(ctx context.Context, authSettings *AuthSettings) ([]models.SettingVariable, error) {
-	// Convert minutes to seconds for timeout
-	timeoutSeconds := authSettings.SessionTimeout * 60
-
-	updates := dto.UpdateSettingsDto{
-		AuthLocalEnabled:   utils.Ptr(fmt.Sprintf("%t", authSettings.LocalAuthEnabled)),
-		AuthOidcEnabled:    utils.Ptr(fmt.Sprintf("%t", authSettings.OidcEnabled)),
-		AuthSessionTimeout: utils.Ptr(fmt.Sprintf("%d", timeoutSeconds)),
-	}
-
-	// Add OIDC config if present
-	if authSettings.Oidc != nil {
-		oidcConfigBytes, err := json.Marshal(authSettings.Oidc)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal OIDC config: %w", err)
-		}
-		updates.AuthOidcConfig = utils.Ptr(string(oidcConfigBytes))
-	}
-
-	settings, err := s.settingsService.UpdateSettings(ctx, updates)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update auth settings: %w", err)
-	}
-
-	return settings, nil
-}
-
-// GetSessionTimeout returns the configured session timeout in minutes
 func (s *AuthService) GetSessionTimeout(ctx context.Context) (int, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
@@ -219,7 +178,6 @@ func (s *AuthService) IsOidcEnabled(ctx context.Context) (bool, error) {
 	return settings.AuthOidcEnabled.IsTrue(), nil
 }
 
-// GetOidcConfig retrieves the OIDC configuration
 func (s *AuthService) GetOidcConfig(ctx context.Context) (*models.OidcConfig, error) {
 	authSettings, err := s.getAuthSettings(ctx)
 	if err != nil {
@@ -300,7 +258,6 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 	return user, tokenPair, nil
 }
 
-// OidcLogin authenticates or creates a user from OIDC provider info
 func (s *AuthService) OidcLogin(ctx context.Context, userInfo OidcUserInfo) (*models.User, *TokenPair, error) {
 	oidcEnabled, err := s.IsOidcEnabled(ctx)
 	if err != nil {
@@ -372,7 +329,6 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo OidcUserInfo) (*mo
 	return user, tokenPair, nil
 }
 
-// RefreshToken generates a new token pair from a refresh token
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*TokenPair, error) {
 	token, err := jwt.ParseWithClaims(refreshToken, &jwt.RegisteredClaims{},
 		func(t *jwt.Token) (interface{}, error) {
@@ -414,7 +370,6 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*T
 	return tokenPair, nil
 }
 
-// VerifyToken verifies and returns the user from an access token
 func (s *AuthService) VerifyToken(ctx context.Context, accessToken string) (*models.User, error) {
 	token, err := jwt.ParseWithClaims(accessToken, &UserClaims{},
 		func(t *jwt.Token) (interface{}, error) {
@@ -458,7 +413,6 @@ func (s *AuthService) VerifyToken(ctx context.Context, accessToken string) (*mod
 	return user, nil
 }
 
-// ChangePassword changes a user's password
 func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
 	user, err := s.userService.GetUserByID(ctx, userID)
 	if err != nil {
@@ -482,14 +436,6 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPasswor
 	return err
 }
 
-// RequestPasswordReset initiates password reset (placeholder)
-func (s *AuthService) RequestPasswordReset(ctx context.Context, username string) error {
-	return errors.New("password reset not implemented")
-}
-
-// Helper functions
-
-// generateTokenPair creates an access and refresh token pair for a user
 func (s *AuthService) generateTokenPair(ctx context.Context, user *models.User) (*TokenPair, error) {
 	sessionTimeout, err := s.GetSessionTimeout(ctx)
 	if err != nil {
@@ -544,7 +490,6 @@ func (s *AuthService) generateTokenPair(ctx context.Context, user *models.User) 
 	}, nil
 }
 
-// generateUserId creates a unique user ID
 func generateUserId() string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
@@ -554,7 +499,6 @@ func generateUserId() string {
 	return fmt.Sprintf("usr_%s", base64.RawURLEncoding.EncodeToString(b))
 }
 
-// generateUsernameFromEmail creates a username from email or fallback to subject
 func generateUsernameFromEmail(email, subject string) string {
 	if email != "" {
 		parts := strings.Split(email, "@")

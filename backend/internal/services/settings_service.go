@@ -18,7 +18,7 @@ import (
 
 type SettingsService struct {
 	db     *database.DB
-	config *config.Config // Add config field
+	config *config.Config
 }
 
 func NewSettingsService(db *database.DB, cfg *config.Config) *SettingsService {
@@ -40,8 +40,9 @@ func (s *SettingsService) GetSettings(ctx context.Context) (*models.Settings, er
 	// Load values from database into the struct
 	for _, sv := range settingVars {
 		if err := settings.UpdateField(sv.Key, sv.Value, false); err != nil {
-			// If key not found, it's okay - might be a deprecated setting
-			if _, ok := err.(models.SettingKeyNotFoundError); !ok {
+			// If key not found, it's okay
+			var notFoundErr models.SettingKeyNotFoundError
+			if !errors.As(err, &notFoundErr) {
 				return nil, fmt.Errorf("failed to load setting %s: %w", sv.Key, err)
 			}
 		}
