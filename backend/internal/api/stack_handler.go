@@ -63,31 +63,37 @@ func (h *StackHandler) ListStacks(c *gin.Context) {
 func (h *StackHandler) CreateStack(c *gin.Context) {
 	var req dto.CreateStackDto
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request format",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	createdStack, err := h.stackService.CreateStack(
-		c.Request.Context(),
-		req.Name,
-		req.ComposeContent,
-		req.EnvContent,
-	)
+	stack, err := h.stackService.CreateStack(c.Request.Context(), req.Name, req.ComposeContent, req.EnvContent)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to create stack",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"stack":   createdStack,
-	})
+	// Convert to response DTO
+	response := dto.CreateStackResponseDto{
+		ID:           stack.ID,
+		Name:         stack.Name,
+		Path:         stack.Path,
+		Status:       string(stack.Status),
+		ServiceCount: stack.ServiceCount,
+		RunningCount: stack.RunningCount,
+		AutoUpdate:   stack.AutoUpdate,
+		IsExternal:   stack.IsExternal,
+		IsLegacy:     stack.IsLegacy,
+		IsRemote:     stack.IsRemote,
+		CreatedAt:    stack.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    stack.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if stack.DirName != nil {
+		response.DirName = *stack.DirName
+	}
+
+	c.JSON(http.StatusCreated, response)
 }
 
 func (h *StackHandler) GetStack(c *gin.Context) {

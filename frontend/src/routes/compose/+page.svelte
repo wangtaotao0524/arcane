@@ -149,7 +149,7 @@
 			<Card.Header class="px-6">
 				<div class="flex items-center justify-between">
 					<div>
-						<Card.Title>Compose Projects List</Card.Title>
+						<Card.Title>Projects List</Card.Title>
 					</div>
 					<div class="flex items-center gap-2">
 						<div class="bg-muted h-9 w-32 animate-pulse rounded"></div>
@@ -160,7 +160,7 @@
 			<Card.Content>
 				<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
 					<Loader2 class="text-muted-foreground mb-4 size-8 animate-spin" />
-					<p class="text-lg font-medium">Loading Compose Projects...</p>
+					<p class="text-lg font-medium">Loading Projects...</p>
 					<p class="text-muted-foreground mt-1 text-sm">Please wait while we fetch your projects</p>
 				</div>
 			</Card.Content>
@@ -168,7 +168,7 @@
 	{:else}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 			<StatCard
-				title="Total Compose Projects"
+				title="Total Projects"
 				value={totalCompose}
 				icon={FileStack}
 				iconColor="text-amber-500"

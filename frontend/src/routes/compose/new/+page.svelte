@@ -198,7 +198,7 @@
 		<div class="space-y-8">
 			<form class="space-y-6" onsubmit={preventDefault(handleSubmit)}>
 				<div class="mb-6 space-y-2">
-					<Label for="name" class="text-sm font-medium">Stack Name</Label>
+					<Label for="name" class="text-sm font-medium">Project Name</Label>
 					<div class="max-w-md">
 						<Input
 							type="text"

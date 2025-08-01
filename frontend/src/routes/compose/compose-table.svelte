@@ -296,13 +296,5 @@
 		<p class="text-muted-foreground mt-1 max-w-md text-sm">
 			Create a new stack using the "Create Project" button above
 		</p>
-		<div class="mt-4 flex gap-3">
-			<ArcaneButton
-				action="create"
-				customLabel="Create Project"
-				onClick={() => goto(`/compose/new`)}
-				size="sm"
-			/>
-		</div>
 	</div>
 {/if}
