@@ -11,6 +11,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - arcane_data:/app/data
+      - ./projects:/app/data/projects
     build:
       args:
         - BUILD_TAGS=playwright
