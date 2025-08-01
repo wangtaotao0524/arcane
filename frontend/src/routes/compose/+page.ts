@@ -3,23 +3,23 @@ import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {
-    const stackRequestOptions: SearchPaginationSortRequest = {
-        pagination: {
-            page: 1,
-            limit: 20
-        },
-        sort: {
-            column: 'created_at',
-            direction: 'desc' as const
-        }
-    };
+	const projectRequestOptions: SearchPaginationSortRequest = {
+		pagination: {
+			page: 1,
+			limit: 20
+		},
+		sort: {
+			column: 'created_at',
+			direction: 'desc' as const
+		}
+	};
 
-    const stacks = await environmentAPI.getStacks(
-        stackRequestOptions.pagination,
-        stackRequestOptions.sort,
-        stackRequestOptions.search,
-        stackRequestOptions.filters
-    );
+	const projects = await environmentAPI.getProjects(
+		projectRequestOptions.pagination,
+		projectRequestOptions.sort,
+		projectRequestOptions.search,
+		projectRequestOptions.filters
+	);
 
-    return { stacks, stackRequestOptions };
+	return { projects, projectRequestOptions };
 };

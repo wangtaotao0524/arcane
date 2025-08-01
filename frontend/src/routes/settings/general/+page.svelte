@@ -108,7 +108,7 @@
 			<Card.Content>
 				<FormInput
 					label="Stacks Directory"
-					placeholder="data/stacks"
+					placeholder="data/projects"
 					bind:input={stacksDirectoryInput}
 					helpText="Directory where Docker Compose stack files are stored"
 				/>

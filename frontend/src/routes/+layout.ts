@@ -4,39 +4,44 @@ import { settingsAPI, userAPI, environmentManagementAPI } from '$lib/services/ap
 import { environmentStore } from '$lib/stores/environment.store';
 import { versionService } from '$lib/services/app-version-service';
 import { tryCatch } from '$lib/utils/try-catch';
+import { redirect } from '@sveltejs/kit';
 
 export const ssr = false;
 
-export const load = async () => {
-    const updateCheckDisabled = env.PUBLIC_UPDATE_CHECK_DISABLED === 'true';
+export const load = async ({ url }) => {
+	const updateCheckDisabled = env.PUBLIC_UPDATE_CHECK_DISABLED === 'true';
 
-    let arcaneSettings = await tryCatch(settingsAPI.getSettings());
-    if (arcaneSettings.error) {
-        arcaneSettings = await tryCatch(settingsAPI.getPublicSettings());
-    }
+	let arcaneSettings = await tryCatch(settingsAPI.getSettings());
+	if (arcaneSettings.error) {
+		arcaneSettings = await tryCatch(settingsAPI.getPublicSettings());
+	}
 
-    const arcaneUser = await tryCatch(userAPI.getCurrentUser());
-    const user = arcaneUser.error ? null : arcaneUser.data;
+	const arcaneUser = await tryCatch(userAPI.getCurrentUser());
+	const user = arcaneUser.error ? null : arcaneUser.data;
 
-    if (!environmentStore.isInitialized() && user) {
-        const environments = await tryCatch(environmentManagementAPI.list());
-        if (!environments.error) {
-            await environmentStore.initialize(environments.data || [], true);
-        }
-    }
+	if (!environmentStore.isInitialized() && user) {
+		const environments = await tryCatch(environmentManagementAPI.list());
+		if (!environments.error) {
+			await environmentStore.initialize(environments.data || [], true);
+		}
+	}
 
-    let versionInformation: AppVersionInformation;
-    if (updateCheckDisabled) {
-        versionInformation = { currentVersion: versionService.getCurrentVersion() };
-    } else {
-        versionInformation = await versionService.getVersionInformation();
-    }
+	let versionInformation: AppVersionInformation;
+	if (updateCheckDisabled) {
+		versionInformation = { currentVersion: versionService.getCurrentVersion() };
+	} else {
+		versionInformation = await versionService.getVersionInformation();
+	}
 
-    return {
-        user,
-        isAuthenticated: !!user,
-        settings: arcaneSettings.data,
-        versionInformation,
-        updateCheckDisabled
-    };
+	if (url.pathname === '/') {
+		throw redirect(307, '/dashboard');
+	}
+
+	return {
+		user,
+		isAuthenticated: !!user,
+		settings: arcaneSettings.data,
+		versionInformation,
+		updateCheckDisabled
+	};
 };

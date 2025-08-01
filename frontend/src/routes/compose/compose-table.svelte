@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Stack } from '$lib/models/stack.type';
+	import type { Project } from '$lib/types/project.type';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
@@ -28,7 +28,7 @@
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { formatFriendlyDate } from '$lib/utils/date.utils';
 
-	interface StackWithId extends Stack {
+	interface StackWithId extends Project {
 		id: string;
 	}
 
@@ -40,7 +40,7 @@
 		onComposeChanged,
 		onCheckForUpdates
 	}: {
-		Compose: Stack[];
+		Compose: Project[];
 		selectedIds: string[];
 		requestOptions: SearchPaginationSortRequest;
 		onRefresh: (options: SearchPaginationSortRequest) => Promise<any>;
@@ -75,64 +75,64 @@
 		}
 	});
 
-	async function performStackAction(action: string, id: string) {
+	async function performProjectAction(action: string, id: string) {
 		isLoading[action as keyof typeof isLoading] = true;
 
 		try {
 			if (action === 'start') {
 				handleApiResultWithCallbacks({
-					result: await tryCatch(environmentAPI.startStack(id)),
-					message: 'Failed to Start Stack',
+					result: await tryCatch(environmentAPI.startProject(id)),
+					message: 'Failed to Start Project',
 					setLoadingState: (value) => (isLoading.start = value),
 					onSuccess: async () => {
-						toast.success('Stack Started Successfully.');
+						toast.success('Project Started Successfully.');
 						await onComposeChanged();
 					}
 				});
 			} else if (action === 'stop') {
 				handleApiResultWithCallbacks({
-					result: await tryCatch(environmentAPI.downStack(id)),
-					message: 'Failed to Stop Stack',
+					result: await tryCatch(environmentAPI.downProject(id)),
+					message: 'Failed to Stop Project',
 					setLoadingState: (value) => (isLoading.stop = value),
 					onSuccess: async () => {
-						toast.success('Stack Stopped Successfully.');
+						toast.success('Project Stopped Successfully.');
 						await onComposeChanged();
 					}
 				});
 			} else if (action === 'restart') {
 				handleApiResultWithCallbacks({
-					result: await tryCatch(environmentAPI.restartStack(id)),
-					message: 'Failed to Restart Stack',
+					result: await tryCatch(environmentAPI.restartProject(id)),
+					message: 'Failed to Restart Project',
 					setLoadingState: (value) => (isLoading.restart = value),
 					onSuccess: async () => {
-						toast.success('Stack Restarted Successfully.');
+						toast.success('Project Restarted Successfully.');
 						await onComposeChanged();
 					}
 				});
 			} else if (action === 'pull') {
 				handleApiResultWithCallbacks({
-					result: await tryCatch(environmentAPI.pullStackImages(id)),
-					message: 'Failed to pull Stack',
+					result: await tryCatch(environmentAPI.pullProjectImages(id)),
+					message: 'Failed to pull Project',
 					setLoadingState: (value) => (isLoading.pull = value),
 					onSuccess: async () => {
-						toast.success('Stack Pulled successfully.');
+						toast.success('Project Pulled successfully.');
 						await onComposeChanged();
 					}
 				});
 			} else if (action === 'destroy') {
 				openConfirmDialog({
 					title: `Confirm Removal`,
-					message: `Are you sure you want to remove this Stack? This action cannot be undone.`,
+					message: `Are you sure you want to remove this Project? This action cannot be undone.`,
 					confirm: {
 						label: 'Remove',
 						destructive: true,
 						action: async () => {
 							handleApiResultWithCallbacks({
-								result: await tryCatch(environmentAPI.destroyStack(id)),
-								message: 'Failed to Remove Stack',
+								result: await tryCatch(environmentAPI.destroyProject(id)),
+								message: 'Failed to Remove Project',
 								setLoadingState: (value) => (isLoading.destroy = value),
 								onSuccess: async () => {
-									toast.success('Stack Removed Successfully');
+									toast.success('Project Removed Successfully');
 									await onComposeChanged();
 								}
 							});
@@ -141,7 +141,7 @@
 				});
 			}
 		} catch (error) {
-			console.error('Stack action failed:', error);
+			console.error('Project action failed:', error);
 			toast.error('An error occurred while performing the action');
 			isLoading[action as keyof typeof isLoading] = false;
 		}
@@ -155,12 +155,12 @@
 		<Card.Header class="px-6">
 			<div class="flex items-center justify-between">
 				<div>
-					<Card.Title>Compose Projects List</Card.Title>
+					<Card.Title>Projects List</Card.Title>
 				</div>
 				<div class="flex items-center gap-2">
 					<ArcaneButton
 						action="inspect"
-						label="Update Compose Projects"
+						label="Update Projects"
 						onClick={onCheckForUpdates}
 						loading={isLoading.updating}
 						loadingLabel="Updating..."
@@ -219,7 +219,7 @@
 
 									{#if item.status !== 'running'}
 										<DropdownMenu.Item
-											onclick={() => performStackAction('start', item.id)}
+											onclick={() => performProjectAction('start', item.id)}
 											disabled={isLoading.start || isAnyLoading}
 										>
 											{#if isLoading.start}
@@ -231,7 +231,7 @@
 										</DropdownMenu.Item>
 									{:else}
 										<DropdownMenu.Item
-											onclick={() => performStackAction('restart', item.id)}
+											onclick={() => performProjectAction('restart', item.id)}
 											disabled={isLoading.restart || isAnyLoading}
 										>
 											{#if isLoading.restart}
@@ -243,7 +243,7 @@
 										</DropdownMenu.Item>
 
 										<DropdownMenu.Item
-											onclick={() => performStackAction('stop', item.id)}
+											onclick={() => performProjectAction('stop', item.id)}
 											disabled={isLoading.stop || isAnyLoading}
 										>
 											{#if isLoading.stop}
@@ -256,7 +256,7 @@
 									{/if}
 
 									<DropdownMenu.Item
-										onclick={() => performStackAction('pull', item.id)}
+										onclick={() => performProjectAction('pull', item.id)}
 										disabled={isLoading.pull || isAnyLoading}
 									>
 										{#if isLoading.pull}
@@ -271,7 +271,7 @@
 
 									<DropdownMenu.Item
 										variant="destructive"
-										onclick={() => performStackAction('destroy', item.id)}
+										onclick={() => performProjectAction('destroy', item.id)}
 										disabled={isLoading.remove || isAnyLoading}
 									>
 										{#if isLoading.remove}

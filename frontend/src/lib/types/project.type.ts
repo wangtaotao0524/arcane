@@ -1,4 +1,4 @@
-export interface StackMeta {
+export interface ProjectMeta {
 	id: string;
 	name: string;
 	createdAt: string;
@@ -8,7 +8,7 @@ export interface StackMeta {
 	path: string;
 }
 
-export interface StackPort {
+export interface ProjectPort {
 	PublicPort?: number;
 	PrivatePort?: number;
 	Type?: string;
@@ -26,7 +26,7 @@ export interface NetworkSettings {
 	>;
 }
 
-export interface StackService {
+export interface ProjectService {
 	container_id: string;
 	name: string;
 	status: string;
@@ -40,10 +40,10 @@ export interface StackService {
 	networkSettings?: NetworkSettings;
 }
 
-export interface Stack {
+export interface Project {
 	id: string;
 	name: string;
-	services?: StackService[];
+	services?: ProjectService[];
 	serviceCount?: number;
 	runningCount?: number;
 	status: 'running' | 'stopped' | 'partially running' | 'unknown';
@@ -61,7 +61,7 @@ export interface Stack {
 	path?: string;
 }
 
-export interface StackUpdate {
+export interface ProjectUpdate {
 	name?: string;
 	composeContent?: string;
 	envContent?: string;

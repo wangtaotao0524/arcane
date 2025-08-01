@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Stack } from '$lib/models/stack.type';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import type { Project } from '$lib/types/project.type';
 	import { AlertCircle, FileStack, Loader2, PlayCircle, StopCircle } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -18,11 +17,13 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let Compose = $state<Stack[]>(Array.isArray(data.stacks) ? data.stacks : data.stacks.data || []);
+	let Compose = $state<Project[]>(
+		Array.isArray(data.projects) ? data.projects : data.projects.data || []
+	);
 	let error = $state<string | null>(null);
 	let selectedIds = $state<string[]>([]);
 	let isLoadingCompose = $state(false);
-	let requestOptions = $state<SearchPaginationSortRequest>(data.stackRequestOptions);
+	let requestOptions = $state<SearchPaginationSortRequest>(data.projectRequestOptions);
 
 	let isLoading = $state({
 		updating: false,
@@ -36,7 +37,7 @@
 	async function loadCompose() {
 		try {
 			isLoadingCompose = true;
-			const response = await environmentAPI.getStacks(
+			const response = await environmentAPI.getProjects(
 				requestOptions.pagination,
 				requestOptions.sort,
 				requestOptions.search,

@@ -54,7 +54,7 @@ func (s *SettingsService) GetSettings(ctx context.Context) (*models.Settings, er
 func (s *SettingsService) getDefaultSettings() *models.Settings {
 	return &models.Settings{
 		// Docker settings
-		StacksDirectory:    models.SettingVariable{Value: "data/stacks"},
+		StacksDirectory:    models.SettingVariable{Value: "data/projects"},
 		AutoUpdate:         models.SettingVariable{Value: "true"},
 		AutoUpdateInterval: models.SettingVariable{Value: "3600"},
 		PollingEnabled:     models.SettingVariable{Value: "true"},

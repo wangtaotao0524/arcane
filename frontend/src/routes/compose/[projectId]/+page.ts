@@ -3,15 +3,14 @@ import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {
 	try {
-		const stackReponse = await environmentAPI.getStack(params.composeId);
+		const projectResponse = await environmentAPI.getProject(params.projectId);
 
-		// Extract stack from the API response
-		const stack = stackReponse;
+		const project = projectResponse;
 
-		if (!stack) {
+		if (!project) {
 			return {
 				stack: null,
-				error: 'Stack not found',
+				error: 'Project not found',
 				editorState: {
 					name: '',
 					composeContent: '',
@@ -26,20 +25,20 @@ export const load: PageLoad = async ({ params }) => {
 			};
 		}
 
-		// Set up editor state with the stack data
+		// Set up editor state with the project data
 		const editorState = {
-			name: stack.name || '',
-			composeContent: stack.composeContent || '',
-			envContent: stack.envContent || '',
-			originalName: stack.name || '',
-			originalComposeContent: stack.composeContent || '',
-			originalEnvContent: stack.envContent || ''
+			name: project.name || '',
+			composeContent: project.composeContent || '',
+			envContent: project.envContent || '',
+			originalName: project.name || '',
+			originalComposeContent: project.composeContent || '',
+			originalEnvContent: project.envContent || ''
 		};
 
 		return {
-			stack,
+			project,
 			editorState,
-			servicePorts: {}, // TODO: Extract from stack services if needed
+			servicePorts: {}, // TODO: Extract from project services if needed
 			agents: [], // TODO: Implement if needed
 			settings: {
 				baseServerUrl: 'localhost'

@@ -1054,7 +1054,7 @@ func (s *StackService) sanitizeStackName(name string) string {
 func (s *StackService) getStacksDirectory(ctx context.Context) (string, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
-		return "data/stacks", fmt.Errorf("failed to get settings: %w", err)
+		return "data/projects", fmt.Errorf("failed to get settings: %w", err)
 	}
 
 	stacksDirectory := settings.StacksDirectory.Value

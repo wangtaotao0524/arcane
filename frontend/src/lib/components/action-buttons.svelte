@@ -65,7 +65,7 @@
 							result: await tryCatch(
 								type === 'container'
 									? environmentAPI.deleteContainer(id)
-									: environmentAPI.destroyStack(id, removeVolumes, removeFiles)
+									: environmentAPI.destroyProject(id, removeVolumes, removeFiles)
 							),
 							message: `Failed to ${type === 'stack' ? 'Destroy' : 'Remove'} ${type}`,
 							setLoadingState: (value) => (isLoading.remove = value),
@@ -80,7 +80,7 @@
 					}
 				},
 				checkboxes: [
-					{ id: 'removeFiles', label: 'Remove stack files', initialState: false },
+					{ id: 'removeFiles', label: 'Remove project files', initialState: false },
 					{
 						id: 'removeVolumes',
 						label: 'Remove volumes (Warning: Data will be lost)',
@@ -91,13 +91,13 @@
 		} else if (action === 'redeploy') {
 			openConfirmDialog({
 				title: `Confirm Redeploy`,
-				message: `Are you sure you want to redeploy this stack? This will STOP, PULL, and START the Stack.`,
+				message: `Are you sure you want to redeploy this stack? This will STOP, PULL, and START the Project.`,
 				confirm: {
 					label: 'Redeploy',
 					action: async () => {
 						isLoading.redeploy = true;
 						handleApiResultWithCallbacks({
-							result: await tryCatch(environmentAPI.redeployStack(id)),
+							result: await tryCatch(environmentAPI.redeployProject(id)),
 							message: `Failed to Redeploy ${type}`,
 							setLoadingState: (value) => (isLoading.redeploy = value),
 							onSuccess: async () => {
@@ -117,7 +117,7 @@
 		isLoading.start = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(
-				type === 'container' ? environmentAPI.startContainer(id) : environmentAPI.startStack(id)
+				type === 'container' ? environmentAPI.startContainer(id) : environmentAPI.startProject(id)
 			),
 			message: `Failed to Start ${type}`,
 			setLoadingState: (value) => (isLoading.start = value),
@@ -131,7 +131,7 @@
 	async function handleDeploy() {
 		isLoading.start = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(environmentAPI.startStack(id)),
+			result: await tryCatch(environmentAPI.startProject(id)),
 			message: `Failed to Start ${type}`,
 			setLoadingState: (value) => (isLoading.start = value),
 			onSuccess: async () => {
@@ -145,7 +145,7 @@
 		isLoading.stop = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(
-				type === 'container' ? environmentAPI.stopContainer(id) : environmentAPI.stopStack(id)
+				type === 'container' ? environmentAPI.stopContainer(id) : environmentAPI.stopProject(id)
 			),
 			message: `Failed to Stop ${type}`,
 			setLoadingState: (value) => (isLoading.stop = value),
@@ -160,7 +160,9 @@
 		isLoading.restart = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(
-				type === 'container' ? environmentAPI.restartContainer(id) : environmentAPI.restartStack(id)
+				type === 'container'
+					? environmentAPI.restartContainer(id)
+					: environmentAPI.restartProject(id)
 			),
 			message: `Failed to Restart ${type}`,
 			setLoadingState: (value) => (isLoading.restart = value),
@@ -177,7 +179,7 @@
 			result: await tryCatch(
 				type === 'container'
 					? environmentAPI.pullContainerImage(id)
-					: environmentAPI.pullStackImages(id)
+					: environmentAPI.pullProjectImages(id)
 			),
 			message: 'Failed to Pull Image(s)',
 			setLoadingState: (value) => (isLoading.pulling = value),

@@ -17,7 +17,7 @@
 	let isLoading = $state(false);
 
 	let dockerSettings = $state({
-		stacksDirectory: 'data/stacks',
+		stacksDirectory: 'data/projects',
 		pollingEnabled: true,
 		pollingInterval: '5'
 	});
@@ -68,11 +68,11 @@
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="space-y-2">
-					<Label for="stacks-directory">Stacks Directory</Label>
+					<Label for="project-directory">Project Directory</Label>
 					<Input
-						id="stacks-directory"
+						id="project-directory"
 						bind:value={dockerSettings.stacksDirectory}
-						placeholder="/opt/stacks"
+						placeholder="data/projects"
 					/>
 					<p class="text-xs text-muted-foreground">
 						Directory where Docker Compose files will be stored

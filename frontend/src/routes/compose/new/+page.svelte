@@ -32,18 +32,17 @@
 	let dockerRunCommand = $state('');
 
 	async function handleSubmit() {
-		await handleCreateStack();
+		await handleCreateProject();
 	}
 
-	async function handleCreateStack() {
+	async function handleCreateProject() {
 		handleApiResultWithCallbacks({
-			result: await tryCatch(environmentAPI.deployStack(name, composeContent, envContent)),
-			message: 'Failed to Create Stack',
+			result: await tryCatch(environmentAPI.deployProject(name, composeContent, envContent)),
+			message: 'Failed to Create Project',
 			setLoadingState: (value) => (saving = value),
-			onSuccess: async (stack) => {
-				toast.success(`Stack "${name}" created successfully.`);
-				await invalidateAll();
-				goto(`/compose/${stack.id}`);
+			onSuccess: async (project) => {
+				toast.success(`Project "${name}" created successfully.`);
+				goto(`/compose/${project.id}`, { invalidateAll: true });
 			}
 		});
 	}
@@ -108,7 +107,7 @@
 					</Button>
 					<div class="bg-border h-4 w-px"></div>
 					<div class="flex items-center gap-2">
-						<h1 class="text-lg font-semibold">Create New Compose Project</h1>
+						<h1 class="text-lg font-semibold">Create New Project</h1>
 					</div>
 				</div>
 				<div class="flex items-center gap-2">
@@ -186,7 +185,7 @@
 					/>
 					<ArcaneButton
 						action="create"
-						onClick={handleSubmit}
+						onClick={() => handleSubmit()}
 						loading={saving}
 						disabled={!name || !composeContent || saving || converting || isLoadingTemplateContent}
 					/>

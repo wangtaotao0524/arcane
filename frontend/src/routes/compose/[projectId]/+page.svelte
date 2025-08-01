@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Stack, StackService, StackPort } from '$lib/models/stack.type';
+	import type { Project, ProjectService, ProjectPort } from '$lib/types/project.type';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
@@ -22,7 +22,7 @@
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { statusVariantMap } from '$lib/types/statuses';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import CodeEditor from '$lib/components/editor.svelte';
 	import { tryCatch } from '$lib/utils/try-catch';
@@ -31,9 +31,10 @@
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import LogViewer from '$lib/components/LogViewer.svelte';
 	import { browser } from '$app/environment';
+	import FormInput from '$lib/components/form/form-input.svelte';
 
 	let { data }: { data: PageData } = $props();
-	let { stack, editorState, servicePorts, settings } = $derived(data);
+	let { project, editorState, servicePorts, settings } = $derived(data);
 
 	let isLoading = $state({
 		deploying: false,
@@ -67,7 +68,6 @@
 	let isStackLogsStreaming = $state(false);
 	let stackLogViewer = $state<LogViewer>();
 	let showFloatingHeader = $state(false);
-	let mainContainer = $state<HTMLElement>();
 
 	$effect(() => {
 		if (browser) {
@@ -89,19 +89,14 @@
 	});
 
 	async function handleSaveChanges() {
-		if (!stack || !hasChanges) return;
-
-		const currentStackId = stack.id;
+		if (!project || !hasChanges) return;
 
 		handleApiResultWithCallbacks({
-			result: await tryCatch(
-				environmentAPI.updateStack(currentStackId, composeContent, envContent)
-			),
-			message: 'Failed to Save Compose Project',
+			result: await tryCatch(environmentAPI.updateProject(project.id, composeContent, envContent)),
+			message: 'Failed to Save Project',
 			setLoadingState: (value) => (isLoading.saving = value),
-			onSuccess: async (updatedStack: Stack) => {
-				console.log('Compose Project save successful', updatedStack);
-				toast.success('Compose Project updated successfully!');
+			onSuccess: async (updatedStack: Project) => {
+				toast.success('Project updated successfully!');
 
 				originalName = updatedStack.name;
 				originalComposeContent = composeContent;
@@ -109,10 +104,7 @@
 
 				await new Promise((resolve) => setTimeout(resolve, 200));
 
-				if (updatedStack && updatedStack.id !== currentStackId) {
-					console.log(
-						`Stack ID changed from ${currentStackId} to ${updatedStack.id}. Navigating...`
-					);
+				if (updatedStack && updatedStack.id !== project.id) {
 					await invalidateAll();
 				} else {
 					await invalidateAll();
@@ -121,7 +113,7 @@
 		});
 	}
 
-	function getHostForService(service: StackService): string {
+	function getHostForService(service: ProjectService): string {
 		if (!service?.networkSettings?.Networks) return baseServerUrl;
 
 		const networks = service.networkSettings.Networks;
@@ -136,8 +128,8 @@
 	}
 
 	function getServicePortUrl(
-		service: StackService,
-		port: string | number | StackPort,
+		service: ProjectService,
+		port: string | number | ProjectPort,
 		protocol = 'http'
 	): string {
 		const host = getHostForService(service);
@@ -199,7 +191,7 @@
 </script>
 
 <div class="bg-background min-h-screen">
-	{#if stack}
+	{#if project}
 		<div
 			class="bg-background/95 sticky top-0 z-20 border-b backdrop-blur transition-all duration-300"
 			style="opacity: {showFloatingHeader ? 0 : 1}; pointer-events: {showFloatingHeader
@@ -215,22 +207,22 @@
 						</Button>
 						<div class="bg-border h-4 w-px"></div>
 						<div class="flex items-center gap-2">
-							<h1 class="max-w-[300px] truncate text-lg font-semibold" title={stack.name}>
-								{stack.name}
+							<h1 class="max-w-[300px] truncate text-lg font-semibold" title={project.name}>
+								{project.name}
 							</h1>
-							{#if stack.status}
+							{#if project.status}
 								<StatusBadge
-									variant={statusVariantMap[stack.status.toLowerCase()] || 'gray'}
-									text={capitalizeFirstLetter(stack.status)}
+									variant={statusVariantMap[project.status.toLowerCase()] || 'gray'}
+									text={capitalizeFirstLetter(project.status)}
 								/>
 							{/if}
 						</div>
 					</div>
 					<div class="flex items-center gap-2">
 						<ActionButtons
-							id={stack.id}
+							id={project.id}
 							type="stack"
-							itemState={stack.status}
+							itemState={project.status}
 							loading={{
 								start: isLoading.deploying,
 								stop: isLoading.stopping,
@@ -253,22 +245,22 @@
 				>
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
-							<h2 class="text-sm font-medium truncate max-w-[150px]" title={stack.name}>
-								{stack.name}
+							<h2 class="text-sm font-medium truncate max-w-[150px]" title={project.name}>
+								{project.name}
 							</h2>
-							{#if stack.status}
+							{#if project.status}
 								<StatusBadge
-									variant={statusVariantMap[stack.status.toLowerCase()] || 'gray'}
-									text={capitalizeFirstLetter(stack.status)}
+									variant={statusVariantMap[project.status.toLowerCase()] || 'gray'}
+									text={capitalizeFirstLetter(project.status)}
 									class="text-xs"
 								/>
 							{/if}
 						</div>
 						<div class="bg-border h-4 w-px"></div>
 						<ActionButtons
-							id={stack.id}
+							id={project.id}
 							type="stack"
-							itemState={stack.status}
+							itemState={project.status}
 							loading={{
 								start: isLoading.deploying,
 								stop: isLoading.stopping,
@@ -307,11 +299,11 @@
 								title={section.label}
 							>
 								<IconComponent class="size-4" />
-								{#if section.id === 'services' && stack.serviceCount}
+								{#if section.id === 'services' && project.serviceCount}
 									<span
 										class="bg-primary text-primary-foreground absolute -top-1 -right-1 rounded-full text-xs min-w-[18px] h-[18px] flex items-center justify-center px-1"
 									>
-										{stack.serviceCount}
+										{project.serviceCount}
 									</span>
 								{/if}
 							</button>
@@ -334,7 +326,7 @@
 									<Card.Content class="flex items-center justify-between p-6">
 										<div>
 											<p class="text-muted-foreground text-sm font-medium">Services</p>
-											<p class="text-2xl font-bold">{stack.serviceCount}</p>
+											<p class="text-2xl font-bold">{project.serviceCount}</p>
 										</div>
 										<div class="bg-primary/10 rounded-full p-3">
 											<Layers class="text-primary size-5" />
@@ -346,7 +338,7 @@
 									<Card.Content class="flex items-center justify-between p-6">
 										<div>
 											<p class="text-muted-foreground text-sm font-medium">Running</p>
-											<p class="text-2xl font-bold">{stack.runningCount}</p>
+											<p class="text-2xl font-bold">{project.runningCount}</p>
 										</div>
 										<div class="rounded-full bg-green-500/10 p-3">
 											<Activity class="size-5 text-green-500" />
@@ -359,7 +351,7 @@
 										<div>
 											<p class="text-muted-foreground text-sm font-medium">Created</p>
 											<p class="text-lg font-medium">
-												{new Date(stack.createdAt ?? '').toLocaleDateString()}
+												{new Date(project.createdAt ?? '').toLocaleDateString()}
 											</p>
 										</div>
 										<div class="rounded-full bg-blue-500/10 p-3">
@@ -383,7 +375,7 @@
 														(typeof port === 'object' && port !== null)
 															? port
 															: String(port)}
-													{@const serviceWithPort = stack.services?.find((s) =>
+													{@const serviceWithPort = project.services?.find((s) =>
 														s.ports?.includes(String(port))
 													) || { container_id: '', name: '', status: '' }}
 													<a
@@ -417,7 +409,7 @@
 													(typeof port === 'object' && port !== null)
 														? port
 														: String(port)}
-												{@const serviceWithPort = stack.services?.find((s) =>
+												{@const serviceWithPort = project.services?.find((s) =>
 													s.ports?.includes(String(port))
 												) || { container_id: '', name: '', status: '' }}
 												<a
@@ -439,13 +431,13 @@
 						<section id="services" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 								<Layers class="size-5" />
-								Services ({stack.serviceCount})
+								Services ({project.serviceCount})
 							</h2>
 
-							{#if stack.services && stack.services.length > 0}
+							{#if project.services && project.services.length > 0}
 								<div class="rounded-lg border bg-card">
 									<div class="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
-										{#each stack.services as service (service.container_id || service.name)}
+										{#each project.services as service (service.container_id || service.name)}
 											{@const status = service.status || 'unknown'}
 											{@const variant = statusVariantMap[status.toLowerCase()] || 'gray'}
 
@@ -512,7 +504,7 @@
 									>
 										<Layers class="text-muted-foreground size-6" />
 									</div>
-									<div class="text-muted-foreground">No services found for this stack</div>
+									<div class="text-muted-foreground">No services found for this project</div>
 								</div>
 							{/if}
 						</section>
@@ -537,7 +529,7 @@
 							</div>
 
 							<div class="mb-6 space-y-2">
-								<Label for="name" class="text-sm font-medium">Stack Name</Label>
+								<Label for="name" class="text-sm mb-10 font-medium">Project Name</Label>
 								<div class="max-w-md">
 									<Input
 										type="text"
@@ -545,13 +537,14 @@
 										name="name"
 										bind:value={name}
 										required
+										class="my-2"
 										disabled={isLoading.saving ||
-											stack?.status === 'running' ||
-											stack?.status === 'partially running'}
+											project?.status === 'running' ||
+											project?.status === 'partially running'}
 									/>
-									{#if stack?.status === 'running' || stack?.status === 'partially running'}
+									{#if project?.status === 'running' || project?.status === 'partially running'}
 										<p class="text-muted-foreground mt-2 text-sm">
-											Stack name cannot be changed while running. Please stop the stack first.
+											Project name cannot be changed while running. Please stop the project first.
 										</p>
 									{/if}
 								</div>
@@ -560,7 +553,7 @@
 							<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 min-w-0 overflow-hidden">
 								<div class="lg:col-span-2 min-w-0 overflow-hidden">
 									<div class="space-y-4">
-										<h3 class="text-lg font-semibold">Docker Compose File</h3>
+										<h3 class="text-lg">Compose File</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
 											<CodeEditor
 												bind:value={composeContent}
@@ -586,71 +579,73 @@
 							</div>
 						</section>
 
-						<section id="logs" class="scroll-mt-20">
-							<div class="mb-6 flex items-center justify-between">
-								<h2 class="flex items-center gap-2 text-xl font-semibold">
-									<Terminal class="size-5" />
-									Stack Logs
-								</h2>
-								<div class="flex items-center gap-3">
-									<label class="flex items-center gap-2">
-										<input type="checkbox" bind:checked={autoScrollStackLogs} class="size-4" />
-										Auto-scroll
-									</label>
-									<Button variant="outline" size="sm" onclick={() => stackLogViewer?.clearLogs()}
-										>Clear</Button
-									>
-									{#if isStackLogsStreaming}
-										<div class="flex items-center gap-2">
-											<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
-											<span class="text-sm font-medium text-green-600">Live</span>
-										</div>
+						{#if project.status == 'running'}
+							<section id="logs" class="scroll-mt-20">
+								<div class="mb-6 flex items-center justify-between">
+									<h2 class="flex items-center gap-2 text-xl font-semibold">
+										<Terminal class="size-5" />
+										Project Logs
+									</h2>
+									<div class="flex items-center gap-3">
+										<label class="flex items-center gap-2">
+											<input type="checkbox" bind:checked={autoScrollStackLogs} class="size-4" />
+											Auto-scroll
+										</label>
+										<Button variant="outline" size="sm" onclick={() => stackLogViewer?.clearLogs()}
+											>Clear</Button
+										>
+										{#if isStackLogsStreaming}
+											<div class="flex items-center gap-2">
+												<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
+												<span class="text-sm font-medium text-green-600">Live</span>
+											</div>
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={() => stackLogViewer?.stopLogStream()}>Stop</Button
+											>
+										{:else}
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={() => stackLogViewer?.startLogStream()}
+												disabled={!project?.id}>Start</Button
+											>
+										{/if}
 										<Button
 											variant="outline"
 											size="sm"
-											onclick={() => stackLogViewer?.stopLogStream()}>Stop</Button
+											onclick={() => {
+												stackLogViewer?.stopLogStream();
+												stackLogViewer?.startLogStream();
+											}}
 										>
-									{:else}
-										<Button
-											variant="outline"
-											size="sm"
-											onclick={() => stackLogViewer?.startLogStream()}
-											disabled={!stack?.id}>Start</Button
-										>
-									{/if}
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => {
-											stackLogViewer?.stopLogStream();
-											stackLogViewer?.startLogStream();
-										}}
-									>
-										<RefreshCw class="size-4" />
-									</Button>
-								</div>
-							</div>
-
-							<Card.Root class="border min-w-0 overflow-hidden">
-								<Card.Content class="p-0 min-w-0 overflow-hidden">
-									<div class="w-full min-w-0 overflow-hidden">
-										<LogViewer
-											bind:this={stackLogViewer}
-											bind:autoScroll={autoScrollStackLogs}
-											stackId={stack?.id}
-											type="stack"
-											maxLines={500}
-											showTimestamps={true}
-											height="600px"
-											onStart={handleStackLogStart}
-											onStop={handleStackLogStop}
-											onClear={handleStackLogClear}
-											onToggleAutoScroll={handleToggleStackAutoScroll}
-										/>
+											<RefreshCw class="size-4" />
+										</Button>
 									</div>
-								</Card.Content>
-							</Card.Root>
-						</section>
+								</div>
+
+								<Card.Root class="border min-w-0 overflow-hidden">
+									<Card.Content class="p-0 min-w-0 overflow-hidden">
+										<div class="w-full min-w-0 overflow-hidden">
+											<LogViewer
+												bind:this={stackLogViewer}
+												bind:autoScroll={autoScrollStackLogs}
+												stackId={project?.id}
+												type="stack"
+												maxLines={500}
+												showTimestamps={true}
+												height="600px"
+												onStart={handleStackLogStart}
+												onStop={handleStackLogStop}
+												onClear={handleStackLogClear}
+												onToggleAutoScroll={handleToggleStackAutoScroll}
+											/>
+										</div>
+									</Card.Content>
+								</Card.Root>
+							</section>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -661,14 +656,14 @@
 				<div class="bg-muted/50 mb-6 inline-flex rounded-full p-6">
 					<FileStack class="text-muted-foreground size-10" />
 				</div>
-				<h2 class="mb-3 text-2xl font-medium">Stack Not Found</h2>
+				<h2 class="mb-3 text-2xl font-medium">Project Not Found</h2>
 				<p class="text-muted-foreground mb-8 max-w-md text-center">
-					Could not load stack data. It may have been removed or the Docker engine is not
+					Could not load Project data. It may have been removed or the Docker engine is not
 					accessible.
 				</p>
 				<Button variant="outline" href="/compose">
 					<ArrowLeft class="mr-2 size-4" />
-					Back to Stacks
+					Back to Projects
 				</Button>
 			</div>
 		</div>

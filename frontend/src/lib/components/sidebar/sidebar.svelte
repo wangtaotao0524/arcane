@@ -1,62 +1,5 @@
 <script lang="ts" module>
-	import {
-		FileStack,
-		HardDrive,
-		Home,
-		Network,
-		Container,
-		ImageIcon,
-		SettingsIcon,
-		DatabaseIcon,
-		LayoutTemplate,
-		UserIcon,
-		Shield,
-		ComputerIcon,
-		LockKeyholeIcon
-	} from '@lucide/svelte';
-
-	const staticData = {
-		settingsItems: [
-			{
-				title: 'Settings',
-				url: '/settings',
-				icon: SettingsIcon,
-				items: [
-					{ title: 'General', url: '/settings/general', icon: SettingsIcon },
-					{ title: 'Docker', url: '/settings/docker', icon: DatabaseIcon },
-					{ title: 'Users', url: '/settings/users', icon: UserIcon },
-					{ title: 'Security', url: '/settings/security', icon: Shield }
-				]
-			}
-		],
-		customizationItems: [
-			{
-				title: 'Templates',
-				url: '/customize/templates',
-				icon: LayoutTemplate
-			},
-			{
-				title: 'Container Registries',
-				url: '/customize/registries',
-				icon: LockKeyholeIcon
-			}
-		],
-		environmentItems: [
-			{
-				title: 'Environments',
-				url: '/environments',
-				icon: ComputerIcon
-			}
-		],
-		managementItems: [
-			{ title: 'Dashboard', url: '/dashboard', icon: Home },
-			{ title: 'Containers', url: '/containers', icon: Container },
-			{ title: 'Compose Projects', url: '/compose', icon: FileStack },
-			{ title: 'Images', url: '/images', icon: ImageIcon },
-			{ title: 'Networks', url: '/networks', icon: Network },
-			{ title: 'Volumes', url: '/volumes', icon: HardDrive }
-		]
-	};
+	import { sidebarItems } from '$lib/config/sidebar-config';
 </script>
 
 <script lang="ts">
@@ -93,10 +36,10 @@
 		<SidebarEnvSwitcher />
 	</Sidebar.Header>
 	<Sidebar.Content>
-		<SidebarItemGroup label="Management" items={staticData.managementItems} />
-		<SidebarItemGroup label="Customization" items={staticData.customizationItems} />
-		<SidebarItemGroup label="Environments" items={staticData.environmentItems} />
-		<SidebarItemGroup label="Administration" items={staticData.settingsItems} />
+		<SidebarItemGroup label="Management" items={sidebarItems.managementItems} />
+		<SidebarItemGroup label="Customization" items={sidebarItems.customizationItems} />
+		<SidebarItemGroup label="Environments" items={sidebarItems.environmentItems} />
+		<SidebarItemGroup label="Administration" items={sidebarItems.settingsItems} />
 	</Sidebar.Content>
 	<Sidebar.Footer>
 		<SidebarUpdatebanner
