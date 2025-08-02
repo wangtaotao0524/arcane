@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
@@ -67,7 +68,12 @@ func (h *StackHandler) CreateStack(c *gin.Context) {
 		return
 	}
 
-	stack, err := h.stackService.CreateStack(c.Request.Context(), req.Name, req.ComposeContent, req.EnvContent)
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	stack, err := h.stackService.CreateStack(c.Request.Context(), req.Name, req.ComposeContent, req.EnvContent, *currentUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -254,7 +260,12 @@ func (h *StackHandler) DeleteStack(c *gin.Context) {
 		stackID = c.Param("id")
 	}
 
-	err := h.stackService.DeleteStack(c.Request.Context(), stackID)
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	err := h.stackService.DeleteStack(c.Request.Context(), stackID, *currentUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -283,7 +294,12 @@ func (h *StackHandler) StartStack(c *gin.Context) {
 		return
 	}
 
-	if err := h.stackService.DeployStack(c.Request.Context(), stackID); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.DeployStack(c.Request.Context(), stackID, *currentUser); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -303,7 +319,12 @@ func (h *StackHandler) StopStack(c *gin.Context) {
 		stackID = c.Param("id")
 	}
 
-	if err := h.stackService.StopStack(c.Request.Context(), stackID); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.StopStack(c.Request.Context(), stackID, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to stop stack",
@@ -323,7 +344,12 @@ func (h *StackHandler) RestartStack(c *gin.Context) {
 		stackID = c.Param("id")
 	}
 
-	if err := h.stackService.RestartStack(c.Request.Context(), stackID); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.RestartStack(c.Request.Context(), stackID, *currentUser); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -351,7 +377,12 @@ func (h *StackHandler) RedeployStack(c *gin.Context) {
 		}
 	}
 
-	if err := h.stackService.RedeployStack(c.Request.Context(), stackID, req.Profiles, req.EnvOverrides); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.RedeployStack(c.Request.Context(), stackID, req.Profiles, req.EnvOverrides, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   fmt.Sprintf("Failed to redeploy stack: %v", err),
@@ -371,7 +402,12 @@ func (h *StackHandler) DownStack(c *gin.Context) {
 		stackID = c.Param("id")
 	}
 
-	if err := h.stackService.DownStack(c.Request.Context(), stackID); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.DownStack(c.Request.Context(), stackID, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   fmt.Sprintf("Failed to bring down stack: %v", err),
@@ -399,7 +435,12 @@ func (h *StackHandler) DestroyStack(c *gin.Context) {
 		}
 	}
 
-	if err := h.stackService.DestroyStack(c.Request.Context(), stackID, req.RemoveFiles, req.RemoveVolumes); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.DestroyStack(c.Request.Context(), stackID, req.RemoveFiles, req.RemoveVolumes, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   fmt.Sprintf("Failed to destroy stack: %v", err),
@@ -443,7 +484,12 @@ func (h *StackHandler) DeployStack(c *gin.Context) {
 		return
 	}
 
-	if err := h.stackService.DeployStack(c.Request.Context(), stackID); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.stackService.DeployStack(c.Request.Context(), stackID, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   err.Error(),

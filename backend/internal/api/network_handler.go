@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/network"
 	"github.com/gin-gonic/gin"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -121,7 +122,12 @@ func (h *NetworkHandler) Create(c *gin.Context) {
 		return
 	}
 
-	response, err := h.networkService.CreateNetwork(c.Request.Context(), req.Name, req.Options)
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	response, err := h.networkService.CreateNetwork(c.Request.Context(), req.Name, req.Options, *currentUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -139,7 +145,12 @@ func (h *NetworkHandler) Create(c *gin.Context) {
 func (h *NetworkHandler) Remove(c *gin.Context) {
 	id := c.Param("networkId")
 
-	if err := h.networkService.RemoveNetwork(c.Request.Context(), id); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.networkService.RemoveNetwork(c.Request.Context(), id, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -169,7 +180,12 @@ func (h *NetworkHandler) ConnectContainer(c *gin.Context) {
 		return
 	}
 
-	if err := h.networkService.ConnectContainer(c.Request.Context(), networkID, req.ContainerID, req.Config); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.networkService.ConnectContainer(c.Request.Context(), networkID, req.ContainerID, req.Config, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -199,7 +215,12 @@ func (h *NetworkHandler) DisconnectContainer(c *gin.Context) {
 		return
 	}
 
-	if err := h.networkService.DisconnectContainer(c.Request.Context(), networkID, req.ContainerID, req.Force); err != nil {
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	if err := h.networkService.DisconnectContainer(c.Request.Context(), networkID, req.ContainerID, req.Force, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   err.Error(),
