@@ -69,7 +69,7 @@ test.describe('Network Management Page', () => {
     await expect(firstCheckbox).toBeVisible();
     await firstCheckbox.click();
     await expect(firstCheckbox).toBeChecked();
-    const actionsButton = page.getByRole('button', { name: /Delete Selected/i });
+    const actionsButton = page.getByRole('button', { name: /Remove Selected/i });
     await actionsButton.waitFor({ state: 'visible', timeout: 5000 });
     await expect(actionsButton).toBeVisible();
   });
