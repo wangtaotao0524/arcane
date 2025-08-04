@@ -8,7 +8,7 @@ import { redirect } from '@sveltejs/kit';
 
 export const ssr = false;
 
-export const load = async ({ url }) => {
+export const load = async () => {
 	const updateCheckDisabled = env.PUBLIC_UPDATE_CHECK_DISABLED === 'true';
 
 	let arcaneSettings = await tryCatch(settingsAPI.getSettings());
@@ -31,10 +31,6 @@ export const load = async ({ url }) => {
 		versionInformation = { currentVersion: versionService.getCurrentVersion() };
 	} else {
 		versionInformation = await versionService.getVersionInformation();
-	}
-
-	if (url.pathname === '/') {
-		throw redirect(307, '/dashboard');
 	}
 
 	return {
