@@ -373,6 +373,8 @@ func (s *EventService) generateEventTitle(eventType models.EventType, resourceNa
 		return fmt.Sprintf("Container created: %s", resourceName)
 	case models.EventTypeContainerScan:
 		return fmt.Sprintf("Container scanned: %s", resourceName)
+	case models.EventTypeContainerUpdate:
+		return fmt.Sprintf("Container updated: %s", resourceName)
 	case models.EventTypeImagePull:
 		return fmt.Sprintf("Image pulled: %s", resourceName)
 	case models.EventTypeImageDelete:
@@ -387,12 +389,10 @@ func (s *EventService) generateEventTitle(eventType models.EventType, resourceNa
 		return fmt.Sprintf("Stack started: %s", resourceName)
 	case models.EventTypeStackStop:
 		return fmt.Sprintf("Stack stopped: %s", resourceName)
-	case models.EventTypeUserLogin:
-		return fmt.Sprintf("User logged in: %s", resourceName)
-	case models.EventTypeUserLogout:
-		return fmt.Sprintf("User logged out: %s", resourceName)
-	case models.EventTypeSystemPrune:
-		return "System prune completed"
+	case models.EventTypeStackCreate:
+		return fmt.Sprintf("Stack created: %s", resourceName)
+	case models.EventTypeStackUpdate:
+		return fmt.Sprintf("Stack updated: %s", resourceName)
 	case models.EventTypeVolumeCreate:
 		return fmt.Sprintf("Volume created: %s", resourceName)
 	case models.EventTypeVolumeDelete:
@@ -401,6 +401,14 @@ func (s *EventService) generateEventTitle(eventType models.EventType, resourceNa
 		return fmt.Sprintf("Network created: %s", resourceName)
 	case models.EventTypeNetworkDelete:
 		return fmt.Sprintf("Network deleted: %s", resourceName)
+	case models.EventTypeSystemPrune:
+		return "System prune completed"
+	case models.EventTypeSystemAutoUpdate:
+		return "System auto-update completed"
+	case models.EventTypeUserLogin:
+		return fmt.Sprintf("User logged in: %s", resourceName)
+	case models.EventTypeUserLogout:
+		return fmt.Sprintf("User logged out: %s", resourceName)
 	default:
 		return fmt.Sprintf("Event: %s", string(eventType))
 	}
@@ -410,10 +418,50 @@ func (s *EventService) generateEventDescription(eventType models.EventType, reso
 	switch eventType {
 	case models.EventTypeContainerScan, models.EventTypeImageScan:
 		return fmt.Sprintf("Security scan completed for %s '%s'", resourceType, resourceName)
-	case models.EventTypeVolumeCreate, models.EventTypeVolumeDelete:
-		return fmt.Sprintf("%s operation performed on %s '%s'", string(eventType), resourceType, resourceName)
-	case models.EventTypeNetworkCreate, models.EventTypeNetworkDelete:
-		return fmt.Sprintf("%s operation performed on %s '%s'", string(eventType), resourceType, resourceName)
+	case models.EventTypeContainerStart:
+		return fmt.Sprintf("Container '%s' has been started", resourceName)
+	case models.EventTypeContainerStop:
+		return fmt.Sprintf("Container '%s' has been stopped", resourceName)
+	case models.EventTypeContainerRestart:
+		return fmt.Sprintf("Container '%s' has been restarted", resourceName)
+	case models.EventTypeContainerDelete:
+		return fmt.Sprintf("Container '%s' has been deleted", resourceName)
+	case models.EventTypeContainerCreate:
+		return fmt.Sprintf("Container '%s' has been created", resourceName)
+	case models.EventTypeContainerUpdate:
+		return fmt.Sprintf("Container '%s' has been updated", resourceName)
+	case models.EventTypeImagePull:
+		return fmt.Sprintf("Image '%s' has been pulled", resourceName)
+	case models.EventTypeImageDelete:
+		return fmt.Sprintf("Image '%s' has been deleted", resourceName)
+	case models.EventTypeStackDeploy:
+		return fmt.Sprintf("Stack '%s' has been deployed", resourceName)
+	case models.EventTypeStackDelete:
+		return fmt.Sprintf("Stack '%s' has been deleted", resourceName)
+	case models.EventTypeStackStart:
+		return fmt.Sprintf("Stack '%s' has been started", resourceName)
+	case models.EventTypeStackStop:
+		return fmt.Sprintf("Stack '%s' has been stopped", resourceName)
+	case models.EventTypeStackCreate:
+		return fmt.Sprintf("Stack '%s' has been created", resourceName)
+	case models.EventTypeStackUpdate:
+		return fmt.Sprintf("Stack '%s' has been updated", resourceName)
+	case models.EventTypeVolumeCreate:
+		return fmt.Sprintf("Volume '%s' has been created", resourceName)
+	case models.EventTypeVolumeDelete:
+		return fmt.Sprintf("Volume '%s' has been deleted", resourceName)
+	case models.EventTypeNetworkCreate:
+		return fmt.Sprintf("Network '%s' has been created", resourceName)
+	case models.EventTypeNetworkDelete:
+		return fmt.Sprintf("Network '%s' has been deleted", resourceName)
+	case models.EventTypeSystemPrune:
+		return "System resources have been pruned"
+	case models.EventTypeSystemAutoUpdate:
+		return "System auto-update process has completed"
+	case models.EventTypeUserLogin:
+		return fmt.Sprintf("User '%s' has logged in", resourceName)
+	case models.EventTypeUserLogout:
+		return fmt.Sprintf("User '%s' has logged out", resourceName)
 	default:
 		return fmt.Sprintf("%s operation performed on %s '%s'", string(eventType), resourceType, resourceName)
 	}
@@ -423,9 +471,9 @@ func (s *EventService) getEventSeverity(eventType models.EventType) models.Event
 	switch eventType {
 	case models.EventTypeContainerDelete, models.EventTypeImageDelete, models.EventTypeStackDelete, models.EventTypeVolumeDelete, models.EventTypeNetworkDelete:
 		return models.EventSeverityWarning
-	case models.EventTypeContainerStart, models.EventTypeContainerCreate, models.EventTypeImagePull, models.EventTypeStackDeploy, models.EventTypeVolumeCreate, models.EventTypeNetworkCreate:
+	case models.EventTypeContainerStart, models.EventTypeContainerCreate, models.EventTypeImagePull, models.EventTypeStackDeploy, models.EventTypeStackStart, models.EventTypeStackCreate, models.EventTypeVolumeCreate, models.EventTypeNetworkCreate:
 		return models.EventSeveritySuccess
-	case models.EventTypeUserLogin, models.EventTypeUserLogout:
+	case models.EventTypeContainerStop, models.EventTypeContainerRestart, models.EventTypeContainerScan, models.EventTypeContainerUpdate, models.EventTypeImageScan, models.EventTypeStackStop, models.EventTypeStackUpdate, models.EventTypeSystemPrune, models.EventTypeSystemAutoUpdate, models.EventTypeUserLogin, models.EventTypeUserLogout:
 		return models.EventSeverityInfo
 	default:
 		return models.EventSeverityInfo
