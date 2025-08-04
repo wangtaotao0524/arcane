@@ -167,7 +167,7 @@
 							onClick={handleDeleteSelectedNetworks}
 							loading={isLoading.remove}
 							disabled={isLoading.remove}
-							label="Delete Selected"
+							label="Remove Selected"
 						/>
 					{/if}
 					<ArcaneButton action="create" label="Create Network" onClick={onCreateNetwork} />

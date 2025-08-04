@@ -179,6 +179,7 @@
 							onClick={handleDeleteSelected}
 							loading={isLoading.removing}
 							disabled={isLoading.removing}
+							label="Remove Selected"
 						/>
 					{/if}
 				</div>
