@@ -2,16 +2,7 @@
 	import type { EnhancedImageInfo } from '$lib/models/image.type';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import {
-		Download,
-		HardDrive,
-		Trash2,
-		Loader2,
-		ChevronDown,
-		Ellipsis,
-		ScanSearch,
-		Funnel
-	} from '@lucide/svelte';
+	import { Download, HardDrive, Trash2, Loader2, Ellipsis, ScanSearch } from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -272,6 +263,7 @@
 							onClick={() => handleDeleteSelected()}
 							loading={isLoading.removing}
 							disabled={isLoading.removing}
+							label="Remove Selected"
 						/>
 					{/if}
 					<ArcaneButton action="pull" label="Pull Image" onClick={onPullDialogOpen} />

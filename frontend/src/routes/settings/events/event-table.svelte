@@ -16,6 +16,7 @@
 	import { eventAPI } from '$lib/services/api';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { Event } from '$lib/types/event.type';
+	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 
 	let {
 		events,
@@ -177,7 +178,10 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell>
-						<StatusBadge text={item.severity} variant={getSeverityBadgeVariant(item.severity)} />
+						<StatusBadge
+							text={capitalizeFirstLetter(item.severity)}
+							variant={getSeverityBadgeVariant(item.severity)}
+						/>
 					</Table.Cell>
 					<Table.Cell>
 						<Badge variant="outline">{item.type}</Badge>
@@ -194,7 +198,13 @@
 							-
 						{/if}
 					</Table.Cell>
-					<Table.Cell>{item.username || '-'}</Table.Cell>
+					<Table.Cell>
+						{#if item.username === 'System'}
+							<span class="text-red-500/50">{item.username || '-'}</span>
+						{:else}
+							{item.username || '-'}
+						{/if}
+					</Table.Cell>
 					<Table.Cell>
 						<span class="text-sm">{formatTimestamp(item.timestamp)}</span>
 					</Table.Cell>

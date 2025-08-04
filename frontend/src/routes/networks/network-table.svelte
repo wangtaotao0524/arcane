@@ -16,7 +16,6 @@
 	import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
 	import * as Table from '$lib/components/ui/table';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
-	import { formatFriendlyDate } from '$lib/utils/date.utils';
 
 	interface NetworkWithId extends NetworkSummary {
 		id: string;
