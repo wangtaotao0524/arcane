@@ -44,14 +44,14 @@
 	});
 </script>
 
-<Card.Root class="relative flex flex-col border shadow-sm">
-	<Card.Header class="px-6">
+<Card.Root class="relative flex flex-col rounded-lg border shadow-sm">
+	<Card.Header class="px-6 pb-3 pt-5">
 		<div class="flex items-center justify-between">
 			<div>
 				<Card.Title>
 					<a class="font-medium hover:underline" href="/containers">Containers</a>
 				</Card.Title>
-				<Card.Description class="pb-3">Recent containers</Card.Description>
+				<Card.Description class="pb-2">Recent containers</Card.Description>
 			</div>
 			<Button variant="ghost" size="sm" href="/containers" disabled={isLoading}>
 				View All
@@ -86,19 +86,19 @@
 					noResultsMessage="No containers found"
 				>
 					{#snippet rows({ item })}
-						{@const stateVariant = statusVariantMap[item.State?.toLowerCase()] || 'red'}
-						<Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">
 							<a class="font-medium hover:underline" href="/containers/{item.Id}/">
 								{getContainerDisplayName(item)}
 							</a>
 						</Table.Cell>
-						<Table.Cell title={item.Image}>
+						<Table.Cell class="py-3 md:py-3.5" title={item.Image}>
 							{truncateString(item.Image, 40)}
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">
+							{@const stateVariant = statusVariantMap[item.State?.toLowerCase()] || 'red'}
 							<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.State)} />
 						</Table.Cell>
-						<Table.Cell>{item.Status}</Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">{item.Status}</Table.Cell>
 					{/snippet}
 				</ArcaneTable>
 				{#if containers.length > 5}

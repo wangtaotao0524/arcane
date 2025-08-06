@@ -364,10 +364,11 @@
 </script>
 
 <div class="space-y-8">
-	<div class="flex items-center justify-between">
-		<div>
+	<!-- Header -->
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+		<div class="space-y-1">
 			<h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
-			<p class="text-muted-foreground mt-1 text-sm">Overview of your Container Environment</p>
+			<p class="text-muted-foreground max-w-2xl text-sm">Overview of your Container Environment</p>
 		</div>
 		<Button
 			variant="outline"
@@ -399,15 +400,16 @@
 		</Alert.Root>
 	{/if}
 
+	<!-- Quick Actions -->
 	<section>
-		<h2 class="mb-4 text-lg font-semibold tracking-tight">Quick Actions</h2>
+		<h2 class="mb-3 text-lg font-semibold tracking-tight">Quick Actions</h2>
 		{#if isLoading.loadingDockerInfo}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				{#each Array(3) as _}
 					<div class="bg-card flex items-center rounded-lg border p-3">
 						<div class="bg-muted mr-3 size-6 animate-pulse rounded-full"></div>
 						<div class="flex-1">
-							<div class="bg-muted h-3 w-16 animate-pulse rounded mb-1"></div>
+							<div class="bg-muted mb-1 h-3 w-16 animate-pulse rounded"></div>
 							<div class="bg-muted h-2 w-12 animate-pulse rounded"></div>
 						</div>
 					</div>
@@ -416,7 +418,7 @@
 		{:else}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<button
-					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
+					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dashboardStates.dockerInfo ||
 						stoppedContainers === 0 ||
 						isLoading.starting ||
@@ -440,7 +442,7 @@
 				</button>
 
 				<button
-					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
+					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dashboardStates.dockerInfo ||
 						runningContainers === 0 ||
 						isLoading.starting ||
@@ -464,7 +466,7 @@
 				</button>
 
 				<button
-					class="group bg-card hover:border-destructive/50 disabled:hover:border-border flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-sm"
+					class="group bg-card hover:border-destructive/50 disabled:hover:border-border flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dashboardStates.dockerInfo ||
 						isLoading.starting ||
 						isLoading.stopping ||
@@ -489,6 +491,7 @@
 		{/if}
 	</section>
 
+	<!-- System Overview -->
 	<section>
 		<DropdownCard
 			id="system-overview"
@@ -554,7 +557,7 @@
 
 			<!-- Always show these cards but with loading states -->
 			<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-				<Card.Root>
+				<Card.Root class="rounded-lg border shadow-sm">
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-blue-500/10 p-2">
@@ -582,7 +585,7 @@
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root>
+				<Card.Root class="rounded-lg border shadow-sm">
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-green-500/10 p-2">
@@ -610,7 +613,7 @@
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root>
+				<Card.Root class="rounded-lg border shadow-sm">
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-purple-500/10 p-2">
@@ -641,6 +644,7 @@
 		</DropdownCard>
 	</section>
 
+	<!-- Resources -->
 	<section>
 		<h2 class="mb-4 text-lg font-semibold tracking-tight">Resources</h2>
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

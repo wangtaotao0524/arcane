@@ -48,14 +48,14 @@
 	});
 </script>
 
-<Card.Root class="relative flex flex-col border shadow-sm">
-	<Card.Header class="px-6">
+<Card.Root class="relative flex flex-col rounded-lg border shadow-sm">
+	<Card.Header class="px-6 pb-3 pt-5">
 		<div class="flex items-center justify-between">
 			<div>
 				<Card.Title>
 					<a class="font-medium hover:underline" href="/images">Images</a>
 				</Card.Title>
-				<Card.Description class="pb-3">Top 5 Largest Images</Card.Description>
+				<Card.Description class="pb-2">Top 5 Largest Images</Card.Description>
 			</div>
 			<Button variant="ghost" size="sm" href="/images" disabled={isLoading}>
 				View All
@@ -90,7 +90,7 @@
 					noResultsMessage="No images found"
 				>
 					{#snippet rows({ item })}
-						<Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">
 							<div class="flex items-center gap-2">
 								<div class="flex flex-1 items-center">
 									<a class="shrink truncate font-medium hover:underline" href="/images/{item.Id}/">
@@ -103,21 +103,21 @@
 								</div>
 							</div>
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">
 							{#if item.InUse}
 								<StatusBadge text="In Use" variant="green" />
 							{:else}
 								<StatusBadge text="Unused" variant="amber" />
 							{/if}
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">
 							{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
 								{item.RepoTags[0].split(':')[1] || 'latest'}
 							{:else}
 								<span class="text-muted-foreground italic">&lt;none&gt;</span>
 							{/if}
 						</Table.Cell>
-						<Table.Cell>{formatBytes(item.Size || 0)}</Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">{formatBytes(item.Size || 0)}</Table.Cell>
 					{/snippet}
 				</ArcaneTable>
 				{#if images.length > 5}
