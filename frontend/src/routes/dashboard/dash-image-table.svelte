@@ -16,11 +16,13 @@
 	let {
 		images,
 		isLoading,
-		onRefresh
+		onRefresh,
+		total = images.length
 	}: {
 		images: EnhancedImageInfo[];
 		isLoading: boolean;
 		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<ImageWithId>>;
+		total?: number;
 	} = $props();
 
 	let requestOptions = $state<SearchPaginationSortRequest>({
@@ -122,7 +124,7 @@
 				</ArcaneTable>
 				{#if images.length > 5}
 					<div class="bg-muted/40 text-muted-foreground border-t px-6 py-2 text-xs">
-						Showing 5 of {images.length} images
+						Showing 5 of {total} images
 					</div>
 				{/if}
 			</div>

@@ -70,18 +70,26 @@
 		containers: [] as Array<{ date: Date; value: number }>
 	});
 
+	const dockerInfoRef = $derived(dashboardStates.dockerInfo);
+	const totalContainers = $derived(
+		dockerInfoRef?.containers ?? dashboardStates.containers?.length ?? 0
+	);
 	const runningContainers = $derived(
-		dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'running').length ?? 0
+		dockerInfoRef?.containersRunning ??
+			(dashboardStates.containers
+				? dashboardStates.containers.filter((c: ContainerInfo) => c.State === 'running').length
+				: 0)
 	);
-
 	const stoppedContainers = $derived(
-		dashboardStates.containers?.filter((c: ContainerInfo) => c.State === 'exited').length ?? 0
+		dockerInfoRef?.containersStopped ??
+			(dashboardStates.containers
+				? dashboardStates.containers.filter((c: ContainerInfo) => c.State !== 'running').length
+				: 0)
 	);
-
 	const totalImageSize = $derived(
 		dashboardStates.images?.reduce((sum, image) => sum + (image.Size || 0), 0) ?? 0
 	);
-
+	const totalImages = $derived(dockerInfoRef?.images ?? dashboardStates.images?.length ?? 0);
 	const currentStats = $derived(dashboardStates.systemStats || liveSystemStats);
 
 	function addToHistoricalData(stats: SystemStats) {
@@ -604,8 +612,7 @@
 								{:else}
 									<p class="text-sm font-medium">Total Containers</p>
 									<p class="text-xs text-muted-foreground">
-										{dashboardStates.containers?.length || 0} total •
-										{stoppedContainers} stopped
+										{totalContainers} total • {stoppedContainers} stopped
 									</p>
 								{/if}
 							</div>
@@ -653,12 +660,14 @@
 				isLoading={isLoading.loadingContainers}
 				onRefresh={onContainerRefresh}
 				{getContainerDisplayName}
+				total={totalContainers}
 			/>
 
 			<DashboardImageTable
 				images={dashboardStates.images}
 				isLoading={isLoading.loadingImages}
 				onRefresh={onImageRefresh}
+				total={totalImages}
 			/>
 		</div>
 	</section>

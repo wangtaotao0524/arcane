@@ -18,12 +18,14 @@
 		containers,
 		isLoading,
 		onRefresh,
-		getContainerDisplayName
+		getContainerDisplayName,
+		total = containers.length
 	}: {
 		containers: ContainerInfo[];
 		isLoading: boolean;
 		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<ContainerWithId>>;
 		getContainerDisplayName: (container: ContainerInfo) => string;
+		total?: number;
 	} = $props();
 
 	let requestOptions = $state<SearchPaginationSortRequest>({
@@ -103,7 +105,7 @@
 				</ArcaneTable>
 				{#if containers.length > 5}
 					<div class="bg-muted/40 text-muted-foreground border-t px-6 py-2 text-xs">
-						Showing 5 of {containers.length} containers
+						Showing 5 of {total} containers
 					</div>
 				{/if}
 			</div>
