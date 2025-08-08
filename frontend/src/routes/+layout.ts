@@ -4,7 +4,6 @@ import { settingsAPI, userAPI, environmentManagementAPI } from '$lib/services/ap
 import { environmentStore } from '$lib/stores/environment.store';
 import { versionService } from '$lib/services/app-version-service';
 import { tryCatch } from '$lib/utils/try-catch';
-import { redirect } from '@sveltejs/kit';
 
 export const ssr = false;
 

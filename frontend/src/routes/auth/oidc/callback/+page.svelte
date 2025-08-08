@@ -17,10 +17,9 @@
 			const errorParam = page.url.searchParams.get('error');
 			const errorDescription = page.url.searchParams.get('error_description');
 
-			const finalRedirectTo = localStorage.getItem('oidc_redirect') || '/dashboard';
+			const redirectTo = localStorage.getItem('oidc_redirect') || '/dashboard';
 			localStorage.removeItem('oidc_redirect');
 
-			// Handle OIDC provider errors
 			if (errorParam) {
 				let userMessage = 'Authentication was cancelled or failed.';
 				if (errorParam === 'access_denied') {
@@ -77,7 +76,7 @@
 				userStore.setUser(user);
 				await invalidateAll();
 				toast.success('Successfully logged in!');
-				goto(finalRedirectTo);
+				goto(redirectTo);
 			} else {
 				error = 'Authentication succeeded but user information is missing.';
 				setTimeout(() => goto('/auth/login?error=oidc_user_info_missing'), 3000);

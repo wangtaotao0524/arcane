@@ -9,9 +9,8 @@
 
 	onMount(async () => {
 		try {
-			const redirectParam = page.url.searchParams.get('redirect') || '/dashboard';
+			const redirect = page.url.searchParams.get('redirect') || '/dashboard';
 
-			// Check if OIDC is properly configured first
 			const status = await oidcAPI.getStatus();
 			if (!status.dbEnabled || !status.dbConfigured) {
 				error =
@@ -21,7 +20,7 @@
 				return;
 			}
 
-			const authUrl = await oidcAPI.getAuthUrl(redirectParam);
+			const authUrl = await oidcAPI.getAuthUrl(redirect);
 			if (!authUrl) {
 				error =
 					'Unable to generate authentication URL. Please try again or contact your administrator.';
@@ -30,12 +29,11 @@
 				return;
 			}
 
-			localStorage.setItem('oidc_redirect', redirectParam);
+			localStorage.setItem('oidc_redirect', redirect);
 			window.location.href = authUrl;
 		} catch (err: any) {
 			console.error('OIDC login initiation error:', err);
 
-			// Parse the error message to provide better user feedback
 			let userMessage = 'Failed to initiate OIDC login. Please try again.';
 			if (err.message?.includes('discovery')) {
 				userMessage = 'OIDC provider configuration error. Please contact your administrator.';
