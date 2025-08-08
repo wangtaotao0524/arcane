@@ -10,6 +10,7 @@
 	import userStore from '$lib/stores/user-store';
 	import settingsStore from '$lib/stores/config-store';
 	import { getAuthRedirectPath } from '$lib/utils/redirect.util';
+	import LoadingIndicator from '$lib/components/loading-indicator.svelte';
 
 	let { children, data } = $props();
 
@@ -63,13 +64,7 @@
 	}}
 />
 <ConfirmDialog />
-
-<!-- Loading Indicator -->
-{#if isNavigating}
-	<div class="fixed top-0 right-0 left-0 z-50 h-2">
-		<div class="bg-primary h-full animate-pulse"></div>
-	</div>
-{/if}
+<LoadingIndicator active={isNavigating} thickness="h-1.5" />
 
 <div class="bg-background min-h-screen">
 	{#if currentUser && !isOnboardingPage && !isLoginPage}
