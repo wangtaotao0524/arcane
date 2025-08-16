@@ -480,9 +480,7 @@ func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.Sorted
 		return cachedData, pagination, nil
 	}
 
-	// Fallback to database query with filesystem sync
 	if err := s.SyncAllStacksFromFilesystem(ctx); err != nil {
-		// Log warning but continue with database query
 		fmt.Printf("Warning: failed to sync with filesystem: %v\n", err)
 	}
 
@@ -507,10 +505,11 @@ func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.Sorted
 
 processResult:
 	// Update cache in background with separate context
-	go func() {
-		bgCtx := context.Background()
-		s.updateProjectCache(bgCtx, stacks)
-	}()
+	go func(ctx context.Context) {
+		// Detach cancellation but preserve values
+		detached := context.WithoutCancel(ctx)
+		s.updateProjectCache(detached, stacks)
+	}(ctx)
 
 	// Convert to response format
 	var result []map[string]interface{}
@@ -525,9 +524,6 @@ processResult:
 			"createdAt":    stack.CreatedAt,
 			"updatedAt":    stack.UpdatedAt,
 			"autoUpdate":   stack.AutoUpdate,
-			"isExternal":   stack.IsExternal,
-			"isLegacy":     stack.IsLegacy,
-			"isRemote":     stack.IsRemote,
 		}
 		result = append(result, stackData)
 	}
@@ -535,7 +531,6 @@ processResult:
 	return result, pagination, nil
 }
 
-// GetAllStacksWithDiscovery returns both tracked and untracked stacks
 func (s *StackService) GetAllStacksWithDiscovery(ctx context.Context) (tracked []models.Stack, external []models.Stack, err error) {
 	// Get tracked stacks with live sync
 	tracked, err = s.ListStacks(ctx)
