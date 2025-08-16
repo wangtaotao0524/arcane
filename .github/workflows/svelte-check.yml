@@ -52,6 +52,14 @@ jobs:
       - name: Add svelte-check problem matcher
         run: echo "::add-matcher::.github/svelte-check-matcher.json"
 
-      - name: Run svelte-check via npm script
-        working-directory: frontend
-        run: npm run check
+      - name: Run Svelte Check
+        uses: ofkm/gha-svelte-check@v1
+        with:
+          working-directory: 'frontend/src'
+          fail-on-warnings: true
+          fail-on-hints: false
+          tsconfig: './tsconfig.json'
+
+      # - name: Run svelte-check via npm script
+      #   working-directory: frontend
+      #   run: npm run check
