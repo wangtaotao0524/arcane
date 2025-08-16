@@ -1448,10 +1448,11 @@ func (s *StackService) updateProjectCache(ctx context.Context, stacks []models.S
 			CachedAt:     time.Now(),
 		}
 
-		// Use transaction to avoid partial updates
-		s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			return tx.Where("stack_id = ?", stack.ID).Save(&cache).Error
-		})
+		}); err != nil {
+			fmt.Printf("Warning: failed to update cache for stack %s: %v\n", stack.ID, err)
+		}
 	}
 }
 

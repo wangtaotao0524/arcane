@@ -6,15 +6,15 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # Use latest version
+        uses: actions/checkout@v5
         with:
-          fetch-depth: 1 # Shallow clone for faster checkout
+          fetch-depth: 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
