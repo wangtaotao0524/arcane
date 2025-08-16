@@ -18,7 +18,7 @@
 	} from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
-	import { formatBytes } from '$lib/utils/bytes.util';
+	// Size display removed on dashboard
 	import { toast } from 'svelte-sonner';
 	import PruneConfirmationDialog from '$lib/components/dialogs/prune-confirmation-dialog.svelte';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
@@ -86,11 +86,9 @@
 				? dashboardStates.containers.filter((c: ContainerInfo) => c.State !== 'running').length
 				: 0)
 	);
-	const totalImageSize = $derived(
-		dashboardStates.images?.reduce((sum, image) => sum + (image.Size || 0), 0) ?? 0
-	);
 	const totalImages = $derived(dockerInfoRef?.images ?? dashboardStates.images?.length ?? 0);
 	const currentStats = $derived(dashboardStates.systemStats || liveSystemStats);
+	// Size totals removed; only show image count on dashboard
 
 	function addToHistoricalData(stats: SystemStats) {
 		const now = new Date();
@@ -639,8 +637,7 @@
 								{:else}
 									<p class="text-sm font-medium">Docker Images</p>
 									<p class="text-xs text-muted-foreground">
-										{dashboardStates.dockerInfo?.images || 0} images •
-										{formatBytes(totalImageSize)}
+										{dashboardStates.dockerInfo?.images || 0} images
 									</p>
 								{/if}
 							</div>
@@ -651,7 +648,6 @@
 		</DropdownCard>
 	</section>
 
-	<!-- Resources -->
 	<section>
 		<h2 class="mb-4 text-lg font-semibold tracking-tight">Resources</h2>
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -662,7 +658,6 @@
 				{getContainerDisplayName}
 				total={totalContainers}
 			/>
-
 			<DashboardImageTable
 				images={dashboardStates.images}
 				isLoading={isLoading.loadingImages}

@@ -6,7 +6,6 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
-	import { formatBytes } from '$lib/utils/bytes.util';
 	import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
 
 	interface ImageWithId extends EnhancedImageInfo {
@@ -17,12 +16,14 @@
 		images,
 		isLoading,
 		onRefresh,
-		total = images.length
+		total = images.length,
+		totalBytes
 	}: {
 		images: EnhancedImageInfo[];
 		isLoading: boolean;
 		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<ImageWithId>>;
 		total?: number;
+		totalBytes?: number;
 	} = $props();
 
 	let requestOptions = $state<SearchPaginationSortRequest>({
@@ -48,6 +49,8 @@
 			itemsPerPage: 5
 		}
 	});
+
+	// Size display removed on dashboard; keep sorting by size to show largest but do not render sizes
 </script>
 
 <Card.Root class="relative flex flex-col rounded-lg border shadow-sm">
@@ -59,10 +62,12 @@
 				</Card.Title>
 				<Card.Description class="pb-2">Top 5 Largest Images</Card.Description>
 			</div>
-			<Button variant="ghost" size="sm" href="/images" disabled={isLoading}>
-				View All
-				<ArrowRight class="ml-2 size-4" />
-			</Button>
+			<div class="flex items-center gap-3">
+				<Button variant="ghost" size="sm" href="/images" disabled={isLoading}>
+					View All
+					<ArrowRight class="ml-2 size-4" />
+				</Button>
+			</div>
 		</div>
 	</Card.Header>
 	<Card.Content class="flex-1 p-0">
@@ -85,8 +90,7 @@
 					columns={[
 						{ label: 'Name', sortColumn: 'RepoTags' },
 						{ label: 'Status', sortColumn: 'InUse' },
-						{ label: 'Tag', sortColumn: 'tag' },
-						{ label: 'Size', sortColumn: 'Size' }
+						{ label: 'Tag', sortColumn: 'tag' }
 					]}
 					filterPlaceholder="Search images..."
 					noResultsMessage="No images found"
@@ -119,7 +123,7 @@
 								<span class="text-muted-foreground italic">&lt;none&gt;</span>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="py-3 md:py-3.5">{formatBytes(item.Size || 0)}</Table.Cell>
+						<!-- Size column removed on dashboard -->
 					{/snippet}
 				</ArcaneTable>
 				{#if images.length > 5}

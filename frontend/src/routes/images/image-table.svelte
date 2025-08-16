@@ -311,7 +311,9 @@
 							>{item.Id?.substring(7, 19) || 'N/A'}</code
 						>
 					</Table.Cell>
-					<Table.Cell>{formatBytes(item.Size || 0)}</Table.Cell>
+					<Table.Cell class="py-3 md:py-3.5"
+						>{formatBytes(item.Size ?? item.VirtualSize ?? 0)}</Table.Cell
+					>
 					<Table.Cell>{new Date((item.Created || 0) * 1000).toLocaleDateString()}</Table.Cell>
 					<Table.Cell>
 						{#if item.InUse}
