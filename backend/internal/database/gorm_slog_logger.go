@@ -83,9 +83,9 @@ func (l *slogGormLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 	}
 
 	// convert []slog.Attr to []any for slog.*Context variadic parameter
-	anyAttrs := make([]any, len(attrs))
-	for i, a := range attrs {
-		anyAttrs[i] = a
+	anyAttrs := make([]any, 0, len(attrs)+1)
+	for _, a := range attrs {
+		anyAttrs = append(anyAttrs, a)
 	}
 
 	if err != nil && l.level <= logger.Error {
