@@ -7,7 +7,6 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { toast } from 'svelte-sonner';
 	import ImagePullSheet from '$lib/components/sheets/image-pull-sheet.svelte';
-	import { sumImageDisplayedBytes } from '$lib/utils/images.util';
 	import { formatBytes } from '$lib/utils/bytes.util';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
@@ -39,7 +38,6 @@
 	let isConfirmPruneDialogOpen = $state(false);
 
 	const totalSize = $derived(images?.reduce((acc, img) => acc + (img.Size || 0), 0) || 0);
-	const totalDisplayedSize = $derived(formatBytes(sumImageDisplayedBytes(images)));
 
 	async function loadImages() {
 		try {
