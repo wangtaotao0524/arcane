@@ -24,7 +24,7 @@ func SetupCORS(cfg *config.Config) gin.HandlerFunc {
 	if cfg.Environment != "production" {
 		devOrigins := []string{
 			"http://localhost:3000",
-			"http://localhost:8080",
+			"http://localhost:3552",
 		}
 		allowedOrigins = append(allowedOrigins, devOrigins...)
 	}

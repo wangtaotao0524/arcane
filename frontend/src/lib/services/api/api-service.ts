@@ -12,7 +12,7 @@ abstract class BaseAPIService {
 			if (browser) {
 				this.api.defaults.baseURL = '/api';
 			} else {
-				const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+				const backendUrl = process.env.BACKEND_URL || 'http://localhost:3552';
 				this.api.defaults.baseURL = `${backendUrl}/api`;
 			}
 
@@ -23,11 +23,14 @@ abstract class BaseAPIService {
 				(error) => {
 					// Only log errors if not building
 					if (!building) {
-						console.error(`API Error [${error.config?.method?.toUpperCase()} ${error.config?.url}]:`, {
-							status: error.response?.status,
-							data: error.response?.data,
-							message: error.message
-						});
+						console.error(
+							`API Error [${error.config?.method?.toUpperCase()} ${error.config?.url}]:`,
+							{
+								status: error.response?.status,
+								data: error.response?.data,
+								message: error.message
+							}
+						);
 					}
 					return Promise.reject(error);
 				}
