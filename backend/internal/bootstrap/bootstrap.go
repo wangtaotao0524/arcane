@@ -34,6 +34,13 @@ type App struct {
 func InitializeApp() (*App, error) {
 	ctx := context.Background()
 
+	{
+		level := new(slog.LevelVar)
+		level.Set(slog.LevelInfo)
+		h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+		slog.SetDefault(slog.New(h))
+	}
+
 	if err := godotenv.Load(); err != nil {
 		slog.InfoContext(ctx, "No .env file found, using environment variables")
 	}

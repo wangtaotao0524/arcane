@@ -18,7 +18,8 @@ func setupRouter(cfg *config.Config, appServices *api.Services) *gin.Engine {
 	} else {
 		gin.SetMode(gin.DebugMode)
 	}
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
 
 	router.Use(middleware.SetupCORS(cfg))
 	loggingMiddleware := middleware.LoggingMiddleware(

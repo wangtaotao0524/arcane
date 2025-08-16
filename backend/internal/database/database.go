@@ -3,7 +3,6 @@ package database
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/url"
 	"os"
@@ -260,25 +259,18 @@ func parseSqliteConnectionString(connString string) (string, error) {
 }
 
 func getLogger(environment string) logger.Interface {
-	var logLevel logger.LogLevel
+	var lvl logger.LogLevel
 	switch environment {
 	case "development":
-		logLevel = logger.Info
+		lvl = logger.Info
 	case "production":
-		logLevel = logger.Silent
+		// Be quiet in prod by default; change to Warn for some visibility
+		lvl = logger.Warn
 	default:
-		logLevel = logger.Warn
+		lvl = logger.Warn
 	}
 
-	return logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  logLevel,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  environment == "development",
-		},
-	)
+	return newSlogGormLogger(lvl, 200*time.Millisecond, true)
 }
 
 func (db *DB) Close() error {
