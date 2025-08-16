@@ -517,13 +517,9 @@ func (s *ImageUpdateService) getImageRefByID(ctx context.Context, imageID string
 		return "", fmt.Errorf("image not found: %w", err)
 	}
 
-	fmt.Printf("DEBUG: RepoTags: %v\n", inspectResponse.RepoTags)
-	fmt.Printf("DEBUG: RepoDigests: %v\n", inspectResponse.RepoDigests)
-
 	if len(inspectResponse.RepoTags) > 0 {
 		for _, tag := range inspectResponse.RepoTags {
 			if tag != "<none>:<none>" {
-				fmt.Printf("DEBUG: Using RepoTag: %s\n", tag)
 				return tag, nil
 			}
 		}
@@ -535,7 +531,6 @@ func (s *ImageUpdateService) getImageRefByID(ctx context.Context, imageID string
 				digestParts := strings.Split(digest, "@")
 				if len(digestParts) == 2 {
 					imageRef := digestParts[0] + ":latest"
-					fmt.Printf("DEBUG: Using RepoDigest as: %s\n", imageRef)
 					return imageRef, nil
 				}
 			}

@@ -30,9 +30,9 @@ func Load() *Config {
 	oidcEnabled, _ := strconv.ParseBool(os.Getenv("OIDC_ENABLED"))
 
 	return &Config{
-		AppUrl:        getEnvOrDefault("APP_URL", "http://localhost:8080"),
+		AppUrl:        getEnvOrDefault("APP_URL", "http://localhost:3552"),
 		DatabaseURL:   getEnvOrDefault("DATABASE_URL", defaultSqliteString),
-		Port:          getEnvOrDefault("PORT", "8080"),
+		Port:          getEnvOrDefault("PORT", "3552"),
 		Environment:   getEnvOrDefault("ENVIRONMENT", "production"),
 		JWTSecret:     getEnvOrDefault("JWT_SECRET", "default-jwt-secret-change-me"),
 		EncryptionKey: getEnvOrDefault("ENCRYPTION_KEY", "arcane-dev-key-32-characters!!!"),

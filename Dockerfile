@@ -1,10 +1,8 @@
-# This file uses multi-stage builds to build the application from source, including the front-end
-
 # Tags passed to "go build"
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM node:22-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /build
 COPY ./frontend/package*.json ./
 RUN npm ci
@@ -16,7 +14,6 @@ FROM golang:1.25-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 
-# Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
 
 COPY ./backend/go.mod ./backend/go.sum ./
@@ -35,7 +32,7 @@ RUN CGO_ENABLED=1 \
     ./cmd/main.go
 
 # Stage 3: Production Image
-FROM alpine:3.21 AS runner
+FROM alpine:3 AS runner
 
 RUN apk upgrade && apk --no-cache add ca-certificates tzdata curl shadow su-exec docker docker-compose
 
@@ -43,7 +40,7 @@ RUN delgroup ping && apk del iputils
 
 ENV DOCKER_GID=998 PUID=2000 PGID=2000
 ENV GIN_MODE=release
-ENV PORT=8080
+ENV PORT=3552
 
 WORKDIR /app
 
@@ -53,7 +50,7 @@ COPY --from=backend-builder /build/arcane .
 
 COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 3552
 VOLUME ["/app/data"]
 
 ARG VERSION="0.15.1"

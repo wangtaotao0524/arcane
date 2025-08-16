@@ -102,8 +102,6 @@ func (s *SettingsService) SyncOidcEnvToDatabase(ctx context.Context) ([]models.S
 		return nil, fmt.Errorf("failed to marshal OIDC config from env: %w", err)
 	}
 
-	fmt.Printf("DEBUG: OIDC config JSON being saved: %s\n", string(oidcConfigBytes))
-
 	// Force update the settings directly to bypass empty value checks
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Force update AuthOidcEnabled

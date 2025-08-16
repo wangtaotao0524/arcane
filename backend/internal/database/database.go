@@ -65,7 +65,7 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 	}
 
 	// Run migrations with backup on failure
-	if err := migrateDatabase(driver, dbProvider, databaseURL); err != nil {
+	if err := migrateDatabase(driver, dbProvider); err != nil {
 		slog.Error("Failed to run migrations", "error", err)
 
 		// If migration fails and it's SQLite, try to backup and retry
@@ -96,7 +96,7 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 				return nil, fmt.Errorf("failed to create migration driver after backup: %w", err)
 			}
 
-			if retryErr := migrateDatabase(driver, dbProvider, databaseURL); retryErr != nil {
+			if retryErr := migrateDatabase(driver, dbProvider); retryErr != nil {
 				return nil, fmt.Errorf("failed to run migrations even after backup: %w", retryErr)
 			}
 		} else {
@@ -155,8 +155,7 @@ func connectDatabase(databaseURL string, environment string) (*DB, error) {
 	return nil, err
 }
 
-func migrateDatabase(driver database.Driver, dbProvider string, databaseURL string) error {
-	// Use the embedded migrations
+func migrateDatabase(driver database.Driver, dbProvider string) error {
 	source, err := iofs.New(resources.FS, "migrations/"+dbProvider)
 	if err != nil {
 		return fmt.Errorf("failed to create embedded migration source: %w", err)
@@ -182,7 +181,6 @@ func migrateDatabase(driver database.Driver, dbProvider string, databaseURL stri
 }
 
 func backupSQLiteDatabase(databaseURL string) error {
-	// Extract file path from SQLite URL
 	connStringUrl, err := url.Parse(databaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse database URL: %w", err)
@@ -193,23 +191,19 @@ func backupSQLiteDatabase(databaseURL string) error {
 		return fmt.Errorf("empty database path in URL")
 	}
 
-	// Check if database file exists
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		// Database doesn't exist, no need to backup
 		slog.Info("Database file doesn't exist, no backup needed")
 		return nil
 	}
 
 	backupPath := strings.TrimSuffix(dbPath, ".db") + ".old"
 
-	// Remove existing backup if it exists
 	if _, err := os.Stat(backupPath); err == nil {
 		if err := os.Remove(backupPath); err != nil {
 			return fmt.Errorf("failed to remove existing backup: %w", err)
 		}
 	}
 
-	// Move current database to backup
 	if err := os.Rename(dbPath, backupPath); err != nil {
 		return fmt.Errorf("failed to backup database: %w", err)
 	}
@@ -264,7 +258,6 @@ func getLogger(environment string) logger.Interface {
 	case "development":
 		lvl = logger.Info
 	case "production":
-		// Be quiet in prod by default; change to Warn for some visibility
 		lvl = logger.Warn
 	default:
 		lvl = logger.Warn

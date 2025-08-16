@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -48,6 +49,20 @@ func (l *slogGormLogger) Error(ctx context.Context, msg string, data ...interfac
 	slog.ErrorContext(ctx, msg, slog.Any("data", data))
 }
 
+const maxSQLLen = 500
+
+func sanitizeSQL(s string) string {
+	if s == "" {
+		return s
+	}
+	// Trim and convert any whitespace/newlines/tabs to single spaces
+	oneLine := strings.Join(strings.Fields(s), " ")
+	if len(oneLine) > maxSQLLen {
+		return oneLine[:maxSQLLen] + "…"
+	}
+	return oneLine
+}
+
 func (l *slogGormLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	if l.level == logger.Silent {
 		return
@@ -55,33 +70,38 @@ func (l *slogGormLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 
 	elapsed := time.Since(begin)
 	sql, rows := fc()
+	sql = sanitizeSQL(sql)
+
+	attrs := []slog.Attr{
+		slog.Int64("elapsed_ms", elapsed.Milliseconds()),
+	}
+	if rows >= 0 {
+		attrs = append(attrs, slog.Int64("rows", rows))
+	}
+	if sql != "" {
+		attrs = append(attrs, slog.String("sql", sql))
+	}
+
+	// convert []slog.Attr to []any for slog.*Context variadic parameter
+	anyAttrs := make([]any, len(attrs))
+	for i, a := range attrs {
+		anyAttrs[i] = a
+	}
 
 	if err != nil && l.level <= logger.Error {
 		if !l.ignoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.ErrorContext(ctx, "gorm.trace",
-				slog.Duration("elapsed", elapsed),
-				slog.Int64("rows", rows),
-				slog.String("sql", sql),
-				slog.String("error", err.Error()),
-			)
+			anyAttrs = append(anyAttrs, slog.String("error", err.Error()))
+			slog.ErrorContext(ctx, "gorm.error", anyAttrs...)
 		}
 		return
 	}
 
 	if l.slowThreshold > 0 && elapsed > l.slowThreshold && l.level <= logger.Warn {
-		slog.WarnContext(ctx, "gorm.slow_query",
-			slog.Duration("elapsed", elapsed),
-			slog.Int64("rows", rows),
-			slog.String("sql", sql),
-		)
+		slog.WarnContext(ctx, "gorm.slow_query", anyAttrs...)
 		return
 	}
 
 	if l.level <= logger.Info {
-		slog.InfoContext(ctx, "gorm.query",
-			slog.Duration("elapsed", elapsed),
-			slog.Int64("rows", rows),
-			slog.String("sql", sql),
-		)
+		slog.InfoContext(ctx, "gorm.query", anyAttrs...)
 	}
 }
