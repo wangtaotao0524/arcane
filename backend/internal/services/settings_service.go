@@ -227,6 +227,40 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.Update
 		return nil, err
 	}
 
+	// Merge OIDC config to avoid clearing secret when not provided
+	if updates.AuthOidcConfig != nil {
+		newCfgStr := *updates.AuthOidcConfig
+
+		var incoming models.OidcConfig
+		if err := json.Unmarshal([]byte(newCfgStr), &incoming); err != nil {
+			return nil, fmt.Errorf("invalid authOidcConfig JSON: %w", err)
+		}
+
+		// Get current settings to preserve existing secret if empty
+		current, err := s.GetSettings(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load current settings: %w", err)
+		}
+
+		if current.AuthOidcConfig.Value != "" {
+			var existing models.OidcConfig
+			if err := json.Unmarshal([]byte(current.AuthOidcConfig.Value), &existing); err == nil {
+				if incoming.ClientSecret == "" {
+					incoming.ClientSecret = existing.ClientSecret
+				}
+			}
+		}
+
+		mergedBytes, err := json.Marshal(incoming)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal merged OIDC config: %w", err)
+		}
+
+		if err := s.UpdateSetting(ctx, "authOidcConfig", string(mergedBytes)); err != nil {
+			return nil, fmt.Errorf("failed to update authOidcConfig: %w", err)
+		}
+	}
+
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve updated settings: %w", err)

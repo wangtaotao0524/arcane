@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -89,7 +90,22 @@ func (s *Settings) ToSettingVariableSlice(showAll bool, redactSensitiveValues bo
 
 		// Redact sensitive values if requested
 		if value != "" && redactSensitiveValues && attrs == "sensitive" {
-			value = "XXXXXXXXXX"
+			if key == "authOidcConfig" {
+				// Redact only the clientSecret field while keeping the rest visible
+				var cfg OidcConfig
+				if err := json.Unmarshal([]byte(value), &cfg); err == nil {
+					cfg.ClientSecret = ""
+					if redacted, err := json.Marshal(cfg); err == nil {
+						value = string(redacted)
+					} else {
+						value = "XXXXXXXXXX"
+					}
+				} else {
+					value = "XXXXXXXXXX"
+				}
+			} else {
+				value = "XXXXXXXXXX"
+			}
 		}
 
 		settingVariable := SettingVariable{
