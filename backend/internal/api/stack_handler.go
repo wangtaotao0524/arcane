@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,6 +48,13 @@ func (h *StackHandler) ListStacks(c *gin.Context) {
 
 	stacks, pagination, err := h.stackService.ListStacksPaginated(c.Request.Context(), req)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			c.JSON(http.StatusRequestTimeout, gin.H{
+				"success": false,
+				"error":   "Request was canceled",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to list stacks: " + err.Error(),

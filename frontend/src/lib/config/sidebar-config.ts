@@ -53,13 +53,17 @@ export const sidebarItems: Record<string, SidebarItem[]> = {
 	],
 	settingsItems: [
 		{
+			title: 'Events',
+			url: '/events',
+			icon: LucideAlarmClock
+		},
+		{
 			title: 'Settings',
 			url: '/settings',
 			icon: SettingsIcon,
 			items: [
 				{ title: 'General', url: '/settings/general', icon: SettingsIcon },
 				{ title: 'Docker', url: '/settings/docker', icon: DatabaseIcon },
-				{ title: 'Events', url: '/settings/events', icon: LucideAlarmClock },
 				{ title: 'Users', url: '/settings/users', icon: UserIcon },
 				{ title: 'Security', url: '/settings/security', icon: Shield }
 			]

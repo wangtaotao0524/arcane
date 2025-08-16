@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type StackPort struct {
 	PublicPort  *int   `json:"publicPort,omitempty"`
 	PrivatePort *int   `json:"privatePort,omitempty"`
@@ -61,4 +63,21 @@ type Stack struct {
 
 func (Stack) TableName() string {
 	return "stacks_table"
+}
+
+type ProjectCache struct {
+	BaseModel
+	StackID      string      `json:"stack_id" gorm:"uniqueIndex;not null"`
+	Name         string      `json:"name" gorm:"not null"`
+	Status       StackStatus `json:"status" gorm:"not null"`
+	ServiceCount int         `json:"service_count"`
+	RunningCount int         `json:"running_count"`
+	AutoUpdate   bool        `json:"auto_update"`
+	LastModified time.Time   `json:"last_modified"`
+	ComposeHash  string      `json:"compose_hash"`
+	CachedAt     time.Time   `json:"cached_at"`
+}
+
+func (ProjectCache) TableName() string {
+	return "project_cache"
 }

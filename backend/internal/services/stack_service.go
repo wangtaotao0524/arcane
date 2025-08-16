@@ -3,6 +3,7 @@ package services
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -473,25 +474,45 @@ func (s *StackService) ListStacks(ctx context.Context) ([]models.Stack, error) {
 }
 
 func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
-	// First, sync with filesystem to discover new stacks and update existing ones
+	// Try cache first for better performance
+	cachedData, pagination, err := s.getCachedStacksPaginated(ctx, req)
+	if err == nil && len(cachedData) > 0 && s.isCacheRecent() {
+		return cachedData, pagination, nil
+	}
+
+	// Fallback to database query with filesystem sync
 	if err := s.SyncAllStacksFromFilesystem(ctx); err != nil {
-		// Log error but don't fail - continue with what we have in DB
+		// Log warning but continue with database query
 		fmt.Printf("Warning: failed to sync with filesystem: %v\n", err)
 	}
 
 	var stacks []models.Stack
 	query := s.db.WithContext(ctx).Model(&models.Stack{})
 
-	pagination, err := utils.PaginateAndSort(req, query, &stacks)
+	pagination, err = utils.PaginateAndSort(req, query, &stacks)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate stacks: %w", err)
 	}
 
-	// Update each stack with live status from filesystem
+	// Update each stack with live status but handle context cancellation
 	for i := range stacks {
-		s.syncStackWithFilesystem(ctx, &stacks[i])
+		select {
+		case <-ctx.Done():
+			// Context canceled, return what we have so far
+			goto processResult
+		default:
+			s.syncStackWithFilesystem(ctx, &stacks[i])
+		}
 	}
 
+processResult:
+	// Update cache in background with separate context
+	go func() {
+		bgCtx := context.Background()
+		s.updateProjectCache(bgCtx, stacks)
+	}()
+
+	// Convert to response format
 	var result []map[string]interface{}
 	for _, stack := range stacks {
 		stackData := map[string]interface{}{
@@ -1080,15 +1101,12 @@ func (s *StackService) readStackLogsFromReader(ctx context.Context, reader io.Re
 	return scanner.Err()
 }
 
-func (s *StackService) ConvertDockerRun(ctx context.Context, dockerRunCommand string) (string, error) {
-	// This would use your converter service to convert docker run to compose
-	// For now, return error indicating not implemented
-	return "", fmt.Errorf("docker run conversion not implemented yet")
-}
-
 func (s *StackService) GetStackByID(ctx context.Context, id string) (*models.Stack, error) {
 	var stack models.Stack
 	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&stack).Error; err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("request canceled or timed out")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("stack not found")
 		}
@@ -1373,4 +1391,84 @@ func (s *StackService) ImportExternalStack(ctx context.Context, dirName, stackNa
 	}
 
 	return stack, nil
+}
+
+func (s *StackService) getCachedStacksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
+	var cached []models.ProjectCache
+	query := s.db.WithContext(ctx).Model(&models.ProjectCache{})
+
+	pagination, err := utils.PaginateAndSort(req, query, &cached)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate cached stacks: %w", err)
+	}
+
+	var result []map[string]interface{}
+	for _, cache := range cached {
+		stackData := map[string]interface{}{
+			"id":           cache.StackID,
+			"name":         cache.Name,
+			"status":       cache.Status,
+			"serviceCount": cache.ServiceCount,
+			"runningCount": cache.RunningCount,
+			"autoUpdate":   cache.AutoUpdate,
+			"createdAt":    cache.CreatedAt,
+			"updatedAt":    cache.UpdatedAt,
+			"isExternal":   false, // Cache doesn't store this, assume false
+			"isLegacy":     false,
+			"isRemote":     false,
+		}
+		result = append(result, stackData)
+	}
+
+	return result, pagination, nil
+}
+
+func (s *StackService) updateProjectCache(ctx context.Context, stacks []models.Stack) {
+	for _, stack := range stacks {
+		select {
+		case <-ctx.Done():
+			return // Stop if context is canceled
+		default:
+		}
+
+		composeContent, _, err := s.GetStackContent(ctx, stack.ID)
+		if err != nil {
+			continue
+		}
+
+		cache := models.ProjectCache{
+			StackID:      stack.ID,
+			Name:         stack.Name,
+			Status:       stack.Status,
+			ServiceCount: stack.ServiceCount,
+			RunningCount: stack.RunningCount,
+			AutoUpdate:   stack.AutoUpdate,
+			LastModified: time.Now(),
+			ComposeHash:  s.calculateComposeHash(composeContent),
+			CachedAt:     time.Now(),
+		}
+
+		// Use transaction to avoid partial updates
+		s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			return tx.Where("stack_id = ?", stack.ID).Save(&cache).Error
+		})
+	}
+}
+
+func (s *StackService) isCacheRecent() bool {
+	// TODO: Implement actual time-based cache validation
+	// For now, consider cache valid for 5 minutes
+	var lastCacheTime time.Time
+	s.db.Model(&models.ProjectCache{}).Select("MAX(cached_at)").Scan(&lastCacheTime)
+
+	if lastCacheTime.IsZero() {
+		return false
+	}
+
+	return time.Since(lastCacheTime) < 5*time.Minute
+}
+
+func (s *StackService) calculateComposeHash(content string) string {
+	hash := sha256.Sum256([]byte(content))
+	return fmt.Sprintf("%x", hash)
 }

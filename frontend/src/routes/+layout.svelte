@@ -37,13 +37,13 @@
 	});
 
 	const isNavigating = $derived(navigating.type !== null);
-	const isOnboardingPage = $derived(page.url.pathname.startsWith('/onboarding'));
+	const isOnboardingPage = $derived(String(page.url.pathname).startsWith('/onboarding'));
 	const isLoginPage = $derived(
-		page.url.pathname === '/login' ||
-			page.url.pathname.startsWith('/auth/login') ||
-			page.url.pathname === '/auth' ||
-			page.url.pathname.includes('/login') ||
-			page.url.pathname.includes('/callback')
+		String(page.url.pathname) === '/login' ||
+			String(page.url.pathname).startsWith('/auth/login') ||
+			String(page.url.pathname) === '/auth' ||
+			String(page.url.pathname).includes('/login') ||
+			String(page.url.pathname).includes('/callback')
 	);
 	const currentUser = $derived($userStore || user);
 </script>
