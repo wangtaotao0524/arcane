@@ -4,13 +4,35 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Base model with common fields
 type BaseModel struct {
 	CreatedAt time.Time  `json:"createdAt" gorm:"not null"`
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
+// Ensure a UUID is set on the parent model's `ID` field before create
+func (m *BaseModel) BeforeCreate(tx *gorm.DB) (err error) {
+	v := tx.Statement.ReflectValue
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.IsValid() && v.Kind() == reflect.Struct {
+		f := v.FieldByName("ID")
+		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String && f.Len() == 0 {
+			f.SetString(uuid.New().String())
+		}
+	}
+	if m.CreatedAt.IsZero() {
+		m.CreatedAt = time.Now()
+	}
+	return nil
 }
 
 // JSON type for handling JSON columns
