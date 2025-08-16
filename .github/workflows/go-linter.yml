@@ -31,7 +31,7 @@ jobs:
       - name: Run Golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1
+          version: v2.4.0
           args: --build-tags=exclude_frontend
           working-directory: backend
           only-new-issues: ${{ github.event_name == 'pull_request' }}
