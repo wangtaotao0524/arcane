@@ -156,6 +156,7 @@ func (s *SettingsService) UpdateSetting(ctx context.Context, key, value string) 
 	return s.db.WithContext(ctx).Save(settingVar).Error
 }
 
+//nolint:gocognit
 func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.UpdateSettingsDto) ([]models.SettingVariable, error) {
 	// Load current and default settings
 	defaultCfg := s.getDefaultSettings()
