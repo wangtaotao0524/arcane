@@ -58,7 +58,7 @@ jobs:
           working-directory: 'frontend/src'
           fail-on-warnings: true
           fail-on-hints: false
-          tsconfig: './tsconfig.json'
+          tsconfig: 'frontend/tsconfig.json'
 
       # - name: Run svelte-check via npm script
       #   working-directory: frontend
