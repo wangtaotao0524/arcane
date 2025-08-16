@@ -57,7 +57,7 @@ func (l *slogGormLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 	sql, rows := fc()
 
 	if err != nil && l.level <= logger.Error {
-		if !(l.ignoreRecordNotFoundError && errors.Is(err, gorm.ErrRecordNotFound)) {
+		if !l.ignoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound) {
 			slog.ErrorContext(ctx, "gorm.trace",
 				slog.Duration("elapsed", elapsed),
 				slog.Int64("rows", rows),
