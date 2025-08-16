@@ -9,7 +9,7 @@
 	import { goto } from '$app/navigation';
 	import userStore from '$lib/stores/user-store';
 	import settingsStore from '$lib/stores/config-store';
-	import { getAuthRedirectPath } from '$lib/utils/redirect.util';
+	import { getAuthRedirectPathWithSessionCheck } from '$lib/utils/redirect.util';
 	import LoadingIndicator from '$lib/components/loading-indicator.svelte';
 
 	let { children, data } = $props();
@@ -30,10 +30,17 @@
 		const currentUser = $userStore || user;
 		const currentSettings = $settingsStore || settings;
 
-		const redirectPath = getAuthRedirectPath(page.url.pathname, currentUser, currentSettings);
-		if (redirectPath) {
-			goto(redirectPath);
-		}
+		// Run session-aware redirect; avoid loops if already on the target path
+		(async () => {
+			const redirectPath = await getAuthRedirectPathWithSessionCheck(
+				page.url.pathname,
+				currentUser,
+				currentSettings
+			);
+			if (redirectPath && redirectPath !== page.url.pathname) {
+				goto(redirectPath);
+			}
+		})();
 	});
 
 	const isNavigating = $derived(navigating.type !== null);

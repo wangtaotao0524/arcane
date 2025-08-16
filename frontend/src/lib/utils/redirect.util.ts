@@ -1,8 +1,6 @@
 import type { User } from '$lib/types/user.type';
 import type { Settings } from '$lib/types/settings.type';
 
-// Returns the path to redirect to based on the current path and user authentication status
-// If no redirect is needed, it returns null
 export function getAuthRedirectPath(path: string, user: User | null, settings: Settings | null) {
 	const isSignedIn = !!user;
 
@@ -17,10 +15,14 @@ export function getAuthRedirectPath(path: string, user: User | null, settings: S
 		path.startsWith('/img') ||
 		path === '/favicon.ico';
 
-	const isPublicPath = ['/health', '/healthz'].includes(path);
+	// Root should not render; redirect explicitly
+	if (path === '/') {
+		return isSignedIn ? '/dashboard' : '/auth/login';
+	}
+
 	const isOnboardingPath = path === '/onboarding' || path.startsWith('/onboarding');
 
-	if (!isSignedIn && !isUnauthenticatedOnlyPath && !isPublicPath) {
+	if (!isSignedIn && !isUnauthenticatedOnlyPath) {
 		return '/auth/login';
 	}
 
@@ -39,4 +41,35 @@ export function getAuthRedirectPath(path: string, user: User | null, settings: S
 	}
 
 	return null;
+}
+
+// Lightweight session validator
+async function validateSession(): Promise<boolean> {
+	if (typeof window === 'undefined') return true; // SSR: skip
+	try {
+		const res = await fetch('/api/auth/validate', { credentials: 'include' });
+		return res.ok;
+	} catch {
+		return false;
+	}
+}
+
+// Session-aware redirect
+export async function getAuthRedirectPathWithSessionCheck(
+	path: string,
+	user: User | null,
+	settings: Settings | null
+): Promise<string | null> {
+	let effectiveUser = user;
+
+	if (effectiveUser) {
+		const valid = await validateSession();
+		if (!valid) {
+			effectiveUser = null;
+			// Use normal logic for signed-out state; do not return '/'
+			return getAuthRedirectPath(path, null, settings);
+		}
+	}
+
+	return getAuthRedirectPath(path, effectiveUser, settings);
 }

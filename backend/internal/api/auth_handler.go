@@ -124,15 +124,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Set token cookie
-	c.SetCookie(
-		"token",
-		tokenPair.AccessToken,
-		int(time.Until(tokenPair.ExpiresAt).Seconds()),
-		"/",
-		"",
-		c.Request.TLS != nil, // secure if HTTPS
-		true,                 // httpOnly
-	)
+	c.SetSameSite(http.SameSiteLaxMode)
+	maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+	if maxAge < 0 {
+		maxAge = 0
+	}
+	secure := c.Request.TLS != nil
+	c.SetCookie("token", tokenPair.AccessToken, maxAge, "/", "", secure, true)
 
 	// Return successful response
 	c.JSON(http.StatusOK, LoginResponse{
@@ -228,15 +226,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Set new token cookie
-	c.SetCookie(
-		"token",
-		tokenPair.AccessToken,
-		int(time.Until(tokenPair.ExpiresAt).Seconds()),
-		"/",
-		"",
-		c.Request.TLS != nil, // secure if HTTPS
-		true,                 // httpOnly
-	)
+	c.SetSameSite(http.SameSiteLaxMode)
+	maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+	if maxAge < 0 {
+		maxAge = 0
+	}
+	secure := c.Request.TLS != nil
+	c.SetCookie("token", tokenPair.AccessToken, maxAge, "/", "", secure, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,

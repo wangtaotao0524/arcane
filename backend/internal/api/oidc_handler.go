@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/config"
@@ -118,15 +119,13 @@ func (h *OidcHandler) HandleOidcCallback(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-		"token",
-		tokenPair.AccessToken,
-		int(tokenPair.ExpiresAt.Unix()),
-		"/",
-		"",
-		c.Request.TLS != nil,
-		true,
-	)
+	c.SetSameSite(http.SameSiteLaxMode)
+	maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+	if maxAge < 0 {
+		maxAge = 0
+	}
+	secure := c.Request.TLS != nil
+	c.SetCookie("token", tokenPair.AccessToken, maxAge, "/", "", secure, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
