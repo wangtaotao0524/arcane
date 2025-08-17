@@ -1,5 +1,5 @@
 {
-	"name": "arcane",
+	"name": "arcane-frontend",
 	"private": true,
 	"version": "1.0.0-preview.1",
 	"type": "module",

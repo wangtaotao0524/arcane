@@ -1,0 +1,15 @@
+{
+  "name": "arcane-repo",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "tests"
+  ],
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "pnpm --filter arcane-frontend dev",
+    "build": "pnpm --filter arcane-frontend build",
+    "test": "pnpm --filter arcane-tests test",
+    "format": "pnpm --filter arcane-frontend format"
+  }
+}

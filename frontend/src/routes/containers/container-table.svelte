@@ -149,8 +149,8 @@
 				bind:selectedIds
 				{onRefresh}
 				columns={[
-					{ label: 'Name', sortColumn: 'name' },
-					{ label: 'ID', sortColumn: 'id' },
+					{ label: 'Name', sortColumn: 'names' },
+					{ label: 'ID' },
 					{ label: 'Image', sortColumn: 'image' },
 					{ label: 'State', sortColumn: 'state' },
 					{ label: 'Status', sortColumn: 'status' },

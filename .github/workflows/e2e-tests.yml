@@ -60,19 +60,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: playwright-cache
         with:
-          path: |
-            ~/.npm
-            tests/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-playwright-
 
       - name: Create Docker volumes for tests
         run: |
@@ -107,16 +113,15 @@ jobs:
         run: docker load < /tmp/test-images.tar
 
       - name: Install test dependencies
-        working-directory: tests
-        run: npm install
+        run: pnpm --filter arcane-tests install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        working-directory: tests
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Browsers
+        working-directory: ./tests
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run Playwright E2E tests
-        working-directory: tests
-        run: npm test
+        run: pnpm --filter arcane-tests test
 
       - name: Upload Playwright HTML report
         if: always()

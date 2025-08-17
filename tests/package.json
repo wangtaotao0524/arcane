@@ -1,5 +1,6 @@
 {
   "type": "module",
+  "name": "arcane-tests",
   "scripts": {
     "test": "playwright test"
   },

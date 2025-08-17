@@ -1,0 +1,7 @@
+packages:
+  - frontend
+  - tests
+
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - esbuild

@@ -9,8 +9,8 @@ export const load: PageLoad = async () => {
 			limit: 20
 		},
 		sort: {
-			column: 'created_at',
-			direction: 'desc' as const
+			column: 'name',
+			direction: 'asc' as const
 		}
 	};
 

@@ -2,25 +2,38 @@
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM node:24-alpine AS frontend-builder
+FROM node:24 AS frontend-builder
+RUN corepack enable
+
 WORKDIR /build
-COPY ./frontend/package*.json ./
-RUN npm ci
-COPY ./frontend ./
-RUN BUILD_PATH=dist npm run build
+
+# Copy workspace files so --filter works and lockfile is honored
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY frontend/package.json ./frontend/package.json
+
+# Install only the frontend workspace deps (cached)
+RUN pnpm --filter arcane-frontend install --frozen-lockfile
+
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Now copy the rest of the frontend and build
+COPY frontend ./frontend
+ENV BUILD_PATH=dist
+RUN pnpm --filter arcane-frontend build
 
 # Stage 2: Build Backend
 FROM golang:1.25-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 
-RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
+RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev libc6-compat
 
 COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
 
 COPY ./backend ./
-COPY --from=frontend-builder /build/dist ./frontend/dist
+# Copy built frontend assets into backend expected path
+COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
 RUN CGO_ENABLED=1 \
     GOOS=linux \
