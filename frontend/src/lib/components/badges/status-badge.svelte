@@ -1,7 +1,24 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 
-	type Variant = 'red' | 'purple' | 'green' | 'blue' | 'gray' | 'amber' | 'pink' | 'indigo' | 'cyan' | 'lime' | 'emerald' | 'teal' | 'sky' | 'violet' | 'fuchsia' | 'rose' | 'orange';
+	type Variant =
+		| 'red'
+		| 'purple'
+		| 'green'
+		| 'blue'
+		| 'gray'
+		| 'amber'
+		| 'pink'
+		| 'indigo'
+		| 'cyan'
+		| 'lime'
+		| 'emerald'
+		| 'teal'
+		| 'sky'
+		| 'violet'
+		| 'fuchsia'
+		| 'rose'
+		| 'orange';
 
 	let {
 		text,
@@ -14,14 +31,12 @@
 		class?: string;
 	}>();
 
-	const typedVariant: Variant = variant;
-
-	const variantStyles = {
+	const variantStyles: Record<Variant, string> = {
 		red: 'bg-red-500/15 text-red-700 border border-red-700/20',
 		purple: 'bg-purple-500/15 text-purple-700 border border-purple-700/20',
 		green: 'bg-green-500/20 text-green-600 border border-green-600/20',
 		blue: 'bg-blue-500/15 text-blue-700 border border-blue-700/20',
-		gray: 'bg-gray-400/15 text-gray-600 border border-gray-600-20',
+		gray: 'bg-gray-400/15 text-gray-600 border border-gray-600/20',
 		amber: 'bg-amber-500/20 text-amber-600 border border-amber-600/20',
 		pink: 'bg-pink-500/15 text-pink-700 border border-pink-700/20',
 		indigo: 'bg-indigo-500/15 text-indigo-700 border border-indigo-700/20',
@@ -37,6 +52,13 @@
 	};
 </script>
 
-<span class={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', variantStyles[typedVariant], className)} {...restProps}>
+<span
+	class={cn(
+		'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+		variantStyles[variant as Variant],
+		className
+	)}
+	{...restProps}
+>
 	{text}
 </span>
