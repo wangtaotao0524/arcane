@@ -5,6 +5,8 @@ WORKDIR /app
 
 RUN apk upgrade && apk --no-cache add ca-certificates tzdata curl shadow su-exec docker docker-compose
 
+RUN delgroup ping && apk del iputils
+
 COPY ./backend/.bin/arcane-linux-${TARGETARCH} ./arcane
 COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
