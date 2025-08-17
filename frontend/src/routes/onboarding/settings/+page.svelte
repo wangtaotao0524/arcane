@@ -15,7 +15,13 @@
 
 	let isLoading = $state(false);
 
-	let appSettings = $state({
+	let appSettings = $state<{
+		autoUpdate: boolean;
+		autoUpdateInterval: string;
+		pruneMode: 'dangling' | 'all';
+		maturityThresholdDays: number;
+		baseServerUrl: string;
+	}>({
 		autoUpdate: true,
 		autoUpdateInterval: '300',
 		pruneMode: 'dangling',
