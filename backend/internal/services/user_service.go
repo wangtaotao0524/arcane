@@ -281,13 +281,14 @@ func (s *UserService) ListUsersPaginated(ctx context.Context, req utils.SortedPa
 	var result []dto.UserResponseDto
 	for _, user := range users {
 		userResponse := dto.UserResponseDto{
-			ID:          user.ID,
-			Username:    user.Username,
-			DisplayName: user.DisplayName,
-			Email:       user.Email,
-			Roles:       user.Roles,
-			CreatedAt:   user.CreatedAt.Format("2006-01-02T15:04:05.999999Z"),
-			UpdatedAt:   user.UpdatedAt.Format("2006-01-02T15:04:05.999999Z"),
+			ID:            user.ID,
+			Username:      user.Username,
+			DisplayName:   user.DisplayName,
+			Email:         user.Email,
+			Roles:         user.Roles,
+			OidcSubjectId: user.OidcSubjectId,
+			CreatedAt:     user.CreatedAt.Format("2006-01-02T15:04:05.999999Z"),
+			UpdatedAt:     user.UpdatedAt.Format("2006-01-02T15:04:05.999999Z"),
 		}
 		result = append(result, userResponse)
 	}

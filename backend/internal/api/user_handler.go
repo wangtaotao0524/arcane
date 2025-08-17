@@ -53,11 +53,12 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		var userResponses []dto.UserResponseDto
 		for _, user := range users {
 			userResponses = append(userResponses, dto.UserResponseDto{
-				ID:          user.ID,
-				Username:    user.Username,
-				DisplayName: user.DisplayName,
-				Email:       user.Email,
-				Roles:       user.Roles,
+				ID:            user.ID,
+				Username:      user.Username,
+				DisplayName:   user.DisplayName,
+				Email:         user.Email,
+				Roles:         user.Roles,
+				OidcSubjectId: user.OidcSubjectId,
 			})
 		}
 
@@ -131,11 +132,12 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"user": dto.UserResponseDto{
-			ID:          createdUser.ID,
-			Username:    createdUser.Username,
-			DisplayName: createdUser.DisplayName,
-			Email:       createdUser.Email,
-			Roles:       createdUser.Roles,
+			ID:            createdUser.ID,
+			Username:      createdUser.Username,
+			DisplayName:   createdUser.DisplayName,
+			Email:         createdUser.Email,
+			Roles:         createdUser.Roles,
+			OidcSubjectId: createdUser.OidcSubjectId,
 		},
 	})
 }
@@ -155,11 +157,12 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"user": dto.UserResponseDto{
-			ID:          user.ID,
-			Username:    user.Username,
-			DisplayName: user.DisplayName,
-			Email:       user.Email,
-			Roles:       user.Roles,
+			ID:            user.ID,
+			Username:      user.Username,
+			DisplayName:   user.DisplayName,
+			Email:         user.Email,
+			Roles:         user.Roles,
+			OidcSubjectId: user.OidcSubjectId,
 		},
 	})
 }
@@ -210,11 +213,12 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"user": dto.UserResponseDto{
-			ID:          updatedUser.ID,
-			Username:    updatedUser.Username,
-			DisplayName: updatedUser.DisplayName,
-			Email:       updatedUser.Email,
-			Roles:       updatedUser.Roles,
+			ID:            updatedUser.ID,
+			Username:      updatedUser.Username,
+			DisplayName:   updatedUser.DisplayName,
+			Email:         updatedUser.Email,
+			Roles:         updatedUser.Roles,
+			OidcSubjectId: updatedUser.OidcSubjectId,
 		},
 	})
 }

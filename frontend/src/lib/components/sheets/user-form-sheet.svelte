@@ -34,11 +34,14 @@
 	let canEditUsername = $derived(!isEditMode || allowUsernameEdit);
 	let SubmitIcon = $derived(isEditMode ? Save : UserPlus);
 
+	// Disable most fields for OIDC users
+	let isOidcUser = $derived(!!userToEdit?.oidcSubjectId);
+
 	const formSchema = z.object({
 		username: z.string().min(1, 'Username is required'),
 		password: z.string().optional(),
 		displayName: z.string().optional(),
-		email: z.string().email('Invalid email format').optional().or(z.literal('')),
+		email: z.email('Invalid email format').optional().or(z.literal('')),
 		isAdmin: z.boolean().default(false)
 	});
 
@@ -55,6 +58,16 @@
 	function handleSubmit() {
 		const data = form.validate();
 		if (!data) return;
+
+		// For OIDC users, only allow role changes
+		if (isOidcUser) {
+			onSubmit({
+				user: { roles: [data.isAdmin ? 'admin' : 'user'] },
+				isEditMode,
+				userId: userToEdit?.id
+			});
+			return;
+		}
 
 		const userData: Partial<User> & { password?: string } = {
 			username: data.username,
@@ -104,16 +117,23 @@
 				label="Username *"
 				type="text"
 				description="Unique username for the user"
-				disabled={!canEditUsername}
+				disabled={!canEditUsername || isOidcUser}
 				bind:input={$inputs.username}
 			/>
 			<FormInput
 				label={isEditMode ? 'Password' : 'Password *'}
 				type="password"
-				placeholder={isEditMode ? 'Leave empty to keep current password' : 'Enter password'}
-				description={isEditMode
-					? 'Leave empty to keep current password'
-					: 'Password for the user account'}
+				placeholder={isOidcUser
+					? 'Managed by your identity provider'
+					: isEditMode
+						? 'Leave empty to keep current password'
+						: 'Enter password'}
+				description={isOidcUser
+					? 'Password is managed by your OIDC provider'
+					: isEditMode
+						? 'Leave empty to keep current password'
+						: 'Password for the user account'}
+				disabled={isOidcUser}
 				bind:input={$inputs.password}
 			/>
 			<FormInput
@@ -121,6 +141,7 @@
 				type="text"
 				placeholder="Full name or display name"
 				description="Optional display name for the user"
+				disabled={isOidcUser}
 				bind:input={$inputs.displayName}
 			/>
 			<FormInput
@@ -128,6 +149,7 @@
 				type="email"
 				placeholder="user@example.com"
 				description="Email address for the user"
+				disabled={isOidcUser}
 				bind:input={$inputs.email}
 			/>
 			<SwitchWithLabel

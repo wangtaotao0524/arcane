@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Trash2, Users, Ellipsis, Edit } from '@lucide/svelte';
+	import { Trash2, Users, Ellipsis, Edit, ShieldEllipsis } from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { toast } from 'svelte-sonner';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -195,12 +195,10 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end">
 								<DropdownMenu.Group>
-									{#if !item.oidcSubjectId}
-										<DropdownMenu.Item onclick={() => onEditUser(item)}>
-											<Edit class="size-4" />
-											Edit
-										</DropdownMenu.Item>
-									{/if}
+									<DropdownMenu.Item onclick={() => onEditUser(item)}>
+										<Edit class="size-4" />
+										Edit
+									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										variant="destructive"
 										onclick={() => handleDeleteUser(item.id, item.username)}

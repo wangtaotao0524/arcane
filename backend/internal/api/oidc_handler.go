@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/config"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
@@ -128,13 +129,17 @@ func (h *OidcHandler) HandleOidcCallback(c *gin.Context) {
 	c.SetCookie("token", tokenPair.AccessToken, maxAge, "/", "", secure, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"user": gin.H{
-			"id":          user.ID,
-			"username":    user.Username,
-			"displayName": user.DisplayName,
-			"email":       user.Email,
-			"roles":       user.Roles,
+		"success":      true,
+		"token":        tokenPair.AccessToken,
+		"refreshToken": tokenPair.RefreshToken,
+		"expiresAt":    tokenPair.ExpiresAt,
+		"user": dto.UserResponseDto{
+			ID:            user.ID,
+			Username:      user.Username,
+			DisplayName:   user.DisplayName,
+			Email:         user.Email,
+			Roles:         user.Roles,
+			OidcSubjectId: user.OidcSubjectId,
 		},
 	})
 }

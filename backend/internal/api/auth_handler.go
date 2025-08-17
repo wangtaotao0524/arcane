@@ -89,11 +89,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			Success:               true,
 			RequirePasswordChange: true,
 			User: &dto.UserResponseDto{
-				ID:          user.ID,
-				Username:    user.Username,
-				DisplayName: user.DisplayName,
-				Email:       user.Email,
-				Roles:       user.Roles,
+				ID:            user.ID,
+				Username:      user.Username,
+				DisplayName:   user.DisplayName,
+				Email:         user.Email,
+				Roles:         user.Roles,
+				OidcSubjectId: user.OidcSubjectId,
 			},
 		})
 		return
@@ -139,11 +140,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresAt:    tokenPair.ExpiresAt,
 		User: &dto.UserResponseDto{
-			ID:          user.ID,
-			Username:    user.Username,
-			DisplayName: user.DisplayName,
-			Email:       user.Email,
-			Roles:       user.Roles,
+			ID:            user.ID,
+			Username:      user.Username,
+			DisplayName:   user.DisplayName,
+			Email:         user.Email,
+			Roles:         user.Roles,
+			OidcSubjectId: user.OidcSubjectId, // add
 		},
 	})
 }
@@ -170,11 +172,12 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.UserResponseDto{
-		ID:          user.ID,
-		Username:    user.Username,
-		DisplayName: user.DisplayName,
-		Email:       user.Email,
-		Roles:       user.Roles,
+		ID:            user.ID,
+		Username:      user.Username,
+		DisplayName:   user.DisplayName,
+		Email:         user.Email,
+		Roles:         user.Roles,
+		OidcSubjectId: user.OidcSubjectId, // add
 	})
 }
 
