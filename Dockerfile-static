@@ -1,13 +1,12 @@
 FROM alpine:3
 
 ARG TARGETARCH
-
 WORKDIR /app
 
 RUN apk add --no-cache curl su-exec
 
 COPY ./backend/.bin/arcane-linux-${TARGETARCH} ./arcane
-COPY ./scripts/docker /app/docker
+COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 EXPOSE 3552
 ENV APP_ENV=production
