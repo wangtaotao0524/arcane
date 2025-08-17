@@ -1,4 +1,4 @@
-name: Build and Push 1.0 Preview Image
+name: Build and Publish 1.0 Preview
 
 on:
   push:
@@ -10,11 +10,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-push:
+  prerelease:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+      id-token: write
+      attestations: write
+
+    env:
+      DOCKER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/arcane
 
     steps:
       - name: Checkout code
@@ -22,24 +27,109 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Lowercase image owner
+        run: echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm -C frontend install --frozen-lockfile
+
+      - name: Build frontend
+        env:
+          BUILD_PATH: dist
+          NODE_OPTIONS: --max-old-space-size=3072
+        run: pnpm -C frontend build
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: Build backend binaries
+        run: bash scripts/development/build-binaries.sh --docker
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Compute image tags
+        id: tags
+        run: |
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE_STABLE=${DOCKER_IMAGE_NAME}:1.0-preview" >> "$GITHUB_ENV"
+          echo "IMAGE_SHA=${DOCKER_IMAGE_NAME}:1.0-preview-${SHORT_SHA}" >> "$GITHUB_ENV"
+
+      - name: Build and push Docker image (multi-arch)
+        id: build-push
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/ofkm/arcane:1.0-preview
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.IMAGE_STABLE }}
+            ${{ env.IMAGE_SHA }}
+          cache-from: type=gha,scope=preview
+          cache-to: type=gha,scope=preview,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Container image attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Create/Update GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: 1.0-preview
+          name: Arcane 1.0 Preview
+          draft: false
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body: |
+            Arcane 1.0 Preview
+
+            This is an automated build of the 1.0.0 branch.
+
+            Docker images:
+            - ${{ env.IMAGE_STABLE }}
+            - ${{ env.IMAGE_SHA }}
+            Digest:
+            - ${{ steps.build-push.outputs.digest }}
+
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+
+            Notes:
+            - Pre-release builds are for testing only.
+            - Binaries below are Linux builds produced by the CI.
+          files: |
+            backend/.bin/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

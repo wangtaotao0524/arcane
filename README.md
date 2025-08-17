@@ -9,13 +9,6 @@ Arcane is a modern, web-based interface for managing your Docker environment, bu
 
 ---
 
-## Why Arcane?
-
-I created Arcane because I couldn’t find a Docker UI that was both simple and feature-rich enough for my needs. Every feature in Arcane is something I personally found missing or cumbersome in other tools. As the project grew, it became clear that others might benefit from it too.  
-If you have suggestions, feedback, or feature requests, please open an issue or submit a pull request!
-
----
-
 <img width="1685" alt="image" src="https://github.com/user-attachments/assets/9d081a4f-4f4f-4d96-b196-d25faf788285" />
 
 ---

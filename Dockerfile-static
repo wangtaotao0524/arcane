@@ -1,0 +1,16 @@
+FROM alpine:3
+
+ARG TARGETARCH
+
+WORKDIR /app
+
+RUN apk add --no-cache curl su-exec
+
+COPY ./backend/.bin/arcane-linux-${TARGETARCH} ./arcane
+COPY ./scripts/docker /app/docker
+
+EXPOSE 3552
+ENV APP_ENV=production
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["./arcane"]
