@@ -29,14 +29,6 @@
 		refreshing: false
 	});
 
-	const runningContainers = $derived(
-		containers?.filter((c: ContainerInfo) => c.State === 'running').length || 0
-	);
-	const stoppedContainers = $derived(
-		containers?.filter((c: ContainerInfo) => c.State === 'exited').length || 0
-	);
-	const totalContainers = $derived(containers?.length || 0);
-
 	let requestOptions = $state<SearchPaginationSortRequest>(data.containerRequestOptions);
 
 	$effect(() => {
@@ -155,13 +147,13 @@
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 		<StatCard
 			title="Total"
-			value={totalContainers}
+			value={data.dockerInfo.containers}
 			icon={Box}
 			class="border-l-primary border-l-4 transition-shadow hover:shadow-lg"
 		/>
 		<StatCard
 			title="Running"
-			value={runningContainers}
+			value={data.dockerInfo.containersRunning}
 			icon={Box}
 			iconColor="text-green-500"
 			bgColor="bg-green-500/10"
@@ -169,7 +161,7 @@
 		/>
 		<StatCard
 			title="Stopped"
-			value={stoppedContainers}
+			value={data.dockerInfo.containersStopped}
 			icon={Box}
 			iconColor="text-amber-500"
 			class="border-l-4 border-l-amber-500"

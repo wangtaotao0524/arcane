@@ -173,7 +173,7 @@
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 			<StatCard
 				title="Total Images"
-				value={images.length}
+				value={data.dockerInfo.images}
 				icon={HardDrive}
 				iconColor="text-blue-500"
 				class="border-l-4 border-l-blue-500"
