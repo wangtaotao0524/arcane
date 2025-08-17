@@ -605,6 +605,19 @@ func (s *ImageService) ListImagesWithUpdatesPaginated(ctx context.Context, req u
 	return result, pagination, nil
 }
 
+func (s *ImageService) GetTotalImageSize(ctx context.Context) (int64, error) {
+	images, err := s.ListImages(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list images: %w", err)
+	}
+
+	var total int64
+	for _, img := range images {
+		total += img.Size
+	}
+	return total, nil
+}
+
 func (s *ImageService) CleanupOrphanedUpdateRecords(ctx context.Context, existingImageIDs []string) (int64, error) {
 	var result *gorm.DB
 	if len(existingImageIDs) == 0 {

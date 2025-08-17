@@ -128,6 +128,9 @@ func (h *EnvironmentHandler) handleImageEndpoints(c *gin.Context, endpoint strin
 	case endpoint == "/images" && c.Request.Method == http.MethodGet:
 		imageHandler.List(c)
 		return true
+	case endpoint == "/images/total-size" && c.Request.Method == http.MethodGet:
+		imageHandler.GetTotalSize(c)
+		return true
 	case endpoint == "/images/pull" && c.Request.Method == http.MethodPost:
 		imageHandler.Pull(c)
 		return true
@@ -627,6 +630,10 @@ func (h *EnvironmentHandler) GetContainerLogsStream(c *gin.Context) {
 func (h *EnvironmentHandler) GetImage(c *gin.Context) {
 	imageID := c.Param("imageId")
 	h.routeRequest(c, "/images/"+imageID)
+}
+
+func (h *EnvironmentHandler) GetTotalImageSize(c *gin.Context) {
+	h.routeRequest(c, "/images/total-size")
 }
 
 func (h *EnvironmentHandler) RemoveImage(c *gin.Context) {

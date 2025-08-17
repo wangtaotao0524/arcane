@@ -160,6 +160,21 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.get(`/environments/${envId}/images`, { params }));
 	}
 
+	async getTotalImageSize(): Promise<number> {
+		const envId = await this.getCurrentEnvironmentId();
+		const res = await this.handleResponse<any>(
+			this.api.get(`/environments/${envId}/images/total-size`)
+		);
+		// Support both shapes just in case
+		if (typeof res === 'number') return res;
+		if (res && typeof res === 'object') {
+			if ('totalSize' in res && typeof res.totalSize === 'number') return res.totalSize;
+			if ('data' in res && res.data && typeof res.data.totalSize === 'number')
+				return res.data.totalSize;
+		}
+		return 0;
+	}
+
 	async getImage(imageId: string): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
 		return this.handleResponse(this.api.get(`/environments/${envId}/images/${imageId}`));

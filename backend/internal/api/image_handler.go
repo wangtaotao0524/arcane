@@ -187,3 +187,23 @@ func (h *ImageHandler) GetHistory(c *gin.Context) {
 		"data":    history,
 	})
 }
+
+func (h *ImageHandler) GetTotalSize(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	total, err := h.imageService.GetTotalImageSize(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"totalSize": total,
+		},
+	})
+}

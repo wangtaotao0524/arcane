@@ -77,6 +77,7 @@ func setupImageUpdateRoutes(api *gin.RouterGroup, services *Services) {
 	imageUpdates.GET("/summary", imageUpdateHandler.GetUpdateSummary)
 	imageUpdates.GET("/versions", imageUpdateHandler.GetImageVersions)
 	imageUpdates.POST("/compare", imageUpdateHandler.CompareVersions)
+
 }
 
 func setupOidcRoutes(api *gin.RouterGroup, services *Services, appConfig *config.Config) {
@@ -187,6 +188,7 @@ func setupEnvironmentRoutes(api *gin.RouterGroup, services *Services) {
 	environments.DELETE("/:id/images/:imageId", environmentHandler.RemoveImage)
 	environments.POST("/:id/images/pull", environmentHandler.PullImage)
 	environments.POST("/:id/images/prune", environmentHandler.PruneImages)
+	environments.GET("/:id/images/total-size", environmentHandler.GetTotalImageSize)
 
 	environments.GET("/:id/networks", environmentHandler.GetNetworks)
 	environments.POST("/:id/networks", environmentHandler.CreateNetwork)
@@ -296,6 +298,7 @@ func setupImageRoutes(api *gin.RouterGroup, services *Services) {
 	images.POST("/pull", imageHandler.Pull)
 	images.POST("/prune", imageHandler.Prune)
 	images.GET("/:id/history", imageHandler.GetHistory)
+	images.GET("/total-size", imageHandler.GetTotalSize)
 }
 
 func setupVolumeRoutes(api *gin.RouterGroup, services *Services) {

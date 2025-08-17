@@ -45,7 +45,12 @@ abstract class BaseAPIService {
 
 		const response = await promise;
 
-		const extractedData = response.data || response.data.data;
+		// Prefer nested "data" payloads when present
+		const payload = response.data;
+		const extractedData =
+			payload && typeof payload === 'object' && 'data' in payload && payload.data !== undefined
+				? payload.data
+				: payload;
 
 		return extractedData;
 	}

@@ -37,8 +37,6 @@
 	let isPullDialogOpen = $state(false);
 	let isConfirmPruneDialogOpen = $state(false);
 
-	const totalSize = $derived(images?.reduce((acc, img) => acc + (img.Size || 0), 0) || 0);
-
 	async function loadImages() {
 		try {
 			isLoadingImages = true;
@@ -180,7 +178,7 @@
 			/>
 			<StatCard
 				title="Total Size"
-				value={formatBytes(totalSize)}
+				value={formatBytes(data.totalSize)}
 				icon={Package}
 				iconColor="text-amber-500"
 				class="border-l-4 border-l-amber-500"

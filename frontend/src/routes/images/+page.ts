@@ -15,6 +15,7 @@ export const load: PageLoad = async () => {
 	};
 
 	const dockerInfo = await systemAPI.getDockerInfo();
+	const totalSize = await environmentAPI.getTotalImageSize();
 
 	const images = await environmentAPI.getImages(
 		imageRequestOptions.pagination,
@@ -23,5 +24,5 @@ export const load: PageLoad = async () => {
 		imageRequestOptions.filters
 	);
 
-	return { dockerInfo, images, imageRequestOptions };
+	return { dockerInfo, totalSize, images, imageRequestOptions };
 };
