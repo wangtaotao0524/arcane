@@ -56,7 +56,7 @@ jobs:
           go-version-file: backend/go.mod
 
       - name: Build backend binaries
-        run: bash scripts/development/build-binaries.sh --docker
+        run: bash scripts/development/build-binaries.sh
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -100,6 +100,9 @@ jobs:
           subject-digest: ${{ steps.build-push.outputs.digest }}
           push-to-registry: true
 
+      - name: Compute build timestamp (UTC)
+        run: echo "BUILD_TIMESTAMP=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+
       - name: Create/Update GitHub prerelease
         uses: softprops/action-gh-release@v2
         with:
@@ -111,6 +114,8 @@ jobs:
           target_commitish: ${{ github.sha }}
           body: |
             Arcane 1.0 Preview
+
+            Build timestamp (UTC): ${{ env.BUILD_TIMESTAMP }}
 
             This is an automated build of the 1.0.0 branch.
 
