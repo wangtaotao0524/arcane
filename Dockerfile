@@ -3,7 +3,7 @@ ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
 FROM node:24 AS frontend-builder
-RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
+RUN corepack enable
 
 WORKDIR /build
 
@@ -11,11 +11,11 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json ./frontend/package.json
 
 ENV NODE_OPTIONS="--max-old-space-size=3072"
-RUN pnpm -C frontend install --frozen-lockfile
+RUN pnpm install
 
 COPY frontend ./frontend
 ENV BUILD_PATH=dist
-RUN pnpm -C frontend build
+RUN pnpm build
 
 # Stage 2: Build Backend
 FROM golang:1.25-alpine AS backend-builder
