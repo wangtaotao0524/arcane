@@ -3,19 +3,20 @@ ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
 FROM node:24 AS frontend-builder
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 
 WORKDIR /build
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json ./frontend/package.json
 
-ENV NODE_OPTIONS="--max-old-space-size=3072"
-RUN pnpm install
-
 COPY frontend ./frontend
+
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+RUN pnpm -C frontend install --frozen-lockfile
+
 ENV BUILD_PATH=dist
-RUN pnpm build
+RUN pnpm -C frontend build
 
 # Stage 2: Build Backend
 FROM golang:1.25-alpine AS backend-builder
@@ -34,12 +35,7 @@ COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 # Build backend binary
 RUN CGO_ENABLED=1 \
     GOOS=linux \
-    go build \
-      -tags "${BUILD_TAGS}" \
-      -ldflags='-w -s' \
-      -trimpath \
-      -o /build/arcane \
-      ./cmd/main.go
+    go build -tags "${BUILD_TAGS}" -ldflags='-w -s' -trimpath -o /build/arcane ./cmd/main.go
 
 # Stage 3: Production Image
 FROM alpine:3 AS runner
