@@ -513,7 +513,8 @@
 					description="Active containers"
 					currentValue={isLoading.loadingContainers ? undefined : runningContainers}
 					formatValue={(v) => v.toString()}
-					maxValue={dashboardStates.containers?.length || 10}
+					maxValue={Math.max(totalContainers, 1)}
+					footerText={`${runningContainers} of ${totalContainers} running`}
 					unit="containers"
 					loading={isLoading.loadingContainers}
 				/>

@@ -12,6 +12,7 @@
 		maxValue?: number;
 		icon: typeof IconType;
 		loading?: boolean;
+		footerText?: string;
 	}
 
 	let {
@@ -22,11 +23,12 @@
 		formatValue = (v) => `${v.toFixed(1)}${unit}`,
 		maxValue = 100,
 		icon,
-		loading = false
+		loading = false,
+		footerText
 	}: Props = $props();
 
 	const percentage = $derived(
-		currentValue !== undefined && !loading ? (currentValue / maxValue) * 100 : 0
+		currentValue !== undefined && !loading && maxValue > 0 ? (currentValue / maxValue) * 100 : 0
 	);
 	const Icon = icon;
 </script>
@@ -87,7 +89,7 @@
 					<div
 						class="text-xs text-center font-medium leading-relaxed text-primary dark:text-primary"
 					>
-						{percentage.toFixed(1)}% of resources being used
+						{footerText ?? `${percentage.toFixed(1)}% of resources being used`}
 					</div>
 				{/if}
 			</div>
