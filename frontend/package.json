@@ -16,6 +16,8 @@
 		"@codemirror/lang-yaml": "^6.1.2",
 		"@codemirror/language": "^6.11.3",
 		"@codemirror/legacy-modes": "^6.5.1",
+		"@codemirror/lint": "^6.8.5",
+		"@codemirror/state": "^6.5.2",
 		"@sveltejs/adapter-static": "^3.0.9",
 		"@tanstack/table-core": "^8.21.3",
 		"@uiw/codemirror-theme-github": "^4.25.1",
