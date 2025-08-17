@@ -5,7 +5,6 @@
 	import { Save, RefreshCw, Folder, Globe } from '@lucide/svelte';
 	import type { FormInput as FormInputType } from '$lib/utils/form.utils';
 	import { toast } from 'svelte-sonner';
-	import { invalidateAll } from '$app/navigation';
 	import type { Settings } from '$lib/types/settings.type';
 	import settingsStore from '$lib/stores/config-store';
 	import { settingsAPI } from '$lib/services/api';
@@ -19,6 +18,7 @@
 				...currentSettings,
 				...updatedSettings
 			});
+			settingsStore.set(currentSettings);
 			settingsStore.reload();
 		} catch (error) {
 			console.error('Error updating settings:', error);
@@ -34,7 +34,6 @@
 		})
 			.then(async () => {
 				toast.success(`Settings Saved Successfully`);
-				await invalidateAll();
 			})
 			.catch((error) => {
 				toast.error('Failed to save settings');
@@ -60,8 +59,15 @@
 	});
 
 	$effect(() => {
-		stacksDirectoryInput.value = currentSettings.stacksDirectory || '';
-		baseServerUrlInput.value = currentSettings.baseServerUrl || 'localhost';
+		const s = $settingsStore ?? currentSettings;
+		if (!s) return;
+
+		currentSettings = s;
+
+		if (!isLoading.saving) {
+			stacksDirectoryInput.value = s.stacksDirectory || '';
+			baseServerUrlInput.value = s.baseServerUrl || 'localhost';
+		}
 	});
 </script>
 
@@ -109,10 +115,10 @@
 			</Card.Header>
 			<Card.Content class="pt-0">
 				<FormInput
-					label="Stacks Directory"
+					label="Projects Directory"
 					placeholder="data/projects"
 					bind:input={stacksDirectoryInput}
-					helpText="Directory where Docker Compose stack files are stored"
+					helpText="Directory where Docker Compose files are stored (this is inside the container)"
 				/>
 			</Card.Content>
 		</Card.Root>

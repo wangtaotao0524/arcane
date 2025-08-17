@@ -60,6 +60,7 @@
 				...currentSettings,
 				...updatedSettings
 			});
+			settingsStore.set(currentSettings);
 			settingsStore.reload();
 		} catch (error) {
 			console.error('Error updating settings:', error);
@@ -90,7 +91,6 @@
 		})
 			.then(async () => {
 				toast.success(`Settings Saved Successfully`);
-				await invalidateAll();
 			})
 			.catch((error) => {
 				toast.error('Failed to save settings');
@@ -111,7 +111,6 @@
 
 	function openOidcDialog() {
 		if (!isOidcViewMode) {
-			// Parse current config if it exists
 			if (currentSettings.authOidcConfig) {
 				try {
 					const oidcConfig = JSON.parse(currentSettings.authOidcConfig);

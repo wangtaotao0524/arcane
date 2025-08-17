@@ -12,7 +12,7 @@ export type Settings = {
 	autoUpdateInterval: number;
 	pollingEnabled: boolean;
 	pollingInterval: number;
-	dockerPruneMode: string;
+	dockerPruneMode: 'all' | 'dangling';
 	baseServerUrl: string;
 
 	// Authentication settings

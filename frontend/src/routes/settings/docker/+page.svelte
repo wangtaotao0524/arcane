@@ -7,54 +7,18 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { toast } from 'svelte-sonner';
-	import { invalidateAll } from '$app/navigation';
 	import type { Settings } from '$lib/types/settings.type';
 	import settingsStore from '$lib/stores/config-store';
 	import { settingsAPI } from '$lib/services/api';
 	import FormInput from '$lib/components/form/form-input.svelte';
 
 	let { data } = $props();
-	let currentSettings = $state(data.settings);
+	let currentSettings = $state<Settings>(data.settings);
 
 	let isLoading = $state({
 		saving: false,
 		testing: false
 	});
-
-	async function updateSettingsConfig(updatedSettings: Partial<Settings>) {
-		try {
-			currentSettings = await settingsAPI.updateSettings({
-				...currentSettings,
-				...updatedSettings
-			});
-			settingsStore.reload();
-		} catch (error) {
-			console.error('Error updating settings:', error);
-			throw error;
-		}
-	}
-
-	function handleDockerSettingUpdates() {
-		isLoading.saving = true;
-		updateSettingsConfig({
-			dockerPruneMode: 'all',
-			autoUpdateEnabled: autoUpdateSwitch.value,
-			pollingEnabled: pollingEnabledSwitch.value,
-			pollingInterval: pollingIntervalInput.value,
-			autoUpdateInterval: autoUpdateIntervalInput.value
-		})
-			.then(async () => {
-				toast.success(`Settings Saved Successfully`);
-				await invalidateAll();
-			})
-			.catch((error) => {
-				toast.error('Failed to save settings');
-				console.error('Settings save error:', error);
-			})
-			.finally(() => {
-				isLoading.saving = false;
-			});
-	}
 
 	let pollingIntervalInput = $state<FormInputType<number>>({
 		value: 0,
@@ -76,11 +40,53 @@
 		error: null
 	});
 
+	const _initialPruneMode = data.settings?.dockerPruneMode === 'dangling' ? 'dangling' : 'all';
+
+	let pruneModeValue = $state<'all' | 'dangling'>(_initialPruneMode);
+
+	async function updateSettingsConfig(updatedSettings: Partial<Settings>) {
+		try {
+			await settingsAPI.updateSettings(updatedSettings as any);
+
+			currentSettings = { ...currentSettings, ...updatedSettings };
+
+			settingsStore.set(currentSettings);
+			settingsStore.reload();
+		} catch (error) {
+			console.error('Error updating settings:', error);
+			throw error;
+		}
+	}
+
+	function handleDockerSettingUpdates() {
+		isLoading.saving = true;
+		updateSettingsConfig({
+			dockerPruneMode: pruneModeValue,
+			autoUpdateEnabled: autoUpdateSwitch.value,
+			pollingEnabled: pollingEnabledSwitch.value,
+			pollingInterval: pollingIntervalInput.value,
+			autoUpdateInterval: autoUpdateIntervalInput.value
+		})
+			.then(() => {
+				toast.success(`Settings Saved Successfully`);
+			})
+			.catch((error) => {
+				toast.error('Failed to save settings');
+				console.error('Settings save error:', error);
+			})
+			.finally(() => {
+				isLoading.saving = false;
+			});
+	}
+
 	$effect(() => {
-		pollingIntervalInput.value = currentSettings.pollingInterval || 60;
-		pollingEnabledSwitch.value = currentSettings.pollingEnabled || false;
-		autoUpdateSwitch.value = currentSettings.autoUpdateEnabled || false;
-		autoUpdateIntervalInput.value = currentSettings.autoUpdateInterval || 60;
+		if (!isLoading.saving) {
+			pollingIntervalInput.value = currentSettings.pollingInterval || 60;
+			pollingEnabledSwitch.value = currentSettings.pollingEnabled || false;
+			autoUpdateSwitch.value = currentSettings.autoUpdateEnabled || false;
+			autoUpdateIntervalInput.value = currentSettings.autoUpdateInterval || 60;
+			pruneModeValue = currentSettings.dockerPruneMode === 'dangling' ? 'dangling' : 'all';
+		}
 	});
 
 	let isPollingConfigValid = $derived(
@@ -125,7 +131,7 @@
 		</div>
 
 		<!-- Alert Section -->
-		{#if currentSettings.autoUpdateEnabled && currentSettings.pollingEnabled}
+		{#if autoUpdateSwitch.value && pollingEnabledSwitch.value}
 			<div class="settings-alert">
 				<Alert.Root variant="warning">
 					<Zap class="size-4" />
@@ -163,7 +169,7 @@
 							description="Periodically check registries for newer image versions"
 						/>
 
-						{#if currentSettings.pollingEnabled}
+						{#if pollingEnabledSwitch.value}
 							<div class="space-y-4 pl-4">
 								<FormInput
 									bind:input={pollingIntervalInput}
@@ -194,7 +200,7 @@
 									description="Automatically update containers when newer images are found"
 								/>
 
-								{#if currentSettings.autoUpdateEnabled}
+								{#if autoUpdateSwitch.value}
 									<div class="pl-4">
 										<FormInput
 											bind:input={autoUpdateIntervalInput}
@@ -213,7 +219,7 @@
 								<Alert.Title>Automation Summary</Alert.Title>
 								<Alert.Description>
 									<ul class="list-inside list-disc text-sm">
-										{#if currentSettings.autoUpdateEnabled}
+										{#if autoUpdateSwitch.value}
 											<li>Images checked every {pollingIntervalInput.value || 60} minutes</li>
 										{:else}
 											<li>Manual updates only (auto-update disabled)</li>
@@ -245,11 +251,10 @@
 						<Label for="pruneMode" class="text-base font-medium">Prune Action Behavior</Label>
 
 						<RadioGroup.Root
-							value={currentSettings.dockerPruneMode || 'all'}
+							value={pruneModeValue}
 							onValueChange={(val) => {
-								updateSettingsConfig({
-									dockerPruneMode: val as 'all' | 'dangling'
-								}).catch((error) => {
+								pruneModeValue = val as 'all' | 'dangling';
+								updateSettingsConfig({ dockerPruneMode: pruneModeValue }).catch((error) => {
 									toast.error('Failed to update prune mode');
 									console.error('Error updating prune mode:', error);
 								});
@@ -293,7 +298,7 @@
 							<p class="text-muted-foreground text-sm">
 								<strong>Note:</strong> This setting affects the "Prune Unused Images" action on the
 								Images page.
-								{(currentSettings.dockerPruneMode || 'all') === 'all'
+								{pruneModeValue === 'all'
 									? 'All unused images will be removed, which frees up more space but may require re-downloading images later.'
 									: 'Only dangling images will be removed, which is safer but may leave some unused images behind.'}
 							</p>
