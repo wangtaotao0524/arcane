@@ -3,7 +3,7 @@ FROM alpine:3
 ARG TARGETARCH
 WORKDIR /app
 
-RUN apk add --no-cache curl su-exec
+RUN apk upgrade && apk --no-cache add ca-certificates tzdata curl shadow su-exec docker docker-compose
 
 COPY ./backend/.bin/arcane-linux-${TARGETARCH} ./arcane
 COPY --chmod=755 scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
