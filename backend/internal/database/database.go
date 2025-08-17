@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
+	glsqlite "github.com/glebarez/sqlite"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -64,44 +63,10 @@ func Initialize(databaseURL string, environment string) (*DB, error) {
 		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
-	// Run migrations with backup on failure
+	// Run migrations
 	if err := migrateDatabase(driver, dbProvider); err != nil {
 		slog.Error("Failed to run migrations", "error", err)
-
-		// If migration fails and it's SQLite, try to backup and retry
-		if dbProvider == "sqlite" {
-			if backupErr := backupSQLiteDatabase(databaseURL); backupErr != nil {
-				slog.Error("Failed to backup database", "error", backupErr)
-				return nil, fmt.Errorf("failed to run migrations and backup failed: %w", err)
-			}
-
-			slog.Info("Database backed up to arcane-db.old, retrying migrations with fresh database")
-
-			// Close current connection
-			db.Close()
-
-			// Reconnect and try migrations again
-			db, err = connectDatabase(databaseURL, environment)
-			if err != nil {
-				return nil, fmt.Errorf("failed to reconnect after backup: %w", err)
-			}
-
-			sqlDB, err = db.DB.DB()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get sql.DB after backup: %w", err)
-			}
-
-			driver, err = sqliteMigrate.WithInstance(sqlDB, &sqliteMigrate.Config{})
-			if err != nil {
-				return nil, fmt.Errorf("failed to create migration driver after backup: %w", err)
-			}
-
-			if retryErr := migrateDatabase(driver, dbProvider); retryErr != nil {
-				return nil, fmt.Errorf("failed to run migrations even after backup: %w", retryErr)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to run migrations: %w", err)
-		}
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	// Set connection pool settings
@@ -121,7 +86,7 @@ func connectDatabase(databaseURL string, environment string) (*DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse SQLite connection string: %w", err)
 		}
-		dialector = sqlite.Open(connString)
+		dialector = glsqlite.Open(connString)
 	case strings.HasPrefix(databaseURL, "postgres"):
 		dialector = postgres.Open(databaseURL)
 	default:
@@ -177,38 +142,6 @@ func migrateDatabase(driver database.Driver, dbProvider string) error {
 		slog.Info("Database migrations completed successfully")
 	}
 
-	return nil
-}
-
-func backupSQLiteDatabase(databaseURL string) error {
-	connStringUrl, err := url.Parse(databaseURL)
-	if err != nil {
-		return fmt.Errorf("failed to parse database URL: %w", err)
-	}
-
-	dbPath := connStringUrl.Path
-	if dbPath == "" {
-		return fmt.Errorf("empty database path in URL")
-	}
-
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		slog.Info("Database file doesn't exist, no backup needed")
-		return nil
-	}
-
-	backupPath := strings.TrimSuffix(dbPath, ".db") + ".old"
-
-	if _, err := os.Stat(backupPath); err == nil {
-		if err := os.Remove(backupPath); err != nil {
-			return fmt.Errorf("failed to remove existing backup: %w", err)
-		}
-	}
-
-	if err := os.Rename(dbPath, backupPath); err != nil {
-		return fmt.Errorf("failed to backup database: %w", err)
-	}
-
-	slog.Info("Database backed up successfully", "backup_path", backupPath)
 	return nil
 }
 

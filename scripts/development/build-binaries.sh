@@ -20,16 +20,15 @@ build_platform() {
   local target="$1" os="$2" arch="$3" arm_version="${4:-}"
 
   local ext=""
-  [ "$os" = "windows" ] && ext=".exe"
   local output_path=".bin/arcane-${target}${ext}"
 
   printf "Building %s/%s%s ... " "$os" "$arch" "${arm_version:+ GOARM=$arm_version}"
 
   if [ -n "$arm_version" ]; then
-    GOARM="$arm_version" CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
+    GOARM="$arm_version" CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
       go build -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
   else
-    CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
+    CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
       go build -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
   fi
 

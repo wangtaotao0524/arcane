@@ -2,6 +2,7 @@
   "type": "module",
   "name": "arcane-tests",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "test": "playwright test"
   },
   "devDependencies": {

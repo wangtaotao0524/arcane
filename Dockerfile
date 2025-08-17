@@ -23,7 +23,7 @@ FROM golang:1.25-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 
-RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev libc6-compat
+RUN apk add --no-cache git ca-certificates tzdata
 
 COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
@@ -33,9 +33,14 @@ COPY ./backend ./
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
 # Build backend binary
-RUN CGO_ENABLED=1 \
+RUN CGO_ENABLED=0 \
     GOOS=linux \
-    go build -tags "${BUILD_TAGS}" -ldflags='-w -s' -trimpath -o /build/arcane ./cmd/main.go
+    go build \
+    -tags "${BUILD_TAGS}" \
+    -ldflags='-w -s' \
+    -trimpath \
+    -o /build/arcane \
+    ./cmd/main.go
 
 # Stage 3: Production Image
 FROM alpine:3 AS runner
