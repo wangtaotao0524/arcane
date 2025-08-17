@@ -3,23 +3,19 @@ ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
 FROM node:24 AS frontend-builder
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
 
 WORKDIR /build
 
-# Copy workspace files so --filter works and lockfile is honored
-COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json ./frontend/package.json
 
-# Install only the frontend workspace deps (cached)
-RUN pnpm --filter arcane-frontend install --frozen-lockfile
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+RUN pnpm -C frontend install --frozen-lockfile
 
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
-# Now copy the rest of the frontend and build
 COPY frontend ./frontend
 ENV BUILD_PATH=dist
-RUN pnpm --filter arcane-frontend build
+RUN pnpm -C frontend build
 
 # Stage 2: Build Backend
 FROM golang:1.25-alpine AS backend-builder
@@ -35,14 +31,15 @@ COPY ./backend ./
 # Copy built frontend assets into backend expected path
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
+# Build backend binary
 RUN CGO_ENABLED=1 \
     GOOS=linux \
     go build \
-    -tags "${BUILD_TAGS}" \
-    -ldflags='-w -s' \
-    -trimpath \
-    -o /build/arcane \
-    ./cmd/main.go
+      -tags "${BUILD_TAGS}" \
+      -ldflags='-w -s' \
+      -trimpath \
+      -o /build/arcane \
+      ./cmd/main.go
 
 # Stage 3: Production Image
 FROM alpine:3 AS runner
