@@ -26,7 +26,13 @@ func NewNetworkService(db *database.DB, dockerService *DockerClientService, even
 	}
 }
 
-// ListNetworks returns live Docker networks
+var defaultNetworkNames = map[string]bool{
+	"bridge":  true,
+	"host":    true,
+	"none":    true,
+	"ingress": true,
+}
+
 func (s *NetworkService) ListNetworks(ctx context.Context) ([]network.Summary, error) {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
@@ -244,24 +250,15 @@ func (s *NetworkService) GetDefaultNetworks(ctx context.Context) ([]network.Summ
 		return nil, err
 	}
 
-	defaultNames := map[string]bool{
-		"bridge":  true,
-		"host":    true,
-		"none":    true,
-		"ingress": true,
-	}
-
 	var defaults []network.Summary
 	for _, net := range networks {
-		if defaultNames[net.Name] {
+		if defaultNetworkNames[net.Name] {
 			defaults = append(defaults, net)
 		}
 	}
-
 	return defaults, nil
 }
 
-// GetNetworksByScope filters networks by scope (local, global, swarm)
 func (s *NetworkService) GetNetworksByScope(ctx context.Context, scope string) ([]network.Summary, error) {
 	networks, err := s.ListNetworks(ctx)
 	if err != nil {
@@ -285,20 +282,12 @@ func (s *NetworkService) GetUserDefinedNetworks(ctx context.Context) ([]network.
 		return nil, err
 	}
 
-	defaultNames := map[string]bool{
-		"bridge":  true,
-		"host":    true,
-		"none":    true,
-		"ingress": true,
-	}
-
 	var userDefined []network.Summary
 	for _, net := range networks {
-		if !defaultNames[net.Name] {
+		if !defaultNetworkNames[net.Name] {
 			userDefined = append(userDefined, net)
 		}
 	}
-
 	return userDefined, nil
 }
 

@@ -44,16 +44,6 @@ func NewStackService(db *database.DB, settingsService *SettingsService, eventSer
 	}
 }
 
-type StackInfo struct {
-	ID           string             `json:"id"`
-	Name         string             `json:"name"`
-	Status       string             `json:"status"`
-	Services     []StackServiceInfo `json:"services"`
-	ServiceCount int                `json:"service_count"`
-	RunningCount int                `json:"running_count"`
-	ComposeYAML  string             `json:"compose_yaml,omitempty"`
-}
-
 func (s *StackService) CreateStack(ctx context.Context, name, composeContent string, envContent *string, user models.User) (*models.Stack, error) {
 	stackID := uuid.New().String()
 	folderName := s.sanitizeStackName(name)
@@ -319,79 +309,6 @@ func (s *StackService) parseServicesFromComposeFile(ctx context.Context, compose
 	return services, nil
 }
 
-func (s *StackService) GetStackInfo(ctx context.Context, stackID string) (*StackInfo, error) {
-	stack, err := s.GetStackByID(ctx, stackID)
-	if err != nil {
-		return nil, err
-	}
-
-	services, err := s.GetStackServices(ctx, stackID)
-	if err != nil {
-		return nil, err
-	}
-
-	composeYAML, err := s.getProcessedComposeYAML(ctx, stackID)
-	if err != nil {
-		composeYAML = ""
-	}
-
-	serviceCount, runningCount := s.getServiceCounts(services)
-
-	status := "stopped"
-	if serviceCount > 0 {
-		if runningCount == serviceCount {
-			status = "running"
-		} else if runningCount > 0 {
-			status = "partially running"
-		}
-	}
-
-	return &StackInfo{
-		ID:           stack.ID,
-		Name:         stack.Name,
-		Status:       status,
-		Services:     services,
-		ServiceCount: serviceCount,
-		RunningCount: runningCount,
-		ComposeYAML:  composeYAML,
-	}, nil
-}
-
-func (s *StackService) getProcessedComposeYAML(ctx context.Context, stackID string) (string, error) {
-	stack, err := s.GetStackByID(ctx, stackID)
-	if err != nil {
-		return "", err
-	}
-
-	composeFile := s.findComposeFile(stack.Path)
-	if composeFile == "" {
-		return "", fmt.Errorf("no compose file found")
-	}
-
-	options, err := cli.NewProjectOptions(
-		[]string{composeFile},
-		cli.WithOsEnv,
-		cli.WithDotEnv,
-		cli.WithName(stack.Name),
-		cli.WithWorkingDirectory(stack.Path),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to create project options: %w", err)
-	}
-
-	project, err := options.LoadProject(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to load project: %w", err)
-	}
-
-	projectYAML, err := project.MarshalYAML()
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal YAML: %w", err)
-	}
-
-	return string(projectYAML), nil
-}
-
 func (s *StackService) RestartStack(ctx context.Context, stackID string, user models.User) error {
 	stack, err := s.GetStackByID(ctx, stackID)
 	if err != nil {
@@ -531,22 +448,6 @@ processResult:
 	return result, pagination, nil
 }
 
-func (s *StackService) GetAllStacksWithDiscovery(ctx context.Context) (tracked []models.Stack, external []models.Stack, err error) {
-	// Get tracked stacks with live sync
-	tracked, err = s.ListStacks(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Discover external stacks
-	external, err = s.DiscoverExternalStacks(ctx)
-	if err != nil {
-		return tracked, nil, err
-	}
-
-	return tracked, external, nil
-}
-
 // SyncAllStacksFromFilesystem scans the stacks directory and ensures database is in sync
 func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
 	stacksDir, err := s.getStacksDirectory(ctx)
@@ -583,7 +484,7 @@ func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Auto-import external stack
-			if _, importErr := s.ImportExternalStack(ctx, dirName, dirName, systemUser); importErr != nil {
+			if _, importErr := s.importExternalStack(ctx, dirName, dirName, systemUser); importErr != nil {
 				fmt.Printf("Warning: failed to auto-import stack %s: %v\n", dirName, importErr)
 			}
 		} else if err == nil {
@@ -827,56 +728,6 @@ func (s *StackService) RedeployStack(ctx context.Context, stackID string, profil
 	return s.DeployStack(ctx, stackID, systemUser)
 }
 
-// DiscoverExternalStacks scans the configured stacks directory and returns any
-// folders with a compose file not already tracked in the database.
-func (s *StackService) DiscoverExternalStacks(ctx context.Context) ([]models.Stack, error) {
-	dir, err := s.getStacksDirectory(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stacks directory: %w", err)
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read stacks directory: %w", err)
-	}
-	var externals []models.Stack
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		path := filepath.Join(dir, name)
-		if s.findComposeFile(path) == "" {
-			continue
-		}
-		var count int64
-		s.db.WithContext(ctx).
-			Model(&models.Stack{}).
-			Where("path = ?", path).
-			Or("dir_name = ?", name).
-			Count(&count)
-		if count > 0 {
-			continue
-		}
-
-		// Invoke docker-compose ps to get real status & counts
-		status, svcCount, runningCount := models.StackStatusUnknown, 0, 0
-		if st, tot, run, err := s.getLiveStackStatus(ctx, path, name); err == nil {
-			status, svcCount, runningCount = st, tot, run
-		}
-
-		externals = append(externals, models.Stack{
-			ID:           "", // not yet persisted
-			Name:         name,
-			DirName:      &name,
-			Path:         path,
-			Status:       status,
-			ServiceCount: svcCount,
-			RunningCount: runningCount,
-		})
-	}
-	return externals, nil
-}
-
 // getLiveStackStatus runs `docker-compose ps --format json` in the stackDir
 // and returns a status plus total / running service counts.
 func (s *StackService) getLiveStackStatus(ctx context.Context, stackDir, projectName string) (models.StackStatus, int, int, error) {
@@ -933,35 +784,6 @@ func (s *StackService) getLiveStackStatus(ctx context.Context, stackDir, project
 	default:
 		return models.StackStatusStopped, total, running, nil
 	}
-}
-
-func (s *StackService) ValidateStackCompose(ctx context.Context, composeContent string) error {
-	tempDir, err := os.MkdirTemp("", "stack-validation")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	composePath := filepath.Join(tempDir, "compose.yaml")
-	if err := os.WriteFile(composePath, []byte(composeContent), 0600); err != nil {
-		return fmt.Errorf("failed to write compose file: %w", err)
-	}
-
-	options, err := cli.NewProjectOptions(
-		[]string{composePath},
-		cli.WithOsEnv,
-		cli.WithWorkingDirectory(tempDir),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create project options: %w", err)
-	}
-
-	_, err = options.LoadProject(ctx)
-	if err != nil {
-		return fmt.Errorf("invalid compose file: %w", err)
-	}
-
-	return nil
 }
 
 func (s *StackService) GetStackLogs(ctx context.Context, stackID string, tail int, follow bool) (string, error) {
@@ -1195,40 +1017,33 @@ func (s *StackService) saveStackFiles(stackPath, composeContent string, envConte
 	return nil
 }
 
-func (s *StackService) findComposeFile(stackDir string) string {
-	composeFiles := []string{
-		"compose.yaml",
-		"compose.yml",
-		"docker-compose.yaml",
-		"docker-compose.yml",
-	}
+// Centralize compose filename candidates once.
+var composeFileCandidates = []string{
+	"compose.yaml",
+	"compose.yml",
+	"docker-compose.yaml",
+	"docker-compose.yml",
+}
 
-	for _, filename := range composeFiles {
+// findFirstExistingComposeFile returns (fullPath, filename) of the first compose file found.
+func findFirstExistingComposeFile(stackDir string) (string, string) {
+	for _, filename := range composeFileCandidates {
 		fullPath := filepath.Join(stackDir, filename)
-		if _, err := os.Stat(fullPath); err == nil {
-			return fullPath
+		if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
+			return fullPath, filename
 		}
 	}
+	return "", ""
+}
 
-	return ""
+func (s *StackService) findComposeFile(stackDir string) string {
+	full, _ := findFirstExistingComposeFile(stackDir)
+	return full
 }
 
 func (s *StackService) findComposeFileName(stackDir string) string {
-	composeFiles := []string{
-		"compose.yaml",
-		"compose.yml",
-		"docker-compose.yaml",
-		"docker-compose.yml",
-	}
-
-	for _, filename := range composeFiles {
-		fullPath := filepath.Join(stackDir, filename)
-		if _, err := os.Stat(fullPath); err == nil {
-			return filename // Return just the filename, not the full path
-		}
-	}
-
-	return ""
+	_, name := findFirstExistingComposeFile(stackDir)
+	return name
 }
 
 func (s *StackService) parseComposePS(output string) ([]StackServiceInfo, error) {
@@ -1336,10 +1151,7 @@ func (s *StackService) getServiceCounts(services []StackServiceInfo) (total int,
 	return total, running
 }
 
-// ImportExternalStack creates a DB record for a compose directory
-// that isn't yet tracked by Arcane.
-func (s *StackService) ImportExternalStack(ctx context.Context, dirName, stackName string, user models.User) (*models.Stack, error) {
-	// base path that DiscoverExternalStacks scanned
+func (s *StackService) importExternalStack(ctx context.Context, dirName, stackName string, user models.User) (*models.Stack, error) {
 	stacksDir, err := s.getStacksDirectory(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stacks directory: %w", err)

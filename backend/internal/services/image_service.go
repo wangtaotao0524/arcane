@@ -20,7 +20,6 @@ import (
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -446,85 +445,6 @@ func (s *ImageService) deleteAllImages(ctx context.Context) error {
 	return nil
 }
 
-func (s *ImageService) GetImageByIDFromDB(ctx context.Context, id string) (*models.Image, error) {
-	var image models.Image
-	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&image).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("image not found")
-		}
-		return nil, fmt.Errorf("failed to get image: %w", err)
-	}
-	return &image, nil
-}
-
-func (s *ImageService) UpdateImageUsage(ctx context.Context, id string, inUse bool) error {
-	if err := s.db.WithContext(ctx).Model(&models.Image{}).Where("id = ?", id).Update("in_use", inUse).Error; err != nil {
-		return fmt.Errorf("failed to update image usage: %w", err)
-	}
-	return nil
-}
-
-func (s *ImageService) GetImagesByRepository(ctx context.Context, repo string) ([]*models.Image, error) {
-	var images []*models.Image
-	if err := s.db.WithContext(ctx).Where("repo = ?", repo).Find(&images).Error; err != nil {
-		return nil, fmt.Errorf("failed to get images by repository: %w", err)
-	}
-	return images, nil
-}
-
-func (s *ImageService) UpdateImageUpdate(ctx context.Context, imageID string, updateData *models.ImageUpdateRecord) error {
-	var image models.Image
-	if err := s.db.WithContext(ctx).Where("id = ?", imageID).First(&image).Error; err != nil {
-		return fmt.Errorf("image not found in database: %w", err)
-	}
-
-	updateData.ID = imageID
-	if err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"repository", "tag", "has_update", "update_type",
-			"current_version", "latest_version", "current_digest",
-			"latest_digest", "check_time", "response_time_ms", "last_error",
-		}),
-	}).Create(updateData).Error; err != nil {
-		return fmt.Errorf("failed to update image update record: %w", err)
-	}
-
-	return nil
-}
-
-func (s *ImageService) GetImagesNeedingMaturityCheck(ctx context.Context, olderThan time.Duration) ([]*models.Image, error) {
-	cutoff := time.Now().Add(-olderThan)
-
-	var images []*models.Image
-	query := s.db.WithContext(ctx).
-		Preload("MaturityRecord").
-		Where("repo != ? AND tag != ?", "<none>", "<none>").
-		Where("id NOT IN (SELECT id FROM image_maturity_table WHERE last_checked > ?)", cutoff)
-
-	if err := query.Find(&images).Error; err != nil {
-		return nil, fmt.Errorf("failed to get images needing maturity check: %w", err)
-	}
-
-	return images, nil
-}
-
-func (s *ImageService) GetImagesNeedingUpdateCheck(ctx context.Context, olderThan time.Duration) ([]*models.Image, error) {
-	cutoff := time.Now().Add(-olderThan)
-
-	var images []*models.Image
-	query := s.db.WithContext(ctx).
-		Preload("UpdateRecord").
-		Where("repo != ? AND tag != ?", "<none>", "<none>").
-		Where("id NOT IN (SELECT id FROM image_update_table WHERE check_time > ?)", cutoff)
-
-	if err := query.Find(&images).Error; err != nil {
-		return nil, fmt.Errorf("failed to get images needing update check: %w", err)
-	}
-
-	return images, nil
-}
-
 func (s *ImageService) ListImagesWithUpdates(ctx context.Context) ([]*models.Image, error) {
 	_, err := s.ListImages(ctx)
 	if err != nil {
@@ -616,19 +536,4 @@ func (s *ImageService) GetTotalImageSize(ctx context.Context) (int64, error) {
 		total += img.Size
 	}
 	return total, nil
-}
-
-func (s *ImageService) CleanupOrphanedUpdateRecords(ctx context.Context, existingImageIDs []string) (int64, error) {
-	var result *gorm.DB
-	if len(existingImageIDs) == 0 {
-		result = s.db.WithContext(ctx).Delete(&models.ImageUpdateRecord{})
-	} else {
-		result = s.db.WithContext(ctx).Where("id NOT IN ?", existingImageIDs).Delete(&models.ImageUpdateRecord{})
-	}
-
-	if result.Error != nil {
-		return 0, fmt.Errorf("failed to cleanup orphaned update records: %w", result.Error)
-	}
-
-	return result.RowsAffected, nil
 }
