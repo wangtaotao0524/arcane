@@ -38,10 +38,8 @@
 	let isOidcViewMode = $derived(data.oidcStatus?.envForced && data.oidcStatus?.envConfigured);
 
 	$effect(() => {
-		// Initialize state from currentSettings
 		localAuthEnabled = currentSettings.authLocalEnabled ?? true;
 		oidcEnabled = currentSettings.authOidcEnabled ?? false;
-		// Keep the same unit as the Security Settings page (minutes)
 		sessionTimeout = currentSettings.authSessionTimeout ?? 60;
 		passwordPolicy = currentSettings.authPasswordPolicy ?? 'strong';
 
