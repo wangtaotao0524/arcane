@@ -75,7 +75,6 @@ func TestSplitImageReference(t *testing.T) {
 
 	r := NewRegistryUtils()
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			reg, repo, tag, err := r.SplitImageReference(tc.ref)
 			if tc.wantError {
@@ -126,7 +125,6 @@ func TestExtractRegistryDomain(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.ref, func(t *testing.T) {
 			got, err := ExtractRegistryDomain(tc.ref)
 			if err != nil {
@@ -154,7 +152,6 @@ func TestCheckAuthParsesRealm(t *testing.T) {
 	defer srv.Close()
 
 	utils := NewRegistryUtils()
-	// Pass full server URL so GetRegistryURL returns it unchanged
 	got, err := utils.CheckAuth(context.Background(), srv.URL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -169,27 +166,25 @@ func TestGetToken(t *testing.T) {
 
 	// Fake auth server returning a token
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// verify optional basic auth presence if provided
 		if ah := r.Header.Get("Authorization"); ah != "" {
 			if !strings.HasPrefix(ah, "Basic ") {
 				t.Fatalf("expected Basic auth header, got %q", ah)
 			}
-			// ensure decodes without error
 			if _, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(ah, "Basic ")); err != nil {
 				t.Fatalf("bad basic auth header: %v", err)
 			}
 		}
 
 		_ = r.ParseForm()
-		_ = r.Form.Get("service")
-		_ = r.Form.Get("scope")
+		_, _ = r.Form.Get("service"), r.Form.Get("scope")
 
-		_ = json.NewEncoder(w).Encode(map[string]string{"token": "abc123"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"token": "abc123"}); err != nil {
+			t.Fatalf("encode token response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
 	utils := NewRegistryUtils()
-	// authURL points to our test server
 	token, err := utils.GetToken(context.Background(), srv.URL, "library/hello-world", &RegistryCredentials{
 		Username: "user",
 		Token:    "pass",
@@ -233,14 +228,22 @@ func TestGetImageTagsPagination(t *testing.T) {
 
 	var server *httptest.Server
 
+	type tagsResp struct {
+		Tags []string `json:"tags"`
+	}
+
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v2/org/repo/tags/list" && (r.URL.RawQuery == "" || r.URL.RawQuery == "page=1"):
 			page2URL := server.URL + "/v2/org/repo/tags/list?page=2"
 			w.Header().Set("Link", `<`+page2URL+`>; rel="next"`)
-			_ = json.NewEncoder(w).Encode(map[string]any{"tags": []string{"a", "b"}})
+			if err := json.NewEncoder(w).Encode(tagsResp{Tags: []string{"a", "b"}}); err != nil {
+				t.Fatalf("encode page1: %v", err)
+			}
 		case r.URL.Path == "/v2/org/repo/tags/list" && r.URL.RawQuery == "page=2":
-			_ = json.NewEncoder(w).Encode(map[string]any{"tags": []string{"c"}})
+			if err := json.NewEncoder(w).Encode(tagsResp{Tags: []string{"c"}}); err != nil {
+				t.Fatalf("encode page2: %v", err)
+			}
 		default:
 			http.NotFound(w, r)
 		}
