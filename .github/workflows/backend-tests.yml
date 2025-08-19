@@ -27,7 +27,7 @@ jobs:
           go-version-file: backend/go.mod
           cache: true
 
-      - name: Install GCC (for CGO/race)
+      - name: Install GCC
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc
@@ -35,10 +35,10 @@ jobs:
       - name: Download modules
         run: go mod download
 
-      - name: Run unit tests (race + coverage)
+      - name: Run unit tests
         env:
           CGO_ENABLED: '1'
-        run: go test ./... -race -coverprofile=coverage.out -covermode=atomic -v
+        run: go test -tags=exclude_frontend ./... -race -coverprofile=coverage.out -covermode=atomic -v
 
       - name: Upload coverage artifact
         if: always()
