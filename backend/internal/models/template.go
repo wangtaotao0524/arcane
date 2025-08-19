@@ -1,21 +1,15 @@
 package models
 
-import (
-	"time"
-)
-
 type TemplateRegistry struct {
-	ID          string    `json:"id" gorm:"primaryKey"`
-	Name        string    `json:"name" gorm:"not null"`
-	URL         string    `json:"url" gorm:"not null;unique"`
-	Enabled     bool      `json:"enabled" gorm:"default:true"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	BaseModel
+	Name        string `json:"name" gorm:"not null"`
+	URL         string `json:"url" gorm:"not null;unique"`
+	Enabled     bool   `json:"enabled" gorm:"default:true"`
+	Description string `json:"description"`
 }
 
 type ComposeTemplate struct {
-	ID          string                   `json:"id" gorm:"primaryKey"`
+	BaseModel
 	Name        string                   `json:"name" gorm:"not null"`
 	Description string                   `json:"description"`
 	Content     string                   `json:"content" gorm:"type:text"`
@@ -23,10 +17,8 @@ type ComposeTemplate struct {
 	IsCustom    bool                     `json:"isCustom" gorm:"default:true"`
 	IsRemote    bool                     `json:"isRemote" gorm:"default:false"`
 	RegistryID  *string                  `json:"registryId,omitempty"`
-	Registry    *TemplateRegistry        `json:"registry,omitempty" gorm:"foreignKey:RegistryID"`
+	Registry    *TemplateRegistry        `json:"registry,omitempty" gorm:"foreignKey:RegistryID;references:ID"`
 	Metadata    *ComposeTemplateMetadata `json:"metadata,omitempty" gorm:"embedded;embeddedPrefix:meta_"`
-	CreatedAt   time.Time                `json:"createdAt"`
-	UpdatedAt   time.Time                `json:"updatedAt"`
 }
 
 type ComposeTemplateMetadata struct {

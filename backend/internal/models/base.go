@@ -3,31 +3,21 @@ package models
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-// Base model with common fields
 type BaseModel struct {
+	ID        string     `json:"id" gorm:"primaryKey;type:text;not null"`
 	CreatedAt time.Time  `json:"createdAt" gorm:"not null"`
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
 
-// Ensure a UUID is set on the parent model's `ID` field before create
-func (m *BaseModel) BeforeCreate(tx *gorm.DB) (err error) {
-	v := tx.Statement.ReflectValue
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	if v.IsValid() && v.Kind() == reflect.Struct {
-		f := v.FieldByName("ID")
-		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String && f.Len() == 0 {
-			f.SetString(uuid.New().String())
-		}
+func (m *BaseModel) BeforeCreate(_ *gorm.DB) (err error) {
+	if m.ID == "" {
+		m.ID = uuid.New().String()
 	}
 	if m.CreatedAt.IsZero() {
 		m.CreatedAt = time.Now()
@@ -35,7 +25,12 @@ func (m *BaseModel) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// JSON type for handling JSON columns
+func (m *BaseModel) BeforeUpdate(_ *gorm.DB) (err error) {
+	now := time.Now()
+	m.UpdatedAt = &now
+	return nil
+}
+
 type JSON map[string]interface{}
 
 func (j JSON) Value() (driver.Value, error) {
@@ -50,21 +45,16 @@ func (j *JSON) Scan(value interface{}) error {
 		*j = nil
 		return nil
 	}
-
-	var bytes []byte
 	switch v := value.(type) {
 	case []byte:
-		bytes = v
+		return json.Unmarshal(v, j)
 	case string:
-		bytes = []byte(v)
+		return json.Unmarshal([]byte(v), j)
 	default:
-		return fmt.Errorf("cannot scan %T into JSON", value)
+		return json.Unmarshal(nil, j)
 	}
-
-	return json.Unmarshal(bytes, j)
 }
 
-// StringSlice for handling []string columns
 type StringSlice []string
 
 func (s StringSlice) Value() (driver.Value, error) {
@@ -79,16 +69,12 @@ func (s *StringSlice) Scan(value interface{}) error {
 		*s = nil
 		return nil
 	}
-
-	var bytes []byte
 	switch v := value.(type) {
 	case []byte:
-		bytes = v
+		return json.Unmarshal(v, s)
 	case string:
-		bytes = []byte(v)
+		return json.Unmarshal([]byte(v), s)
 	default:
-		return fmt.Errorf("cannot scan %T into StringSlice", value)
+		return json.Unmarshal(nil, s)
 	}
-
-	return json.Unmarshal(bytes, s)
 }

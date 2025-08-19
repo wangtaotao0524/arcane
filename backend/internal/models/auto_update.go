@@ -16,7 +16,6 @@ const (
 )
 
 type AutoUpdateRecord struct {
-	ID               string           `json:"id" gorm:"primaryKey"`
 	ResourceID       string           `json:"resourceId" gorm:"index;not null"`
 	ResourceType     string           `json:"resourceType" gorm:"not null"` // "container" or "stack"
 	ResourceName     string           `json:"resourceName" gorm:"not null"`

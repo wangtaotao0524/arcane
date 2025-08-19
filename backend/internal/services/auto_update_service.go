@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
 	"github.com/ofkm/arcane-backend/internal/database"
@@ -1033,7 +1032,6 @@ func (s *AutoUpdateService) serviceHasAutoUpdateLabel(service interface{}) bool 
 
 func (s *AutoUpdateService) recordAutoUpdate(ctx context.Context, result dto.AutoUpdateResourceResult) error {
 	record := &models.AutoUpdateRecord{
-		ID:              uuid.New().String(),
 		ResourceID:      result.ResourceID,
 		ResourceType:    result.ResourceType,
 		ResourceName:    result.ResourceName,

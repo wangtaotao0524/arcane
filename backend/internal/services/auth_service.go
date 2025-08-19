@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -296,7 +294,6 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) 
 		email := userInfo.Email
 
 		user = &models.User{
-			ID:            generateUserId(),
 			Username:      username,
 			DisplayName:   &displayName,
 			Email:         &email,
@@ -411,7 +408,6 @@ func (s *AuthService) VerifyToken(ctx context.Context, accessToken string) (*mod
 	}
 
 	user := &models.User{
-		ID:       claims.UserID,
 		Username: claims.Username,
 		Roles:    models.StringSlice(claims.Roles),
 	}
@@ -502,15 +498,6 @@ func (s *AuthService) generateTokenPair(ctx context.Context, user *models.User) 
 		RefreshToken: refreshTokenString,
 		ExpiresAt:    accessTokenExpiry,
 	}, nil
-}
-
-func generateUserId() string {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("usr_%s", base64.RawURLEncoding.EncodeToString(b))
 }
 
 func generateUsernameFromEmail(email, subject string) string {

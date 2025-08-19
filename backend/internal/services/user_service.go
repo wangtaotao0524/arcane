@@ -16,7 +16,6 @@ import (
 
 	"crypto/subtle"
 
-	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
@@ -145,7 +144,6 @@ func (s *UserService) CreateUserWithPassword(username, password, email, role str
 	}
 
 	user := &models.User{
-		ID:           uuid.New().String(),
 		Username:     username,
 		Email:        &email,
 		DisplayName:  &displayName,

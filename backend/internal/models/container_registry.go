@@ -5,7 +5,6 @@ import (
 )
 
 type ContainerRegistry struct {
-	ID          string    `json:"id" gorm:"primaryKey" sortable:"true"`
 	URL         string    `json:"url" gorm:"not null" sortable:"true"`
 	Username    string    `json:"username" gorm:"not null" sortable:"true"`
 	Token       string    `json:"token" gorm:"not null"`
@@ -14,6 +13,7 @@ type ContainerRegistry struct {
 	Enabled     bool      `json:"enabled" gorm:"default:true" sortable:"true"`
 	CreatedAt   time.Time `json:"createdAt" sortable:"true"`
 	UpdatedAt   time.Time `json:"updatedAt" sortable:"true"`
+	BaseModel
 }
 
 func (ContainerRegistry) TableName() string {

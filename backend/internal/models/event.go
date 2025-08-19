@@ -47,7 +47,6 @@ const (
 )
 
 type Event struct {
-	ID            string        `json:"id" gorm:"primaryKey" sortable:"true"`
 	Type          EventType     `json:"type" gorm:"not null" sortable:"true"`
 	Severity      EventSeverity `json:"severity" gorm:"not null" sortable:"true"`
 	Title         string        `json:"title" gorm:"not null" sortable:"true"`

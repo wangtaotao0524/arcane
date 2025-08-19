@@ -330,8 +330,6 @@ func (s *TemplateService) convertRemoteToLocal(remote dto.RemoteTemplate, regist
 	}
 
 	return models.ComposeTemplate{
-		// Use the combined ID format here
-		ID:          fmt.Sprintf("%s-%s", registry.ID, remote.ID),
 		Name:        remote.Name,
 		Description: remote.Description,
 		Content:     "",  // Content is not stored for remote templates initially
@@ -439,14 +437,12 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 	}
 
 	localTemplate := &models.ComposeTemplate{
-		// Generate a new ID for the local copy, distinct from the remote ID
-		ID:          s.generateTemplateID(remoteTemplate.Name), // Use a local-specific ID generation
 		Name:        remoteTemplate.Name,
 		Description: fmt.Sprintf("%s (Downloaded from %s)", remoteTemplate.Description, remoteTemplate.Registry.Name),
 		Content:     composeContent,
-		IsCustom:    true, // Downloaded templates are custom local copies
+		IsCustom:    true,
 		IsRemote:    false,
-		RegistryID:  nil, // No longer linked to a remote registry
+		RegistryID:  nil,
 		Registry:    nil,
 	}
 
@@ -454,7 +450,6 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 		localTemplate.EnvContent = &envContent
 	}
 
-	// Copy relevant metadata
 	if remoteTemplate.Metadata != nil {
 		localTemplate.Metadata = &models.ComposeTemplateMetadata{
 			Version:          remoteTemplate.Metadata.Version,
@@ -462,7 +457,6 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 			Tags:             remoteTemplate.Metadata.Tags,
 			DocumentationURL: remoteTemplate.Metadata.DocumentationURL,
 			IconURL:          remoteTemplate.Metadata.IconURL,
-			// Do not copy RemoteURL, EnvURL, UpdatedAt as it's now local
 		}
 	}
 
@@ -477,16 +471,3 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 
 	return localTemplate, nil
 }
-
-// Helper to remove a template from the remote cache (optional)
-// func (s *TemplateService) removeRemoteTemplateFromCache(id string) {
-// 	s.remoteFetchMutex.Lock()
-// 	defer s.remoteFetchMutex.Unlock()
-// 	var updatedCache []models.ComposeTemplate
-// 	for _, t := range s.remoteTemplatesCache {
-// 		if t.ID != id {
-// 			updatedCache = append(updatedCache, t)
-// 		}
-// 	}
-// 	s.remoteTemplatesCache = updatedCache
-// }

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
@@ -105,7 +104,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	user := &models.User{
-		ID:           uuid.New().String(),
 		Username:     req.Username,
 		PasswordHash: hashedPassword,
 		DisplayName:  req.DisplayName,

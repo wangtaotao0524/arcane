@@ -380,7 +380,6 @@ func (s *ImageService) syncSingleImage(ctx context.Context, di image.Summary, in
 
 func (s *ImageService) buildImageModel(di image.Summary, isInUse bool) models.Image {
 	imageModel := models.Image{
-		ID:          di.ID,
 		RepoTags:    models.StringSlice(di.RepoTags),
 		RepoDigests: models.StringSlice(di.RepoDigests),
 		Size:        di.Size,

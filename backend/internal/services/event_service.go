@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
@@ -41,7 +40,6 @@ func (s *EventService) CreateEvent(ctx context.Context, req CreateEventRequest) 
 	}
 
 	event := &models.Event{
-		ID:            uuid.New().String(),
 		Type:          req.Type,
 		Severity:      severity,
 		Title:         req.Title,

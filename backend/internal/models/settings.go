@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	redactionMask     = "XXXXXXXXXX"
+	keyAuthOidcConfig = "authOidcConfig"
+)
+
 type SettingVariable struct {
 	Key   string `gorm:"primaryKey;not null"`
 	Value string
@@ -74,7 +79,7 @@ func (s *Settings) ToSettingVariableSlice(showAll bool, redactSensitiveValues bo
 
 	var res []SettingVariable
 
-	for i := range cfgType.NumField() {
+	for i := 0; i < cfgType.NumField(); i++ {
 		field := cfgType.Field(i)
 
 		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
@@ -87,32 +92,12 @@ func (s *Settings) ToSettingVariableSlice(showAll bool, redactSensitiveValues bo
 		}
 
 		value := cfgValue.Field(i).FieldByName("Value").String()
-
-		// Redact sensitive values if requested
-		if value != "" && redactSensitiveValues && attrs == "sensitive" {
-			if key == "authOidcConfig" {
-				// Redact only the clientSecret field while keeping the rest visible
-				var cfg OidcConfig
-				if err := json.Unmarshal([]byte(value), &cfg); err == nil {
-					cfg.ClientSecret = ""
-					if redacted, err := json.Marshal(cfg); err == nil {
-						value = string(redacted)
-					} else {
-						value = "XXXXXXXXXX"
-					}
-				} else {
-					value = "XXXXXXXXXX"
-				}
-			} else {
-				value = "XXXXXXXXXX"
-			}
-		}
+		value = redactSettingValue(key, value, attrs, redactSensitiveValues)
 
 		settingVariable := SettingVariable{
 			Key:   key,
 			Value: value,
 		}
-
 		res = append(res, settingVariable)
 	}
 
@@ -123,7 +108,7 @@ func (s *Settings) FieldByKey(key string) (defaultValue string, isPublic bool, i
 	rv := reflect.ValueOf(s).Elem()
 	rt := rv.Type()
 
-	for i := range rt.NumField() {
+	for i := 0; i < rt.NumField(); i++ {
 		tagValue := strings.Split(rt.Field(i).Tag.Get("key"), ",")
 		keyFromTag := tagValue[0]
 		isPublic = slices.Contains(tagValue, "public")
@@ -144,7 +129,7 @@ func (s *Settings) UpdateField(key string, value string, noSensitive bool) error
 	rv := reflect.ValueOf(s).Elem()
 	rt := rv.Type()
 
-	for i := range rt.NumField() {
+	for i := 0; i < rt.NumField(); i++ {
 		tagValue, attrs, _ := strings.Cut(rt.Field(i).Tag.Get("key"), ",")
 		if tagValue != key {
 			continue
@@ -165,6 +150,27 @@ func (s *Settings) UpdateField(key string, value string, noSensitive bool) error
 	}
 
 	return SettingKeyNotFoundError{field: key}
+}
+
+// helper keeps redaction logic in one place; behavior unchanged
+func redactSettingValue(key, value, attrs string, redact bool) string {
+	if value == "" || !redact || attrs != "sensitive" {
+		return value
+	}
+
+	if key == keyAuthOidcConfig {
+		var cfg OidcConfig
+		if err := json.Unmarshal([]byte(value), &cfg); err == nil {
+			cfg.ClientSecret = ""
+			if redacted, err := json.Marshal(cfg); err == nil {
+				return string(redacted)
+			}
+			return redactionMask
+		}
+		return redactionMask
+	}
+
+	return redactionMask
 }
 
 type SettingKeyNotFoundError struct {
@@ -191,21 +197,6 @@ func (e SettingSensitiveForbiddenError) Error() string {
 func (e SettingSensitiveForbiddenError) Is(target error) bool {
 	x := SettingSensitiveForbiddenError{}
 	return errors.As(target, &x)
-}
-
-// Legacy types for backward compatibility
-type RegistryCredential struct {
-	URL      string `json:"url"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type TemplateRegistryConfig struct {
-	URL         string `json:"url"`
-	Name        string `json:"name"`
-	Enabled     bool   `json:"enabled"`
-	LastUpdated *int64 `json:"lastUpdated,omitempty"`
-	CacheTTL    *int   `json:"cacheTtl,omitempty"`
 }
 
 type OidcConfig struct {

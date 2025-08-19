@@ -15,11 +15,11 @@ import (
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/cli"
-	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type StackServiceInfo struct {
@@ -45,7 +45,6 @@ func NewStackService(db *database.DB, settingsService *SettingsService, eventSer
 }
 
 func (s *StackService) CreateStack(ctx context.Context, name, composeContent string, envContent *string, user models.User) (*models.Stack, error) {
-	stackID := uuid.New().String()
 	folderName := s.sanitizeStackName(name)
 
 	stacksDir, err := s.getStacksDirectory(ctx)
@@ -67,7 +66,6 @@ func (s *StackService) CreateStack(ctx context.Context, name, composeContent str
 	}
 
 	stack := &models.Stack{
-		ID:           stackID,
 		Name:         name,
 		DirName:      &folderName,
 		Path:         stackPath,
@@ -85,14 +83,14 @@ func (s *StackService) CreateStack(ctx context.Context, name, composeContent str
 		return nil, fmt.Errorf("failed to save stack files: %w", err)
 	}
 
-	// Log stack creation event
+	// Log stack creation event (use the DB-assigned BaseModel.ID)
 	metadata := models.JSON{
 		"action":    "create",
-		"stackId":   stackID,
+		"stackId":   stack.ID,
 		"stackName": name,
 		"path":      stackPath,
 	}
-	if logErr := s.eventService.LogStackEvent(ctx, models.EventTypeStackCreate, stackID, name, user.ID, user.Username, "0", metadata); logErr != nil {
+	if logErr := s.eventService.LogStackEvent(ctx, models.EventTypeStackCreate, stack.ID, name, user.ID, user.Username, "0", metadata); logErr != nil {
 		fmt.Printf("Could not log stack creation action: %s\n", logErr)
 	}
 
@@ -1170,7 +1168,6 @@ func (s *StackService) importExternalStack(ctx context.Context, dirName, stackNa
 	}
 
 	stack := &models.Stack{
-		ID:           uuid.New().String(),
 		Name:         stackName,
 		DirName:      &dirName,
 		Path:         path,
@@ -1234,7 +1231,7 @@ func (s *StackService) updateProjectCache(ctx context.Context, stacks []models.S
 	for _, stack := range stacks {
 		select {
 		case <-ctx.Done():
-			return // Stop if context is canceled
+			return
 		default:
 		}
 
@@ -1255,9 +1252,25 @@ func (s *StackService) updateProjectCache(ctx context.Context, stacks []models.S
 			CachedAt:     time.Now(),
 		}
 
-		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			return tx.Where("stack_id = ?", stack.ID).Save(&cache).Error
-		}); err != nil {
+		// Upsert on stack_id to avoid UNIQUE(stack_id) violations
+		err = s.db.WithContext(ctx).
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{{Name: "stack_id"}},
+				DoUpdates: clause.Assignments(map[string]interface{}{
+					"name":          cache.Name,
+					"status":        cache.Status,
+					"service_count": cache.ServiceCount,
+					"running_count": cache.RunningCount,
+					"auto_update":   cache.AutoUpdate,
+					"last_modified": cache.LastModified,
+					"compose_hash":  cache.ComposeHash,
+					"cached_at":     cache.CachedAt,
+					"updated_at":    time.Now(),
+				}),
+			}).
+			Create(&cache).Error
+
+		if err != nil {
 			fmt.Printf("Warning: failed to update cache for stack %s: %v\n", stack.ID, err)
 		}
 	}

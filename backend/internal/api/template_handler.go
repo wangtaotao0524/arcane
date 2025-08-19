@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -135,12 +134,10 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	}
 
 	template := &models.ComposeTemplate{
-		// Generate a UUID for the new template
-		ID:          uuid.NewString(),
 		Name:        req.Name,
 		Description: req.Description,
 		Content:     req.Content,
-		IsCustom:    true, // New templates created via API are custom
+		IsCustom:    true,
 		IsRemote:    false,
 	}
 
@@ -336,8 +333,6 @@ func (h *TemplateHandler) CreateRegistry(c *gin.Context) {
 	}
 
 	registry := &models.TemplateRegistry{
-		// Generate a UUID for the registry ID
-		ID:          uuid.NewString(),
 		Name:        req.Name,
 		URL:         req.URL,
 		Description: req.Description,

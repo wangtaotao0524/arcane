@@ -44,7 +44,6 @@ func NewSystemService(
 
 var systemUser = models.User{
 	Username: "System",
-	ID:       "0",
 }
 
 func (s *SystemService) PruneAll(ctx context.Context, req dto.PruneSystemDto) (*dto.PruneAllResult, error) {

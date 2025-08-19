@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
@@ -18,10 +17,6 @@ type ContainerRegistryService struct {
 
 func NewContainerRegistryService(db *database.DB) *ContainerRegistryService {
 	return &ContainerRegistryService{db: db}
-}
-
-func generateID() string {
-	return uuid.New().String()
 }
 
 func (s *ContainerRegistryService) GetAllRegistries(ctx context.Context) ([]models.ContainerRegistry, error) {
@@ -65,7 +60,6 @@ func (s *ContainerRegistryService) CreateRegistry(ctx context.Context, req model
 	}
 
 	registry := &models.ContainerRegistry{
-		ID:          generateID(),
 		URL:         req.URL,
 		Username:    req.Username,
 		Token:       encryptedToken,
