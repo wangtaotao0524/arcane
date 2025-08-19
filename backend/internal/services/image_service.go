@@ -386,6 +386,8 @@ func (s *ImageService) buildImageModel(di image.Summary, isInUse bool) models.Im
 		Created:     time.Unix(di.Created, 0),
 		InUse:       isInUse,
 	}
+	// Persist the Docker image ID as our primary key so upserts and cleanup work correctly.
+	imageModel.ID = di.ID
 
 	if di.Labels != nil {
 		labelsJSON := make(map[string]interface{})
@@ -400,8 +402,19 @@ func (s *ImageService) buildImageModel(di image.Summary, isInUse bool) models.Im
 }
 
 func (s *ImageService) setRepoAndTag(imageModel *models.Image, repoTags []string) {
-	if len(repoTags) > 0 && repoTags[0] != "" {
-		repoTag := repoTags[0]
+	// Prefer the first meaningful tag (skip empty and <none>)
+	var repoTag string
+	for _, t := range repoTags {
+		if t != "" && !strings.Contains(t, "<none>") {
+			repoTag = t
+			break
+		}
+	}
+	if repoTag == "" && len(repoTags) > 0 {
+		repoTag = repoTags[0]
+	}
+
+	if repoTag != "" {
 		if strings.Contains(repoTag, ":") {
 			parts := strings.SplitN(repoTag, ":", 2)
 			imageModel.Repo = parts[0]
