@@ -5,12 +5,16 @@ async function fetchImagesWithRetry(page: Page, maxRetries = 3): Promise<any[]> 
   while (retries < maxRetries) {
     try {
       const response = await page.request.get('/api/environments/0/images');
-      const images = await response.json();
-      return images.data;
+      if (!response.ok()) {
+        throw new Error(`HTTP ${response.status()}`);
+      }
+      const body = await response.json().catch(() => null as any);
+      const data = Array.isArray(body?.data) ? body.data : [];
+      return data;
     } catch (error) {
       retries++;
-      if (retries >= maxRetries) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (retries >= maxRetries) return [];
+      await page.waitForTimeout(1000);
     }
   }
   return [];
@@ -23,9 +27,9 @@ test.beforeEach(async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   try {
-    realImages = await fetchImagesWithRetry(page);
-  } catch (error) {
-    console.warn('Could not fetch images after multiple retries:', error);
+    const images = await fetchImagesWithRetry(page);
+    realImages = Array.isArray(images) ? images : [];
+  } catch {
     realImages = [];
   }
 
