@@ -85,9 +85,38 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Handle password change required
 	if errors.Is(err, services.ErrPasswordChangeRequired) && user != nil {
+		// If we received a token pair, set the cookie so the password change call is authenticated.
+		if tokenPair != nil {
+			c.SetSameSite(http.SameSiteLaxMode)
+			maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+			if maxAge < 0 {
+				maxAge = 0
+			}
+			secure := c.Request.TLS != nil
+			c.SetCookie("token", tokenPair.AccessToken, maxAge, "/", "", secure, true)
+		}
+
 		c.JSON(http.StatusOK, LoginResponse{
 			Success:               true,
 			RequirePasswordChange: true,
+			Token: func() string {
+				if tokenPair != nil {
+					return tokenPair.AccessToken
+				}
+				return ""
+			}(),
+			RefreshToken: func() string {
+				if tokenPair != nil {
+					return tokenPair.RefreshToken
+				}
+				return ""
+			}(),
+			ExpiresAt: func() time.Time {
+				if tokenPair != nil {
+					return tokenPair.ExpiresAt
+				}
+				return time.Time{}
+			}(),
 			User: &dto.UserResponseDto{
 				ID:            user.ID,
 				Username:      user.Username,
