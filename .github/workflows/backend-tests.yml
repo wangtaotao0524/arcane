@@ -2,10 +2,11 @@ name: Backend Unit Tests
 
 on:
   push:
+    branches: [main]
     paths:
       - 'backend/**'
-      - '.github/workflows/backend-tests.yml'
   pull_request:
+    branches: [main]
     paths:
       - 'backend/**'
 
@@ -26,12 +27,17 @@ jobs:
           go-version-file: backend/go.mod
           cache: true
 
+      - name: Install GCC (for CGO/race)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc
+
       - name: Download modules
         run: go mod download
 
-      - name: Run unit tests
+      - name: Run unit tests (race + coverage)
         env:
-          CGO_ENABLED: '0'
+          CGO_ENABLED: '1'
         run: go test ./... -race -coverprofile=coverage.out -covermode=atomic -v
 
       - name: Upload coverage artifact
