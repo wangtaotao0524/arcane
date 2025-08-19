@@ -433,13 +433,11 @@ func (h *ContainerHandler) GetStatsStream(c *gin.Context) {
 		defer close(statsChan)
 		defer close(errChan)
 
-		err := h.containerService.StreamStats(c.Request.Context(), containerID, statsChan)
-		if err != nil {
+		if err := h.containerService.StreamStats(c.Request.Context(), containerID, statsChan); err != nil {
 			errChan <- err
 		}
 	}()
 
-	// Send stats to client
 	c.Stream(func(w io.Writer) bool {
 		select {
 		case stats, ok := <-statsChan:
@@ -448,7 +446,11 @@ func (h *ContainerHandler) GetStatsStream(c *gin.Context) {
 			}
 			c.SSEvent("stats", stats)
 			return true
-		case err := <-errChan:
+		case err, ok := <-errChan:
+			if !ok || err == nil {
+				// graceful shutdown or no error; stop streaming
+				return false
+			}
 			c.SSEvent("error", gin.H{"error": err.Error()})
 			return false
 		case <-c.Request.Context().Done():
@@ -467,13 +469,11 @@ func (h *ContainerHandler) GetLogsStream(c *gin.Context) {
 		return
 	}
 
-	// Get query parameters for log options
 	follow := c.DefaultQuery("follow", "true") == "true"
 	tail := c.DefaultQuery("tail", "100")
 	since := c.Query("since")
 	timestamps := c.DefaultQuery("timestamps", "false") == "true"
 
-	// Set headers for SSE
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
@@ -482,18 +482,15 @@ func (h *ContainerHandler) GetLogsStream(c *gin.Context) {
 	logsChan := make(chan string, 10)
 	errChan := make(chan error, 1)
 
-	// Start streaming logs in a goroutine
 	go func() {
 		defer close(logsChan)
 		defer close(errChan)
 
-		err := h.containerService.StreamLogs(c.Request.Context(), containerID, logsChan, follow, tail, since, timestamps)
-		if err != nil {
+		if err := h.containerService.StreamLogs(c.Request.Context(), containerID, logsChan, follow, tail, since, timestamps); err != nil {
 			errChan <- err
 		}
 	}()
 
-	// Send logs to client
 	c.Stream(func(w io.Writer) bool {
 		select {
 		case logLine, ok := <-logsChan:
@@ -502,7 +499,11 @@ func (h *ContainerHandler) GetLogsStream(c *gin.Context) {
 			}
 			c.SSEvent("log", gin.H{"data": logLine, "timestamp": time.Now()})
 			return true
-		case err := <-errChan:
+		case err, ok := <-errChan:
+			if !ok || err == nil {
+				// graceful shutdown or no error; stop streaming
+				return false
+			}
 			c.SSEvent("error", gin.H{"error": err.Error()})
 			return false
 		case <-c.Request.Context().Done():
