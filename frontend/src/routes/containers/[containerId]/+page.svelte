@@ -208,6 +208,25 @@
 		// Custom logic when auto-scroll is toggled if needed
 	}
 
+	// Data presence flags
+	const hasEnvVars = $derived(!!(container?.Config?.Env && container.Config.Env.length > 0));
+	const hasPorts = $derived(
+		!!(container?.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0)
+	);
+	const hasLabels = $derived(
+		!!(container?.Config?.Labels && Object.keys(container.Config.Labels).length > 0)
+	);
+	const showConfiguration = $derived(hasEnvVars || hasPorts || hasLabels);
+
+	const hasNetworks = $derived(
+		!!(
+			container?.NetworkSettings?.Networks &&
+			Object.keys(container.NetworkSettings.Networks).length > 0
+		)
+	);
+	const hasMounts = $derived(!!(container?.Mounts && container.Mounts.length > 0));
+	const showStats = $derived(!!(container?.State?.Running && stats));
+
 	// Navigation sections for single-page layout
 	const navigationSections = [
 		{ id: 'overview', label: 'Overview', icon: HardDrive },
@@ -217,6 +236,23 @@
 		{ id: 'network', label: 'Networks', icon: Network },
 		{ id: 'storage', label: 'Storage', icon: Database }
 	] as const;
+
+	const visibleNavigationSections = $derived(
+		navigationSections.filter((s) => {
+			if (s.id === 'stats') return showStats;
+			if (s.id === 'config') return showConfiguration;
+			if (s.id === 'network') return hasNetworks;
+			if (s.id === 'storage') return hasMounts;
+			return true; // overview, logs
+		})
+	);
+
+	// Ensure activeSection is always visible
+	$effect(() => {
+		if (!visibleNavigationSections.some((s) => s.id === activeSection)) {
+			activeSection = visibleNavigationSections[0]?.id ?? 'overview';
+		}
+	});
 
 	type SectionId = (typeof navigationSections)[number]['id'];
 
@@ -333,7 +369,7 @@
 			<div class="bg-background/50 w-16 shrink-0 border-r">
 				<div class="sticky top-16 p-2">
 					<nav class="space-y-1">
-						{#each navigationSections as section}
+						{#each visibleNavigationSections as section}
 							{@const IconComponent = section.icon}
 							<button
 								onclick={() => scrollToSection(section.id)}
@@ -500,125 +536,128 @@
 						</section>
 
 						<!-- Stats -->
-						<section id="stats" class="scroll-mt-20">
-							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<Activity class="size-5" />
-								Resource Metrics
-							</h2>
+						{#if showStats}
+							<section id="stats" class="scroll-mt-20">
+								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
+									<Activity class="size-5" />
+									Resource Metrics
+								</h2>
 
-							<Card.Root class="rounded-lg border shadow-sm">
-								<Card.Content class="p-6">
-									{#if stats && container.State?.Running}
-										<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-											<!-- CPU and Memory -->
-											<div class="space-y-6">
-												<Meter
-													label="CPU Usage"
-													valueLabel="{cpuUsagePercent.toFixed(2)}%"
-													value={cpuUsagePercent}
-													max={100}
-													variant={cpuUsagePercent > 80
-														? 'destructive'
-														: cpuUsagePercent > 60
-															? 'warning'
-															: 'default'}
-													size="lg"
-												/>
+								<Card.Root class="rounded-lg border shadow-sm">
+									<Card.Content class="p-6">
+										{#if stats && container.State?.Running}
+											<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+												<!-- CPU and Memory -->
+												<div class="space-y-6">
+													<Meter
+														label="CPU Usage"
+														valueLabel="{cpuUsagePercent.toFixed(2)}%"
+														value={cpuUsagePercent}
+														max={100}
+														variant={cpuUsagePercent > 80
+															? 'destructive'
+															: cpuUsagePercent > 60
+																? 'warning'
+																: 'default'}
+														size="lg"
+													/>
 
-												<Meter
-													label="Memory Usage"
-													valueLabel="{memoryUsageFormatted} / {memoryLimitFormatted} ({memoryUsagePercent.toFixed(
-														1
-													)}%)"
-													value={memoryUsagePercent}
-													max={100}
-													variant={memoryUsagePercent > 80
-														? 'destructive'
-														: memoryUsagePercent > 60
-															? 'warning'
-															: 'default'}
-													size="lg"
-												/>
-											</div>
-
-											<!-- Network I/O -->
-											<div class="space-y-6">
-												<div>
-													<h4 class="mb-4 flex items-center gap-2 font-medium">
-														<Network class="size-4" /> Network I/O
-													</h4>
-													<div class="grid grid-cols-2 gap-4">
-														<div class="bg-muted/30 rounded p-4">
-															<div class="text-muted-foreground text-sm">Received</div>
-															<div class="mt-1 font-medium">
-																{formatBytes(stats.networks?.eth0?.rx_bytes || 0)}
-															</div>
-														</div>
-														<div class="bg-muted/30 rounded p-4">
-															<div class="text-muted-foreground text-sm">Transmitted</div>
-															<div class="mt-1 font-medium">
-																{formatBytes(stats.networks?.eth0?.tx_bytes || 0)}
-															</div>
-														</div>
-													</div>
+													<Meter
+														label="Memory Usage"
+														valueLabel="{memoryUsageFormatted} / {memoryLimitFormatted} ({memoryUsagePercent.toFixed(
+															1
+														)}%)"
+														value={memoryUsagePercent}
+														max={100}
+														variant={memoryUsagePercent > 80
+															? 'destructive'
+															: memoryUsagePercent > 60
+																? 'warning'
+																: 'default'}
+														size="lg"
+													/>
 												</div>
 
-												{#if stats.blkio_stats && stats.blkio_stats.io_service_bytes_recursive && stats.blkio_stats.io_service_bytes_recursive.length > 0}
+												<!-- Network I/O -->
+												<div class="space-y-6">
 													<div>
-														<h4 class="mb-4 font-medium">Block I/O</h4>
+														<h4 class="mb-4 flex items-center gap-2 font-medium">
+															<Network class="size-4" /> Network I/O
+														</h4>
 														<div class="grid grid-cols-2 gap-4">
 															<div class="bg-muted/30 rounded p-4">
-																<div class="text-muted-foreground text-sm">Read</div>
+																<div class="text-muted-foreground text-sm">Received</div>
 																<div class="mt-1 font-medium">
-																	{formatBytes(
-																		stats.blkio_stats.io_service_bytes_recursive
-																			.filter((item) => item.op === 'Read')
-																			.reduce((acc, item) => acc + item.value, 0)
-																	)}
+																	{formatBytes(stats.networks?.eth0?.rx_bytes || 0)}
 																</div>
 															</div>
 															<div class="bg-muted/30 rounded p-4">
-																<div class="text-muted-foreground text-sm">Write</div>
+																<div class="text-muted-foreground text-sm">Transmitted</div>
 																<div class="mt-1 font-medium">
-																	{formatBytes(
-																		stats.blkio_stats.io_service_bytes_recursive
-																			.filter((item) => item.op === 'Write')
-																			.reduce((acc, item) => acc + item.value, 0)
-																	)}
+																	{formatBytes(stats.networks?.eth0?.tx_bytes || 0)}
 																</div>
 															</div>
 														</div>
 													</div>
-												{/if}
-											</div>
-										</div>
 
-										{#if stats.pids_stats && stats.pids_stats.current !== undefined}
-											<div class="mt-6 border-t pt-6">
-												<div class="text-sm">
-													<span class="text-muted-foreground">Process count:</span>
-													<span class="ml-2 font-medium">{stats.pids_stats.current}</span>
+													{#if stats.blkio_stats && stats.blkio_stats.io_service_bytes_recursive && stats.blkio_stats.io_service_bytes_recursive.length > 0}
+														<div>
+															<h4 class="mb-4 font-medium">Block I/O</h4>
+															<div class="grid grid-cols-2 gap-4">
+																<div class="bg-muted/30 rounded p-4">
+																	<div class="text-muted-foreground text-sm">Read</div>
+																	<div class="mt-1 font-medium">
+																		{formatBytes(
+																			stats.blkio_stats.io_service_bytes_recursive
+																				.filter((item) => item.op === 'Read')
+																				.reduce((acc, item) => acc + item.value, 0)
+																		)}
+																	</div>
+																</div>
+																<div class="bg-muted/30 rounded p-4">
+																	<div class="text-muted-foreground text-sm">Write</div>
+																	<div class="mt-1 font-medium">
+																		{formatBytes(
+																			stats.blkio_stats.io_service_bytes_recursive
+																				.filter((item) => item.op === 'Write')
+																				.reduce((acc, item) => acc + item.value, 0)
+																		)}
+																	</div>
+																</div>
+															</div>
+														</div>
+													{/if}
 												</div>
 											</div>
-										{/if}
-									{:else if !container.State?.Running}
-										<div class="py-12 text-center text-muted-foreground">
-											Container is not running. Stats unavailable.
-										</div>
-									{:else}
-										<div class="py-12 text-center text-muted-foreground">Loading stats...</div>
-									{/if}
-								</Card.Content>
-							</Card.Root>
-						</section>
 
-						<!-- Logs -->
+											{#if stats.pids_stats && stats.pids_stats.current !== undefined}
+												<div class="mt-6 border-t pt-6">
+													<div class="text-sm">
+														<span class="text-muted-foreground">Process count:</span>
+														<span class="ml-2 font-medium">{stats.pids_stats.current}</span>
+													</div>
+												</div>
+											{/if}
+										{:else if !container.State?.Running}
+											<div class="py-12 text-center text-muted-foreground">
+												Container is not running. Stats unavailable.
+											</div>
+										{:else}
+											<div class="py-12 text-center text-muted-foreground">Loading stats...</div>
+										{/if}
+									</Card.Content>
+								</Card.Root>
+							</section>
+						{/if}
+
+						<!-- Logs (kept visible if container exists) -->
 						<section id="logs" class="scroll-mt-20">
 							<div class="mb-6 flex items-center justify-between">
 								<h2 class="flex items-center gap-2 text-xl font-semibold">
 									<FileText class="size-5" />
 									Container Logs
 								</h2>
+
 								<div class="flex items-center gap-3">
 									<label class="flex items-center gap-2">
 										<input type="checkbox" bind:checked={autoScrollLogs} class="size-4" />
@@ -667,261 +706,285 @@
 							</Card.Root>
 						</section>
 
-						<!-- Configuration -->
-						<section id="config" class="scroll-mt-20">
-							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<Settings class="size-5" />
-								Configuration
-							</h2>
+						<!-- Configuration: only if any of Env, Ports, Labels exist -->
+						{#if showConfiguration}
+							<section id="config" class="scroll-mt-20">
+								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
+									<Settings class="size-5" />
+									Configuration
+								</h2>
 
-							<!-- Single Configuration card with Env, Ports, and Labels inside -->
-							<Card.Root class="rounded-lg border shadow-sm">
-								<Card.Header class="pb-4">
-									<Card.Title>Environment, Ports & Labels</Card.Title>
-									<Card.Description class="text-sm text-muted-foreground">
-										Runtime configuration and metadata for this container
-									</Card.Description>
-								</Card.Header>
+								<Card.Root class="rounded-lg border shadow-sm">
+									<Card.Header class="pb-4">
+										<Card.Title>Environment, Ports & Labels</Card.Title>
+										<Card.Description class="text-sm text-muted-foreground">
+											Runtime configuration and metadata for this container
+										</Card.Description>
+									</Card.Header>
 
-								<Card.Content class="space-y-8">
-									<!-- Environment Variables -->
-									<div>
-										<h3 class="mb-3 text-sm font-semibold tracking-tight">Environment Variables</h3>
+									<Card.Content class="space-y-8">
+										{#if hasEnvVars}
+											<!-- Environment Variables -->
+											<div>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">
+													Environment Variables
+												</h3>
 
-										{#if container.Config?.Env && container.Config.Env.length > 0}
-											<ul class="divide-border/60 divide-y">
-												{#each container.Config.Env as env, index (index)}
-													{#if env.includes('=')}
-														{@const [key, ...valueParts] = env.split('=')}
-														{@const value = valueParts.join('=')}
-														<li class="px-4 py-2.5">
-															<div class="flex min-w-0 items-center gap-3">
-																<Badge variant="secondary">
-																	{key}:
-																</Badge>
-																<span class="truncate font-semibold" title={value}>{value}</span>
-															</div>
-														</li>
-													{:else}
-														<li class="px-4 py-2.5">
-															<div class="flex min-w-0 items-center gap-3">
-																<Badge variant="secondary">ENV:</Badge>
-																<span class="truncate font-semibold" title={env}>{env}</span>
-															</div>
-														</li>
-													{/if}
-												{/each}
-											</ul>
-										{:else}
-											<div class="text-muted-foreground py-8 text-center">
-												No environment variables
+												{#if container.Config?.Env && container.Config.Env.length > 0}
+													<ul class="divide-border/60 divide-y">
+														{#each container.Config.Env as env, index (index)}
+															{#if env.includes('=')}
+																{@const [key, ...valueParts] = env.split('=')}
+																{@const value = valueParts.join('=')}
+																<li class="px-4 py-2.5">
+																	<div class="flex min-w-0 items-center gap-3">
+																		<Badge variant="secondary">
+																			{key}:
+																		</Badge>
+																		<span class="truncate font-semibold" title={value}>{value}</span
+																		>
+																	</div>
+																</li>
+															{:else}
+																<li class="px-4 py-2.5">
+																	<div class="flex min-w-0 items-center gap-3">
+																		<Badge variant="secondary">ENV:</Badge>
+																		<span class="truncate font-semibold" title={env}>{env}</span>
+																	</div>
+																</li>
+															{/if}
+														{/each}
+													</ul>
+												{:else}
+													<div class="text-muted-foreground py-8 text-center">
+														No environment variables
+													</div>
+												{/if}
 											</div>
 										{/if}
-									</div>
 
-									<Separator />
-
-									<!-- Port Mappings -->
-									<div>
-										<h3 class="mb-3 text-sm font-semibold tracking-tight">Port Mappings</h3>
-
-										{#if container.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0}
-											<ul class="divide-border/60 divide-y">
-												{#each Object.entries(container.NetworkSettings.Ports) as [containerPort, hostBindings] (containerPort)}
-													<li class="px-4 py-2.5">
-														<div class="flex min-w-0 items-center gap-3">
-															<Badge variant="secondary">
-																{containerPort}:
-															</Badge>
-
-															{#if Array.isArray(hostBindings) && hostBindings.length > 0}
-																<span class="truncate font-semibold">
-																	{hostBindings
-																		.map(
-																			(binding) =>
-																				`${binding.HostIp || '0.0.0.0'}:${binding.HostPort}`
-																		)
-																		.join(', ')}
-																</span>
-															{:else}
-																<span class="text-muted-foreground font-semibold"
-																	>Not published</span
-																>
-															{/if}
-														</div>
-													</li>
-												{/each}
-											</ul>
-										{:else}
-											<div class="text-muted-foreground py-8 text-center">No ports exposed</div>
+										{#if hasEnvVars && (hasPorts || hasLabels)}
+											<Separator />
 										{/if}
-									</div>
 
-									<Separator />
+										{#if hasPorts}
+											<!-- Port Mappings -->
+											<div>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">Port Mappings</h3>
 
-									<!-- Labels -->
-									<div>
-										<h3 class="mb-3 text-sm font-semibold tracking-tight">Labels</h3>
+												{#if container.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0}
+													<ul class="divide-border/60 divide-y">
+														{#each Object.entries(container.NetworkSettings.Ports) as [containerPort, hostBindings] (containerPort)}
+															<li class="px-4 py-2.5">
+																<div class="flex min-w-0 items-center gap-3">
+																	<Badge variant="secondary">
+																		{containerPort}:
+																	</Badge>
 
-										{#if container.Config?.Labels && Object.keys(container.Config.Labels).length > 0}
-											<ul class="divide-border/60 divide-y">
-												{#each Object.entries(container.Config.Labels) as [key, value] (key)}
-													<li class="px-4 py-2.5">
-														<div class="flex min-w-0 items-center gap-3">
-															<Badge variant="secondary">
-																{key}:
-															</Badge>
-															<span class="truncate font-semibold" title={value?.toString()}>
-																{value?.toString() || ''}
-															</span>
-														</div>
-													</li>
-												{/each}
-											</ul>
-										{:else}
-											<div class="text-muted-foreground py-8 text-center">No labels defined</div>
+																	{#if Array.isArray(hostBindings) && hostBindings.length > 0}
+																		<span class="truncate font-semibold">
+																			{hostBindings
+																				.map(
+																					(binding) =>
+																						`${binding.HostIp || '0.0.0.0'}:${binding.HostPort}`
+																				)
+																				.join(', ')}
+																		</span>
+																	{:else}
+																		<span class="text-muted-foreground font-semibold"
+																			>Not published</span
+																		>
+																	{/if}
+																</div>
+															</li>
+														{/each}
+													</ul>
+												{:else}
+													<div class="text-muted-foreground py-8 text-center">No ports exposed</div>
+												{/if}
+											</div>
 										{/if}
-									</div>
-								</Card.Content>
-							</Card.Root>
-						</section>
+
+										{#if hasPorts && hasLabels}
+											<Separator />
+										{/if}
+
+										{#if hasLabels}
+											<!-- Labels -->
+											<div>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">Labels</h3>
+
+												{#if container.Config?.Labels && Object.keys(container.Config.Labels).length > 0}
+													<ul class="divide-border/60 divide-y">
+														{#each Object.entries(container.Config.Labels) as [key, value] (key)}
+															<li class="px-4 py-2.5">
+																<div class="flex min-w-0 items-center gap-3">
+																	<Badge variant="secondary">
+																		{key}:
+																	</Badge>
+																	<span class="truncate font-semibold" title={value?.toString()}>
+																		{value?.toString() || ''}
+																	</span>
+																</div>
+															</li>
+														{/each}
+													</ul>
+												{:else}
+													<div class="text-muted-foreground py-8 text-center">
+														No labels defined
+													</div>
+												{/if}
+											</div>
+										{/if}
+									</Card.Content>
+								</Card.Root>
+							</section>
+						{/if}
 
 						<!-- Network -->
-						<section id="network" class="scroll-mt-20">
-							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<Network class="size-5" />
-								Networks
-							</h2>
+						{#if hasNetworks}
+							<section id="network" class="scroll-mt-20">
+								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
+									<Network class="size-5" />
+									Networks
+								</h2>
 
-							<Card.Root class="rounded-lg border shadow-sm">
-								<Card.Content class="p-6">
-									{#if container.NetworkSettings?.Networks && Object.keys(container.NetworkSettings.Networks).length > 0}
-										<div class="space-y-6">
-											{#each Object.entries(container.NetworkSettings.Networks) as [networkName, rawNetworkConfig] (networkName)}
-												{@const networkConfig = ensureNetworkConfig(rawNetworkConfig)}
-												<div class="rounded border p-4">
-													<div class="mb-4 font-medium">{networkName}</div>
-													<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-														<div>
-															<div class="text-muted-foreground text-sm">IP Address</div>
-															<div class="font-mono">{networkConfig.IPAddress || 'N/A'}</div>
-														</div>
-														<div>
-															<div class="text-muted-foreground text-sm">Gateway</div>
-															<div class="font-mono">{networkConfig.Gateway || 'N/A'}</div>
-														</div>
-														<div>
-															<div class="text-muted-foreground text-sm">MAC Address</div>
-															<div class="font-mono">{networkConfig.MacAddress || 'N/A'}</div>
-														</div>
-														<div>
-															<div class="text-muted-foreground text-sm">Subnet</div>
-															<div class="font-mono">
-																{networkConfig.IPPrefixLen
-																	? `${networkConfig.IPAddress}/${networkConfig.IPPrefixLen}`
-																	: 'N/A'}
-															</div>
-														</div>
-														{#if networkConfig.Aliases && networkConfig.Aliases.length > 0}
-															<div class="col-span-2">
-																<div class="text-muted-foreground text-sm">Aliases</div>
-																<div class="font-mono">{networkConfig.Aliases.join(', ')}</div>
-															</div>
-														{/if}
-													</div>
-												</div>
-											{/each}
-										</div>
-									{:else}
-										<div class="py-12 text-center text-muted-foreground">No networks connected</div>
-									{/if}
-								</Card.Content>
-							</Card.Root>
-						</section>
-
-						<!-- Storage -->
-						<section id="storage" class="scroll-mt-20">
-							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<Database class="size-5" />
-								Storage & Mounts
-							</h2>
-
-							<Card.Root class="rounded-lg border shadow-sm">
-								<Card.Content class="p-6">
-									{#if container.Mounts && container.Mounts.length > 0}
-										<div class="space-y-4">
-											{#each container.Mounts as mount (mount.Destination)}
-												<div class="overflow-hidden rounded border">
-													<div class="bg-muted/20 flex items-center justify-between p-4">
-														<div class="flex items-center gap-3">
-															<div
-																class="rounded p-2 {mount.Type === 'volume'
-																	? 'bg-purple-100 dark:bg-purple-950'
-																	: mount.Type === 'bind'
-																		? 'bg-blue-100 dark:bg-blue-950'
-																		: 'bg-amber-100 dark:bg-amber-950'}"
-															>
-																{#if mount.Type === 'volume'}
-																	<Database class="size-4 text-purple-600" />
-																{:else if mount.Type === 'bind'}
-																	<HardDrive class="size-4 text-blue-600" />
-																{:else}
-																	<Terminal class="size-4 text-amber-600" />
-																{/if}
+								<Card.Root class="rounded-lg border shadow-sm">
+									<Card.Content class="p-6">
+										{#if container.NetworkSettings?.Networks && Object.keys(container.NetworkSettings.Networks).length > 0}
+											<div class="space-y-6">
+												{#each Object.entries(container.NetworkSettings.Networks) as [networkName, rawNetworkConfig] (networkName)}
+													{@const networkConfig = ensureNetworkConfig(rawNetworkConfig)}
+													<div class="rounded border p-4">
+														<div class="mb-4 font-medium">{networkName}</div>
+														<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+															<div>
+																<div class="text-muted-foreground text-sm">IP Address</div>
+																<div class="font-mono">{networkConfig.IPAddress || 'N/A'}</div>
 															</div>
 															<div>
-																<div class="font-medium">
-																	{mount.Type === 'tmpfs'
-																		? 'Temporary filesystem'
-																		: mount.Type === 'volume'
-																			? mount.Name || 'Docker volume'
-																			: 'Host directory'}
-																</div>
-																<div class="text-muted-foreground text-sm">
-																	{mount.Type} mount {mount.RW ? '(read-write)' : '(read-only)'}
+																<div class="text-muted-foreground text-sm">Gateway</div>
+																<div class="font-mono">{networkConfig.Gateway || 'N/A'}</div>
+															</div>
+															<div>
+																<div class="text-muted-foreground text-sm">MAC Address</div>
+																<div class="font-mono">{networkConfig.MacAddress || 'N/A'}</div>
+															</div>
+															<div>
+																<div class="text-muted-foreground text-sm">Subnet</div>
+																<div class="font-mono">
+																	{networkConfig.IPPrefixLen
+																		? `${networkConfig.IPAddress}/${networkConfig.IPPrefixLen}`
+																		: 'N/A'}
 																</div>
 															</div>
-														</div>
-														<Badge variant={mount.RW ? 'outline' : 'secondary'}>
-															{mount.RW ? 'RW' : 'RO'}
-														</Badge>
-													</div>
-													<div class="space-y-3 p-4">
-														<div class="flex">
-															<span class="text-muted-foreground w-24 font-medium">Container:</span>
-															<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono"
-																>{mount.Destination}</span
-															>
-														</div>
-														<div class="flex">
-															<span class="text-muted-foreground w-24 font-medium">
-																{mount.Type === 'volume'
-																	? 'Volume:'
-																	: mount.Type === 'bind'
-																		? 'Host:'
-																		: 'Source:'}
-															</span>
-															<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono"
-																>{mount.Source}</span
-															>
+															{#if networkConfig.Aliases && networkConfig.Aliases.length > 0}
+																<div class="col-span-2">
+																	<div class="text-muted-foreground text-sm">Aliases</div>
+																	<div class="font-mono">{networkConfig.Aliases.join(', ')}</div>
+																</div>
+															{/if}
 														</div>
 													</div>
-												</div>
-											{/each}
-										</div>
-									{:else}
-										<div class="py-12 text-center">
-											<div
-												class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full"
-											>
-												<Database class="text-muted-foreground size-6" />
+												{/each}
 											</div>
-											<div class="text-muted-foreground">No volumes or mounts configured</div>
-										</div>
-									{/if}
-								</Card.Content>
-							</Card.Root>
-						</section>
+										{:else}
+											<div class="py-12 text-center text-muted-foreground">
+												No networks connected
+											</div>
+										{/if}
+									</Card.Content>
+								</Card.Root>
+							</section>
+						{/if}
+
+						<!-- Storage -->
+						{#if hasMounts}
+							<section id="storage" class="scroll-mt-20">
+								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
+									<Database class="size-5" />
+									Storage & Mounts
+								</h2>
+
+								<Card.Root class="rounded-lg border shadow-sm">
+									<Card.Content class="p-6">
+										{#if container.Mounts && container.Mounts.length > 0}
+											<div class="space-y-4">
+												{#each container.Mounts as mount (mount.Destination)}
+													<div class="overflow-hidden rounded border">
+														<div class="bg-muted/20 flex items-center justify-between p-4">
+															<div class="flex items-center gap-3">
+																<div
+																	class="rounded p-2 {mount.Type === 'volume'
+																		? 'bg-purple-100 dark:bg-purple-950'
+																		: mount.Type === 'bind'
+																			? 'bg-blue-100 dark:bg-blue-950'
+																			: 'bg-amber-100 dark:bg-amber-950'}"
+																>
+																	{#if mount.Type === 'volume'}
+																		<Database class="size-4 text-purple-600" />
+																	{:else if mount.Type === 'bind'}
+																		<HardDrive class="size-4 text-blue-600" />
+																	{:else}
+																		<Terminal class="size-4 text-amber-600" />
+																	{/if}
+																</div>
+																<div>
+																	<div class="font-medium">
+																		{mount.Type === 'tmpfs'
+																			? 'Temporary filesystem'
+																			: mount.Type === 'volume'
+																				? mount.Name || 'Docker volume'
+																				: 'Host directory'}
+																	</div>
+																	<div class="text-muted-foreground text-sm">
+																		{mount.Type} mount {mount.RW ? '(read-write)' : '(read-only)'}
+																	</div>
+																</div>
+															</div>
+															<Badge variant={mount.RW ? 'outline' : 'secondary'}>
+																{mount.RW ? 'RW' : 'RO'}
+															</Badge>
+														</div>
+														<div class="space-y-3 p-4">
+															<div class="flex">
+																<span class="text-muted-foreground w-24 font-medium"
+																	>Container:</span
+																>
+																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono"
+																	>{mount.Destination}</span
+																>
+															</div>
+															<div class="flex">
+																<span class="text-muted-foreground w-24 font-medium">
+																	{mount.Type === 'volume'
+																		? 'Volume:'
+																		: mount.Type === 'bind'
+																			? 'Host:'
+																			: 'Source:'}
+																</span>
+																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono"
+																	>{mount.Source}</span
+																>
+															</div>
+														</div>
+													</div>
+												{/each}
+											</div>
+										{:else}
+											<div class="py-12 text-center">
+												<div
+													class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full"
+												>
+													<Database class="text-muted-foreground size-6" />
+												</div>
+												<div class="text-muted-foreground">No volumes or mounts configured</div>
+											</div>
+										{/if}
+									</Card.Content>
+								</Card.Root>
+							</section>
+						{/if}
 					</div>
 				</div>
 			</div>
