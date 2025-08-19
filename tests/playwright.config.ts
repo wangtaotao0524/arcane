@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const authFile = '.auth/login.json';
+const baseURL = process.env.BASE_URL || 'http://localhost:3000';
+const composeFile = process.env.COMPOSE_FILE || 'setup/compose.yaml';
 
 export default defineConfig({
   testDir: '.',
@@ -12,7 +14,7 @@ export default defineConfig({
     ? [['html', { outputFolder: '.report' }], ['github']]
     : [['line'], ['html', { open: 'never', outputFolder: '.report' }]],
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
     video: 'retain-on-failure',
   },
@@ -29,8 +31,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'docker compose -f setup/compose.yaml up --abort-on-container-exit',
-    url: 'http://localhost:3000',
+    command: `docker compose -f ${composeFile} up --abort-on-container-exit`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },
