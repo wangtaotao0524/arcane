@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/client"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
@@ -25,6 +26,64 @@ func NewVolumeService(db *database.DB, dockerService *DockerClientService, event
 		db:            db,
 		dockerService: dockerService,
 		eventService:  eventService,
+	}
+}
+
+func (s *VolumeService) buildVolumeUsageMap(ctx context.Context, dockerClient *client.Client) (map[string]bool, error) {
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	usage := make(map[string]bool)
+	for _, c := range containers {
+		info, err := dockerClient.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			continue
+		}
+		for _, m := range info.Mounts {
+			if m.Type == "volume" && m.Name != "" {
+				usage[m.Name] = true
+			}
+		}
+	}
+	return usage, nil
+}
+
+func (s *VolumeService) containersUsingVolume(ctx context.Context, dockerClient *client.Client, name string) (bool, []string, error) {
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true})
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	inUse := false
+	var using []string
+	for _, c := range containers {
+		info, err := dockerClient.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			continue
+		}
+		for _, m := range info.Mounts {
+			if m.Type == "volume" && m.Name == name {
+				inUse = true
+				using = append(using, c.ID)
+				break
+			}
+		}
+	}
+	return inUse, using, nil
+}
+
+func toVolumeMap(v volume.Volume, inUse bool) map[string]interface{} {
+	return map[string]interface{}{
+		"Name":       v.Name,
+		"Driver":     v.Driver,
+		"Mountpoint": v.Mountpoint,
+		"Scope":      v.Scope,
+		"Options":    v.Options,
+		"Labels":     v.Labels,
+		"CreatedAt":  v.CreatedAt,
+		"InUse":      inUse,
 	}
 }
 
@@ -142,7 +201,7 @@ func (s *VolumeService) PruneVolumes(ctx context.Context) (*volume.PruneReport, 
 		return nil, fmt.Errorf("failed to prune volumes: %w", err)
 	}
 
-	// Log volume prune event using system user since this is typically a system operation
+	// Log volume prune event (system user)
 	metadata := models.JSON{
 		"action":         "prune",
 		"volumesDeleted": len(report.VolumesDeleted),
@@ -182,29 +241,10 @@ func (s *VolumeService) GetVolumeUsage(ctx context.Context, name string) (bool, 
 		return false, nil, fmt.Errorf("volume not found: %w", err)
 	}
 
-	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true})
+	inUse, usingContainers, err := s.containersUsingVolume(ctx, dockerClient, name)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to list containers: %w", err)
+		return false, nil, err
 	}
-
-	inUse := false
-	var usingContainers []string
-
-	for _, container := range containers {
-		containerInfo, err := dockerClient.ContainerInspect(ctx, container.ID)
-		if err != nil {
-			continue
-		}
-
-		for _, mount := range containerInfo.Mounts {
-			if mount.Type == "volume" && mount.Name == name {
-				inUse = true
-				usingContainers = append(usingContainers, container.ID)
-				break
-			}
-		}
-	}
-
 	return inUse, usingContainers, nil
 }
 
@@ -221,58 +261,27 @@ func (s *VolumeService) ListVolumesPaginated(ctx context.Context, req utils.Sort
 	}
 	defer dockerClient.Close()
 
-	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true})
+	volumeUsageMap, err := s.buildVolumeUsageMap(ctx, dockerClient)
 	if err != nil {
-		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list containers: %w", err)
-	}
-
-	volumeUsageMap := make(map[string]bool)
-	for _, container := range containers {
-		containerInfo, err := dockerClient.ContainerInspect(ctx, container.ID)
-		if err != nil {
-			continue
-		}
-
-		for _, mount := range containerInfo.Mounts {
-			if mount.Type == "volume" {
-				volumeUsageMap[mount.Name] = true
-			}
-		}
+		return nil, utils.PaginationResponse{}, err
 	}
 
 	var result []map[string]interface{}
-	for _, volume := range volumes {
-		inUse := volumeUsageMap[volume.Name]
-
-		volumeData := map[string]interface{}{
-			"Name":       volume.Name,
-			"Driver":     volume.Driver,
-			"Mountpoint": volume.Mountpoint,
-			"Scope":      volume.Scope,
-			"Options":    volume.Options,
-			"Labels":     volume.Labels,
-			"CreatedAt":  volume.CreatedAt,
-			"InUse":      inUse,
-		}
-
-		result = append(result, volumeData)
+	for _, v := range volumes {
+		result = append(result, toVolumeMap(v, volumeUsageMap[v.Name]))
 	}
 
 	if req.Search != "" {
-		filtered := make([]map[string]interface{}, 0)
+		filtered := make([]map[string]interface{}, 0, len(result))
 		searchLower := strings.ToLower(req.Search)
-		for _, volume := range result {
-			if name, ok := volume["Name"].(string); ok {
-				if strings.Contains(strings.ToLower(name), searchLower) {
-					filtered = append(filtered, volume)
-					continue
-				}
+		for _, vol := range result {
+			if name, ok := vol["Name"].(string); ok && strings.Contains(strings.ToLower(name), searchLower) {
+				filtered = append(filtered, vol)
+				continue
 			}
-			if driver, ok := volume["Driver"].(string); ok {
-				if strings.Contains(strings.ToLower(driver), searchLower) {
-					filtered = append(filtered, volume)
-					continue
-				}
+			if driver, ok := vol["Driver"].(string); ok && strings.Contains(strings.ToLower(driver), searchLower) {
+				filtered = append(filtered, vol)
+				continue
 			}
 		}
 		result = filtered
@@ -323,41 +332,14 @@ func (s *VolumeService) ListVolumesWithUsage(ctx context.Context) ([]map[string]
 	}
 	defer dockerClient.Close()
 
-	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true})
+	volumeUsageMap, err := s.buildVolumeUsageMap(ctx, dockerClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list containers: %w", err)
-	}
-
-	volumeUsageMap := make(map[string]bool)
-	for _, container := range containers {
-		containerInfo, err := dockerClient.ContainerInspect(ctx, container.ID)
-		if err != nil {
-			continue
-		}
-
-		for _, mount := range containerInfo.Mounts {
-			if mount.Type == "volume" {
-				volumeUsageMap[mount.Name] = true
-			}
-		}
+		return nil, err
 	}
 
 	var result []map[string]interface{}
-	for _, volume := range volumes {
-		inUse := volumeUsageMap[volume.Name]
-
-		volumeData := map[string]interface{}{
-			"Name":       volume.Name,
-			"Driver":     volume.Driver,
-			"Mountpoint": volume.Mountpoint,
-			"Scope":      volume.Scope,
-			"Options":    volume.Options,
-			"Labels":     volume.Labels,
-			"CreatedAt":  volume.CreatedAt,
-			"InUse":      inUse,
-		}
-
-		result = append(result, volumeData)
+	for _, v := range volumes {
+		result = append(result, toVolumeMap(v, volumeUsageMap[v.Name]))
 	}
 
 	return result, nil

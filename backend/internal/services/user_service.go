@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"crypto/subtle"
+
 	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/dto"
@@ -121,14 +123,9 @@ func (s *UserService) validateArgon2Password(encodedHash, password string) error
 
 	comparisonHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(hashLen))
 
-	if len(comparisonHash) != len(decodedHash) {
+	// constant-time compare
+	if subtle.ConstantTimeCompare(comparisonHash, decodedHash) != 1 {
 		return fmt.Errorf("invalid password")
-	}
-
-	for i := range comparisonHash {
-		if comparisonHash[i] != decodedHash[i] {
-			return fmt.Errorf("invalid password")
-		}
 	}
 
 	return nil
@@ -183,10 +180,6 @@ func (s *UserService) GetUserByID(ctx context.Context, id string) (*models.User,
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	return &user, nil
-}
-
-func (s *UserService) GetUserById(ctx context.Context, id string) (*models.User, error) {
-	return s.GetUserByID(ctx, id)
 }
 
 func (s *UserService) GetUserByOidcSubjectId(ctx context.Context, subjectId string) (*models.User, error) {
@@ -280,32 +273,19 @@ func (s *UserService) ListUsersPaginated(ctx context.Context, req utils.SortedPa
 
 	var result []dto.UserResponseDto
 	for _, user := range users {
-		userResponse := dto.UserResponseDto{
-			ID:            user.ID,
-			Username:      user.Username,
-			DisplayName:   user.DisplayName,
-			Email:         user.Email,
-			Roles:         user.Roles,
-			OidcSubjectId: user.OidcSubjectId,
-			CreatedAt:     user.CreatedAt.Format("2006-01-02T15:04:05.999999Z"),
-			UpdatedAt:     user.UpdatedAt.Format("2006-01-02T15:04:05.999999Z"),
-		}
-		result = append(result, userResponse)
+		result = append(result, toUserResponseDto(user))
 	}
 
 	// Apply search filter if provided
 	if req.Search != "" {
-		var filteredResult []dto.UserResponseDto
+		var filtered []dto.UserResponseDto
 		searchLower := strings.ToLower(req.Search)
-
-		for _, userResponse := range result {
-			if strings.Contains(strings.ToLower(userResponse.Username), searchLower) ||
-				(userResponse.Email != nil && strings.Contains(strings.ToLower(*userResponse.Email), searchLower)) ||
-				(userResponse.DisplayName != nil && strings.Contains(strings.ToLower(*userResponse.DisplayName), searchLower)) {
-				filteredResult = append(filteredResult, userResponse)
+		for _, u := range result {
+			if matchesSearch(u, searchLower) {
+				filtered = append(filtered, u)
 			}
 		}
-		result = filteredResult
+		result = filtered
 	}
 
 	totalItems := len(result)
@@ -336,4 +316,23 @@ func (s *UserService) ListUsersPaginated(ctx context.Context, req utils.SortedPa
 	}
 
 	return result, pagination, nil
+}
+
+func toUserResponseDto(user models.User) dto.UserResponseDto {
+	return dto.UserResponseDto{
+		ID:            user.ID,
+		Username:      user.Username,
+		DisplayName:   user.DisplayName,
+		Email:         user.Email,
+		Roles:         user.Roles,
+		OidcSubjectId: user.OidcSubjectId,
+		CreatedAt:     user.CreatedAt.Format("2006-01-02T15:04:05.999999Z"),
+		UpdatedAt:     user.UpdatedAt.Format("2006-01-02T15:04:05.999999Z"),
+	}
+}
+
+func matchesSearch(u dto.UserResponseDto, searchLower string) bool {
+	return strings.Contains(strings.ToLower(u.Username), searchLower) ||
+		(u.Email != nil && strings.Contains(strings.ToLower(*u.Email), searchLower)) ||
+		(u.DisplayName != nil && strings.Contains(strings.ToLower(*u.DisplayName), searchLower))
 }

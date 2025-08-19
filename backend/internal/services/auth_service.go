@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ofkm/arcane-backend/internal/config"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -33,15 +34,6 @@ type TokenPair struct {
 	AccessToken  string    `json:"accessToken"`
 	RefreshToken string    `json:"refreshToken"`
 	ExpiresAt    time.Time `json:"expiresAt"`
-}
-
-// OidcUserInfo contains user information from OIDC provider
-type OidcUserInfo struct {
-	Subject    string `json:"sub"`
-	Name       string `json:"name,omitempty"`
-	Email      string `json:"email,omitempty"`
-	GivenName  string `json:"given_name,omitempty"`
-	FamilyName string `json:"family_name,omitempty"`
 }
 
 // AuthSettings represents the auth configuration structure
@@ -122,8 +114,8 @@ func (s *AuthService) getAuthSettings(ctx context.Context) (*AuthSettings, error
 	return authSettings, nil
 }
 
-func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*OidcStatusInfo, error) {
-	status := &OidcStatusInfo{}
+func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*dto.OidcStatusInfo, error) {
+	status := &dto.OidcStatusInfo{}
 
 	status.EnvForced = s.config.OidcEnabled
 
@@ -164,14 +156,6 @@ func (s *AuthService) GetSessionTimeout(ctx context.Context) (int, error) {
 	return timeoutSeconds / 60, nil
 }
 
-func (s *AuthService) UpdateSessionTimeout(ctx context.Context, minutes int) error {
-	if minutes <= 0 {
-		return errors.New("session timeout must be positive")
-	}
-
-	return s.settingsService.UpdateSetting(ctx, "authSessionTimeout", fmt.Sprintf("%d", minutes*60))
-}
-
 func (s *AuthService) IsLocalAuthEnabled(ctx context.Context) (bool, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
@@ -199,23 +183,6 @@ func (s *AuthService) GetOidcConfig(ctx context.Context) (*models.OidcConfig, er
 	}
 
 	return authSettings.Oidc, nil
-}
-
-func (s *AuthService) SetLocalAuthEnabled(ctx context.Context, enabled bool) error {
-	return s.settingsService.UpdateSetting(ctx, "authLocalEnabled", fmt.Sprintf("%t", enabled))
-}
-
-func (s *AuthService) SetOidcEnabled(ctx context.Context, enabled bool) error {
-	return s.settingsService.UpdateSetting(ctx, "authOidcEnabled", fmt.Sprintf("%t", enabled))
-}
-
-func (s *AuthService) UpdateOidcConfig(ctx context.Context, oidcConfig *models.OidcConfig) error {
-	oidcConfigBytes, err := json.Marshal(oidcConfig)
-	if err != nil {
-		return fmt.Errorf("failed to marshal OIDC config: %w", err)
-	}
-
-	return s.settingsService.UpdateSetting(ctx, "authOidcConfig", string(oidcConfigBytes))
 }
 
 func (s *AuthService) Login(ctx context.Context, username, password string) (*models.User, *TokenPair, error) {
@@ -277,7 +244,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 	return user, tokenPair, nil
 }
 
-func (s *AuthService) OidcLogin(ctx context.Context, userInfo OidcUserInfo) (*models.User, *TokenPair, error) {
+func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) (*models.User, *TokenPair, error) {
 	oidcEnabled, err := s.IsOidcEnabled(ctx)
 	if err != nil {
 		return nil, nil, err

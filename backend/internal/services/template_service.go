@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync" // Import sync package
+	"sync"
 	"time"
 
 	"github.com/ofkm/arcane-backend/internal/database"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"gorm.io/gorm"
 )
@@ -25,12 +26,17 @@ type TemplateService struct {
 	remoteTemplatesCache []models.ComposeTemplate
 	lastRemoteFetch      time.Time
 	remoteFetchMutex     sync.Mutex
+
+	httpClient *http.Client
 }
 
 const remoteCacheDuration = 5 * time.Minute // Cache duration
 
 func NewTemplateService(db *database.DB) *TemplateService {
-	return &TemplateService{db: db}
+	return &TemplateService{
+		db:         db,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+	}
 }
 
 // Helper to load remote templates into cache
@@ -278,28 +284,36 @@ func (s *TemplateService) loadRemoteTemplates(ctx context.Context) ([]models.Com
 	return templates, nil
 }
 
-func (s *TemplateService) fetchRegistryTemplates(ctx context.Context, url string) ([]models.RemoteTemplate, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
+// doGET performs a GET and returns the whole body. Centralizes timeout/client use.
+func (s *TemplateService) doGET(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request for %s: %w", url, err)
 	}
-	resp, err := client.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch registry: %w", err)
+		return nil, fmt.Errorf("failed to fetch %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("registry returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("HTTP status %d for URL %s", resp.StatusCode, url)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read registry response: %w", err)
+		return nil, fmt.Errorf("failed to read response body from %s: %w", url, err)
+	}
+	return body, nil
+}
+
+func (s *TemplateService) fetchRegistryTemplates(ctx context.Context, url string) ([]dto.RemoteTemplate, error) {
+	body, err := s.doGET(ctx, url)
+	if err != nil {
+		return nil, err
 	}
 
-	var registry models.RemoteRegistry
+	var registry dto.RemoteRegistry
 	if err := json.Unmarshal(body, &registry); err != nil {
 		return nil, fmt.Errorf("failed to parse registry JSON: %w", err)
 	}
@@ -307,7 +321,7 @@ func (s *TemplateService) fetchRegistryTemplates(ctx context.Context, url string
 	return registry.Templates, nil
 }
 
-func (s *TemplateService) convertRemoteToLocal(remote models.RemoteTemplate, registry *models.TemplateRegistry) models.ComposeTemplate {
+func (s *TemplateService) convertRemoteToLocal(remote dto.RemoteTemplate, registry *models.TemplateRegistry) models.ComposeTemplate {
 	tagsJSON := ""
 	if len(remote.Tags) > 0 {
 		if data, err := json.Marshal(remote.Tags); err == nil {
@@ -400,26 +414,10 @@ func (s *TemplateService) FetchTemplateContent(ctx context.Context, template *mo
 }
 
 func (s *TemplateService) fetchURL(ctx context.Context, url string) (string, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	body, err := s.doGET(ctx, url)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request for %s: %w", url, err)
+		return "", err
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch URL %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP status %d for URL %s", resp.StatusCode, url)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body from %s: %w", url, err)
-	}
-
 	return string(body), nil
 }
 

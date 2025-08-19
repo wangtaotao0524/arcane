@@ -16,29 +16,20 @@ import (
 	"time"
 
 	"github.com/ofkm/arcane-backend/internal/config"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 )
-
-type OidcDiscoveryDocument struct {
-	Issuer                        string   `json:"issuer"`
-	AuthorizationEndpoint         string   `json:"authorization_endpoint"`
-	TokenEndpoint                 string   `json:"token_endpoint"`
-	UserinfoEndpoint              string   `json:"userinfo_endpoint"`
-	JwksURI                       string   `json:"jwks_uri"`
-	ScopesSupported               []string `json:"scopes_supported"`
-	ResponseTypesSupported        []string `json:"response_types_supported"`
-	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported"`
-}
 
 type OidcService struct {
 	authService    *AuthService
 	config         *config.Config
 	httpClient     *http.Client
-	discoveryCache map[string]*OidcDiscoveryDocument
+	discoveryCache map[string]*dto.OidcDiscoveryDocument
 	cacheMutex     sync.RWMutex
 	cacheExpiry    map[string]time.Time
 }
 
+// internal-only state persisted in cookie
 type OidcState struct {
 	State        string    `json:"state"`
 	CodeVerifier string    `json:"code_verifier"`
@@ -46,27 +37,17 @@ type OidcState struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	ExpiresIn    int    `json:"expires_in,omitempty"`
-	IDToken      string `json:"id_token,omitempty"`
-}
-
 func NewOidcService(authService *AuthService, cfg *config.Config) *OidcService {
 	return &OidcService{
-		authService: authService,
-		config:      cfg,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		discoveryCache: make(map[string]*OidcDiscoveryDocument),
+		authService:    authService,
+		config:         cfg,
+		httpClient:     &http.Client{Timeout: 30 * time.Second},
+		discoveryCache: make(map[string]*dto.OidcDiscoveryDocument),
 		cacheExpiry:    make(map[string]time.Time),
 	}
 }
 
-func (s *OidcService) discoverOidcEndpoints(ctx context.Context, issuerURL string) (*OidcDiscoveryDocument, error) {
+func (s *OidcService) discoverOidcEndpoints(ctx context.Context, issuerURL string) (*dto.OidcDiscoveryDocument, error) {
 	s.cacheMutex.RLock()
 	if cached, exists := s.discoveryCache[issuerURL]; exists {
 		if expiry, hasExpiry := s.cacheExpiry[issuerURL]; hasExpiry && time.Now().Before(expiry) {
@@ -110,7 +91,7 @@ func (s *OidcService) discoverOidcEndpoints(ctx context.Context, issuerURL strin
 			contentType, string(bodyBytes[:min(500, len(bodyBytes))]))
 	}
 
-	var discovery OidcDiscoveryDocument
+	var discovery dto.OidcDiscoveryDocument
 	if err := json.Unmarshal(bodyBytes, &discovery); err != nil {
 		return nil, fmt.Errorf("failed to decode discovery document from %s: %w. Response body: %s",
 			wellKnownURL, err, string(bodyBytes[:min(500, len(bodyBytes))]))
@@ -215,7 +196,7 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 	return authURL.String(), encodedState, nil
 }
 
-func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedState string) (*OidcUserInfo, error) {
+func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedState string) (*dto.OidcUserInfo, error) {
 	// Decode stored state to get the original state value and code verifier
 	stateData, err := s.decodeState(storedState)
 	if err != nil {
@@ -253,7 +234,7 @@ func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedSta
 	return userInfo, nil
 }
 
-func (s *OidcService) exchangeCodeForTokens(ctx context.Context, config *models.OidcConfig, code, codeVerifier string) (*TokenResponse, error) {
+func (s *OidcService) exchangeCodeForTokens(ctx context.Context, config *models.OidcConfig, code, codeVerifier string) (*dto.OidcTokenResponse, error) {
 	redirectURI := s.config.GetOidcRedirectURI()
 
 	data := url.Values{}
@@ -283,7 +264,7 @@ func (s *OidcService) exchangeCodeForTokens(ctx context.Context, config *models.
 		return nil, fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var tokenResponse TokenResponse
+	var tokenResponse dto.OidcTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
 		return nil, err
 	}
@@ -291,7 +272,7 @@ func (s *OidcService) exchangeCodeForTokens(ctx context.Context, config *models.
 	return &tokenResponse, nil
 }
 
-func (s *OidcService) getUserInfo(ctx context.Context, config *models.OidcConfig, accessToken string) (*OidcUserInfo, error) {
+func (s *OidcService) getUserInfo(ctx context.Context, config *models.OidcConfig, accessToken string) (*dto.OidcUserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, config.UserinfoEndpoint, nil)
 	if err != nil {
 		return nil, err
@@ -311,7 +292,7 @@ func (s *OidcService) getUserInfo(ctx context.Context, config *models.OidcConfig
 		return nil, fmt.Errorf("userinfo endpoint returned %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var userInfo OidcUserInfo
+	var userInfo dto.OidcUserInfo
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
 		return nil, err
 	}

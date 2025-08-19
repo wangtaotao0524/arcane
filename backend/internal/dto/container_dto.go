@@ -17,3 +17,11 @@ type CreateContainerDto struct {
 	Memory        int64             `json:"memory,omitempty"` // Memory limit in bytes
 	CPUs          float64           `json:"cpus,omitempty"`   // CPU limit
 }
+
+type ContainerActionResult struct {
+	Started []string `json:"started,omitempty"`
+	Stopped []string `json:"stopped,omitempty"`
+	Failed  []string `json:"failed,omitempty"`
+	Success bool     `json:"success"`
+	Errors  []string `json:"errors,omitempty"`
+}

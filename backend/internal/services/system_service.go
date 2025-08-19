@@ -42,30 +42,12 @@ func NewSystemService(
 	}
 }
 
-type PruneAllResult struct {
-	ContainersPruned []string `json:"containersPruned,omitempty"`
-	ImagesDeleted    []string `json:"imagesDeleted,omitempty"`
-	VolumesDeleted   []string `json:"volumesDeleted,omitempty"`
-	NetworksDeleted  []string `json:"networksDeleted,omitempty"`
-	SpaceReclaimed   uint64   `json:"spaceReclaimed"`
-	Success          bool     `json:"success"`
-	Errors           []string `json:"errors,omitempty"`
-}
-
-type ContainerActionResult struct {
-	Started []string `json:"started,omitempty"`
-	Stopped []string `json:"stopped,omitempty"`
-	Failed  []string `json:"failed,omitempty"`
-	Success bool     `json:"success"`
-	Errors  []string `json:"errors,omitempty"`
-}
-
 var systemUser = models.User{
 	Username: "System",
 	ID:       "0",
 }
 
-func (s *SystemService) PruneAll(ctx context.Context, req dto.PruneSystemDto) (*PruneAllResult, error) {
+func (s *SystemService) PruneAll(ctx context.Context, req dto.PruneSystemDto) (*dto.PruneAllResult, error) {
 	slog.InfoContext(ctx, "Starting selective prune operation",
 		slog.Bool("containers", req.Containers),
 		slog.Bool("images", req.Images),
@@ -73,7 +55,7 @@ func (s *SystemService) PruneAll(ctx context.Context, req dto.PruneSystemDto) (*
 		slog.Bool("networks", req.Networks),
 		slog.Bool("dangling", req.Dangling))
 
-	result := &PruneAllResult{
+	result := &dto.PruneAllResult{
 		Success: true,
 	}
 
@@ -151,8 +133,8 @@ func (s *SystemService) getDanglingModeFromSettings(ctx context.Context) (bool, 
 	}
 }
 
-func (s *SystemService) StartAllContainers(ctx context.Context) (*ContainerActionResult, error) {
-	result := &ContainerActionResult{
+func (s *SystemService) StartAllContainers(ctx context.Context) (*dto.ContainerActionResult, error) {
+	result := &dto.ContainerActionResult{
 		Success: true,
 	}
 
@@ -178,8 +160,8 @@ func (s *SystemService) StartAllContainers(ctx context.Context) (*ContainerActio
 	return result, nil
 }
 
-func (s *SystemService) StartAllStoppedContainers(ctx context.Context) (*ContainerActionResult, error) {
-	result := &ContainerActionResult{
+func (s *SystemService) StartAllStoppedContainers(ctx context.Context) (*dto.ContainerActionResult, error) {
+	result := &dto.ContainerActionResult{
 		Success: true,
 	}
 
@@ -205,8 +187,8 @@ func (s *SystemService) StartAllStoppedContainers(ctx context.Context) (*Contain
 	return result, nil
 }
 
-func (s *SystemService) StopAllContainers(ctx context.Context) (*ContainerActionResult, error) {
-	result := &ContainerActionResult{
+func (s *SystemService) StopAllContainers(ctx context.Context) (*dto.ContainerActionResult, error) {
+	result := &dto.ContainerActionResult{
 		Success: true,
 	}
 
@@ -230,7 +212,7 @@ func (s *SystemService) StopAllContainers(ctx context.Context) (*ContainerAction
 	return result, nil
 }
 
-func (s *SystemService) pruneContainers(ctx context.Context, result *PruneAllResult) error {
+func (s *SystemService) pruneContainers(ctx context.Context, result *dto.PruneAllResult) error {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Docker: %w", err)
@@ -249,7 +231,7 @@ func (s *SystemService) pruneContainers(ctx context.Context, result *PruneAllRes
 	return nil
 }
 
-func (s *SystemService) pruneImages(ctx context.Context, danglingOnly bool, result *PruneAllResult) error {
+func (s *SystemService) pruneImages(ctx context.Context, danglingOnly bool, result *dto.PruneAllResult) error {
 	slog.DebugContext(ctx, "Starting image pruning", slog.Bool("dangling_only", danglingOnly))
 
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
@@ -299,10 +281,10 @@ func (s *SystemService) pruneImages(ctx context.Context, danglingOnly bool, resu
 	return nil
 }
 
-func (s *SystemService) pruneBuildCache(ctx context.Context, result *PruneAllResult, pruneAllCache bool) error {
+func (s *SystemService) pruneBuildCache(ctx context.Context, result *dto.PruneAllResult, pruneAllCache bool) error {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("Build cache pruning failed (connection): %v", err))
+		result.Errors = append(result.Errors, fmt.Errorf("build cache pruning failed (connection): %w", err).Error())
 		slog.ErrorContext(ctx, "Error connecting to Docker for build cache prune", slog.String("error", err.Error()))
 		return fmt.Errorf("failed to connect to Docker for build cache prune: %w", err)
 	}
@@ -312,23 +294,24 @@ func (s *SystemService) pruneBuildCache(ctx context.Context, result *PruneAllRes
 		All: pruneAllCache,
 	}
 
-	slog.DebugContext(ctx, "Starting build cache pruning", slog.Bool("prune_all", pruneAllCache))
+	slog.DebugContext(ctx, "starting build cache pruning", slog.Bool("prune_all", pruneAllCache))
 	report, err := dockerClient.BuildCachePrune(ctx, options)
 	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("Build cache pruning failed: %v", err))
+		result.Errors = append(result.Errors, fmt.Errorf("build cache pruning failed: %w", err).Error())
 		slog.ErrorContext(ctx, "Error pruning build cache", slog.String("error", err.Error()))
 		return fmt.Errorf("failed to prune build cache: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Build cache pruning completed",
+	slog.InfoContext(ctx, "build cache pruning completed",
 		slog.Int("cache_entries_deleted", len(report.CachesDeleted)),
-		slog.Uint64("bytes_reclaimed", report.SpaceReclaimed))
+		slog.Uint64("bytes_reclaimed", report.SpaceReclaimed),
+	)
 
 	result.SpaceReclaimed += report.SpaceReclaimed
 	return nil
 }
 
-func (s *SystemService) pruneVolumes(ctx context.Context, result *PruneAllResult) error {
+func (s *SystemService) pruneVolumes(ctx context.Context, result *dto.PruneAllResult) error {
 	report, err := s.volumeService.PruneVolumes(ctx)
 	if err != nil {
 		return err
@@ -339,7 +322,7 @@ func (s *SystemService) pruneVolumes(ctx context.Context, result *PruneAllResult
 	return nil
 }
 
-func (s *SystemService) pruneNetworks(ctx context.Context, result *PruneAllResult) error {
+func (s *SystemService) pruneNetworks(ctx context.Context, result *dto.PruneAllResult) error {
 	report, err := s.networkService.PruneNetworks(ctx)
 	if err != nil {
 		return err
@@ -349,10 +332,10 @@ func (s *SystemService) pruneNetworks(ctx context.Context, result *PruneAllResul
 	return nil
 }
 
-func (s *SystemService) PruneSystem(ctx context.Context, all bool) (*PruneAllResult, error) {
+func (s *SystemService) PruneSystem(ctx context.Context, all bool) (*dto.PruneAllResult, error) {
 	slog.InfoContext(ctx, "Starting system-wide prune operation", slog.Bool("all", all))
 
-	result := &PruneAllResult{
+	result := &dto.PruneAllResult{
 		Success: true,
 	}
 

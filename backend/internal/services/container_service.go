@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -175,37 +174,6 @@ func (s *ContainerService) GetContainerByID(ctx context.Context, id string) (*co
 	return &container, nil
 }
 
-func (s *ContainerService) UpdateContainer(ctx context.Context, container *models.Container) (*models.Container, error) {
-	now := time.Now()
-	container.UpdatedAt = &now
-
-	if err := s.db.WithContext(ctx).Save(container).Error; err != nil {
-		return nil, fmt.Errorf("failed to update container: %w", err)
-	}
-	return container, nil
-}
-
-func (s *ContainerService) GetContainersByStack(ctx context.Context, stackID string) ([]*models.Container, error) {
-	var containers []*models.Container
-	if err := s.db.WithContext(ctx).Where("stack_id = ?", stackID).Find(&containers).Error; err != nil {
-		return nil, fmt.Errorf("failed to get containers by stack: %w", err)
-	}
-	return containers, nil
-}
-
-func (s *ContainerService) UpdateContainerStatus(ctx context.Context, id, status, state string) error {
-	updates := map[string]interface{}{
-		"status":     status,
-		"state":      state,
-		"updated_at": time.Now(),
-	}
-
-	if err := s.db.WithContext(ctx).Model(&models.Container{}).Where("container_id = ? OR id = ?", id, id).Updates(updates).Error; err != nil {
-		return fmt.Errorf("failed to update container status: %w", err)
-	}
-	return nil
-}
-
 func (s *ContainerService) DeleteContainer(ctx context.Context, containerID string, force bool, removeVolumes bool, user models.User) error {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
@@ -349,7 +317,6 @@ func (s *ContainerService) StreamLogs(ctx context.Context, containerID string, l
 	}
 	defer dockerClient.Close()
 
-	// Configure log options
 	options := container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
@@ -359,23 +326,19 @@ func (s *ContainerService) StreamLogs(ctx context.Context, containerID string, l
 		Timestamps: timestamps,
 	}
 
-	// Get log stream
 	logs, err := dockerClient.ContainerLogs(ctx, containerID, options)
 	if err != nil {
 		return fmt.Errorf("failed to get container logs: %w", err)
 	}
 	defer logs.Close()
 
-	// If following logs, we need to handle the multiplexed stream
 	if follow {
 		return s.streamMultiplexedLogs(ctx, logs, logsChan)
 	}
 
-	// For non-following logs, read all at once and send line by line
 	return s.readAllLogs(logs, logsChan)
 }
 
-// streamMultiplexedLogs handles the multiplexed Docker log stream for following logs
 func (s *ContainerService) streamMultiplexedLogs(ctx context.Context, logs io.ReadCloser, logsChan chan<- string) error {
 	// Use stdcopy to demultiplex Docker's stream format
 	// Docker multiplexes stdout and stderr in a special format
@@ -451,9 +414,7 @@ func (s *ContainerService) readLogsFromReader(ctx context.Context, reader io.Rea
 	return scanner.Err()
 }
 
-// readAllLogs reads all logs at once for non-following requests
 func (s *ContainerService) readAllLogs(logs io.ReadCloser, logsChan chan<- string) error {
-	// For non-following logs, read all and demultiplex
 	stdoutBuf := &strings.Builder{}
 	stderrBuf := &strings.Builder{}
 

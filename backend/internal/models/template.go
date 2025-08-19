@@ -40,27 +40,6 @@ type ComposeTemplateMetadata struct {
 	UpdatedAt        *string `json:"updatedAt,omitempty" gorm:"column:meta_updated_at"`
 }
 
-type RemoteTemplate struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Version     string   `json:"version"`
-	ComposeURL  string   `json:"compose_url"`
-	EnvURL      string   `json:"env_url,omitempty"`
-	UpdatedAt   string   `json:"updated_at"`
-	Author      string   `json:"author,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	IconURL     string   `json:"icon_url,omitempty"`
-	DocsURL     string   `json:"documentation_url,omitempty"`
-}
-
-type RemoteRegistry struct {
-	Name        string           `json:"name"`
-	Description string           `json:"description"`
-	Version     string           `json:"version"`
-	Templates   []RemoteTemplate `json:"templates"`
-}
-
 func (TemplateRegistry) TableName() string {
 	return "template_registries"
 }

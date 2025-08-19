@@ -57,14 +57,6 @@ func (s *ContainerRegistryService) GetRegistryByID(ctx context.Context, id strin
 	return &registry, nil
 }
 
-func (s *ContainerRegistryService) GetRegistryByURL(ctx context.Context, url string) (*models.ContainerRegistry, error) {
-	var registry models.ContainerRegistry
-	if err := s.db.WithContext(ctx).Where("url = ? AND enabled = ?", url, true).First(&registry).Error; err != nil {
-		return nil, fmt.Errorf("failed to get container registry by URL: %w", err)
-	}
-	return &registry, nil
-}
-
 func (s *ContainerRegistryService) CreateRegistry(ctx context.Context, req models.CreateContainerRegistryRequest) (*models.ContainerRegistry, error) {
 	// Encrypt the token before storing
 	encryptedToken, err := utils.Encrypt(req.Token)
