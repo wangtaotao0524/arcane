@@ -20,5 +20,5 @@ type Image struct {
 }
 
 func (i *Image) TableName() string {
-	return "images_table"
+	return "images"
 }

@@ -24,7 +24,7 @@ type ImageUpdateRecord struct {
 }
 
 func (i *ImageUpdateRecord) TableName() string {
-	return "image_update_table"
+	return "image_updates"
 }
 
 type ImageUpdate struct {

@@ -23,5 +23,5 @@ type Container struct {
 }
 
 func (Container) TableName() string {
-	return "containers_table"
+	return "containers"
 }

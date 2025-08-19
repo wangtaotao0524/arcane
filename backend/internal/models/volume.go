@@ -17,5 +17,5 @@ type Volume struct {
 }
 
 func (Volume) TableName() string {
-	return "volumes_table"
+	return "volumes"
 }

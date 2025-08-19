@@ -18,5 +18,5 @@ type Network struct {
 }
 
 func (Network) TableName() string {
-	return "networks_table"
+	return "networks"
 }

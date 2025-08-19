@@ -30,7 +30,7 @@ type Stack struct {
 }
 
 func (Stack) TableName() string {
-	return "stacks_table"
+	return "stacks"
 }
 
 type ProjectCache struct {
