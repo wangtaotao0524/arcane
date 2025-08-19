@@ -591,13 +591,19 @@ func (h *StackHandler) ConvertDockerRun(c *gin.Context) {
 }
 
 func (h *StackHandler) GetStackLogsStream(c *gin.Context) {
-
 	stackID := c.Param("stackId")
+	if stackID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Stack ID is required",
+		})
+		return
+	}
 
-	follow := c.Query("follow") == "true"
+	follow := c.DefaultQuery("follow", "true") == "true"
 	tail := c.DefaultQuery("tail", "100")
 	since := c.Query("since")
-	timestamps := c.Query("timestamps") == "true"
+	timestamps := c.DefaultQuery("timestamps", "false") == "true"
 
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -605,28 +611,35 @@ func (h *StackHandler) GetStackLogsStream(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 
 	logsChan := make(chan string, 100)
+	errChan := make(chan error, 1)
+
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
 
 	go func() {
 		defer close(logsChan)
+		defer close(errChan)
+
 		if err := h.stackService.StreamStackLogs(ctx, stackID, logsChan, follow, tail, since, timestamps); err != nil {
-			select {
-			case logsChan <- fmt.Sprintf("Error streaming logs: %v", err):
-			case <-ctx.Done():
-			}
+			errChan <- err
 		}
 	}()
 
 	c.Stream(func(w io.Writer) bool {
 		select {
-		case log, ok := <-logsChan:
+		case logLine, ok := <-logsChan:
 			if !ok {
 				return false
 			}
-			parsedLog := h.parseStackLogLine(log)
+			parsedLog := h.parseStackLogLine(logLine)
 			c.SSEvent("log", parsedLog)
 			return true
+		case err, ok := <-errChan:
+			if !ok || err == nil {
+				return false
+			}
+			c.SSEvent("error", gin.H{"error": err.Error()})
+			return false
 		case <-ctx.Done():
 			return false
 		case <-time.After(30 * time.Second):
