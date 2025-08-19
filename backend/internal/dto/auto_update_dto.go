@@ -1,10 +1,10 @@
 package dto
 
 type AutoUpdateCheckDto struct {
-	Type        string   `json:"type,omitempty"`        // "containers", "stacks", or "all"
-	ResourceIds []string `json:"resourceIds,omitempty"` // Specific resources to check
-	ForceUpdate bool     `json:"forceUpdate,omitempty"` // Force update even if no changes
-	DryRun      bool     `json:"dryRun,omitempty"`      // Check only, don't apply updates
+	Type        string   `json:"type,omitempty"`
+	ResourceIds []string `json:"resourceIds,omitempty"`
+	ForceUpdate bool     `json:"forceUpdate,omitempty"`
+	DryRun      bool     `json:"dryRun,omitempty"`
 }
 
 type AutoUpdateResultDto struct {

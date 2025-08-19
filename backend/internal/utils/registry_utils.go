@@ -12,7 +12,11 @@ import (
 
 const DEFAULT_REGISTRY = "registry-1.docker.io"
 
-type RegistryUtils struct{}
+// RegistryUtils provides helper methods for Docker/OCI registries.
+// A shared HTTP client is used; per-method timeouts are enforced via context.
+type RegistryUtils struct {
+	client *http.Client
+}
 
 var (
 	SemanticVersionRegex = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-.*)?$`)
@@ -37,9 +41,13 @@ type RegistryTestResult struct {
 }
 
 func NewRegistryUtils() *RegistryUtils {
-	return &RegistryUtils{}
+	return &RegistryUtils{
+		client: &http.Client{}, // timeouts applied via context per request below
+	}
 }
 
+// SplitImageReference splits an image reference into registry, repository, and tag.
+// Defaults: registry=docker hub, tag=latest. Strips any digest suffix.
 func (r *RegistryUtils) SplitImageReference(reference string) (string, string, string, error) {
 	if reference == "" {
 		return "", "", "", fmt.Errorf("empty reference provided")
@@ -66,6 +74,7 @@ func (r *RegistryUtils) SplitImageReference(reference string) (string, string, s
 		}
 	}
 
+	// strip any digest suffix
 	repositoryAndTag = strings.Split(repositoryAndTag, "@")[0]
 
 	tagSplits := strings.Split(repositoryAndTag, ":")
@@ -102,16 +111,19 @@ func (r *RegistryUtils) GetRegistryURL(registry string) string {
 	}
 }
 
+// CheckAuth pings the v2 endpoint and returns the auth realm URL if auth is required.
 func (r *RegistryUtils) CheckAuth(ctx context.Context, registry string) (string, error) {
 	url := fmt.Sprintf("%s/v2/", r.GetRegistryURL(registry))
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := client.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -154,11 +166,14 @@ func (r *RegistryUtils) getServiceName(authURL string) string {
 	return "registry"
 }
 
+// GetToken fetches a Bearer token for the given repository scope.
 func (r *RegistryUtils) GetToken(ctx context.Context, authURL, repository string, credentials *RegistryCredentials) (string, error) {
 	serviceName := r.getServiceName(authURL)
 	tokenURL := fmt.Sprintf("%s?service=%s&scope=repository:%s:pull", authURL, serviceName, repository)
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tokenURL, nil)
 	if err != nil {
 		return "", err
@@ -168,7 +183,7 @@ func (r *RegistryUtils) GetToken(ctx context.Context, authURL, repository string
 		req.SetBasicAuth(credentials.Username, credentials.Token)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -189,10 +204,13 @@ func (r *RegistryUtils) GetToken(ctx context.Context, authURL, repository string
 	return tokenResp.Token, nil
 }
 
+// GetLatestDigest returns the current manifest digest for the given repository:tag.
 func (r *RegistryUtils) GetLatestDigest(ctx context.Context, registry, repository, tag string, token string) (string, error) {
 	url := fmt.Sprintf("%s/v2/%s/manifests/%s", r.GetRegistryURL(registry), repository, tag)
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 	if err != nil {
 		return "", err
@@ -204,7 +222,7 @@ func (r *RegistryUtils) GetLatestDigest(ctx context.Context, registry, repositor
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -232,6 +250,7 @@ func (r *RegistryUtils) GetLatestDigest(ctx context.Context, registry, repositor
 	return digest, nil
 }
 
+// GetImageTags returns all tags for the given repository, following pagination.
 func (r *RegistryUtils) GetImageTags(ctx context.Context, registry, repository string, token string) ([]string, error) {
 	url := fmt.Sprintf("%s/v2/%s/tags/list", r.GetRegistryURL(registry), repository)
 
@@ -239,8 +258,10 @@ func (r *RegistryUtils) GetImageTags(ctx context.Context, registry, repository s
 	nextURL := url
 
 	for nextURL != "" {
-		client := &http.Client{Timeout: 30 * time.Second}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, nextURL, nil)
+		ctxReq, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctxReq, http.MethodGet, nextURL, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +272,7 @@ func (r *RegistryUtils) GetImageTags(ctx context.Context, registry, repository s
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
 
-		resp, err := client.Do(req)
+		resp, err := r.client.Do(req)
 		if err != nil {
 			return nil, err
 		}
@@ -271,13 +292,13 @@ func (r *RegistryUtils) GetImageTags(ctx context.Context, registry, repository s
 		allTags = append(allTags, tagsResp.Tags...)
 
 		linkHeader := resp.Header.Get("Link")
-		nextURL = r.parseLinkHeader(linkHeader, url)
+		nextURL = r.parseLinkHeader(linkHeader)
 	}
 
 	return allTags, nil
 }
 
-func (r *RegistryUtils) parseLinkHeader(linkHeader, baseURL string) string {
+func (r *RegistryUtils) parseLinkHeader(linkHeader string) string {
 	if linkHeader == "" {
 		return ""
 	}
@@ -297,6 +318,7 @@ func (r *RegistryUtils) parseLinkHeader(linkHeader, baseURL string) string {
 	return ""
 }
 
+// TestRegistryConnection runs a simple ping/auth/tags check against a registry.
 func TestRegistryConnection(ctx context.Context, registryURL string, credentials *RegistryCredentials) (*RegistryTestResult, error) {
 	registryUtils := NewRegistryUtils()
 
@@ -345,6 +367,7 @@ func TestRegistryConnection(ctx context.Context, registryURL string, credentials
 	return result, nil
 }
 
+// ExtractRegistryDomain normalizes the image ref to a registry domain (docker.io for hub).
 func ExtractRegistryDomain(imageRef string) (string, error) {
 	registryUtils := NewRegistryUtils()
 	registry, _, _, err := registryUtils.SplitImageReference(imageRef)
