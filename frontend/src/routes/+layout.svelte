@@ -38,7 +38,7 @@
 				currentSettings
 			);
 			if (redirectPath && redirectPath !== page.url.pathname) {
-				goto(redirectPath);
+				await goto(redirectPath);
 			}
 		})();
 	});

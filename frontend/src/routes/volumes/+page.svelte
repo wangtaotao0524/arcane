@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { HardDrive, Loader2, ArchiveRestore, ArchiveX } from '@lucide/svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import { HardDrive, ArchiveRestore, ArchiveX } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { toast } from 'svelte-sonner';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
