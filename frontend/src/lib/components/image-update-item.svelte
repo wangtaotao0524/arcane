@@ -9,7 +9,6 @@
 	} from '@lucide/svelte';
 	import { imageUpdateAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
-	// import { invalidateAll } from '$app/navigation'; // removed
 	import type { ImageUpdateData } from '$lib/services/api/image-update-api-service';
 
 	interface Props {
@@ -18,7 +17,6 @@
 		imageId: string;
 		repo?: string;
 		tag?: string;
-		// optional callback if the parent ever wants the new value
 		onUpdated?: (data: ImageUpdateData) => void;
 	}
 
@@ -31,11 +29,9 @@
 		onUpdated
 	}: Props = $props();
 
-	// local, reactive copy so the UI updates without page refresh
 	let localUpdateInfo = $state<ImageUpdateData | undefined>(updateInfo);
 	let isChecking = $state(false);
 
-	// keep local state in sync if parent prop changes later
 	$effect(() => {
 		localUpdateInfo = updateInfo;
 	});
@@ -66,11 +62,9 @@
 		try {
 			const result = await imageUpdateAPI.checkImageUpdateByID(imageId);
 			if (result && !result.error) {
-				// update the cell immediately
 				localUpdateInfo = result;
 				onUpdated?.(result); // optional: lets a parent sync if desired
 				toast.success('Update check completed');
-				// await invalidateAll(); // no full refresh
 			} else {
 				toast.error(result?.error || 'Update check failed');
 			}
