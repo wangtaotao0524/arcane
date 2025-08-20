@@ -407,9 +407,14 @@ func (s *AuthService) VerifyToken(ctx context.Context, accessToken string) (*mod
 		return nil, errors.New("not an access token")
 	}
 
+	if claims.ID == "" {
+		return nil, errors.New("missing user ID in token")
+	}
+
 	user := &models.User{
-		Username: claims.Username,
-		Roles:    models.StringSlice(claims.Roles),
+		BaseModel: models.BaseModel{ID: claims.ID},
+		Username:  claims.Username,
+		Roles:     models.StringSlice(claims.Roles),
 	}
 
 	if claims.Email != "" {
