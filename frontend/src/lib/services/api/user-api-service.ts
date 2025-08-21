@@ -1,6 +1,10 @@
 import BaseAPIService from './api-service';
-import type { User } from '$lib/types/user.type';
-import type { PaginationRequest, SortRequest, PaginatedApiResponse } from '$lib/types/pagination.type';
+import type { User, CreateUser } from '$lib/types/user.type';
+import type {
+	PaginationRequest,
+	SortRequest,
+	PaginatedApiResponse
+} from '$lib/types/pagination.type';
 
 export interface Role {
 	id: string;
@@ -20,38 +24,42 @@ export default class UserAPIService extends BaseAPIService {
 	}
 
 	async getUsers(
-    pagination?: PaginationRequest,
-    sort?: SortRequest,
-    search?: string,
-    filters?: Record<string, string>
-): Promise<any[] | PaginatedApiResponse<any>> {
-    if (!pagination) {
-        const response = await this.handleResponse<{ users?: any[] }>(this.api.get('/users'));
-        return Array.isArray(response.users) ? response.users : Array.isArray(response) ? response : [];
-    }
+		pagination?: PaginationRequest,
+		sort?: SortRequest,
+		search?: string,
+		filters?: Record<string, string>
+	): Promise<any[] | PaginatedApiResponse<any>> {
+		if (!pagination) {
+			const response = await this.handleResponse<{ users?: any[] }>(this.api.get('/users'));
+			return Array.isArray(response.users)
+				? response.users
+				: Array.isArray(response)
+					? response
+					: [];
+		}
 
-    const params: any = {
-        'pagination[page]': pagination.page,
-        'pagination[limit]': pagination.limit
-    };
+		const params: any = {
+			'pagination[page]': pagination.page,
+			'pagination[limit]': pagination.limit
+		};
 
-    if (sort) {
-        params['sort[column]'] = sort.column;
-        params['sort[direction]'] = sort.direction;
-    }
+		if (sort) {
+			params['sort[column]'] = sort.column;
+			params['sort[direction]'] = sort.direction;
+		}
 
-    if (search) {
-        params.search = search;
-    }
+		if (search) {
+			params.search = search;
+		}
 
-    if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-            params[key] = value;
-        });
-    }
+		if (filters) {
+			Object.entries(filters).forEach(([key, value]) => {
+				params[key] = value;
+			});
+		}
 
-    return this.handleResponse(this.api.get('/users', { params }));
-}
+		return this.handleResponse(this.api.get('/users', { params }));
+	}
 
 	async get(id: string): Promise<User> {
 		return this.handleResponse(this.api.get(`/users/${id}`)) as Promise<User>;
@@ -61,7 +69,7 @@ export default class UserAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.get(`/auth/me`)) as Promise<User>;
 	}
 
-	async create(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+	async create(user: CreateUser): Promise<User> {
 		return this.handleResponse(this.api.post('/users', user)) as Promise<User>;
 	}
 
@@ -94,11 +102,15 @@ export default class UserAPIService extends BaseAPIService {
 	}
 
 	async getByUsername(username: string): Promise<User> {
-		return this.handleResponse(this.api.get(`/users/by-username/${encodeURIComponent(username)}`)) as Promise<User>;
+		return this.handleResponse(
+			this.api.get(`/users/by-username/${encodeURIComponent(username)}`)
+		) as Promise<User>;
 	}
 
 	async getByOidcSubjectId(oidcSubjectId: string): Promise<User> {
-		return this.handleResponse(this.api.get(`/users/by-oidc-subject/${encodeURIComponent(oidcSubjectId)}`)) as Promise<User>;
+		return this.handleResponse(
+			this.api.get(`/users/by-oidc-subject/${encodeURIComponent(oidcSubjectId)}`)
+		) as Promise<User>;
 	}
 
 	async getRoles(): Promise<Role[]> {
@@ -122,11 +134,15 @@ export default class UserAPIService extends BaseAPIService {
 	}
 
 	async assignRole(userId: string, roleId: string): Promise<void> {
-		return this.handleResponse(this.api.post(`/users/${userId}/roles`, { roleId })) as Promise<void>;
+		return this.handleResponse(
+			this.api.post(`/users/${userId}/roles`, { roleId })
+		) as Promise<void>;
 	}
 
 	async removeRole(userId: string, roleId: string): Promise<void> {
-		return this.handleResponse(this.api.delete(`/users/${userId}/roles/${roleId}`)) as Promise<void>;
+		return this.handleResponse(
+			this.api.delete(`/users/${userId}/roles/${roleId}`)
+		) as Promise<void>;
 	}
 
 	async getUserRoles(userId: string): Promise<Role[]> {

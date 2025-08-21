@@ -11,6 +11,7 @@
 	import UserFormSheet from '$lib/components/sheets/user-form-sheet.svelte';
 	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
+	import type { CreateUser } from '$lib/types/user.type';
 
 	let { data } = $props();
 
@@ -125,13 +126,12 @@
 					return;
 				}
 
-				const createUser: Omit<User, 'id' | 'createdAt' | 'updatedAt'> = {
-					username: user.username,
+				const createUser: CreateUser = {
+					username: user.username!,
 					displayName: user.displayName,
 					email: user.email,
-					roles: user.roles || ['user'],
-					passwordHash: user.password,
-					requirePasswordChange: false
+					password: user.password!,
+					roles: user.roles ?? ['user']
 				};
 
 				const result = await tryCatch(userAPI.create(createUser));

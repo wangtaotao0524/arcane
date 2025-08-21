@@ -46,3 +46,18 @@ export interface NotificationPreferences {
 	deployments: boolean;
 	systemAlerts: boolean;
 }
+
+export type CreateUser = Omit<
+	User,
+	| 'id'
+	| 'createdAt'
+	| 'updatedAt'
+	| 'lastLogin'
+	| 'oidcSubjectId'
+	| 'passwordHash'
+	| 'requirePasswordChange'
+	| 'roles'
+> & {
+	password: string;
+	roles?: string[];
+};
