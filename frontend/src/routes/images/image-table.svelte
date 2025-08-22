@@ -64,18 +64,28 @@
 
 	const filteredImages = $derived(
 		imagesWithId.filter((img) => {
+			// Usage filtering
 			const showBecauseUsed = imageFilters.showUsed && img.InUse;
 			const showBecauseUnused = imageFilters.showUnused && !img.InUse;
 			const usageMatch = showBecauseUsed || showBecauseUnused;
 
-			const hasUpdates = img.updateInfo?.hasUpdate || false;
-			const showBecauseHasUpdates = imageFilters.showWithUpdates && hasUpdates;
-			const showBecauseNoUpdates = imageFilters.showWithoutUpdates && !hasUpdates;
+			// Update status filtering
+			const updateStatus = getImageUpdateStatus(img.updateInfo);
+			const showBecauseHasUpdates = imageFilters.showWithUpdates && updateStatus === 'has-updates';
+			const showBecauseNoUpdates = imageFilters.showWithoutUpdates && updateStatus === 'no-updates';
 			const updateMatch = showBecauseHasUpdates || showBecauseNoUpdates;
 
 			return usageMatch && updateMatch;
 		})
 	);
+
+	function getImageUpdateStatus(updateInfo: any): 'has-updates' | 'no-updates' {
+		if (!updateInfo) return 'no-updates';
+
+		if (updateInfo.error) return 'no-updates';
+
+		return updateInfo.hasUpdate === true ? 'has-updates' : 'no-updates';
+	}
 
 	const paginatedImages: Paginated<ImageWithId> = $derived({
 		data: filteredImages,
@@ -210,7 +220,7 @@
 	}
 </script>
 
-{#if filteredImages.length > 0}
+{#if images.length > 0}
 	<Card.Root class="border shadow-sm">
 		<Card.Header class="px-6">
 			<div class="flex items-center justify-between">
@@ -279,99 +289,111 @@
 			</div>
 		</Card.Header>
 		<Card.Content>
-			<ArcaneTable
-				items={paginatedImages}
-				bind:requestOptions
-				bind:selectedIds
-				{onRefresh}
-				columns={[
-					{ label: 'Repository', sortColumn: 'RepoTags' },
-					{ label: 'Image ID' },
-					{ label: 'Size', sortColumn: 'Size' },
-					{ label: 'Created', sortColumn: 'Created' },
-					{ label: 'Status', sortColumn: 'InUse' },
-					{ label: 'Updates' },
-					{ label: ' ' }
-				]}
-				filterPlaceholder="Search images..."
-				noResultsMessage="No images found"
-			>
-				{#snippet rows({ item })}
-					{@const { repo, tag } = extractRepoAndTag(item.RepoTags)}
-					<Table.Cell>
-						{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
-							<a class="font-medium hover:underline" href="/images/{item.Id}/">{item.RepoTags[0]}</a
+			{#if filteredImages.length > 0}
+				<ArcaneTable
+					items={paginatedImages}
+					bind:requestOptions
+					bind:selectedIds
+					{onRefresh}
+					columns={[
+						{ label: 'Repository', sortColumn: 'RepoTags' },
+						{ label: 'Image ID' },
+						{ label: 'Size', sortColumn: 'Size' },
+						{ label: 'Created', sortColumn: 'Created' },
+						{ label: 'Status', sortColumn: 'InUse' },
+						{ label: 'Updates' },
+						{ label: ' ' }
+					]}
+					filterPlaceholder="Search images..."
+					noResultsMessage="No images found"
+				>
+					{#snippet rows({ item })}
+						{@const { repo, tag } = extractRepoAndTag(item.RepoTags)}
+						<Table.Cell>
+							{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
+								<a class="font-medium hover:underline" href="/images/{item.Id}/"
+									>{item.RepoTags[0]}</a
+								>
+							{:else}
+								<span class="text-muted-foreground italic">Untagged</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell>
+							<code class="bg-muted rounded px-2 py-1 text-xs"
+								>{item.Id?.substring(7, 19) || 'N/A'}</code
 							>
-						{:else}
-							<span class="text-muted-foreground italic">Untagged</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell>
-						<code class="bg-muted rounded px-2 py-1 text-xs"
-							>{item.Id?.substring(7, 19) || 'N/A'}</code
+						</Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5"
+							>{formatBytes(item.Size ?? item.VirtualSize ?? 0)}</Table.Cell
 						>
-					</Table.Cell>
-					<Table.Cell class="py-3 md:py-3.5"
-						>{formatBytes(item.Size ?? item.VirtualSize ?? 0)}</Table.Cell
-					>
-					<Table.Cell>{new Date((item.Created || 0) * 1000).toLocaleDateString()}</Table.Cell>
-					<Table.Cell>
-						{#if item.InUse}
-							<StatusBadge text="In Use" variant="green" />
-						{:else}
-							<StatusBadge text="Unused" variant="amber" />
-						{/if}
-					</Table.Cell>
-					<Table.Cell>
-						<ImageUpdateItem updateInfo={item.updateInfo} imageId={item.Id} {repo} {tag} />
-					</Table.Cell>
-					<Table.Cell>
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger>
-								{#snippet child({ props })}
-									<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-										<span class="sr-only">Open menu</span>
-										<Ellipsis />
-									</Button>
-								{/snippet}
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Content align="end">
-								<DropdownMenu.Group>
-									<DropdownMenu.Item onclick={() => goto(`/images/${item.Id}`)}>
-										<ScanSearch class="size-4" />
-										Inspect
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										onclick={() => handleInlineImagePull(item.Id, item.RepoTags?.[0] || '')}
-										disabled={isPullingInline[item.Id] || !item.RepoTags?.[0]}
-									>
-										{#if isPullingInline[item.Id]}
-											<Loader2 class="size-4 animate-spin" />
-											Pulling...
-										{:else}
-											<Download class="size-4" />
-											Pull
-										{/if}
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										variant="destructive"
-										onclick={() => deleteImage(item.Id)}
-										disabled={isLoading.removing}
-									>
-										{#if isLoading.removing}
-											<Loader2 class="size-4 animate-spin" />
-										{:else}
-											<Trash2 class="size-4" />
-										{/if}
-										Remove
-									</DropdownMenu.Item>
-								</DropdownMenu.Group>
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-					</Table.Cell>
-				{/snippet}
-			</ArcaneTable>
+						<Table.Cell>{new Date((item.Created || 0) * 1000).toLocaleDateString()}</Table.Cell>
+						<Table.Cell>
+							{#if item.InUse}
+								<StatusBadge text="In Use" variant="green" />
+							{:else}
+								<StatusBadge text="Unused" variant="amber" />
+							{/if}
+						</Table.Cell>
+						<Table.Cell>
+							<ImageUpdateItem updateInfo={item.updateInfo} imageId={item.Id} {repo} {tag} />
+						</Table.Cell>
+						<Table.Cell>
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
+											<span class="sr-only">Open menu</span>
+											<Ellipsis />
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Group>
+										<DropdownMenu.Item onclick={() => goto(`/images/${item.Id}`)}>
+											<ScanSearch class="size-4" />
+											Inspect
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											onclick={() => handleInlineImagePull(item.Id, item.RepoTags?.[0] || '')}
+											disabled={isPullingInline[item.Id] || !item.RepoTags?.[0]}
+										>
+											{#if isPullingInline[item.Id]}
+												<Loader2 class="size-4 animate-spin" />
+												Pulling...
+											{:else}
+												<Download class="size-4" />
+												Pull
+											{/if}
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item
+											variant="destructive"
+											onclick={() => deleteImage(item.Id)}
+											disabled={isLoading.removing}
+										>
+											{#if isLoading.removing}
+												<Loader2 class="size-4 animate-spin" />
+											{:else}
+												<Trash2 class="size-4" />
+											{/if}
+											Remove
+										</DropdownMenu.Item>
+									</DropdownMenu.Group>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</Table.Cell>
+					{/snippet}
+				</ArcaneTable>
+			{:else}
+				<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
+					<HardDrive class="text-muted-foreground mb-4 size-12 opacity-40" />
+					<p class="text-lg font-medium">No images match current filters</p>
+					<p class="text-muted-foreground mt-1 max-w-md text-sm">
+						Adjust your filters to see images, or pull new images using the "Pull Image" button
+						above
+					</p>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 {:else}
