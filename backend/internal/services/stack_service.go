@@ -446,6 +446,7 @@ processResult:
 	return result, pagination, nil
 }
 
+//nolint:gocognit
 func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
 	stacksDir, dirErr := s.getStacksDirectory(ctx)
 	if dirErr != nil {
