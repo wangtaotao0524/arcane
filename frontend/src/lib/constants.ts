@@ -19,9 +19,4 @@ volumes:
     driver: local
 `;
 
-/* The line `const DEFAULT_NETWORK_NAMES = new Set(['host', 'bridge', 'none', 'ingress']);` is creating
-a Set named `DEFAULT_NETWORK_NAMES` that contains the default network names managed by Docker. These
-default network names are 'host', 'bridge', 'none', and 'ingress'. The purpose of this set is to
-provide a quick and efficient way to check if a given network name is one of the default networks
-when needed in the code. */
 export const DEFAULT_NETWORK_NAMES = new Set(['host', 'bridge', 'none', 'ingress']);

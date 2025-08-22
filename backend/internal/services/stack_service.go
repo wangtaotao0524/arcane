@@ -446,22 +446,37 @@ processResult:
 	return result, pagination, nil
 }
 
-// SyncAllStacksFromFilesystem scans the stacks directory and ensures database is in sync
 func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
-	stacksDir, err := s.getStacksDirectory(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get stacks directory: %w", err)
+	stacksDir, dirErr := s.getStacksDirectory(ctx)
+	if dirErr != nil {
+		fmt.Printf("Warning: failed to get stacks directory from settings, falling back to default: %v\n", dirErr)
+	}
+	if strings.TrimSpace(stacksDir) == "" {
+		stacksDir = "data/projects"
+	}
+	stacksDir = filepath.Clean(stacksDir)
+
+	// If the stacks directory doesn't exist, create it and treat as empty.
+	if _, statErr := os.Stat(stacksDir); os.IsNotExist(statErr) {
+		if mkErr := os.MkdirAll(stacksDir, 0755); mkErr != nil {
+			fmt.Printf("Warning: failed to create stacks directory %q: %v\n", stacksDir, mkErr)
+			return nil // treat as empty
+		}
+		return nil // created; nothing to sync
+	} else if statErr != nil {
+		fmt.Printf("Warning: unable to access stacks directory %q: %v\n", stacksDir, statErr)
+		return nil // treat as empty
 	}
 
 	entries, err := os.ReadDir(stacksDir)
 	if err != nil {
-		return fmt.Errorf("failed to read stacks directory: %w", err)
+		fmt.Printf("Warning: failed to read stacks directory %q: %v\n", stacksDir, err)
+		return nil // treat as empty
 	}
 
 	// Track which directories we've seen
-	seenDirs := make(map[string]bool)
+	seenDirs := utils.NewEmptyStructMap[string]()
 
-	// Process each directory in the stacks folder
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -469,7 +484,7 @@ func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
 
 		dirName := entry.Name()
 		dirPath := filepath.Join(stacksDir, dirName)
-		seenDirs[dirPath] = true
+		seenDirs[dirPath] = struct{}{}
 
 		// Skip if no compose file
 		if s.findComposeFile(dirPath) == "" {
@@ -481,26 +496,60 @@ func (s *StackService) SyncAllStacksFromFilesystem(ctx context.Context) error {
 		err := s.db.WithContext(ctx).Where("path = ? OR dir_name = ?", dirPath, dirName).First(&existingStack).Error
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Auto-import external stack
 			if _, importErr := s.importExternalStack(ctx, dirName, dirName, systemUser); importErr != nil {
 				fmt.Printf("Warning: failed to auto-import stack %s: %v\n", dirName, importErr)
 			}
 		} else if err == nil {
-			// Update existing stack with live data
 			s.syncStackWithFilesystem(ctx, &existingStack)
 		}
 	}
 
-	// Mark stacks as "not found" if their directories no longer exist
+	// Remove stacks whose directories or compose files no longer exist
 	var allStacks []models.Stack
 	s.db.WithContext(ctx).Find(&allStacks)
 
 	for _, stack := range allStacks {
-		if !seenDirs[stack.Path] {
-			stack.Status = "unknown"
-			stack.ServiceCount = 0
-			stack.RunningCount = 0
-			s.updateStackInDB(ctx, &stack)
+		// Directory missing
+		if _, err := os.Stat(stack.Path); os.IsNotExist(err) {
+			if err := s.db.WithContext(ctx).Where("stack_id = ?", stack.ID).Delete(&models.ProjectCache{}).Error; err != nil {
+				fmt.Printf("Warning: failed to delete cache for removed stack %s: %v\n", stack.ID, err)
+			}
+			if err := s.db.WithContext(ctx).Delete(&models.Stack{}, "id = ?", stack.ID).Error; err != nil {
+				fmt.Printf("Warning: failed to delete removed stack %s: %v\n", stack.ID, err)
+			} else {
+				metadata := models.JSON{
+					"action":    "auto-delete",
+					"stackId":   stack.ID,
+					"stackName": stack.Name,
+					"path":      stack.Path,
+					"reason":    "missing_directory",
+				}
+				if logErr := s.eventService.LogStackEvent(ctx, models.EventTypeStackDelete, stack.ID, stack.Name, systemUser.ID, systemUser.Username, "0", metadata); logErr != nil {
+					fmt.Printf("Could not log auto-delete action: %s\n", logErr)
+				}
+			}
+			continue
+		}
+
+		if s.findComposeFile(stack.Path) == "" {
+			if err := s.db.WithContext(ctx).Where("stack_id = ?", stack.ID).Delete(&models.ProjectCache{}).Error; err != nil {
+				fmt.Printf("Warning: failed to delete cache for removed stack %s: %v\n", stack.ID, err)
+			}
+			if err := s.db.WithContext(ctx).Delete(&models.Stack{}, "id = ?", stack.ID).Error; err != nil {
+				fmt.Printf("Warning: failed to delete removed stack %s: %v\n", stack.ID, err)
+			} else {
+				metadata := models.JSON{
+					"action":    "auto-delete",
+					"stackId":   stack.ID,
+					"stackName": stack.Name,
+					"path":      stack.Path,
+					"reason":    "missing_compose_file",
+				}
+				if logErr := s.eventService.LogStackEvent(ctx, models.EventTypeStackDelete, stack.ID, stack.Name, systemUser.ID, systemUser.Username, "0", metadata); logErr != nil {
+					fmt.Printf("Could not log auto-delete action: %s\n", logErr)
+				}
+			}
+			continue
 		}
 	}
 

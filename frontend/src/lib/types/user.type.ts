@@ -27,24 +27,21 @@ export interface Permission {
 	description?: string;
 }
 
-export interface UserProfile {
-	avatar?: string;
-	bio?: string;
-	preferences: UserPreferences;
+export interface UserDto {
+	username: string;
+	email?: string;
+	password: string;
+	displayName?: string;
+	role: UserRole;
+	permissions?: string[];
 }
 
-export interface UserPreferences {
-	theme: 'light' | 'dark' | 'auto';
-	language: string;
-	timezone: string;
-	notifications: NotificationPreferences;
-}
-
-export interface NotificationPreferences {
-	email: boolean;
-	browser: boolean;
-	deployments: boolean;
-	systemAlerts: boolean;
+export interface UpdateUserDto {
+	email?: string;
+	displayName?: string;
+	role?: UserRole;
+	permissions?: string[];
+	isActive?: boolean;
 }
 
 export type CreateUser = Omit<

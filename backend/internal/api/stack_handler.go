@@ -62,6 +62,11 @@ func (h *StackHandler) ListStacks(c *gin.Context) {
 		return
 	}
 
+	// Ensure data is never null - always return empty array if no stacks
+	if stacks == nil {
+		stacks = []map[string]interface{}{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"data":       stacks,
