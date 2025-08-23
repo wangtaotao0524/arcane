@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/ofkm/arcane-backend/internal/database"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -447,60 +449,38 @@ func (s *ContainerService) readAllLogs(logs io.ReadCloser, logsChan chan<- strin
 }
 
 //nolint:gocognit
-func (s *ContainerService) ListContainersPaginated(ctx context.Context, req utils.SortedPaginationRequest, includeAll bool) ([]map[string]interface{}, utils.PaginationResponse, error) {
+func (s *ContainerService) ListContainersPaginated(ctx context.Context, req utils.SortedPaginationRequest, includeAll bool) ([]dto.ContainerSummaryDto, utils.PaginationResponse, error) {
 	dockerContainers, err := s.ListContainers(ctx, includeAll)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list Docker containers: %w", err)
 	}
 
-	var result []map[string]interface{}
-	for _, dockerContainer := range dockerContainers {
-		containerData := map[string]interface{}{
-			"Id":      dockerContainer.ID,
-			"Names":   dockerContainer.Names,
-			"Image":   dockerContainer.Image,
-			"ImageID": dockerContainer.ImageID,
-			"Command": dockerContainer.Command,
-			"Created": dockerContainer.Created,
-			"Ports":   dockerContainer.Ports,
-			"Labels":  dockerContainer.Labels,
-			"State":   dockerContainer.State,
-			"Status":  dockerContainer.Status,
-			"HostConfig": map[string]interface{}{
-				"NetworkMode": dockerContainer.HostConfig.NetworkMode,
-			},
-			"NetworkSettings": map[string]interface{}{
-				"Networks": dockerContainer.NetworkSettings.Networks,
-			},
-			"Mounts": dockerContainer.Mounts,
-		}
-
-		result = append(result, containerData)
+	// Map to DTOs
+	result := make([]dto.ContainerSummaryDto, 0, len(dockerContainers))
+	for _, dc := range dockerContainers {
+		result = append(result, dto.NewContainerSummaryDto(dc))
 	}
 
+	// Search filter
 	if req.Search != "" {
-		filtered := make([]map[string]interface{}, 0)
 		searchLower := strings.ToLower(req.Search)
-		for _, container := range result {
-			if names, ok := container["Names"].([]string); ok {
-				for _, name := range names {
-					if strings.Contains(strings.ToLower(name), searchLower) {
-						filtered = append(filtered, container)
-						break
-					}
+		filtered := make([]dto.ContainerSummaryDto, 0, len(result))
+		for _, c := range result {
+			matched := false
+			for _, name := range c.Names {
+				if strings.Contains(strings.ToLower(name), searchLower) {
+					matched = true
+					break
 				}
 			}
-			if image, ok := container["Image"].(string); ok {
-				if strings.Contains(strings.ToLower(image), searchLower) {
-					filtered = append(filtered, container)
-					continue
-				}
+			if !matched && strings.Contains(strings.ToLower(c.Image), searchLower) {
+				matched = true
 			}
-			if state, ok := container["State"].(string); ok {
-				if strings.Contains(strings.ToLower(state), searchLower) {
-					filtered = append(filtered, container)
-					continue
-				}
+			if !matched && strings.Contains(strings.ToLower(c.State), searchLower) {
+				matched = true
+			}
+			if matched {
+				filtered = append(filtered, c)
 			}
 		}
 		result = filtered
@@ -508,24 +488,23 @@ func (s *ContainerService) ListContainersPaginated(ctx context.Context, req util
 
 	totalItems := len(result)
 
+	// Sort
 	if req.Sort.Column != "" {
-		utils.SortSliceByField(result, req.Sort.Column, req.Sort.Direction)
+		sortContainers(result, req.Sort.Column, req.Sort.Direction)
 	}
 
+	// Pagination window
 	startIdx := (req.Pagination.Page - 1) * req.Pagination.Limit
 	endIdx := startIdx + req.Pagination.Limit
-
 	if startIdx > len(result) {
 		startIdx = len(result)
 	}
 	if endIdx > len(result) {
 		endIdx = len(result)
 	}
-
+	pageItems := []dto.ContainerSummaryDto{}
 	if startIdx < endIdx {
-		result = result[startIdx:endIdx]
-	} else {
-		result = []map[string]interface{}{}
+		pageItems = result[startIdx:endIdx]
 	}
 
 	totalPages := (totalItems + req.Pagination.Limit - 1) / req.Pagination.Limit
@@ -536,5 +515,50 @@ func (s *ContainerService) ListContainersPaginated(ctx context.Context, req util
 		ItemsPerPage: req.Pagination.Limit,
 	}
 
-	return result, pagination, nil
+	return pageItems, pagination, nil
+}
+
+func sortContainers(items []dto.ContainerSummaryDto, field, direction string) {
+	dir := utils.NormalizeSortDirection(direction)
+	f := strings.ToLower(strings.TrimSpace(field))
+
+	desc := dir == "desc"
+	lessStr := func(a, b string) bool {
+		if desc {
+			return a > b
+		}
+		return a < b
+	}
+	lessInt := func(a, b int64) bool {
+		if desc {
+			return a > b
+		}
+		return a < b
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		switch f {
+		case "name", "names":
+			var n1, n2 string
+			if len(a.Names) > 0 {
+				n1 = a.Names[0]
+			}
+			if len(b.Names) > 0 {
+				n2 = b.Names[0]
+			}
+			return lessStr(n1, n2)
+		case "image":
+			return lessStr(a.Image, b.Image)
+		case "state":
+			return lessStr(a.State, b.State)
+		case "status":
+			return lessStr(a.Status, b.Status)
+		case "created":
+			return lessInt(a.Created, b.Created)
+		default:
+			// no-op sort keeps original order
+			return false
+		}
+	})
 }

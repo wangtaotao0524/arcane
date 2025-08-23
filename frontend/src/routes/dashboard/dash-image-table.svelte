@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { EnhancedImageInfo } from '$lib/models/image.type';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ArrowRight, HardDrive, Loader2 } from '@lucide/svelte';
@@ -7,48 +6,24 @@
 	import * as Table from '$lib/components/ui/table';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
-
-	interface ImageWithId extends EnhancedImageInfo {
-		id: string;
-	}
+	import type { ImageSummaryDto } from '$lib/types/image.type';
+	import { environmentAPI } from '$lib/services/api';
+	import { formatBytes } from '$lib/utils/bytes.util';
 
 	let {
-		images,
-		isLoading,
-		onRefresh,
-		total = images.length,
-		totalBytes
+		images = $bindable(),
+		isLoading
 	}: {
-		images: EnhancedImageInfo[];
+		images: Paginated<ImageSummaryDto>;
 		isLoading: boolean;
-		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<ImageWithId>>;
-		total?: number;
-		totalBytes?: number;
 	} = $props();
 
 	let requestOptions = $state<SearchPaginationSortRequest>({
 		pagination: { page: 1, limit: 5 },
-		sort: { column: 'Size', direction: 'desc' }
+		sort: { column: 'size', direction: 'desc' }
 	});
 
 	let selectedIds = $state<string[]>([]);
-
-	const sortedImages = $derived(
-		images
-			.slice()
-			.sort((a, b) => (b.Size || 0) - (a.Size || 0))
-			.slice(0, 5)
-	);
-
-	const paginatedImages: Paginated<ImageWithId> = $derived({
-		data: sortedImages.map((img) => ({ ...img, id: img.Id })),
-		pagination: {
-			totalPages: Math.ceil(images.length / 5),
-			totalItems: images.length,
-			currentPage: 1,
-			itemsPerPage: 5
-		}
-	});
 
 	// Size display removed on dashboard; keep sorting by size to show largest but do not render sizes
 </script>
@@ -71,26 +46,21 @@
 		</div>
 	</Card.Header>
 	<Card.Content class="flex-1 p-0">
-		{#if isLoading}
-			<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
-				<Loader2 class="text-muted-foreground mb-4 size-8 animate-spin" />
-				<p class="text-lg font-medium">Loading Images...</p>
-				<p class="text-muted-foreground mt-1 text-sm">Please wait while we fetch images</p>
-			</div>
-		{:else if images?.length > 0}
+		{#if images.data.length > 0}
 			<div class="flex h-full flex-col">
 				<ArcaneTable
-					items={paginatedImages}
+					items={images}
 					bind:requestOptions
 					bind:selectedIds
-					{onRefresh}
+					onRefresh={async (options) => (images = await environmentAPI.getImages(options))}
 					withoutSearch={true}
 					selectionDisabled={true}
 					withoutPagination={true}
 					columns={[
-						{ label: 'Name', sortColumn: 'RepoTags' },
-						{ label: 'Status', sortColumn: 'InUse' },
-						{ label: 'Tag', sortColumn: 'tag' }
+						{ label: 'Name', sortColumn: 'repoTags' },
+						{ label: 'Status', sortColumn: 'inUse' },
+						{ label: 'Tag', sortColumn: 'tag' },
+						{ label: 'Size', sortColumn: 'size' }
 					]}
 					filterPlaceholder="Search images..."
 					noResultsMessage="No images found"
@@ -99,9 +69,9 @@
 						<Table.Cell class="py-3 md:py-3.5">
 							<div class="flex items-center gap-2">
 								<div class="flex flex-1 items-center">
-									<a class="shrink truncate font-medium hover:underline" href="/images/{item.Id}/">
-										{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
-											{item.RepoTags[0].split(':')[0]}
+									<a class="shrink truncate font-medium hover:underline" href="/images/{item.id}/">
+										{#if item.repoTags && item.repoTags.length > 0 && item.repoTags[0] !== '<none>:<none>'}
+											{item.repoTags[0].split(':')[0]}
 										{:else}
 											<span class="text-muted-foreground italic">Untagged</span>
 										{/if}
@@ -110,25 +80,25 @@
 							</div>
 						</Table.Cell>
 						<Table.Cell class="py-3 md:py-3.5">
-							{#if item.InUse}
+							{#if item.inUse}
 								<StatusBadge text="In Use" variant="green" />
 							{:else}
 								<StatusBadge text="Unused" variant="amber" />
 							{/if}
 						</Table.Cell>
 						<Table.Cell class="py-3 md:py-3.5">
-							{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
-								{item.RepoTags[0].split(':')[1] || 'latest'}
+							{#if item.repoTags && item.repoTags.length > 0 && item.repoTags[0] !== '<none>:<none>'}
+								{item.repoTags[0].split(':')[1] || 'latest'}
 							{:else}
 								<span class="text-muted-foreground italic">&lt;none&gt;</span>
 							{/if}
 						</Table.Cell>
-						<!-- Size column removed on dashboard -->
+						<Table.Cell class="py-3 md:py-3.5">{formatBytes(item.size)}</Table.Cell>
 					{/snippet}
 				</ArcaneTable>
-				{#if images.length > 5}
+				{#if images.data.length > 5}
 					<div class="bg-muted/40 text-muted-foreground border-t px-6 py-2 text-xs">
-						Showing 5 of {total} images
+						Showing 5 of {images.pagination.totalItems} images
 					</div>
 				{/if}
 			</div>

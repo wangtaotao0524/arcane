@@ -1,6 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import type { EnhancedImageInfo } from '$lib/models/image.type';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { AlertCircle, HardDrive, Loader2, Package } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
@@ -15,17 +13,15 @@
 	import { environmentAPI, imageUpdateAPI } from '$lib/services/api';
 	import StatCard from '$lib/components/stat-card.svelte';
 	import ImageTable from './image-table.svelte';
-	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 
-	let { data }: { data: PageData } = $props();
+	let { data } = $props();
 
-	let images = $state<EnhancedImageInfo[]>(
-		Array.isArray(data.images) ? data.images : data.images.data || []
-	);
+	let images = $state(data.images);
+	let requestOptions = $state(data.imageRequestOptions);
+
 	let error = $state<string | null>(null);
 	let selectedIds = $state<string[]>([]);
 	let isLoadingImages = $state(false);
-	let requestOptions = $state<SearchPaginationSortRequest>(data.imageRequestOptions);
 
 	let isLoading = $state({
 		pulling: false,
@@ -37,38 +33,6 @@
 	let isPullDialogOpen = $state(false);
 	let isConfirmPruneDialogOpen = $state(false);
 
-	async function loadImages() {
-		try {
-			isLoadingImages = true;
-			const response = await environmentAPI.getImages(
-				requestOptions.pagination,
-				requestOptions.sort,
-				requestOptions.search,
-				requestOptions.filters
-			);
-			images = Array.isArray(response) ? response : response.data || [];
-			error = null;
-		} catch (err) {
-			console.error('Failed to load images:', err);
-			error = err instanceof Error ? err.message : 'Failed to load images';
-			images = [];
-		} finally {
-			isLoadingImages = false;
-		}
-	}
-
-	async function refreshImages() {
-		isLoading.refreshing = true;
-		try {
-			await loadImages();
-		} catch (error) {
-			console.error('Failed to refresh images:', error);
-			toast.error('Failed to refresh images');
-		} finally {
-			isLoading.refreshing = false;
-		}
-	}
-
 	async function handlePruneImages() {
 		isLoading.pruning = true;
 		handleApiResultWithCallbacks({
@@ -77,7 +41,7 @@
 			setLoadingState: (value) => (isLoading.pruning = value),
 			onSuccess: async () => {
 				toast.success('Images Pruned Successfully');
-				await loadImages();
+				images = await environmentAPI.getImages(requestOptions);
 				isConfirmPruneDialogOpen = false;
 			}
 		});
@@ -86,10 +50,10 @@
 	async function handleTriggerBulkUpdateCheck() {
 		isLoading.checking = true;
 		try {
-			const imageRefs = images.map((img) => img.RepoTags?.[0] || `image:${img.Id}`);
+			const imageRefs = images.data.map((img) => img.repoTags?.[0] || `image:${img.id}`);
 			await imageUpdateAPI.checkMultipleImages(imageRefs);
 			toast.success('Update check completed');
-			await loadImages();
+			images = await environmentAPI.getImages(requestOptions);
 		} catch (error) {
 			console.error('Failed to check for updates:', error);
 			toast.error('Failed to check for updates');
@@ -98,18 +62,16 @@
 		}
 	}
 
-	async function onRefresh(options: SearchPaginationSortRequest) {
-		requestOptions = options;
-		await loadImages();
-		return {
-			data: images,
-			pagination: {
-				totalPages: Math.ceil(images.length / (requestOptions.pagination?.limit || 20)),
-				totalItems: images.length,
-				currentPage: requestOptions.pagination?.page || 1,
-				itemsPerPage: requestOptions.pagination?.limit || 20
+	async function refreshImages() {
+		isLoading.refreshing = true;
+		handleApiResultWithCallbacks({
+			result: await tryCatch(environmentAPI.getImages(requestOptions)),
+			message: 'Failed to Refresh Containers for Updates',
+			setLoadingState: (value) => (isLoading.refreshing = value),
+			async onSuccess(newImages) {
+				images = newImages;
 			}
-		};
+		});
 	}
 </script>
 
@@ -171,7 +133,7 @@
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 			<StatCard
 				title="Total Images"
-				value={data.dockerInfo.images}
+				value={images.pagination.totalItems}
 				icon={HardDrive}
 				iconColor="text-blue-500"
 				class="border-l-4 border-l-blue-500"
@@ -186,16 +148,17 @@
 		</div>
 
 		<ImageTable
-			{images}
+			bind:images
 			bind:selectedIds
-			{requestOptions}
-			{onRefresh}
-			onImagesChanged={loadImages}
+			bind:requestOptions
 			onPullDialogOpen={() => (isPullDialogOpen = true)}
 			onTriggerBulkUpdateCheck={handleTriggerBulkUpdateCheck}
 		/>
 
-		<ImagePullSheet bind:open={isPullDialogOpen} onPullFinished={() => loadImages()} />
+		<ImagePullSheet
+			bind:open={isPullDialogOpen}
+			onPullFinished={async () => (images = await environmentAPI.getImages(requestOptions))}
+		/>
 
 		<Dialog.Root bind:open={isConfirmPruneDialogOpen}>
 			<Dialog.Content>

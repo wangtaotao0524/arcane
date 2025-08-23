@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/ofkm/arcane-backend/internal/database"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 	"gorm.io/gorm/clause"
@@ -488,50 +489,57 @@ func (s *ImageService) DeleteImageByDockerID(ctx context.Context, dockerImageID 
 	return nil
 }
 
-func (s *ImageService) ListImagesWithUpdatesPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
+// func (s *ImageService) ListImagesWithUpdatesPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]dto.ImageSummaryDto, utils.PaginationResponse, error) {
+// 	_, err := s.ListImages(ctx)
+// 	if err != nil {
+// 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list and sync Docker images: %w", err)
+// 	}
+
+// 	var images []models.Image
+// 	query := s.db.WithContext(ctx).Model(&models.Image{}).Preload("UpdateRecord")
+
+// 	if req.Sort.Column != "" {
+// 		dir := utils.NormalizeSortDirection(req.Sort.Direction)
+// 		col := utils.CamelCaseToSnakeCase(req.Sort.Column)
+// 		query = query.Order(col + " " + dir)
+// 	}
+
+// 	pagination, err := utils.PaginateAndSort(req, query, &images)
+// 	if err != nil {
+// 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate images: %w", err)
+// 	}
+
+// 	result := make([]dto.ImageSummaryDto, 0, len(images))
+// 	for _, img := range images {
+// 		result = append(result, dto.NewImageSummaryDto(&img))
+// 	}
+
+// 	return result, pagination, nil
+// }
+
+func (s *ImageService) ListImagesWithUpdatesPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]dto.ImageSummaryDto, utils.PaginationResponse, error) {
 	_, err := s.ListImages(ctx)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list and sync Docker images: %w", err)
 	}
 
-	var images []*models.Image
+	var images []models.Image
 	query := s.db.WithContext(ctx).Model(&models.Image{}).Preload("UpdateRecord")
+
+	if req.Sort.Column != "" {
+		dir := utils.NormalizeSortDirection(req.Sort.Direction)
+		col := utils.CamelCaseToSnakeCase(req.Sort.Column)
+		query = query.Order(col + " " + dir)
+	}
 
 	pagination, err := utils.PaginateAndSort(req, query, &images)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate images: %w", err)
 	}
 
-	var result []map[string]interface{}
-	for _, img := range images {
-		imageData := map[string]interface{}{
-			"Id":          img.ID,
-			"RepoTags":    img.RepoTags,
-			"RepoDigests": img.RepoDigests,
-			"Created":     img.Created.Unix(),
-			"Size":        img.Size,
-			"VirtualSize": img.VirtualSize,
-			"Labels":      img.Labels,
-			"InUse":       img.InUse,
-			"Repo":        img.Repo,
-			"Tag":         img.Tag,
-		}
-
-		if img.UpdateRecord != nil {
-			imageData["updateInfo"] = map[string]interface{}{
-				"hasUpdate":      img.UpdateRecord.HasUpdate,
-				"updateType":     img.UpdateRecord.UpdateType,
-				"currentVersion": img.UpdateRecord.CurrentVersion,
-				"latestVersion":  img.UpdateRecord.LatestVersion,
-				"currentDigest":  img.UpdateRecord.CurrentDigest,
-				"latestDigest":   img.UpdateRecord.LatestDigest,
-				"checkTime":      img.UpdateRecord.CheckTime,
-				"responseTimeMs": img.UpdateRecord.ResponseTimeMs,
-				"error":          img.UpdateRecord.LastError,
-			}
-		}
-
-		result = append(result, imageData)
+	result := make([]dto.ImageSummaryDto, 0, len(images))
+	for i := range images {
+		result = append(result, dto.NewImageSummaryDto(&images[i]))
 	}
 
 	return result, pagination, nil

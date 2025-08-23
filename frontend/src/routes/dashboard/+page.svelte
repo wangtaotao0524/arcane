@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
@@ -18,7 +17,6 @@
 	} from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
-	// Size display removed on dashboard
 	import { toast } from 'svelte-sonner';
 	import PruneConfirmationDialog from '$lib/components/dialogs/prune-confirmation-dialog.svelte';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
@@ -31,20 +29,19 @@
 	import MeterMetric from '$lib/components/meter-metric.svelte';
 	import DockerIcon from '$lib/icons/docker-icon.svelte';
 	import type { SystemStats } from '$lib/models/system-stats';
-	import type { ContainerInfo } from '$lib/models/container-info';
 	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import DashboardContainerTable from './dash-container-table.svelte';
 	import DashboardImageTable from './dash-image-table.svelte';
+	import type { ContainerSummaryDto } from '$lib/types/container.type';
 
-	let { data }: { data: PageData } = $props();
+	let { data } = $props();
+	let containers = $state(data.containers);
+	let images = $state(data.images);
 
 	let dashboardStates = $state({
 		dockerInfo: data.dockerInfo,
-		containers: Array.isArray(data.containers) ? data.containers : data.containers?.data || [],
-		images: Array.isArray(data.images) ? data.images : data.images?.data || [],
 		settings: data.settings,
 		systemStats: null as SystemStats | null,
-		error: data.error || null,
 		isPruneDialogOpen: false
 	});
 
@@ -54,7 +51,6 @@
 		refreshing: false,
 		pruning: false,
 		loadingStats: true,
-		loadingContainers: false,
 		loadingDockerInfo: false,
 		loadingImages: false
 	});
@@ -70,25 +66,11 @@
 		containers: [] as Array<{ date: Date; value: number }>
 	});
 
-	const dockerInfoRef = $derived(dashboardStates.dockerInfo);
-	const totalContainers = $derived(
-		dockerInfoRef?.containers ?? dashboardStates.containers?.length ?? 0
-	);
-	const runningContainers = $derived(
-		dockerInfoRef?.containersRunning ??
-			(dashboardStates.containers
-				? dashboardStates.containers.filter((c: ContainerInfo) => c.State === 'running').length
-				: 0)
-	);
-	const stoppedContainers = $derived(
-		dockerInfoRef?.containersStopped ??
-			(dashboardStates.containers
-				? dashboardStates.containers.filter((c: ContainerInfo) => c.State !== 'running').length
-				: 0)
-	);
-	const totalImages = $derived(dockerInfoRef?.images ?? dashboardStates.images?.length ?? 0);
+	const runningContainers = $derived(containers.data.filter((s) => s.state === 'running').length);
+	const stoppedContainers = $derived(containers.data.filter((s) => s.state != 'running').length);
+	const totalContainers = $derived(containers.pagination.totalItems);
+	const totalImages = $derived(images.pagination.totalItems);
 	const currentStats = $derived(dashboardStates.systemStats || liveSystemStats);
-	// Size totals removed; only show image count on dashboard
 
 	function addToHistoricalData(stats: SystemStats) {
 		const now = new Date();
@@ -123,70 +105,70 @@
 		}
 	}
 
-	function getContainerDisplayName(container: ContainerInfo): string {
-		if (container.Names && container.Names.length > 0) {
-			return container.Names[0].startsWith('/')
-				? container.Names[0].substring(1)
-				: container.Names[0];
+	function getContainerDisplayName(container: ContainerSummaryDto): string {
+		if (container.names && container.names.length > 0) {
+			return container.names[0].startsWith('/')
+				? container.names[0].substring(1)
+				: container.names[0];
 		}
-		return container.Id?.substring(0, 12) || 'Unknown';
+		return container.id?.substring(0, 12) || 'Unknown';
 	}
 
-	async function onContainerRefresh(options: SearchPaginationSortRequest) {
-		const response = await environmentAPI.getContainers(
-			options.pagination,
-			options.sort,
-			options.search,
-			options.filters
-		);
+	// async function onContainerRefresh(options: SearchPaginationSortRequest) {
+	// 	const response = await environmentAPI.getContainers(
+	// 		options.pagination,
+	// 		options.sort,
+	// 		options.search,
+	// 		options.filters
+	// 	);
 
-		if (Array.isArray(response)) {
-			dashboardStates.containers = response;
-			return {
-				data: response,
-				pagination: {
-					totalPages: 1,
-					totalItems: response.length,
-					currentPage: options.pagination?.page || 1,
-					itemsPerPage: response.length
-				}
-			};
-		} else {
-			dashboardStates.containers = response.data || [];
-			return {
-				data: response.data || [],
-				pagination: response.pagination
-			};
-		}
-	}
+	// 	if (Array.isArray(response)) {
+	// 		dashboardStates.containers = response;
+	// 		return {
+	// 			data: response,
+	// 			pagination: {
+	// 				totalPages: 1,
+	// 				totalItems: response.length,
+	// 				currentPage: options.pagination?.page || 1,
+	// 				itemsPerPage: response.length
+	// 			}
+	// 		};
+	// 	} else {
+	// 		dashboardStates.containers = response.data || [];
+	// 		return {
+	// 			data: response.data || [],
+	// 			pagination: response.pagination
+	// 		};
+	// 	}
+	// }
 
-	async function onImageRefresh(options: SearchPaginationSortRequest) {
-		const response = await environmentAPI.getImages(
-			options.pagination,
-			options.sort,
-			options.search,
-			options.filters
-		);
+	// async function onImageRefresh(options: SearchPaginationSortRequest) {
+	// 	const response = await environmentAPI.getImages(
+	// 		options.pagination,
+	// 		options.sort,
+	// 		options.search,
+	// 		options.filters
+	// 	);
 
-		if (Array.isArray(response)) {
-			dashboardStates.images = response;
-			return {
-				data: response,
-				pagination: {
-					totalPages: 1,
-					totalItems: response.length,
-					currentPage: options.pagination?.page || 1,
-					itemsPerPage: response.length
-				}
-			};
-		} else {
-			dashboardStates.images = response.data || [];
-			return {
-				data: response.data || [],
-				pagination: response.pagination
-			};
-		}
-	}
+	// 	if (Array.isArray(response)) {
+	// 		dashboardStates.images = response;
+	// 		return {
+	// 			data: response,
+	// 			pagination: {
+	// 				totalPages: 1,
+	// 				totalItems: response.length,
+	// 				currentPage: options.pagination?.page || 1,
+	// 				itemsPerPage: response.length
+	// 			}
+	// 		};
+	// 	} else {
+	// 		dashboardStates.images = response.data || [];
+	// 		return {
+	// 			data: response.data || [],
+	// 			pagination: response.pagination
+	// 		};
+	// 	}
+	// }
 
 	async function fetchLiveSystemStats() {
 		if (!hasInitialStatsLoaded) {
@@ -229,50 +211,18 @@
 
 		// Set all loading states to true at start
 		isLoading.loadingDockerInfo = true;
-		isLoading.loadingContainers = true;
 		isLoading.loadingImages = true;
 
-		const [dockerInfoResult, containersResult, imagesResult, settingsResult] =
-			await Promise.allSettled([
-				tryCatch(systemAPI.getDockerInfo()),
-				tryCatch(
-					environmentAPI.getContainers(
-						data.containerRequestOptions.pagination,
-						data.containerRequestOptions.sort,
-						data.containerRequestOptions.search,
-						data.containerRequestOptions.filters
-					)
-				),
-				tryCatch(
-					environmentAPI.getImages(
-						data.imageRequestOptions.pagination,
-						data.imageRequestOptions.sort,
-						data.imageRequestOptions.search,
-						data.imageRequestOptions.filters
-					)
-				),
-				tryCatch(settingsAPI.getSettings())
-			]);
+		const [dockerInfoResult, settingsResult] = await Promise.allSettled([
+			tryCatch(systemAPI.getDockerInfo()),
+			tryCatch(settingsAPI.getSettings())
+		]);
 
 		// Handle results and clear individual loading states
 		if (dockerInfoResult.status === 'fulfilled' && !dockerInfoResult.value.error) {
 			dashboardStates.dockerInfo = dockerInfoResult.value.data;
 		}
 		isLoading.loadingDockerInfo = false;
-
-		if (containersResult.status === 'fulfilled' && !containersResult.value.error) {
-			const containerData = containersResult.value.data;
-			dashboardStates.containers = Array.isArray(containerData)
-				? containerData
-				: containerData?.data || [];
-		}
-		isLoading.loadingContainers = false;
-
-		if (imagesResult.status === 'fulfilled' && !imagesResult.value.error) {
-			const imageData = imagesResult.value.data;
-			dashboardStates.images = Array.isArray(imageData) ? imageData : imageData?.data || [];
-		}
-		isLoading.loadingImages = false;
 
 		if (settingsResult.status === 'fulfilled' && !settingsResult.value.error) {
 			dashboardStates.settings = settingsResult.value.data;
@@ -395,17 +345,6 @@
 		</Button>
 	</div>
 
-	{#if dashboardStates.error}
-		<Alert.Root variant="destructive">
-			<AlertCircle class="mr-2 size-4" />
-			<Alert.Title>Connection Error</Alert.Title>
-			<Alert.Description>
-				{dashboardStates.error} Please check your Docker connection in
-				<a href="/settings" class="underline">Settings</a>.
-			</Alert.Description>
-		</Alert.Root>
-	{/if}
-
 	<!-- Quick Actions -->
 	<section>
 		<h2 class="mb-3 text-lg font-semibold tracking-tight">Quick Actions</h2>
@@ -511,12 +450,12 @@
 					title="Running Containers"
 					icon={Container}
 					description="Active containers"
-					currentValue={isLoading.loadingContainers ? undefined : runningContainers}
+					currentValue={isLoading.loadingStats ? undefined : runningContainers}
 					formatValue={(v) => v.toString()}
 					maxValue={Math.max(totalContainers, 1)}
 					footerText={`${runningContainers} of ${totalContainers} running`}
 					unit="containers"
-					loading={isLoading.loadingContainers}
+					loading={isLoading.loadingStats}
 				/>
 
 				<MeterMetric
@@ -596,14 +535,14 @@
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-green-500/10 p-2">
-								{#if isLoading.loadingContainers}
+								{#if isLoading.loadingStats}
 									<Loader2 class="size-5 text-green-500 animate-spin" />
 								{:else}
 									<Box class="size-5 text-green-500" />
 								{/if}
 							</div>
 							<div class="flex-1 min-w-0">
-								{#if isLoading.loadingContainers}
+								{#if isLoading.loadingStats}
 									<div class="space-y-2">
 										<div class="h-4 w-28 bg-muted animate-pulse rounded"></div>
 										<div class="h-3 w-20 bg-muted animate-pulse rounded"></div>
@@ -638,7 +577,7 @@
 								{:else}
 									<p class="text-sm font-medium">Docker Images</p>
 									<p class="text-xs text-muted-foreground">
-										{dashboardStates.dockerInfo?.images || 0} images
+										{images.pagination.totalItems} images
 									</p>
 								{/if}
 							</div>
@@ -652,19 +591,8 @@
 	<section>
 		<h2 class="mb-4 text-lg font-semibold tracking-tight">Resources</h2>
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-			<DashboardContainerTable
-				containers={dashboardStates.containers || []}
-				isLoading={isLoading.loadingContainers}
-				onRefresh={onContainerRefresh}
-				{getContainerDisplayName}
-				total={totalContainers}
-			/>
-			<DashboardImageTable
-				images={dashboardStates.images}
-				isLoading={isLoading.loadingImages}
-				onRefresh={onImageRefresh}
-				total={totalImages}
-			/>
+			<DashboardContainerTable bind:containers isLoading={isLoading.loadingStats} />
+			<DashboardImageTable bind:images isLoading={isLoading.loadingImages} />
 		</div>
 	</section>
 

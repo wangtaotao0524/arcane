@@ -28,23 +28,15 @@
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { formatFriendlyDate } from '$lib/utils/date.utils';
 
-	interface StackWithId extends Project {
-		id: string;
-	}
-
 	let {
-		Compose,
+		projects = $bindable(),
 		selectedIds = $bindable(),
 		requestOptions = $bindable(),
-		onRefresh,
-		onComposeChanged,
 		onCheckForUpdates
 	}: {
-		Compose: Project[];
+		projects: Paginated<Project>;
 		selectedIds: string[];
 		requestOptions: SearchPaginationSortRequest;
-		onRefresh: (options: SearchPaginationSortRequest) => Promise<any>;
-		onComposeChanged: () => Promise<void>;
 		onCheckForUpdates: () => Promise<void>;
 	} = $props();
 
@@ -58,23 +50,6 @@
 		updating: false
 	});
 
-	const ComposeWithId = $derived(
-		Compose.map((stack) => ({
-			...stack,
-			id: stack.id || stack.name
-		}))
-	);
-
-	const paginatedCompose: Paginated<StackWithId> = $derived({
-		data: ComposeWithId,
-		pagination: {
-			totalPages: Math.ceil(ComposeWithId.length / (requestOptions.pagination?.limit || 20)),
-			totalItems: ComposeWithId.length,
-			currentPage: requestOptions.pagination?.page || 1,
-			itemsPerPage: requestOptions.pagination?.limit || 20
-		}
-	});
-
 	async function performProjectAction(action: string, id: string) {
 		isLoading[action as keyof typeof isLoading] = true;
 
@@ -86,7 +61,7 @@
 					setLoadingState: (value) => (isLoading.start = value),
 					onSuccess: async () => {
 						toast.success('Project Started Successfully.');
-						await onComposeChanged();
+						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'stop') {
@@ -96,7 +71,7 @@
 					setLoadingState: (value) => (isLoading.stop = value),
 					onSuccess: async () => {
 						toast.success('Project Stopped Successfully.');
-						await onComposeChanged();
+						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'restart') {
@@ -106,7 +81,7 @@
 					setLoadingState: (value) => (isLoading.restart = value),
 					onSuccess: async () => {
 						toast.success('Project Restarted Successfully.');
-						await onComposeChanged();
+						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'pull') {
@@ -116,7 +91,7 @@
 					setLoadingState: (value) => (isLoading.pull = value),
 					onSuccess: async () => {
 						toast.success('Project Pulled successfully.');
-						await onComposeChanged();
+						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'destroy') {
@@ -133,7 +108,7 @@
 								setLoadingState: (value) => (isLoading.destroy = value),
 								onSuccess: async () => {
 									toast.success('Project Removed Successfully');
-									await onComposeChanged();
+									projects = await environmentAPI.getProjects(requestOptions);
 								}
 							});
 						}
@@ -150,7 +125,7 @@
 	const isAnyLoading = $derived(Object.values(isLoading).some((loading) => loading));
 </script>
 
-{#if ComposeWithId.length > 0}
+{#if projects.data.length > 0}
 	<Card.Root class="border shadow-sm">
 		<Card.Header class="px-6">
 			<div class="flex items-center justify-between">
@@ -171,10 +146,9 @@
 		</Card.Header>
 		<Card.Content>
 			<ArcaneTable
-				items={paginatedCompose}
+				items={projects}
 				bind:requestOptions
 				bind:selectedIds
-				{onRefresh}
 				columns={[
 					{ label: 'Name', sortColumn: 'name' },
 					{ label: 'Services', sortColumn: 'service_count' },
@@ -184,6 +158,7 @@
 				]}
 				filterPlaceholder="Search projects..."
 				noResultsMessage="No projects found"
+				onRefresh={async (options) => (projects = await environmentAPI.getProjects(options))}
 			>
 				{#snippet rows({ item })}
 					{@const stateVariant = item.status ? statusVariantMap[item.status.toLowerCase()] : 'gray'}

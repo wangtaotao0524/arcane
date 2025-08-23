@@ -1,6 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import type { Project } from '$lib/types/project.type';
 	import { AlertCircle, FileStack, Loader2, PlayCircle, StopCircle } from '@lucide/svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -9,68 +7,26 @@
 	import { tryCatch } from '$lib/utils/try-catch';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { autoUpdateAPI, environmentAPI } from '$lib/services/api';
-	import { onMount } from 'svelte';
 	import StatCard from '$lib/components/stat-card.svelte';
-	import StackTable from './compose-table.svelte';
-	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import ProjectsTable from './compose-table.svelte';
 	import { goto } from '$app/navigation';
 
-	let { data }: { data: PageData } = $props();
+	let { data } = $props();
 
-	let Compose = $state<Project[]>(
-		Array.isArray(data.projects) ? data.projects : data.projects.data || []
-	);
+	let projects = $state(data.projects);
+	let projectRequestOptions = $state(data.projectRequestOptions);
 	let error = $state<string | null>(null);
 	let selectedIds = $state<string[]>([]);
 	let isLoadingCompose = $state(false);
-	let requestOptions = $state<SearchPaginationSortRequest>(data.projectRequestOptions);
 
 	let isLoading = $state({
 		updating: false,
 		refreshing: false
 	});
 
-	const totalCompose = $derived(Compose.length);
-	const runningCompose = $derived(Compose.filter((s) => s.status === 'running').length);
-	const stoppedCompose = $derived(Compose.filter((s) => s.status === 'stopped').length);
-
-	async function loadCompose() {
-		try {
-			isLoadingCompose = true;
-			const response = await environmentAPI.getProjects(
-				requestOptions.pagination,
-				requestOptions.sort,
-				requestOptions.search,
-				requestOptions.filters
-			);
-			Compose = Array.isArray(response) ? response : response.data || [];
-			error = null;
-		} catch (err) {
-			console.error('Failed to load compose page:', err);
-			error = err instanceof Error ? err.message : 'Failed to load Docker Compose Compose';
-			Compose = [];
-		} finally {
-			isLoadingCompose = false;
-		}
-	}
-
-	onMount(() => {
-		if (Compose.length === 0) {
-			loadCompose();
-		}
-	});
-
-	async function refreshCompose() {
-		isLoading.refreshing = true;
-		try {
-			await loadCompose();
-		} catch (error) {
-			console.error('Failed to refresh Compose:', error);
-			toast.error('Failed to refresh Compose');
-		} finally {
-			isLoading.refreshing = false;
-		}
-	}
+	const totalCompose = $derived(projects.pagination.totalItems);
+	const runningCompose = $derived(projects.data.filter((s) => s.status === 'running').length);
+	const stoppedCompose = $derived(projects.data.filter((s) => s.status === 'stopped').length);
 
 	async function handleCheckForUpdates() {
 		isLoading.updating = true;
@@ -80,23 +36,9 @@
 			setLoadingState: (value) => (isLoading.updating = value),
 			async onSuccess() {
 				toast.success('Compose Projects Updated Successfully.');
-				await loadCompose();
+				projects = await environmentAPI.getProjects(projectRequestOptions);
 			}
 		});
-	}
-
-	async function onRefresh(options: SearchPaginationSortRequest) {
-		requestOptions = options;
-		await loadCompose();
-		return {
-			data: Compose,
-			pagination: {
-				totalPages: Math.ceil(Compose.length / (requestOptions.pagination?.limit || 20)),
-				totalItems: Compose.length,
-				currentPage: requestOptions.pagination?.page || 1,
-				itemsPerPage: requestOptions.pagination?.limit || 20
-			}
-		};
 	}
 </script>
 
@@ -107,13 +49,13 @@
 			<p class="text-muted-foreground mt-1 text-sm">View and Manage Compose Projects</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<ArcaneButton
+			<!-- <ArcaneButton
 				action="restart"
 				onClick={refreshCompose}
 				label="Refresh"
 				loading={isLoading.refreshing}
 				disabled={isLoading.refreshing}
-			/>
+			/> -->
 			<ArcaneButton
 				action="create"
 				customLabel="Create Project"
@@ -190,12 +132,10 @@
 			/>
 		</div>
 
-		<StackTable
-			{Compose}
+		<ProjectsTable
+			bind:projects
 			bind:selectedIds
-			{requestOptions}
-			{onRefresh}
-			onComposeChanged={loadCompose}
+			requestOptions={projectRequestOptions}
 			onCheckForUpdates={handleCheckForUpdates}
 		/>
 	{/if}

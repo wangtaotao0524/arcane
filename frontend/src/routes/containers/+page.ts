@@ -1,4 +1,4 @@
-import { environmentAPI, systemAPI } from '$lib/services/api';
+import { environmentAPI } from '$lib/services/api';
 import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { PageLoad } from './$types';
 
@@ -14,14 +14,7 @@ export const load: PageLoad = async () => {
 		}
 	};
 
-	const dockerInfo = await systemAPI.getDockerInfo();
+	const containers = await environmentAPI.getContainers(containerRequestOptions);
 
-	const containers = await environmentAPI.getContainers(
-		containerRequestOptions.pagination,
-		containerRequestOptions.sort,
-		containerRequestOptions.search,
-		containerRequestOptions.filters
-	);
-
-	return { dockerInfo, containers, containerRequestOptions };
+	return { containers, containerRequestOptions };
 };

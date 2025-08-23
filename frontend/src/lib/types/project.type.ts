@@ -43,27 +43,35 @@ export interface ProjectService {
 export interface Project {
 	id: string;
 	name: string;
+	path: string;
+	runningCount: string;
+	serviceCount: string;
+	status: string;
+	updatedAt: string;
+	createdAt: string;
+	autoUpdate?: boolean;
 	services?: ProjectService[];
-	serviceCount?: number;
-	runningCount?: number;
-	status: 'running' | 'stopped' | 'partially running' | 'unknown';
-	isExternal?: boolean;
-	createdAt?: string;
-	updatedAt?: string;
 	composeContent?: string;
 	envContent?: string;
-	isLegacy?: boolean;
-	agentId?: string;
-	agentHostname?: string;
-	isRemote?: boolean;
-	dirName?: string;
-	lastPolled?: string;
-	path?: string;
 }
 
-export interface ProjectUpdate {
-	name?: string;
-	composeContent?: string;
-	envContent?: string;
-	autoUpdate?: boolean;
-}
+// export interface Project {
+// 	id: string;
+// 	name: string;
+// 	services?: ProjectService[];
+// 	serviceCount?: number;
+// 	runningCount?: number;
+// 	status: 'running' | 'stopped' | 'partially running' | 'unknown';
+// 	isExternal?: boolean;
+// 	createdAt?: string;
+// 	updatedAt?: string;
+// 	composeContent?: string;
+// 	envContent?: string;
+// 	isLegacy?: boolean;
+// 	agentId?: string;
+// 	agentHostname?: string;
+// 	isRemote?: boolean;
+// 	dirName?: string;
+// 	lastPolled?: string;
+// 	path?: string;
+// }

@@ -31,7 +31,6 @@
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import LogViewer from '$lib/components/LogViewer.svelte';
 	import { browser } from '$app/environment';
-	import FormInput from '$lib/components/form/form-input.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let { project, editorState, servicePorts, settings } = $derived(data);

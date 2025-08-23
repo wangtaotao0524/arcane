@@ -5,7 +5,10 @@
 		CircleFadingArrowUp,
 		CircleArrowUp,
 		Loader2,
-		AlertTriangle
+		AlertTriangle,
+		RefreshCw,
+		ArrowRight,
+		Package
 	} from '@lucide/svelte';
 	import { imageUpdateAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
@@ -63,7 +66,7 @@
 			const result = await imageUpdateAPI.checkImageUpdateByID(imageId);
 			if (result && !result.error) {
 				localUpdateInfo = result;
-				onUpdated?.(result); // optional: lets a parent sync if desired
+				onUpdated?.(result);
 				toast.success('Update check completed');
 			} else {
 				toast.error(result?.error || 'Update check failed');
@@ -120,18 +123,152 @@
 			>
 				<div class="overflow-hidden rounded-xl">
 					{#if !localUpdateInfo.hasUpdate}
-						<div class="p-3 text-xs">Running {displayCurrentVersion()}</div>
+						<!-- Success State -->
+						<div
+							class="bg-gradient-to-br from-emerald-50 to-green-50/30 p-4 dark:from-emerald-950/20 dark:to-green-950/10"
+						>
+							<div class="flex items-center gap-3">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-500 shadow-lg shadow-emerald-500/25"
+								>
+									<CircleCheck class="size-5 text-white" />
+								</div>
+								<div>
+									<div class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+										Up to Date
+									</div>
+									<div class="text-xs text-emerald-700/80 dark:text-emerald-300/80">
+										No updates available
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="bg-white/90 p-4 dark:bg-gray-950/90">
+							<div class="text-center">
+								<div class="mb-2 text-xs text-gray-600 dark:text-gray-400">
+									Running <span
+										class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs font-medium dark:bg-gray-800"
+										>{displayCurrentVersion()}</span
+									>
+								</div>
+								<div class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+									This image is running the latest available version.
+								</div>
+							</div>
+						</div>
 					{:else if localUpdateInfo.updateType === 'digest'}
-						<div class="p-3 text-xs">
-							<div>Current: {displayCurrentVersion()}</div>
-							{#if displayLatestVersion()}<div>Latest digest: {displayLatestVersion()}</div>{/if}
-							<div class="mt-1 text-blue-600 dark:text-blue-300">{priority.description}</div>
+						<!-- Digest Update State -->
+						<div
+							class="bg-gradient-to-br from-blue-50 to-cyan-50/30 p-4 dark:from-blue-950/20 dark:to-cyan-950/10"
+						>
+							<div class="flex items-center gap-3">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25"
+								>
+									<CircleArrowUp class="size-5 text-white" />
+								</div>
+								<div>
+									<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">
+										Digest Update
+									</div>
+									<div class="text-xs text-blue-700/80 dark:text-blue-300/80">
+										Security or bug fixes available
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="bg-white/90 p-4 dark:bg-gray-950/90">
+							<div class="space-y-3">
+								<div class="space-y-2 text-xs">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+											<Package class="size-3" />
+											<span>Current</span>
+										</div>
+										<span
+											class="rounded bg-gray-100 px-1.5 py-0.5 font-mono font-medium dark:bg-gray-800"
+											>{displayCurrentVersion()}</span
+										>
+									</div>
+									{#if displayLatestVersion()}
+										<div class="flex items-center justify-between">
+											<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+												<ArrowRight class="size-3" />
+												<span>Latest Digest</span>
+											</div>
+											<span
+												class="rounded bg-blue-100 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+											>
+												{displayLatestVersion()}
+											</span>
+										</div>
+									{/if}
+								</div>
+								<div class="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/30">
+									<div
+										class="text-xs text-center leading-relaxed text-blue-700 dark:text-blue-300 font-medium"
+									>
+										{priority.description}
+									</div>
+								</div>
+							</div>
 						</div>
 					{:else}
-						<div class="p-3 text-xs">
-							<div>Current: {displayCurrentVersion()}</div>
-							{#if displayLatestVersion()}<div>Latest: {displayLatestVersion()}</div>{/if}
-							<div class="mt-1 text-amber-600 dark:text-amber-300">{priority.description}</div>
+						<!-- Version Update State -->
+						<div
+							class="bg-gradient-to-br from-amber-50 to-yellow-50/30 p-4 dark:from-amber-950/20 dark:to-yellow-950/10"
+						>
+							<div class="flex items-center gap-3">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-yellow-500 shadow-lg shadow-amber-500/25"
+								>
+									<CircleFadingArrowUp class="size-5 text-white" />
+								</div>
+								<div>
+									<div class="text-sm font-semibold text-amber-900 dark:text-amber-100">
+										Version Update
+									</div>
+									<div class="text-xs text-amber-700/80 dark:text-amber-300/80">
+										New version available
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="bg-white/90 p-4 dark:bg-gray-950/90">
+							<div class="space-y-3">
+								<div class="space-y-2 text-xs">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+											<Package class="size-3" />
+											<span>Current</span>
+										</div>
+										<span
+											class="rounded bg-gray-100 px-1.5 py-0.5 font-mono font-medium dark:bg-gray-800"
+											>{displayCurrentVersion()}</span
+										>
+									</div>
+									{#if displayLatestVersion()}
+										<div class="flex items-center justify-between">
+											<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+												<ArrowRight class="size-3" />
+												<span>Latest</span>
+											</div>
+											<span
+												class="rounded bg-amber-100 px-1.5 py-0.5 font-mono font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+											>
+												{displayLatestVersion()}
+											</span>
+										</div>
+									{/if}
+								</div>
+								<div class="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30">
+									<div
+										class="text-xs text-center leading-relaxed text-amber-700 dark:text-amber-300 font-medium"
+									>
+										{priority.description}
+									</div>
+								</div>
+							</div>
 						</div>
 					{/if}
 
@@ -148,6 +285,7 @@
 									<Loader2 class="size-3 animate-spin" />
 									Checking...
 								{:else}
+									<RefreshCw class="size-3 transition-transform group-hover:rotate-45" />
 									Re-check Updates
 								{/if}
 							</button>
@@ -165,6 +303,33 @@
 					<Loader2 class="size-4 animate-spin text-blue-400" />
 				</span>
 			</Tooltip.Trigger>
+			<Tooltip.Content
+				side="right"
+				class="tooltip-with-arrow relative max-w-[220px] rounded-xl border border-gray-200/50 bg-white/95 p-0 shadow-2xl shadow-black/10 backdrop-blur-sm dark:border-gray-800/50 dark:bg-gray-950/95 dark:shadow-black/30"
+				align="center"
+			>
+				<div class="overflow-hidden rounded-xl">
+					<div
+						class="bg-gradient-to-br from-blue-50 to-cyan-50/30 p-4 dark:from-blue-950/20 dark:to-cyan-950/10"
+					>
+						<div class="flex items-center gap-3">
+							<div
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25"
+							>
+								<Loader2 class="size-5 animate-spin text-white" />
+							</div>
+							<div>
+								<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">
+									Checking Updates
+								</div>
+								<div class="text-xs text-blue-700/80 dark:text-blue-300/80">
+									Querying registry for latest version...
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</Tooltip.Content>
 		</Tooltip.Root>
 	</Tooltip.Provider>
 {:else}
@@ -201,9 +366,28 @@
 				align="center"
 			>
 				<div class="overflow-hidden rounded-xl">
-					<div class="p-3 text-xs flex items-center gap-2">
-						<AlertTriangle class="size-4" />
-						Status unknown. Click to check for updates.
+					<div
+						class="bg-gradient-to-br from-gray-50 to-slate-50/30 p-4 dark:from-gray-900/20 dark:to-slate-900/10"
+					>
+						<div class="flex items-center gap-3">
+							<div
+								class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-gray-400 to-slate-500 shadow-lg shadow-gray-400/25"
+							>
+								<AlertTriangle class="size-5 text-white" />
+							</div>
+							<div>
+								<div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+									Status Unknown
+								</div>
+								<div class="text-xs text-gray-700/80 dark:text-gray-300/80">
+									{#if canCheckUpdate}
+										Click to check for updates from registry.
+									{:else}
+										Unable to check updates for images without proper tags.
+									{/if}
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</Tooltip.Content>

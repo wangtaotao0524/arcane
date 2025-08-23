@@ -61,10 +61,8 @@
 	let statsEventSource: EventSource | null = $state(null);
 	let showFloatingHeader = $state(false);
 
-	// Helper function to clean container name
 	const cleanContainerName = (name: string | undefined): string => {
 		if (!name) return 'Container Details';
-		// Remove leading slash and any extra slashes
 		return name.replace(/^\/+/, '');
 	};
 
@@ -191,7 +189,6 @@
 		}, 500);
 	}
 
-	// LogViewer callback functions
 	function handleLogStart() {
 		isStreaming = true;
 	}

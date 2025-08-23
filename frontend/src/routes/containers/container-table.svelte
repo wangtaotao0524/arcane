@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { ContainerInfo } from '$lib/models/container-info';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
@@ -26,24 +25,17 @@
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { formatFriendlyDate } from '$lib/utils/date.utils';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
-
-	interface ContainerWithId extends ContainerInfo {
-		id: string;
-	}
+	import type { ContainerSummaryDto } from '$lib/types/container.type';
 
 	let {
-		containers,
+		containers = $bindable(),
 		selectedIds = $bindable(),
 		requestOptions = $bindable(),
-		onRefresh,
-		onContainersChanged,
 		onCheckForUpdates
 	}: {
-		containers: Paginated<ContainerWithId>;
+		containers: Paginated<ContainerSummaryDto>;
 		selectedIds: string[];
 		requestOptions: SearchPaginationSortRequest;
-		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<ContainerWithId>>;
-		onContainersChanged: () => Promise<void>;
 		onCheckForUpdates: () => Promise<void>;
 	} = $props();
 
@@ -66,7 +58,7 @@
 					setLoadingState: (value) => (isLoading.start = value),
 					async onSuccess() {
 						toast.success('Container Started Successfully.');
-						await onContainersChanged();
+						containers = await environmentAPI.getContainers(requestOptions);
 					}
 				});
 			} else if (action === 'stop') {
@@ -76,7 +68,7 @@
 					setLoadingState: (value) => (isLoading.stop = value),
 					async onSuccess() {
 						toast.success('Container Stopped Successfully.');
-						await onContainersChanged();
+						containers = await environmentAPI.getContainers(requestOptions);
 					}
 				});
 			} else if (action === 'restart') {
@@ -86,7 +78,7 @@
 					setLoadingState: (value) => (isLoading.restart = value),
 					async onSuccess() {
 						toast.success('Container Restarted Successfully.');
-						await onContainersChanged();
+						containers = await environmentAPI.getContainers(requestOptions);
 					}
 				});
 			}
@@ -111,7 +103,7 @@
 						setLoadingState: (value) => (isLoading.remove = value),
 						async onSuccess() {
 							toast.success('Container Removed Successfully.');
-							await onContainersChanged();
+							containers = await environmentAPI.getContainers(requestOptions);
 						}
 					});
 				}
@@ -147,7 +139,7 @@
 				items={containers}
 				bind:requestOptions
 				bind:selectedIds
-				{onRefresh}
+				onRefresh={async (options) => (containers = await environmentAPI.getContainers(options))}
 				columns={[
 					{ label: 'Name', sortColumn: 'names' },
 					{ label: 'ID' },
@@ -162,36 +154,36 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell>
-						<a class="font-medium hover:underline" href="/containers/{item.Id || item.id}/">
-							{#if item.Names && item.Names.length > 0}
-								{item.Names[0].startsWith('/') ? item.Names[0].substring(1) : item.Names[0]}
+						<a class="font-medium hover:underline" href="/containers/{item.id}/">
+							{#if item.names && item.names.length > 0}
+								{item.names[0].startsWith('/') ? item.names[0].substring(1) : item.names[0]}
 							{:else}
-								{(item.Id || item.id).substring(0, 12)}
+								{item.id.substring(0, 12)}
 							{/if}
 						</a>
 					</Table.Cell>
 					<Table.Cell>
-						<span class="font-mono text-sm">{(item.Id || item.id).substring(0, 12)}</span>
+						<span class="font-mono text-sm">{item.id.substring(0, 12)}</span>
 					</Table.Cell>
 					<Table.Cell>
-						<span class="text-sm">{item.Image}</span>
+						<span class="text-sm">{item.image}</span>
 					</Table.Cell>
 					<Table.Cell>
 						<StatusBadge
-							variant={item.State === 'running'
+							variant={item.state === 'running'
 								? 'green'
-								: item.State === 'exited'
+								: item.state === 'exited'
 									? 'red'
 									: 'amber'}
-							text={capitalizeFirstLetter(item.State)}
+							text={capitalizeFirstLetter(item.state)}
 						/>
 					</Table.Cell>
 					<Table.Cell>
-						<span class="text-sm">{item.Status}</span>
+						<span class="text-sm">{item.status}</span>
 					</Table.Cell>
 					<Table.Cell>
 						<span class="text-sm">
-							{item.Created ? formatFriendlyDate(new Date(item.Created * 1000).toISOString()) : ''}
+							{item.created ? formatFriendlyDate(new Date(item.created * 1000).toISOString()) : ''}
 						</span>
 					</Table.Cell>
 					<Table.Cell>
@@ -207,16 +199,16 @@
 							<DropdownMenu.Content align="end">
 								<DropdownMenu.Group>
 									<DropdownMenu.Item
-										onclick={() => goto(`/containers/${item.Id || item.id}`)}
+										onclick={() => goto(`/containers/${item.id}`)}
 										disabled={isAnyLoading}
 									>
 										<ScanSearch class="size-4" />
 										Inspect
 									</DropdownMenu.Item>
 
-									{#if item.State !== 'running'}
+									{#if item.state !== 'running'}
 										<DropdownMenu.Item
-											onclick={() => performContainerAction('start', item.Id || item.id)}
+											onclick={() => performContainerAction('start', item.id)}
 											disabled={isLoading.start || isAnyLoading}
 										>
 											{#if isLoading.start}
@@ -228,7 +220,7 @@
 										</DropdownMenu.Item>
 									{:else}
 										<DropdownMenu.Item
-											onclick={() => performContainerAction('restart', item.Id || item.id)}
+											onclick={() => performContainerAction('restart', item.id)}
 											disabled={isLoading.restart || isAnyLoading}
 										>
 											{#if isLoading.restart}
@@ -240,7 +232,7 @@
 										</DropdownMenu.Item>
 
 										<DropdownMenu.Item
-											onclick={() => performContainerAction('stop', item.Id || item.id)}
+											onclick={() => performContainerAction('stop', item.id)}
 											disabled={isLoading.stop || isAnyLoading}
 										>
 											{#if isLoading.stop}
@@ -256,7 +248,7 @@
 
 									<DropdownMenu.Item
 										variant="destructive"
-										onclick={() => handleRemoveContainer(item.Id || item.id)}
+										onclick={() => handleRemoveContainer(item.id)}
 										disabled={isLoading.remove || isAnyLoading}
 									>
 										{#if isLoading.remove}
@@ -279,7 +271,7 @@
 		<Box class="text-muted-foreground mb-4 size-12 opacity-40" />
 		<p class="text-lg font-medium">No containers found</p>
 		<p class="text-muted-foreground mt-1 text-sm">
-			Create a new container using the "Create Container" button above or use the Docker CLI
+			Create a new container using the "Create Container" button above
 		</p>
 	</div>
 {/if}

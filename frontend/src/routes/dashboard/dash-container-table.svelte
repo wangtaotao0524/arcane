@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { ContainerInfo, EnhancedContainerInfo } from '$lib/models/container-info';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ArrowRight, Box, Loader2 } from '@lucide/svelte';
@@ -9,40 +8,22 @@
 	import { statusVariantMap } from '$lib/types/statuses';
 	import { capitalizeFirstLetter, truncateString } from '$lib/utils/string.utils';
 	import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
-
-	interface ContainerWithId extends ContainerInfo {
-		id: string;
-	}
+	import type { ContainerSummaryDto } from '$lib/types/container.type';
+	import { environmentAPI } from '$lib/services/api';
 
 	let {
-		containers,
-		isLoading,
-		onRefresh,
-		getContainerDisplayName,
-		total = containers.length
+		containers = $bindable(),
+		isLoading
 	}: {
-		containers: ContainerInfo[];
+		containers: Paginated<ContainerSummaryDto>;
 		isLoading: boolean;
-		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<ContainerWithId>>;
-		getContainerDisplayName: (container: ContainerInfo) => string;
-		total?: number;
 	} = $props();
+
+	let selectedIds = $state<string[]>([]);
 
 	let requestOptions = $state<SearchPaginationSortRequest>({
 		pagination: { page: 1, limit: 5 },
 		sort: { column: 'created', direction: 'desc' }
-	});
-
-	let selectedIds = $state<string[]>([]);
-
-	const paginatedContainers: Paginated<ContainerWithId> = $derived({
-		data: containers.slice(0, 5).map((c) => ({ ...c, id: c.Id })),
-		pagination: {
-			totalPages: Math.ceil(containers.length / 5),
-			totalItems: containers.length,
-			currentPage: 1,
-			itemsPerPage: 5
-		}
 	});
 </script>
 
@@ -62,19 +43,13 @@
 		</div>
 	</Card.Header>
 	<Card.Content class="flex-1 p-0">
-		{#if isLoading}
-			<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
-				<Loader2 class="text-muted-foreground mb-4 size-8 animate-spin" />
-				<p class="text-lg font-medium">Loading Containers...</p>
-				<p class="text-muted-foreground mt-1 text-sm">Please wait while we fetch containers</p>
-			</div>
-		{:else if containers?.length > 0}
+		{#if containers.data.length > 0}
 			<div class="flex h-full flex-col">
 				<ArcaneTable
-					items={paginatedContainers}
+					items={containers}
 					bind:requestOptions
 					bind:selectedIds
-					{onRefresh}
+					onRefresh={async (options) => (containers = await environmentAPI.getContainers(options))}
 					withoutSearch={true}
 					withoutPagination={true}
 					selectionDisabled={true}
@@ -89,23 +64,27 @@
 				>
 					{#snippet rows({ item })}
 						<Table.Cell class="py-3 md:py-3.5">
-							<a class="font-medium hover:underline" href="/containers/{item.Id}/">
-								{getContainerDisplayName(item)}
+							<a class="font-medium hover:underline" href="/containers/{item.id}/">
+								{#if item.names && item.names.length > 0}
+									{item.names[0].startsWith('/') ? item.names[0].substring(1) : item.names[0]}
+								{:else}
+									{item.id.substring(0, 12)}
+								{/if}
 							</a>
 						</Table.Cell>
-						<Table.Cell class="py-3 md:py-3.5" title={item.Image}>
-							{truncateString(item.Image, 40)}
+						<Table.Cell>
+							<span class="text-sm">{item.image}</span>
 						</Table.Cell>
 						<Table.Cell class="py-3 md:py-3.5">
-							{@const stateVariant = statusVariantMap[item.State?.toLowerCase()] || 'red'}
-							<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.State)} />
+							{@const stateVariant = statusVariantMap[item.state.toLowerCase()] || 'grey'}
+							<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.state)} />
 						</Table.Cell>
-						<Table.Cell class="py-3 md:py-3.5">{item.Status}</Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">{item.status}</Table.Cell>
 					{/snippet}
 				</ArcaneTable>
-				{#if containers.length > 5}
+				{#if containers.data.length > 5}
 					<div class="bg-muted/40 text-muted-foreground border-t px-6 py-2 text-xs">
-						Showing 5 of {total} containers
+						Showing 5 of {containers.pagination.totalItems} containers
 					</div>
 				{/if}
 			</div>

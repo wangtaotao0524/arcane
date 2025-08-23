@@ -7,15 +7,17 @@ import type {
 	VolumeCreateOptions,
 	ContainerStats
 } from 'dockerode';
-import type { Project, ProjectService } from '$lib/types/project.type';
+import type { Project } from '$lib/types/project.type';
 import type {
 	PaginationRequest,
 	SortRequest,
-	PaginatedApiResponse
+	PaginatedApiResponse,
+	SearchPaginationSortRequest,
+	Paginated
 } from '$lib/types/pagination.type';
 import { browser } from '$app/environment';
-import type { EnhancedImageInfo } from '$lib/models/image.type';
-import type { EnhancedContainerInfo } from '$lib/models/container-info';
+import type { ContainerSummaryDto } from '$lib/types/container.type';
+import type { ImageSummaryDto } from '$lib/types/image.type';
 
 export class EnvironmentAPIService extends BaseAPIService {
 	private async getCurrentEnvironmentId(): Promise<string> {
@@ -30,45 +32,12 @@ export class EnvironmentAPIService extends BaseAPIService {
 	}
 
 	async getContainers(
-		pagination?: PaginationRequest,
-		sort?: SortRequest,
-		search?: string,
-		filters?: Record<string, string>
-	): Promise<any[] | PaginatedApiResponse<any>> {
+		options?: SearchPaginationSortRequest
+	): Promise<Paginated<ContainerSummaryDto>> {
 		const envId = await this.getCurrentEnvironmentId();
 
-		if (!pagination) {
-			const response = await this.handleResponse<{ containers?: EnhancedContainerInfo[] }>(
-				this.api.get(`/environments/${envId}/containers`)
-			);
-			return Array.isArray(response.containers)
-				? response.containers
-				: Array.isArray(response)
-					? response
-					: [];
-		}
-
-		const params: any = {
-			'pagination[page]': pagination.page,
-			'pagination[limit]': pagination.limit
-		};
-
-		if (sort) {
-			params['sort[column]'] = sort.column;
-			params['sort[direction]'] = sort.direction;
-		}
-
-		if (search) {
-			params.search = search;
-		}
-
-		if (filters) {
-			Object.entries(filters).forEach(([key, value]) => {
-				params[key] = value;
-			});
-		}
-
-		return this.handleResponse(this.api.get(`/environments/${envId}/containers`, { params }));
+		const res = await this.api.get(`/environments/${envId}/containers`, { params: options });
+		return res.data;
 	}
 
 	async getContainer(containerId: string): Promise<any> {
@@ -120,44 +89,11 @@ export class EnvironmentAPIService extends BaseAPIService {
 		);
 	}
 
-	async getImages(
-		pagination?: PaginationRequest,
-		sort?: SortRequest,
-		search?: string,
-		filters?: Record<string, string>
-	): Promise<any[] | PaginatedApiResponse<any>> {
+	async getImages(options?: SearchPaginationSortRequest): Promise<Paginated<ImageSummaryDto>> {
 		const envId = await this.getCurrentEnvironmentId();
 
-		if (!pagination) {
-			const response = await this.handleResponse<{ images?: EnhancedImageInfo[] }>(
-				this.api.get(`/environments/${envId}/images`)
-			);
-			return Array.isArray(response.images)
-				? response.images
-				: Array.isArray(response)
-					? response
-					: [];
-		}
-
-		const params: any = {
-			'pagination[page]': pagination.page,
-			'pagination[limit]': pagination.limit
-		};
-
-		if (sort) {
-			params['sort[column]'] = sort.column;
-			params['sort[direction]'] = sort.direction;
-		}
-
-		if (search) {
-			params.search = search;
-		}
-
-		if (filters) {
-			params.filters = filters;
-		}
-
-		return this.handleResponse(this.api.get(`/environments/${envId}/images`, { params }));
+		const res = await this.api.get(`/environments/${envId}/images`, { params: options });
+		return res.data;
 	}
 
 	async getTotalImageSize(): Promise<number> {
@@ -376,44 +312,11 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.post(`/environments/${envId}/execute`, { command, args }));
 	}
 
-	async getProjects(
-		pagination?: PaginationRequest,
-		sort?: SortRequest,
-		search?: string,
-		filters?: Record<string, string>
-	): Promise<any[] | PaginatedApiResponse<any>> {
+	async getProjects(options?: SearchPaginationSortRequest): Promise<Paginated<Project>> {
 		const envId = await this.getCurrentEnvironmentId();
 
-		if (!pagination) {
-			const response = await this.handleResponse<{ stacks?: Project[] }>(
-				this.api.get(`/environments/${envId}/stacks`)
-			);
-			return Array.isArray(response.stacks)
-				? response.stacks
-				: Array.isArray(response)
-					? response
-					: [];
-		}
-
-		const params: any = {
-			'pagination[page]': pagination.page,
-			'pagination[limit]': pagination.limit
-		};
-
-		if (sort) {
-			params['sort[column]'] = sort.column;
-			params['sort[direction]'] = sort.direction;
-		}
-
-		if (search) {
-			params.search = search;
-		}
-
-		if (filters) {
-			params.filters = filters;
-		}
-
-		return this.handleResponse(this.api.get(`/environments/${envId}/stacks`, { params }));
+		const res = await this.api.get(`/environments/${envId}/stacks`, { params: options });
+		return res.data;
 	}
 
 	async getProject(projectName: string): Promise<Project> {

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { EnhancedImageInfo } from '$lib/models/image.type';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Download, HardDrive, Trash2, Loader2, Ellipsis, ScanSearch } from '@lucide/svelte';
@@ -18,25 +17,18 @@
 	import { environmentAPI } from '$lib/services/api';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import FilterDropdown from '$lib/components/dropdowns/filter-dropdown.svelte';
-
-	interface ImageWithId extends EnhancedImageInfo {
-		id: string;
-	}
+	import type { ImageSummaryDto } from '$lib/types/image.type';
 
 	let {
-		images,
+		images = $bindable(),
 		selectedIds = $bindable(),
 		requestOptions = $bindable(),
-		onRefresh,
-		onImagesChanged,
 		onPullDialogOpen,
 		onTriggerBulkUpdateCheck
 	}: {
-		images: EnhancedImageInfo[];
+		images: Paginated<ImageSummaryDto>;
 		selectedIds: string[];
 		requestOptions: SearchPaginationSortRequest;
-		onRefresh: (options: SearchPaginationSortRequest) => Promise<any>;
-		onImagesChanged: () => Promise<void>;
 		onPullDialogOpen: () => void;
 		onTriggerBulkUpdateCheck: () => Promise<void>;
 	} = $props();
@@ -55,18 +47,12 @@
 
 	let isPullingInline = $state<Record<string, boolean>>({});
 
-	const imagesWithId = $derived(
-		images.map((img) => ({
-			...img,
-			id: img.Id
-		}))
-	);
-
-	const filteredImages = $derived(
-		imagesWithId.filter((img) => {
+	const filteredImages: Paginated<ImageSummaryDto> = $derived({
+		...images,
+		data: images.data.filter((img) => {
 			// Usage filtering
-			const showBecauseUsed = imageFilters.showUsed && img.InUse;
-			const showBecauseUnused = imageFilters.showUnused && !img.InUse;
+			const showBecauseUsed = imageFilters.showUsed && img.inUse;
+			const showBecauseUnused = imageFilters.showUnused && !img.inUse;
 			const usageMatch = showBecauseUsed || showBecauseUnused;
 
 			// Update status filtering
@@ -77,7 +63,7 @@
 
 			return usageMatch && updateMatch;
 		})
-	);
+	});
 
 	function getImageUpdateStatus(updateInfo: any): 'has-updates' | 'no-updates' {
 		if (!updateInfo) return 'no-updates';
@@ -86,16 +72,6 @@
 
 		return updateInfo.hasUpdate === true ? 'has-updates' : 'no-updates';
 	}
-
-	const paginatedImages: Paginated<ImageWithId> = $derived({
-		data: filteredImages,
-		pagination: {
-			totalPages: Math.ceil(filteredImages.length / (requestOptions.pagination?.limit || 20)),
-			totalItems: filteredImages.length,
-			currentPage: requestOptions.pagination?.page || 1,
-			itemsPerPage: requestOptions.pagination?.limit || 20
-		}
-	});
 
 	async function deleteImage(id: string) {
 		openConfirmDialog({
@@ -114,7 +90,7 @@
 						setLoadingState: () => {},
 						onSuccess: async () => {
 							toast.success('Image removed successfully');
-							await onImagesChanged();
+							images = await environmentAPI.getImages(requestOptions);
 						}
 					});
 
@@ -160,7 +136,7 @@
 						toast.success(
 							`Successfully removed ${successCount} image${successCount > 1 ? 's' : ''}`
 						);
-						await onImagesChanged();
+						images = await environmentAPI.getImages(requestOptions);
 					}
 
 					if (failureCount > 0) {
@@ -188,7 +164,7 @@
 			setLoadingState: () => {},
 			onSuccess: async () => {
 				toast.success(`Successfully pulled ${repoTag}`);
-				await onImagesChanged();
+				images = await environmentAPI.getImages(requestOptions);
 			}
 		});
 
@@ -220,7 +196,7 @@
 	}
 </script>
 
-{#if images.length > 0}
+{#if images.data.length > 0}
 	<Card.Root class="border shadow-sm">
 		<Card.Header class="px-6">
 			<div class="flex items-center justify-between">
@@ -289,18 +265,18 @@
 			</div>
 		</Card.Header>
 		<Card.Content>
-			{#if filteredImages.length > 0}
+			{#if filteredImages.data.length > 0}
 				<ArcaneTable
-					items={paginatedImages}
+					items={filteredImages}
 					bind:requestOptions
 					bind:selectedIds
-					{onRefresh}
+					onRefresh={async (options) => (images = await environmentAPI.getImages(options))}
 					columns={[
-						{ label: 'Repository', sortColumn: 'RepoTags' },
+						{ label: 'Repository', sortColumn: 'repoTags' },
 						{ label: 'Image ID' },
-						{ label: 'Size', sortColumn: 'Size' },
-						{ label: 'Created', sortColumn: 'Created' },
-						{ label: 'Status', sortColumn: 'InUse' },
+						{ label: 'Size', sortColumn: 'size' },
+						{ label: 'Created', sortColumn: 'created' },
+						{ label: 'Status', sortColumn: 'inUse' },
 						{ label: 'Updates' },
 						{ label: ' ' }
 					]}
@@ -308,11 +284,11 @@
 					noResultsMessage="No images found"
 				>
 					{#snippet rows({ item })}
-						{@const { repo, tag } = extractRepoAndTag(item.RepoTags)}
+						{@const { repo, tag } = extractRepoAndTag(item.repoTags)}
 						<Table.Cell>
-							{#if item.RepoTags && item.RepoTags.length > 0 && item.RepoTags[0] !== '<none>:<none>'}
-								<a class="font-medium hover:underline" href="/images/{item.Id}/"
-									>{item.RepoTags[0]}</a
+							{#if item.repoTags && item.repoTags.length > 0 && item.repoTags[0] !== '<none>:<none>'}
+								<a class="font-medium hover:underline" href="/images/{item.id}/"
+									>{item.repoTags[0]}</a
 								>
 							{:else}
 								<span class="text-muted-foreground italic">Untagged</span>
@@ -320,22 +296,20 @@
 						</Table.Cell>
 						<Table.Cell>
 							<code class="bg-muted rounded px-2 py-1 text-xs"
-								>{item.Id?.substring(7, 19) || 'N/A'}</code
+								>{item.id?.substring(7, 19) || 'N/A'}</code
 							>
 						</Table.Cell>
-						<Table.Cell class="py-3 md:py-3.5"
-							>{formatBytes(item.Size ?? item.VirtualSize ?? 0)}</Table.Cell
-						>
-						<Table.Cell>{new Date((item.Created || 0) * 1000).toLocaleDateString()}</Table.Cell>
+						<Table.Cell class="py-3 md:py-3.5">{formatBytes(item.size)}</Table.Cell>
+						<Table.Cell>{new Date((item.created || 0) * 1000).toLocaleDateString()}</Table.Cell>
 						<Table.Cell>
-							{#if item.InUse}
+							{#if item.inUse}
 								<StatusBadge text="In Use" variant="green" />
 							{:else}
 								<StatusBadge text="Unused" variant="amber" />
 							{/if}
 						</Table.Cell>
 						<Table.Cell>
-							<ImageUpdateItem updateInfo={item.updateInfo} imageId={item.Id} {repo} {tag} />
+							<ImageUpdateItem updateInfo={item.updateInfo} imageId={item.id} {repo} {tag} />
 						</Table.Cell>
 						<Table.Cell>
 							<DropdownMenu.Root>
@@ -349,15 +323,15 @@
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
 									<DropdownMenu.Group>
-										<DropdownMenu.Item onclick={() => goto(`/images/${item.Id}`)}>
+										<DropdownMenu.Item onclick={() => goto(`/images/${item.id}`)}>
 											<ScanSearch class="size-4" />
 											Inspect
 										</DropdownMenu.Item>
 										<DropdownMenu.Item
-											onclick={() => handleInlineImagePull(item.Id, item.RepoTags?.[0] || '')}
-											disabled={isPullingInline[item.Id] || !item.RepoTags?.[0]}
+											onclick={() => handleInlineImagePull(item.id, item.repoTags?.[0] || '')}
+											disabled={isPullingInline[item.id] || !item.repoTags?.[0]}
 										>
-											{#if isPullingInline[item.Id]}
+											{#if isPullingInline[item.id]}
 												<Loader2 class="size-4 animate-spin" />
 												Pulling...
 											{:else}
@@ -368,7 +342,7 @@
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item
 											variant="destructive"
-											onclick={() => deleteImage(item.Id)}
+											onclick={() => deleteImage(item.id)}
 											disabled={isLoading.removing}
 										>
 											{#if isLoading.removing}

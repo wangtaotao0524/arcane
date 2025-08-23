@@ -50,35 +50,12 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	pagination := sortedPaginationRequest.Pagination
 	sort := sortedPaginationRequest.Sort
 
-	if sort.Column == "" {
-		return Paginate(pagination.Page, pagination.Limit, query, result)
-	}
-
 	capitalizedSortColumn := CapitalizeFirstLetter(sort.Column)
 
-	// Get the element type correctly
-	resultType := reflect.TypeOf(result)
-	if resultType.Kind() == reflect.Ptr {
-		resultType = resultType.Elem()
-	}
-	if resultType.Kind() == reflect.Slice {
-		resultType = resultType.Elem()
-	}
-	if resultType.Kind() == reflect.Ptr {
-		resultType = resultType.Elem()
-	}
+	sortField, sortFieldFound := reflect.TypeOf(result).Elem().Elem().FieldByName(capitalizedSortColumn)
+	isSortable, _ := strconv.ParseBool(sortField.Tag.Get("sortable"))
 
-	sortField, sortFieldFound := resultType.FieldByName(capitalizedSortColumn)
-	isSortable := false
-	if sortFieldFound {
-		if sortableTag := sortField.Tag.Get("sortable"); sortableTag != "" {
-			isSortable, _ = strconv.ParseBool(sortableTag)
-		}
-	}
-
-	if sort.Direction == "" || (sort.Direction != "asc" && sort.Direction != "desc") {
-		sort.Direction = "asc"
-	}
+	sort.Direction = NormalizeSortDirection(sort.Direction)
 
 	if sortFieldFound && isSortable {
 		columnName := CamelCaseToSnakeCase(sort.Column)
@@ -92,30 +69,12 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	return Paginate(pagination.Page, pagination.Limit, query, result)
 }
 
-func PaginateWithSort(page, pageSize int, sortColumn, sortDirection string, query *gorm.DB, result interface{}, options *PaginationOptions) (PaginationResponse, error) {
-	if options == nil {
-		options = &PaginationOptions{
-			DefaultPageSize: 20,
-			MaxPageSize:     100,
-		}
+func NormalizeSortDirection(direction string) string {
+	d := strings.ToLower(strings.TrimSpace(direction))
+	if d != "asc" && d != "desc" {
+		return "asc"
 	}
-
-	if sortColumn != "" && sortDirection != "" {
-		if len(options.AllowedSorts) == 0 || contains(options.AllowedSorts, sortColumn) {
-			if sortDirection != "asc" && sortDirection != "desc" {
-				sortDirection = "asc"
-			}
-
-			columnName := CamelCaseToSnakeCase(sortColumn)
-			query = query.Clauses(clause.OrderBy{
-				Columns: []clause.OrderByColumn{
-					{Column: clause.Column{Name: columnName}, Desc: sortDirection == "desc"},
-				},
-			})
-		}
-	}
-
-	return Paginate(page, pageSize, query, result)
+	return d
 }
 
 func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (PaginationResponse, error) {
@@ -151,80 +110,6 @@ func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (Pagin
 		CurrentPage:  page,
 		ItemsPerPage: pageSize,
 	}, nil
-}
-
-func PaginateSimple(req SimplePaginationRequest, query *gorm.DB, result interface{}) (PaginationResponse, error) {
-	return Paginate(req.Page, req.Limit, query, result)
-}
-
-func ApplySort(sort SimpleSortRequest, query *gorm.DB, allowedColumns []string) *gorm.DB {
-	if sort.Column == "" {
-		return query
-	}
-
-	if len(allowedColumns) > 0 && !contains(allowedColumns, sort.Column) {
-		return query
-	}
-
-	if sort.Direction != "asc" && sort.Direction != "desc" {
-		sort.Direction = "asc"
-	}
-
-	columnName := CamelCaseToSnakeCase(sort.Column)
-	return query.Order(columnName + " " + sort.Direction)
-}
-
-func CamelCaseToSnakeCase(str string) string {
-	var result strings.Builder
-	for i, r := range str {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result.WriteRune('_')
-		}
-		result.WriteRune(r)
-	}
-	return strings.ToLower(result.String())
-}
-
-func CapitalizeFirstLetter(str string) string {
-	if len(str) == 0 {
-		return str
-	}
-	return strings.ToUpper(str[:1]) + str[1:]
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
-func ValidatePaginationParams(page, limit int) (int, int) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 20
-	} else if limit > 100 {
-		limit = 100
-	}
-	return page, limit
-}
-
-func GetOffsetFromPage(page, pageSize int) int {
-	if page < 1 {
-		page = 1
-	}
-	return (page - 1) * pageSize
-}
-
-func CalculateTotalPages(totalItems int64, pageSize int) int64 {
-	if totalItems == 0 {
-		return 1
-	}
-	return (totalItems + int64(pageSize) - 1) / int64(pageSize)
 }
 
 //nolint:gocognit

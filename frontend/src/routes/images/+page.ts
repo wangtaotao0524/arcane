@@ -9,20 +9,13 @@ export const load: PageLoad = async () => {
 			limit: 20
 		},
 		sort: {
-			column: 'Created',
+			column: 'created',
 			direction: 'desc' as const
 		}
 	};
 
-	const dockerInfo = await systemAPI.getDockerInfo();
 	const totalSize = await environmentAPI.getTotalImageSize();
+	const images = await environmentAPI.getImages(imageRequestOptions);
 
-	const images = await environmentAPI.getImages(
-		imageRequestOptions.pagination,
-		imageRequestOptions.sort,
-		imageRequestOptions.search,
-		imageRequestOptions.filters
-	);
-
-	return { dockerInfo, totalSize, images, imageRequestOptions };
+	return { totalSize, images, imageRequestOptions };
 };

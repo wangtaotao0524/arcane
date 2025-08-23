@@ -6,7 +6,7 @@ export const load: PageLoad = async () => {
 	const projectRequestOptions: SearchPaginationSortRequest = {
 		pagination: {
 			page: 1,
-			limit: 20
+			limit: 10
 		},
 		sort: {
 			column: 'name',
@@ -14,12 +14,7 @@ export const load: PageLoad = async () => {
 		}
 	};
 
-	const projects = await environmentAPI.getProjects(
-		projectRequestOptions.pagination,
-		projectRequestOptions.sort,
-		projectRequestOptions.search,
-		projectRequestOptions.filters
-	);
+	const projects = await environmentAPI.getProjects(projectRequestOptions);
 
 	return { projects, projectRequestOptions };
 };

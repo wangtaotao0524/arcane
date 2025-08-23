@@ -19,53 +19,28 @@ export const load: PageLoad = async () => {
 				limit: 5
 			},
 			sort: {
-				column: 'Created',
+				column: 'size',
 				direction: 'desc' as const
 			}
 		};
 
-	try {
-		const [dockerInfoResult, containersResult, imagesResult, settingsResult] =
-			await Promise.allSettled([
-				systemAPI.getDockerInfo(),
-				environmentAPI.getContainers(
-					containerRequestOptions.pagination,
-					containerRequestOptions.sort,
-					containerRequestOptions.search,
-					containerRequestOptions.filters
-				),
-				environmentAPI.getImages(
-					imageRequestOptions.pagination,
-					imageRequestOptions.sort,
-					imageRequestOptions.search,
-					imageRequestOptions.filters
-				),
-				settingsAPI.getSettings()
-			]);
+	const containers = await environmentAPI.getContainers(containerRequestOptions);
+	const images = await environmentAPI.getImages(imageRequestOptions);
 
-		const dockerInfo = dockerInfoResult.status === 'fulfilled' ? dockerInfoResult.value : null;
-		const containers = containersResult.status === 'fulfilled' ? containersResult.value : [];
-		const images = imagesResult.status === 'fulfilled' ? imagesResult.value : [];
-		const settings = settingsResult.status === 'fulfilled' ? settingsResult.value : null;
+	const [dockerInfoResult, settingsResult] = await Promise.allSettled([
+		systemAPI.getDockerInfo(),
+		settingsAPI.getSettings()
+	]);
 
-		return {
-			dockerInfo,
-			containers,
-			images,
-			settings,
-			containerRequestOptions,
-			imageRequestOptions
-		};
-	} catch (error) {
-		console.error('Error loading dashboard data:', error);
-		return {
-			dockerInfo: null,
-			containers: [],
-			images: [],
-			settings: null,
-			containerRequestOptions,
-			imageRequestOptions,
-			error: error instanceof Error ? error.message : String(error)
-		};
-	}
+	const dockerInfo = dockerInfoResult.status === 'fulfilled' ? dockerInfoResult.value : null;
+	const settings = settingsResult.status === 'fulfilled' ? settingsResult.value : null;
+
+	return {
+		dockerInfo,
+		containers,
+		images,
+		settings,
+		containerRequestOptions,
+		imageRequestOptions
+	};
 };
