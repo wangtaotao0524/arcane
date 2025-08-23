@@ -406,7 +406,9 @@
 					</div>
 					<div class="flex-1 text-left">
 						<div class="text-sm font-medium">Stop All Running</div>
-						<div class="text-muted-foreground text-xs">{runningContainers} containers</div>
+						<div class="text-muted-foreground text-xs">
+							{containers.pagination.totalItems} containers
+						</div>
 					</div>
 				</button>
 
