@@ -23,3 +23,41 @@ export interface ImageSummaryDto {
 	tag: string;
 	updateInfo?: ImageUpdateInfoDto;
 }
+
+export interface ImageDetailSummaryDto {
+	id: string;
+	repoTags: string[];
+	repoDigests: string[];
+	parent: string;
+	comment: string;
+	created: string; // ISO string
+	dockerVersion: string;
+	author: string;
+	config: {
+		exposedPorts?: Record<string, unknown>;
+		env?: string[];
+		cmd?: string[];
+		volumes?: Record<string, unknown>;
+		workingDir?: string;
+		argsEscaped?: boolean;
+	};
+	architecture: string;
+	os: string;
+	size: number;
+	graphDriver: {
+		data: unknown | null;
+		name: string;
+	};
+	rootFs: {
+		type: string;
+		layers: string[];
+	};
+	metadata: {
+		lastTagTime: string;
+	};
+	descriptor: {
+		mediaType: string;
+		digest: string;
+		size: number;
+	};
+}

@@ -1,8 +1,10 @@
 package dto
 
 import (
+	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/ofkm/arcane-backend/internal/models"
 )
 
@@ -77,4 +79,107 @@ func NewImageSummaryDto(m *models.Image) ImageSummaryDto {
 		Tag:         m.Tag,
 		UpdateInfo:  update,
 	}
+}
+
+type ImageDetailSummaryDto struct {
+	Id            string   `json:"id"`
+	RepoTags      []string `json:"repoTags"`
+	RepoDigests   []string `json:"repoDigests"`
+	Parent        string   `json:"parent"`
+	Comment       string   `json:"comment"`
+	Created       string   `json:"created"`
+	DockerVersion string   `json:"dockerVersion"`
+	Author        string   `json:"author"`
+	Config        struct {
+		ExposedPorts map[string]struct{} `json:"exposedPorts,omitempty"`
+		Env          []string            `json:"env,omitempty"`
+		Cmd          []string            `json:"cmd,omitempty"`
+		Volumes      map[string]struct{} `json:"volumes,omitempty"`
+		WorkingDir   string              `json:"workingDir,omitempty"`
+		ArgsEscaped  bool                `json:"argsEscaped,omitempty"`
+	} `json:"config"`
+	Architecture string `json:"architecture"`
+	Os           string `json:"os"`
+	Size         int64  `json:"size"`
+	GraphDriver  struct {
+		Data any    `json:"data"`
+		Name string `json:"name"`
+	} `json:"graphDriver"`
+	RootFs struct {
+		Type   string   `json:"type"`
+		Layers []string `json:"layers"`
+	} `json:"rootFs"`
+	Metadata struct {
+		LastTagTime string `json:"lastTagTime"`
+	} `json:"metadata"`
+	Descriptor struct {
+		MediaType string `json:"mediaType"`
+		Digest    string `json:"digest"`
+		Size      int64  `json:"size"`
+	} `json:"descriptor"`
+}
+
+func NewImageDetailSummaryDto(src *image.InspectResponse) ImageDetailSummaryDto {
+	var out ImageDetailSummaryDto
+
+	out.Id = src.ID
+	out.RepoTags = append(out.RepoTags, src.RepoTags...)
+	out.RepoDigests = append(out.RepoDigests, src.RepoDigests...)
+	out.Parent = src.Parent
+	out.Comment = src.Comment
+	out.Created = src.Created
+	out.DockerVersion = src.DockerVersion
+	out.Author = src.Author
+
+	if src.Config != nil {
+		if len(src.Config.ExposedPorts) > 0 {
+			out.Config.ExposedPorts = make(map[string]struct{}, len(src.Config.ExposedPorts))
+			for p := range src.Config.ExposedPorts {
+				out.Config.ExposedPorts[string(p)] = struct{}{}
+			}
+		}
+		if len(src.Config.Env) > 0 {
+			out.Config.Env = append(out.Config.Env, src.Config.Env...)
+		}
+		if len(src.Config.Cmd) > 0 {
+			out.Config.Cmd = append(out.Config.Cmd, src.Config.Cmd...)
+		}
+		if len(src.Config.Volumes) > 0 {
+			out.Config.Volumes = make(map[string]struct{}, len(src.Config.Volumes))
+			for v := range src.Config.Volumes {
+				out.Config.Volumes[v] = struct{}{}
+			}
+		}
+		out.Config.WorkingDir = src.Config.WorkingDir
+		out.Config.ArgsEscaped = src.Config.ArgsEscaped
+	}
+
+	out.Architecture = src.Architecture
+	out.Os = src.Os
+	out.Size = src.Size
+
+	out.GraphDriver.Name = src.GraphDriver.Name
+	if src.GraphDriver.Data != nil {
+		out.GraphDriver.Data = src.GraphDriver.Data
+	}
+
+	out.RootFs.Type = src.RootFS.Type
+	if len(src.RootFS.Layers) > 0 {
+		out.RootFs.Layers = append(out.RootFs.Layers, src.RootFS.Layers...)
+	}
+
+	if !src.Metadata.LastTagTime.IsZero() {
+		out.Metadata.LastTagTime = src.Metadata.LastTagTime.Format(time.RFC3339Nano)
+	}
+
+	// Best-effort descriptor from first digest
+	out.Descriptor.MediaType = "application/vnd.oci.image.index.v1+json"
+	if len(src.RepoDigests) > 0 {
+		parts := strings.SplitN(src.RepoDigests[0], "@", 2)
+		if len(parts) == 2 {
+			out.Descriptor.Digest = parts[1]
+		}
+	}
+
+	return out
 }

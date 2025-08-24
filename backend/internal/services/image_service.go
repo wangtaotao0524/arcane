@@ -489,34 +489,6 @@ func (s *ImageService) DeleteImageByDockerID(ctx context.Context, dockerImageID 
 	return nil
 }
 
-// func (s *ImageService) ListImagesWithUpdatesPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]dto.ImageSummaryDto, utils.PaginationResponse, error) {
-// 	_, err := s.ListImages(ctx)
-// 	if err != nil {
-// 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list and sync Docker images: %w", err)
-// 	}
-
-// 	var images []models.Image
-// 	query := s.db.WithContext(ctx).Model(&models.Image{}).Preload("UpdateRecord")
-
-// 	if req.Sort.Column != "" {
-// 		dir := utils.NormalizeSortDirection(req.Sort.Direction)
-// 		col := utils.CamelCaseToSnakeCase(req.Sort.Column)
-// 		query = query.Order(col + " " + dir)
-// 	}
-
-// 	pagination, err := utils.PaginateAndSort(req, query, &images)
-// 	if err != nil {
-// 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate images: %w", err)
-// 	}
-
-// 	result := make([]dto.ImageSummaryDto, 0, len(images))
-// 	for _, img := range images {
-// 		result = append(result, dto.NewImageSummaryDto(&img))
-// 	}
-
-// 	return result, pagination, nil
-// }
-
 func (s *ImageService) ListImagesWithUpdatesPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]dto.ImageSummaryDto, utils.PaginationResponse, error) {
 	_, err := s.ListImages(ctx)
 	if err != nil {

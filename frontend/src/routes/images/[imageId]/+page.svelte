@@ -24,14 +24,14 @@
 		refreshing: false
 	});
 
-	const shortId = $derived(image?.Id?.split(':')[1]?.substring(0, 12) || 'N/A');
+	const shortId = $derived(image?.id?.split(':')[1]?.substring(0, 12) || 'N/A');
 
 	const createdDate = $derived(() => {
-		if (!image?.Created) {
+		if (!image?.created) {
 			return 'N/A';
 		}
 		try {
-			const date = new Date(image.Created);
+			const date = new Date(image.created);
 			if (isNaN(date.getTime())) {
 				return 'N/A';
 			}
@@ -41,9 +41,9 @@
 		}
 	});
 
-	const imageSize = $derived(formatBytes(image?.Size || 0));
-	const architecture = $derived(image?.Architecture || 'N/A');
-	const osName = $derived(image?.Os || 'N/A');
+	const imageSize = $derived(formatBytes(image?.size || 0));
+	const architecture = $derived(image?.architecture || 'N/A');
+	const osName = $derived(image?.os || 'N/A');
 
 	async function handleImageRemove(id: string) {
 		openConfirmDialog({
@@ -84,7 +84,7 @@
 			</Breadcrumb.Root>
 			<div class="mt-2 flex items-center gap-2">
 				<h1 class="text-2xl font-bold tracking-tight break-all">
-					{image?.RepoTags?.[0] || shortId}
+					{image?.repoTags?.[0] || shortId}
 				</h1>
 			</div>
 		</div>
@@ -92,7 +92,7 @@
 		<div class="flex flex-wrap gap-2">
 			<ArcaneButton
 				action="remove"
-				onClick={() => handleImageRemove(image.Id)}
+				onClick={() => handleImageRemove(image.id)}
 				loading={isLoading.removing}
 				disabled={isLoading.removing}
 				size="sm"
@@ -117,7 +117,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">ID</p>
-								<p class="mt-1 truncate text-base font-semibold" title={image.Id}>{shortId}</p>
+								<p class="mt-1 truncate text-base font-semibold" title={image.id}>{shortId}</p>
 							</div>
 						</div>
 
@@ -177,7 +177,7 @@
 			</Card.Root>
 
 			<!-- Tags Card -->
-			{#if image.RepoTags && image.RepoTags.length > 0}
+			{#if image.repoTags && image.repoTags.length > 0}
 				<Card.Root class="border shadow-sm">
 					<Card.Header>
 						<Card.Title class="flex items-center gap-2"
@@ -186,7 +186,7 @@
 					</Card.Header>
 					<Card.Content>
 						<div class="flex flex-wrap gap-2">
-							{#each image.RepoTags as tag (tag)}
+							{#each image.repoTags as tag (tag)}
 								<Badge variant="secondary">{tag}</Badge>
 							{/each}
 						</div>
@@ -194,36 +194,14 @@
 				</Card.Root>
 			{/if}
 
-			<!-- Labels Card -->
-			{#if image.Config?.Labels && Object.keys(image.Config.Labels).length > 0}
-				<Card.Root class="border shadow-sm">
-					<Card.Header>
-						<Card.Title>Labels</Card.Title>
-					</Card.Header>
-					<Card.Content class="space-y-2">
-						{#each Object.entries(image.Config.Labels) as [key, value] (key)}
-							<div class="flex flex-col text-sm sm:flex-row sm:items-center">
-								<span class="text-muted-foreground w-full font-medium break-all sm:w-1/4"
-									>{key}:</span
-								>
-								<span class="w-full font-mono text-xs break-all sm:w-3/4 sm:text-sm">{value}</span>
-							</div>
-							{#if !Object.is(Object.keys(image.Config.Labels).length - 1, Object.keys(image.Config.Labels).indexOf(key))}
-								<Separator class="my-2" />
-							{/if}
-						{/each}
-					</Card.Content>
-				</Card.Root>
-			{/if}
-
 			<!-- Environment Variables Card -->
-			{#if image.Config?.Env && image.Config.Env.length > 0}
+			{#if image.config?.env && image.config.env.length > 0}
 				<Card.Root class="border shadow-sm">
 					<Card.Header>
 						<Card.Title>Environment Variables</Card.Title>
 					</Card.Header>
 					<Card.Content class="space-y-2">
-						{#each image.Config.Env as env (env)}
+						{#each image.config.env as env (env)}
 							{@const [key, ...valueParts] = env.split('=')}
 							{@const value = valueParts.join('=')}
 							<div class="flex flex-col text-sm sm:flex-row sm:items-center">
@@ -232,7 +210,7 @@
 								>
 								<span class="w-full font-mono text-xs break-all sm:w-3/4 sm:text-sm">{value}</span>
 							</div>
-							{#if env !== image.Config.Env[image.Config.Env.length - 1]}
+							{#if env !== image.config.env[image.config.env.length - 1]}
 								<Separator class="my-2" />
 							{/if}
 						{/each}

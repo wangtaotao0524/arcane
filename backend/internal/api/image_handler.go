@@ -61,18 +61,15 @@ func (h *ImageHandler) List(c *gin.Context) {
 func (h *ImageHandler) GetByID(c *gin.Context) {
 	id := c.Param("imageId")
 
-	image, err := h.imageService.GetImageByID(c.Request.Context(), id)
+	img, err := h.imageService.GetImageByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    image,
+		"data":    dto.NewImageDetailSummaryDto(img),
 	})
 }
 

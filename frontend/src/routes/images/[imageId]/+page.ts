@@ -1,9 +1,9 @@
 import { environmentAPI } from '$lib/services/api';
-import type { EnhancedImageInfo } from '$lib/models/image.type';
+import type { ImageDetailSummaryDto } from '$lib/types/image.type.js';
 import { error } from '@sveltejs/kit';
 
 type ImageDetailData = {
-	image: EnhancedImageInfo;
+	image: ImageDetailSummaryDto;
 	error?: string;
 };
 
