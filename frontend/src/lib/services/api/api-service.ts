@@ -14,14 +14,38 @@ abstract class BaseAPIService {
 		this.api.interceptors.response.use(
 			(response) => response,
 			(error) => {
+				console.log(error);
 				const status = error?.response?.status;
 				if (status === 401 && typeof window !== 'undefined') {
-					const reqUrl: string = error?.config?.url ?? '';
-					// Skip auth endpoints and public endpoints to avoid loops
-					const isAuthApi =
-						reqUrl.startsWith('/auth') ||
-						reqUrl.startsWith('/oidc') ||
-						reqUrl.startsWith('/settings/public');
+					let reqUrl: string = error?.config?.url ?? '';
+					const baseURL: string = error?.config?.baseURL ?? this.api.defaults.baseURL ?? '';
+					try {
+						if (/^https?:\/\//i.test(reqUrl)) {
+							const u = new URL(reqUrl);
+							reqUrl = u.pathname;
+						} else if (baseURL && /^https?:\/\//i.test(baseURL)) {
+							// if baseURL is absolute and url is relative, construct full url then extract pathname
+							const u = new URL(reqUrl, baseURL);
+							reqUrl = u.pathname;
+						}
+					} catch (e) {
+						// ignore URL parse errors and fall back to raw reqUrl
+					}
+
+					if (reqUrl.startsWith('/api')) {
+						reqUrl = reqUrl.slice(4) || '/';
+					}
+
+					const skipAuthPaths = [
+						'/auth/login',
+						'/auth/logout',
+						'/auth/oidc',
+						'/auth/oidc/login',
+						'/auth/oidc/callback',
+						'/settings/public'
+					];
+					const isAuthApi = skipAuthPaths.some((p) => reqUrl.startsWith(p));
+
 					const pathname = window.location.pathname || '/';
 					const isOnAuthPage = pathname.startsWith('/auth');
 

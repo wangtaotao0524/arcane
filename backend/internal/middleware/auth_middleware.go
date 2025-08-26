@@ -40,8 +40,9 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		// Store userID instead of full user object
+		// Store both userID and full user for handlers that expect currentUser
 		c.Set("userID", user.ID)
+		c.Set("currentUser", user)
 
 		c.Next()
 	}
