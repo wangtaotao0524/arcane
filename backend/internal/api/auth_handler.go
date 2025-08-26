@@ -219,22 +219,6 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	})
 }
 
-func (h *AuthHandler) ValidateSession(c *gin.Context) {
-	_, exists := middleware.GetCurrentUser(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"valid":   false,
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"valid":   true,
-	})
-}
-
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

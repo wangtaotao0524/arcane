@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
@@ -294,6 +295,7 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) 
 		email := userInfo.Email
 
 		user = &models.User{
+			BaseModel:     models.BaseModel{ID: uuid.NewString()},
 			Username:      username,
 			DisplayName:   &displayName,
 			Email:         &email,
@@ -311,13 +313,12 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) 
 		return nil, nil, err
 	}
 
-	// Log user login event
 	metadata := models.JSON{
 		"action":    "login",
 		"method":    "oidc",
 		"newUser":   isNewUser,
 		"subject":   userInfo.Subject,
-		"ipAddress": "", // Could be extracted from context if available
+		"ipAddress": "",
 	}
 	if logErr := s.eventService.LogUserEvent(ctx, models.EventTypeUserLogin, user.ID, user.Username, metadata); logErr != nil {
 		fmt.Printf("Could not log OIDC user login action: %s\n", logErr)
@@ -326,9 +327,7 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) 
 	return user, tokenPair, nil
 }
 
-// Add a logout method to log logout events
 func (s *AuthService) Logout(ctx context.Context, user *models.User) error {
-	// Log user logout event
 	metadata := models.JSON{
 		"action":    "logout",
 		"ipAddress": "", // Could be extracted from context if available

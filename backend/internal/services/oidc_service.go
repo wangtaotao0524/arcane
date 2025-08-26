@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ofkm/arcane-backend/internal/config"
@@ -21,15 +20,11 @@ import (
 )
 
 type OidcService struct {
-	authService    *AuthService
-	config         *config.Config
-	httpClient     *http.Client
-	discoveryCache map[string]*dto.OidcDiscoveryDocument
-	cacheMutex     sync.RWMutex
-	cacheExpiry    map[string]time.Time
+	authService *AuthService
+	config      *config.Config
+	httpClient  *http.Client
 }
 
-// internal-only state persisted in cookie
 type OidcState struct {
 	State        string    `json:"state"`
 	CodeVerifier string    `json:"code_verifier"`
@@ -39,25 +34,13 @@ type OidcState struct {
 
 func NewOidcService(authService *AuthService, cfg *config.Config) *OidcService {
 	return &OidcService{
-		authService:    authService,
-		config:         cfg,
-		httpClient:     &http.Client{Timeout: 30 * time.Second},
-		discoveryCache: make(map[string]*dto.OidcDiscoveryDocument),
-		cacheExpiry:    make(map[string]time.Time),
+		authService: authService,
+		config:      cfg,
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
 func (s *OidcService) discoverOidcEndpoints(ctx context.Context, issuerURL string) (*dto.OidcDiscoveryDocument, error) {
-	s.cacheMutex.RLock()
-	if cached, exists := s.discoveryCache[issuerURL]; exists {
-		if expiry, hasExpiry := s.cacheExpiry[issuerURL]; hasExpiry && time.Now().Before(expiry) {
-			s.cacheMutex.RUnlock()
-			return cached, nil
-		}
-	}
-	s.cacheMutex.RUnlock()
-
-	// Construct well-known URL
 	wellKnownURL := strings.TrimSuffix(issuerURL, "/") + "/.well-known/openid-configuration"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wellKnownURL, nil)
@@ -74,7 +57,6 @@ func (s *OidcService) discoverOidcEndpoints(ctx context.Context, issuerURL strin
 	}
 	defer resp.Body.Close()
 
-	// Read the response body for better error reporting
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read discovery response body: %w", err)
@@ -102,11 +84,6 @@ func (s *OidcService) discoverOidcEndpoints(ctx context.Context, issuerURL strin
 			discovery.AuthorizationEndpoint, discovery.TokenEndpoint)
 	}
 
-	s.cacheMutex.Lock()
-	s.discoveryCache[issuerURL] = &discovery
-	s.cacheExpiry[issuerURL] = time.Now().Add(1 * time.Hour)
-	s.cacheMutex.Unlock()
-
 	return &discovery, nil
 }
 
@@ -116,12 +93,6 @@ func (s *OidcService) getEffectiveConfig(ctx context.Context) (*models.OidcConfi
 		return nil, err
 	}
 
-	// If we already have endpoints configured (legacy), use them
-	if config.AuthorizationEndpoint != "" && config.TokenEndpoint != "" {
-		return config, nil
-	}
-
-	// Otherwise, discover endpoints
 	if config.IssuerURL == "" {
 		return nil, errors.New("either issuerUrl or explicit endpoints must be configured")
 	}

@@ -59,16 +59,6 @@ export class AuthService extends BaseAPIService {
 		}
 	}
 
-	async validateSession(): Promise<boolean> {
-		try {
-			const response = await this.api.get('/auth/validate');
-			return response.data.valid === true;
-		} catch (error) {
-			userStore.clearUser();
-			return false;
-		}
-	}
-
 	async changePassword(oldPassword: string, newPassword: string): Promise<void> {
 		const response = await this.api.post('/auth/password', {
 			currentPassword: oldPassword,

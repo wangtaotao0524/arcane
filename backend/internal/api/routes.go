@@ -99,7 +99,6 @@ func setupAuthRoutes(api *gin.RouterGroup, services *Services) {
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/logout", authHandler.Logout)
 	auth.GET("/me", middleware.AuthMiddleware(services.Auth), authHandler.GetCurrentUser)
-	auth.GET("/validate", middleware.AuthMiddleware(services.Auth), authHandler.ValidateSession)
 	auth.POST("/refresh", authHandler.RefreshToken)
 	auth.POST("/password", middleware.AuthMiddleware(services.Auth), authHandler.ChangePassword)
 
