@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,6 +15,7 @@ import (
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
+	"github.com/ofkm/arcane-backend/internal/utils"
 )
 
 type OidcService struct {
@@ -102,7 +101,6 @@ func (s *OidcService) getEffectiveConfig(ctx context.Context) (*models.OidcConfi
 		return nil, fmt.Errorf("failed to discover OIDC endpoints: %w", err)
 	}
 
-	// Create effective config with discovered endpoints
 	effectiveConfig := *config
 	effectiveConfig.AuthorizationEndpoint = discovery.AuthorizationEndpoint
 	effectiveConfig.TokenEndpoint = discovery.TokenEndpoint
@@ -113,30 +111,24 @@ func (s *OidcService) getEffectiveConfig(ctx context.Context) (*models.OidcConfi
 }
 
 func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (string, string, error) {
-	// Get effective OIDC configuration with discovered endpoints
 	config, err := s.getEffectiveConfig(ctx)
 	if err != nil {
 		return "", "", err
 	}
 
-	// Generate state and code verifier for PKCE
-	state := generateRandomString(32)
-	codeVerifier := generateRandomString(128)
-	codeChallenge := generateCodeChallenge(codeVerifier)
+	state := utils.GenerateRandomString(32)
+	codeVerifier := utils.GenerateRandomString(128)
+	codeChallenge := utils.GenerateCodeChallenge(codeVerifier)
 
-	// Parse scopes
 	scopes := strings.Fields(config.Scopes)
 	if len(scopes) == 0 {
 		scopes = []string{"openid", "email", "profile"}
 	}
 
-	// Build authorization URL
 	authURL, err := url.Parse(config.AuthorizationEndpoint)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid authorization endpoint: %w", err)
 	}
-
-	// Get auto-generated redirect URI from config
 	redirectURI := s.config.GetOidcRedirectURI()
 
 	query := authURL.Query()
@@ -149,7 +141,6 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 	query.Set("code_challenge_method", "S256")
 	authURL.RawQuery = query.Encode()
 
-	// Store state with code verifier
 	stateData := OidcState{
 		State:        state,
 		CodeVerifier: codeVerifier,
@@ -157,7 +148,6 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 		CreatedAt:    time.Now(),
 	}
 
-	// Encode state data as base64 for storage
 	stateJSON, err := json.Marshal(stateData)
 	if err != nil {
 		return "", "", err
@@ -168,13 +158,11 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 }
 
 func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedState string) (*dto.OidcUserInfo, error) {
-	// Decode stored state to get the original state value and code verifier
 	stateData, err := s.decodeState(storedState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode state: %w", err)
 	}
 
-	// Verify state matches what we originally sent
 	if state != stateData.State {
 		return nil, errors.New("invalid state parameter")
 	}
@@ -184,19 +172,16 @@ func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedSta
 		return nil, errors.New("state has expired")
 	}
 
-	// Get effective OIDC configuration with discovered endpoints
 	config, err := s.getEffectiveConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Exchange code for tokens
 	tokenResponse, err := s.exchangeCodeForTokens(ctx, config, code, stateData.CodeVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code for tokens: %w", err)
 	}
 
-	// Get user info from the userinfo endpoint
 	userInfo, err := s.getUserInfo(ctx, config, tokenResponse.AccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
@@ -287,19 +272,4 @@ func (s *OidcService) decodeState(encodedState string) (*OidcState, error) {
 	}
 
 	return &stateData, nil
-}
-
-// Helper functions
-
-func generateRandomString(length int) string {
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(bytes)[:length]
-}
-
-func generateCodeChallenge(verifier string) string {
-	hash := sha256.Sum256([]byte(verifier))
-	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
 }
