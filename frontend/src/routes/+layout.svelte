@@ -25,7 +25,15 @@
 
 	const isNavigating = $derived(navigating.type !== null);
 	const isOnboardingPage = $derived(String(page.url.pathname).startsWith('/onboarding'));
-	const isLoginPage = $derived(page.url.pathname.startsWith('/auth/login'));
+	const isLoginPage = $derived(
+		String(page.url.pathname) === '/login' ||
+			String(page.url.pathname).startsWith('/auth/login') ||
+			String(page.url.pathname) === '/auth' ||
+			String(page.url.pathname).includes('/login') ||
+			String(page.url.pathname).includes('/callback')
+	);
+
+	// const isLoginPage = $derived(page.url.pathname.startsWith('/auth/login'));
 
 	const redirectPath = getAuthRedirectPath(page.url.pathname, user, settings);
 	console.log(page.url.pathname);
