@@ -246,84 +246,9 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo, 
 		return nil, nil, errors.New("missing OIDC subject identifier")
 	}
 
-	user, err := s.userService.GetUserByOidcSubjectId(ctx, userInfo.Subject)
-	if err != nil && !errors.Is(err, ErrUserNotFound) {
+	user, isNewUser, err := s.findOrCreateOidcUser(ctx, userInfo, tokenResp)
+	if err != nil {
 		return nil, nil, err
-	}
-
-	isNewUser := false
-	now := time.Now()
-
-	if user == nil {
-		username := generateUsernameFromEmail(userInfo.Email, userInfo.Subject)
-
-		var displayName string
-		switch {
-		case userInfo.Name != "":
-			displayName = userInfo.Name
-		case userInfo.GivenName != "" || userInfo.FamilyName != "":
-			displayName = strings.TrimSpace(fmt.Sprintf("%s %s", userInfo.GivenName, userInfo.FamilyName))
-		default:
-			displayName = username
-		}
-
-		email := userInfo.Email
-
-		user = &models.User{
-			BaseModel:     models.BaseModel{ID: uuid.NewString()},
-			Username:      username,
-			DisplayName:   &displayName,
-			Email:         &email,
-			Roles:         models.StringSlice{"user"},
-			OidcSubjectId: &userInfo.Subject,
-			LastLogin:     &now,
-		}
-
-		// Persist provider tokens if present
-		if tokenResp != nil {
-			if tokenResp.AccessToken != "" {
-				user.OidcAccessToken = &tokenResp.AccessToken
-			}
-			if tokenResp.RefreshToken != "" {
-				user.OidcRefreshToken = &tokenResp.RefreshToken
-			}
-			if tokenResp.ExpiresIn > 0 {
-				expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
-				user.OidcAccessTokenExpiresAt = &expiresAt
-			}
-		}
-
-		if _, err := s.userService.CreateUser(ctx, user); err != nil {
-			return nil, nil, err
-		}
-		isNewUser = true
-	} else {
-		// Update optional fields when missing
-		if userInfo.Name != "" && user.DisplayName == nil {
-			user.DisplayName = &userInfo.Name
-		}
-		if userInfo.Email != "" && user.Email == nil {
-			user.Email = &userInfo.Email
-		}
-
-		// Persist provider tokens if present
-		if tokenResp != nil {
-			if tokenResp.AccessToken != "" {
-				user.OidcAccessToken = &tokenResp.AccessToken
-			}
-			if tokenResp.RefreshToken != "" {
-				user.OidcRefreshToken = &tokenResp.RefreshToken
-			}
-			if tokenResp.ExpiresIn > 0 {
-				expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
-				user.OidcAccessTokenExpiresAt = &expiresAt
-			}
-		}
-
-		user.LastLogin = &now
-		if _, err := s.userService.UpdateUser(ctx, user); err != nil {
-			return nil, nil, err
-		}
 	}
 
 	tokenPair, err := s.generateTokenPair(ctx, user)
@@ -343,6 +268,94 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo, 
 	}
 
 	return user, tokenPair, nil
+}
+
+func (s *AuthService) findOrCreateOidcUser(ctx context.Context, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) (*models.User, bool, error) {
+	user, err := s.userService.GetUserByOidcSubjectId(ctx, userInfo.Subject)
+	if err != nil && !errors.Is(err, ErrUserNotFound) {
+		return nil, false, err
+	}
+
+	if user == nil {
+		created, err := s.createOidcUser(ctx, userInfo, tokenResp)
+		if err != nil {
+			return nil, false, err
+		}
+		return created, true, nil
+	}
+
+	if err := s.updateOidcUser(ctx, user, userInfo, tokenResp); err != nil {
+		return nil, false, err
+	}
+
+	return user, false, nil
+}
+
+func (s *AuthService) createOidcUser(ctx context.Context, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) (*models.User, error) {
+	now := time.Now()
+	username := generateUsernameFromEmail(userInfo.Email, userInfo.Subject)
+
+	var displayName string
+	switch {
+	case userInfo.Name != "":
+		displayName = userInfo.Name
+	case userInfo.GivenName != "" || userInfo.FamilyName != "":
+		displayName = strings.TrimSpace(fmt.Sprintf("%s %s", userInfo.GivenName, userInfo.FamilyName))
+	default:
+		displayName = username
+	}
+
+	email := userInfo.Email
+
+	user := &models.User{
+		BaseModel:     models.BaseModel{ID: uuid.NewString()},
+		Username:      username,
+		DisplayName:   &displayName,
+		Email:         &email,
+		Roles:         models.StringSlice{"user"},
+		OidcSubjectId: &userInfo.Subject,
+		LastLogin:     &now,
+	}
+
+	s.persistOidcTokens(user, tokenResp)
+
+	if _, err := s.userService.CreateUser(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *AuthService) updateOidcUser(ctx context.Context, user *models.User, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) error {
+	// Update optional fields when missing
+	if userInfo.Name != "" && user.DisplayName == nil {
+		user.DisplayName = &userInfo.Name
+	}
+	if userInfo.Email != "" && user.Email == nil {
+		user.Email = &userInfo.Email
+	}
+
+	s.persistOidcTokens(user, tokenResp)
+
+	now := time.Now()
+	user.LastLogin = &now
+	_, err := s.userService.UpdateUser(ctx, user)
+	return err
+}
+
+func (s *AuthService) persistOidcTokens(user *models.User, tokenResp *dto.OidcTokenResponse) {
+	if tokenResp == nil {
+		return
+	}
+	if tokenResp.AccessToken != "" {
+		user.OidcAccessToken = &tokenResp.AccessToken
+	}
+	if tokenResp.RefreshToken != "" {
+		user.OidcRefreshToken = &tokenResp.RefreshToken
+	}
+	if tokenResp.ExpiresIn > 0 {
+		expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+		user.OidcAccessTokenExpiresAt = &expiresAt
+	}
 }
 
 func (s *AuthService) Logout(ctx context.Context, user *models.User) error {
