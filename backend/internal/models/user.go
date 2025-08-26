@@ -13,6 +13,11 @@ type User struct {
 	RequirePasswordChange bool        `json:"requirePasswordChange" gorm:"column:require_password_change;default:false"`
 	OidcSubjectId         *string     `json:"oidcSubjectId,omitempty" gorm:"column:oidc_subject_id"`
 	LastLogin             *time.Time  `json:"lastLogin,omitempty" gorm:"column:last_login"`
+
+	// OIDC provider tokens
+	OidcAccessToken          *string    `json:"-" gorm:"type:text"`
+	OidcRefreshToken         *string    `json:"-" gorm:"type:text"`
+	OidcAccessTokenExpiresAt *time.Time `json:"-" gorm:"index"`
 	BaseModel
 }
 

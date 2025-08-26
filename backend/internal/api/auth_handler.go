@@ -129,7 +129,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Handle authentication errors
 	if err != nil {
 		var statusCode int
 		var errorMsg string

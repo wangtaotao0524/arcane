@@ -46,7 +46,7 @@
 			const redirectTo = data.redirectTo || '/dashboard';
 			toast.success(`Welcome Back, ${user.displayName}`);
 			await invalidateAll();
-			goto(redirectTo);
+			goto(redirectTo, { replaceState: true });
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';
 		} finally {

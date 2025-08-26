@@ -48,7 +48,6 @@ export const load = async () => {
 
 	return {
 		user,
-		isAuthenticated: !!user,
 		settings,
 		versionInformation,
 		updateCheckDisabled

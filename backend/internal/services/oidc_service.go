@@ -157,37 +157,74 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 	return authURL.String(), encodedState, nil
 }
 
-func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedState string) (*dto.OidcUserInfo, error) {
+func (s *OidcService) HandleCallback(ctx context.Context, code, state, storedState string) (*dto.OidcUserInfo, *dto.OidcTokenResponse, error) {
 	stateData, err := s.decodeState(storedState)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode state: %w", err)
+		return nil, nil, fmt.Errorf("failed to decode state: %w", err)
 	}
 
 	if state != stateData.State {
-		return nil, errors.New("invalid state parameter")
+		return nil, nil, errors.New("invalid state parameter")
 	}
 
 	// Check if state is not too old (10 minutes max)
 	if time.Since(stateData.CreatedAt) > 10*time.Minute {
-		return nil, errors.New("state has expired")
+		return nil, nil, errors.New("state has expired")
 	}
 
+	config, err := s.getEffectiveConfig(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tokenResponse, err := s.exchangeCodeForTokens(ctx, config, code, stateData.CodeVerifier)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to exchange code for tokens: %w", err)
+	}
+
+	userInfo, err := s.getUserInfo(ctx, config, tokenResponse.AccessToken)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+
+	return userInfo, tokenResponse, nil
+}
+
+func (s *OidcService) RefreshToken(ctx context.Context, refreshToken string) (*dto.OidcTokenResponse, error) {
 	config, err := s.getEffectiveConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenResponse, err := s.exchangeCodeForTokens(ctx, config, code, stateData.CodeVerifier)
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", refreshToken)
+	data.Set("client_id", config.ClientID)
+	data.Set("client_secret", config.ClientSecret)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, config.TokenEndpoint, strings.NewReader(data.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("failed to exchange code for tokens: %w", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("token endpoint returned %d on refresh: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	userInfo, err := s.getUserInfo(ctx, config, tokenResponse.AccessToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user info: %w", err)
+	var tokenResponse dto.OidcTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+		return nil, err
 	}
-
-	return userInfo, nil
+	return &tokenResponse, nil
 }
 
 func (s *OidcService) exchangeCodeForTokens(ctx context.Context, config *models.OidcConfig, code, codeVerifier string) (*dto.OidcTokenResponse, error) {

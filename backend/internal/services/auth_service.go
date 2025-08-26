@@ -206,10 +206,8 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 		return nil, nil, ErrInvalidCredentials
 	}
 
-	// Check if password needs upgrade from bcrypt to Argon2
 	if s.userService.NeedsPasswordUpgrade(user.PasswordHash) {
 		if err := s.userService.UpgradePasswordHash(ctx, user.ID, password); err != nil {
-			// Log the error but don't fail the login
 			fmt.Printf("Warning: Failed to upgrade password hash for user %s: %v\n", user.ID, err)
 		} else {
 			fmt.Printf("Successfully upgraded password hash for user %s from bcrypt to Argon2\n", user.Username)
@@ -243,43 +241,20 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 	return user, tokenPair, nil
 }
 
-func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) (*models.User, *TokenPair, error) {
-	oidcEnabled, err := s.IsOidcEnabled(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !oidcEnabled {
-		return nil, nil, ErrOidcAuthDisabled
-	}
-
+func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) (*models.User, *TokenPair, error) {
 	if userInfo.Subject == "" {
 		return nil, nil, errors.New("missing OIDC subject identifier")
 	}
 
 	user, err := s.userService.GetUserByOidcSubjectId(ctx, userInfo.Subject)
-
 	if err != nil && !errors.Is(err, ErrUserNotFound) {
 		return nil, nil, err
 	}
 
 	isNewUser := false
-	if user != nil {
-		if userInfo.Name != "" && user.DisplayName == nil {
-			user.DisplayName = &userInfo.Name
-		}
-		if userInfo.Email != "" && user.Email == nil {
-			user.Email = &userInfo.Email
-		}
+	now := time.Now()
 
-		now := time.Now()
-		user.LastLogin = &now
-
-		if _, err := s.userService.UpdateUser(ctx, user); err != nil {
-			return nil, nil, err
-		}
-	} else {
-		isNewUser = true
+	if user == nil {
 		username := generateUsernameFromEmail(userInfo.Email, userInfo.Subject)
 
 		var displayName string
@@ -301,9 +276,52 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) 
 			Email:         &email,
 			Roles:         models.StringSlice{"user"},
 			OidcSubjectId: &userInfo.Subject,
+			LastLogin:     &now,
+		}
+
+		// Persist provider tokens if present
+		if tokenResp != nil {
+			if tokenResp.AccessToken != "" {
+				user.OidcAccessToken = &tokenResp.AccessToken
+			}
+			if tokenResp.RefreshToken != "" {
+				user.OidcRefreshToken = &tokenResp.RefreshToken
+			}
+			if tokenResp.ExpiresIn > 0 {
+				expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+				user.OidcAccessTokenExpiresAt = &expiresAt
+			}
 		}
 
 		if _, err := s.userService.CreateUser(ctx, user); err != nil {
+			return nil, nil, err
+		}
+		isNewUser = true
+	} else {
+		// Update optional fields when missing
+		if userInfo.Name != "" && user.DisplayName == nil {
+			user.DisplayName = &userInfo.Name
+		}
+		if userInfo.Email != "" && user.Email == nil {
+			user.Email = &userInfo.Email
+		}
+
+		// Persist provider tokens if present
+		if tokenResp != nil {
+			if tokenResp.AccessToken != "" {
+				user.OidcAccessToken = &tokenResp.AccessToken
+			}
+			if tokenResp.RefreshToken != "" {
+				user.OidcRefreshToken = &tokenResp.RefreshToken
+			}
+			if tokenResp.ExpiresIn > 0 {
+				expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+				user.OidcAccessTokenExpiresAt = &expiresAt
+			}
+		}
+
+		user.LastLogin = &now
+		if _, err := s.userService.UpdateUser(ctx, user); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -318,7 +336,7 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo) 
 		"method":    "oidc",
 		"newUser":   isNewUser,
 		"subject":   userInfo.Subject,
-		"ipAddress": "",
+		"ipAddress": getClientIP(ctx),
 	}
 	if logErr := s.eventService.LogUserEvent(ctx, models.EventTypeUserLogin, user.ID, user.Username, metadata); logErr != nil {
 		fmt.Printf("Could not log OIDC user login action: %s\n", logErr)

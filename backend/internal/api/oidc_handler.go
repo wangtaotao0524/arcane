@@ -108,13 +108,13 @@ func (h *OidcHandler) HandleOidcCallback(c *gin.Context) {
 
 	c.SetCookie("oidc_state", "", -1, "/", "", c.Request.TLS != nil, true)
 
-	userInfo, err := h.oidcService.HandleCallback(c.Request.Context(), req.Code, req.State, encodedStateFromCookie)
+	userInfo, tokenResp, err := h.oidcService.HandleCallback(c.Request.Context(), req.Code, req.State, encodedStateFromCookie)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, tokenPair, err := h.authService.OidcLogin(c.Request.Context(), *userInfo)
+	user, tokenPair, err := h.authService.OidcLogin(c.Request.Context(), *userInfo, tokenResp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication failed"})
 		return

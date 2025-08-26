@@ -3,8 +3,7 @@ import { redirect } from '@sveltejs/kit';
 export const load = async ({ parent, url }) => {
 	const data = await parent();
 
-	// If already authenticated, redirect to dashboard
-	if (data.user && data.isAuthenticated) {
+	if (data.user) {
 		throw redirect(302, '/dashboard');
 	}
 

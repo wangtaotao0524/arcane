@@ -18,6 +18,11 @@ export class AuthService extends BaseAPIService {
 
 			userStore.setUser(user);
 
+			if (browser) {
+				await invalidateAll();
+				goto('/auth/login');
+			}
+
 			return user;
 		} catch (error: any) {
 			const errorMessage = error.response?.data?.error || 'Login failed';
@@ -44,12 +49,9 @@ export class AuthService extends BaseAPIService {
 	async getCurrentUser(): Promise<User | null> {
 		try {
 			const response = await this.api.get('/auth/me');
-			const user = response.data.data;
+			const user = (response.data.user as User) || (response.data.data as User);
 
-			// Store user in the store
-			if (user) {
-				userStore.setUser(user);
-			}
+			userStore.setUser(user);
 
 			return user;
 		} catch (error) {
