@@ -74,8 +74,9 @@
 				};
 
 				userStore.setUser(user);
+				await invalidateAll();
 				toast.success(`Welcome Back, ${user.displayName}`);
-				goto(redirectTo);
+				goto(redirectTo, { replaceState: true });
 			} else {
 				error = 'Authentication succeeded but user information is missing.';
 				setTimeout(() => goto('/auth/login?error=oidc_user_info_missing'), 3000);

@@ -1,13 +1,19 @@
-import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
-import { building } from '$app/environment';
+import type { HandleClientError } from '@sveltejs/kit';
+import { AxiosError } from 'axios';
 
-const initHandler: Handle = async ({ event, resolve }) => {
-	if (building) {
-		return resolve(event);
+export const handleError: HandleClientError = async ({ error, message, status }) => {
+	if (error instanceof AxiosError) {
+		message = error.response?.data.error || message;
+		status = error.response?.status || status;
+		console.error(
+			`Axios error: ${error.request.path} - ${error.response?.data.error ?? error.message}`
+		);
+	} else {
+		console.error(error);
 	}
 
-	return resolve(event);
+	return {
+		message,
+		status
+	};
 };
-
-export const handle = sequence(initHandler);

@@ -3,33 +3,20 @@ import { browser } from '$app/environment';
 import { invalidateAll } from '$app/navigation';
 import BaseAPIService from './api-service';
 import userStore from '$lib/stores/user-store';
+import type { User } from '$lib/types/user.type';
 
 export interface LoginCredentials {
 	username: string;
 	password: string;
 }
 
-export interface User {
-	id: string;
-	username: string;
-	email?: string;
-	role?: string;
-}
-
 export class AuthService extends BaseAPIService {
 	async login(credentials: LoginCredentials): Promise<User> {
 		try {
 			const response = await this.api.post('/auth/login', credentials);
-			const user = response.data.user || response.data.data;
+			const user = response.data.user as User;
 
-			// Store user in the store
-			if (user) {
-				userStore.setUser(user);
-			}
-
-			if (browser) {
-				await invalidateAll();
-			}
+			userStore.setUser(user);
 
 			return user;
 		} catch (error: any) {

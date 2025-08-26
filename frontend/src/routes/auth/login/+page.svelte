@@ -8,6 +8,8 @@
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { authService } from '$lib/services/api/auth-api-service';
+	import { toast } from 'svelte-sonner';
+	import userStore from '$lib/stores/user-store';
 
 	let { data }: { data: PageData } = $props();
 
@@ -39,8 +41,11 @@
 		error = null;
 
 		try {
-			await authService.login({ username, password });
+			const user = await authService.login({ username, password });
+			userStore.setUser(user);
 			const redirectTo = data.redirectTo || '/dashboard';
+			toast.success(`Welcome Back, ${user.displayName}`);
+			await invalidateAll();
 			goto(redirectTo);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';
