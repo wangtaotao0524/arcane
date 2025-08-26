@@ -74,8 +74,7 @@
 				};
 
 				userStore.setUser(user);
-				await invalidateAll();
-				toast.success('Successfully logged in!');
+				toast.success(`Welcome Back, ${user.displayName}`);
 				goto(redirectTo);
 			} else {
 				error = 'Authentication succeeded but user information is missing.';

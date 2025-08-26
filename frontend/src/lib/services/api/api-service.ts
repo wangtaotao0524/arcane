@@ -1,58 +1,54 @@
 import axios, { type AxiosResponse } from 'axios';
-import { building, dev } from '$app/environment';
-import { browser } from '$app/environment';
 
 abstract class BaseAPIService {
 	api = axios.create({
+		baseURL: '/api',
 		withCredentials: true
 	});
 
 	constructor() {
-		if (!building) {
-			if (browser) {
-				this.api.defaults.baseURL = '/api';
-			} else {
-				const backendUrl = process.env.BACKEND_URL || 'http://localhost:3552';
-				this.api.defaults.baseURL = `${backendUrl}/api`;
-			}
-
-			this.api.interceptors.response.use(
-				(response: AxiosResponse) => {
-					return response;
-				},
-				(error) => {
-					// Only log errors if not building
-					if (!building) {
-						console.error(
-							`API Error [${error.config?.method?.toUpperCase()} ${error.config?.url}]:`,
-							{
-								status: error.response?.status,
-								data: error.response?.data,
-								message: error.message
-							}
-						);
-					}
-					return Promise.reject(error);
-				}
-			);
+		if (typeof process !== 'undefined' && process?.env?.DEV_BACKEND_URL) {
+			this.api.defaults.baseURL = process.env.DEV_BACKEND_URL;
 		}
+
+		this.api.interceptors.response.use(
+			(response) => response,
+			(error) => {
+				const status = error?.response?.status;
+				if (status === 401 && typeof window !== 'undefined') {
+					const reqUrl: string = error?.config?.url ?? '';
+					// Skip auth endpoints and public endpoints to avoid loops
+					const isAuthApi =
+						reqUrl.startsWith('/auth') ||
+						reqUrl.startsWith('/oidc') ||
+						reqUrl.startsWith('/settings/public');
+					const pathname = window.location.pathname || '/';
+					const isOnAuthPage = pathname.startsWith('/auth');
+
+					if (!isAuthApi && !isOnAuthPage) {
+						const redirectTo = encodeURIComponent(pathname);
+						// Hard replace to avoid history pollution
+						window.location.replace(`/auth/login?redirect=${redirectTo}`);
+						// Stop further promise chain
+						return new Promise(() => {});
+					}
+				}
+				return Promise.reject(error);
+			}
+		);
 	}
 
 	protected async handleResponse<T>(promise: Promise<AxiosResponse>): Promise<T> {
-		if (building) {
-			return {} as T;
-		}
-
 		const response = await promise;
-
-		// Prefer nested "data" payloads when present
 		const payload = response.data;
-		const extractedData =
-			payload && typeof payload === 'object' && 'data' in payload && payload.data !== undefined
-				? payload.data
+		const extracted =
+			payload &&
+			typeof payload === 'object' &&
+			'data' in payload &&
+			(payload as any).data !== undefined
+				? (payload as any).data
 				: payload;
-
-		return extractedData;
+		return extracted as T;
 	}
 }
 

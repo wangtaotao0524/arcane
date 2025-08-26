@@ -40,7 +40,6 @@
 
 		try {
 			await authService.login({ username, password });
-			await invalidateAll();
 			const redirectTo = data.redirectTo || '/dashboard';
 			goto(redirectTo);
 		} catch (err) {

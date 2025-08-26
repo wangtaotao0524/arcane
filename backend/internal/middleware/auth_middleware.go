@@ -40,11 +40,20 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		// Store in Gin context for handlers
-		c.Set("currentUser", user)
+		// Store userID instead of full user object
+		c.Set("userID", user.ID)
 
 		c.Next()
 	}
+}
+
+func GetCurrentUserID(c *gin.Context) (string, bool) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		return "", false
+	}
+	userIDStr, ok := userID.(string)
+	return userIDStr, ok
 }
 
 func GetCurrentUser(c *gin.Context) (*models.User, bool) {

@@ -7,55 +7,53 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import AppSidebar from '$lib/components/sidebar/sidebar.svelte';
 	import { goto } from '$app/navigation';
-	import userStore from '$lib/stores/user-store';
-	import settingsStore from '$lib/stores/config-store';
-	import { getAuthRedirectPathWithSessionCheck } from '$lib/utils/redirect.util';
+	import { getAuthRedirectPath } from '$lib/utils/redirect.util';
 	import LoadingIndicator from '$lib/components/loading-indicator.svelte';
+	import type { LayoutData } from './$types';
+	import type { Snippet } from 'svelte';
+	import Error from '$lib/components/error.svelte';
 
-	let { children, data } = $props();
+	let {
+		data,
+		children
+	}: {
+		data: LayoutData;
+		children: Snippet;
+	} = $props();
 
-	const { versionInformation, user, settings } = $state(data);
-
-	$effect(() => {
-		if (user) {
-			userStore.setUser(user);
-		}
-
-		if (settings) {
-			settingsStore.set(settings);
-		}
-	});
-
-	$effect(() => {
-		const currentUser = $userStore || user;
-		const currentSettings = $settingsStore || settings;
-
-		// Run session-aware redirect; avoid loops if already on the target path
-		(async () => {
-			const redirectPath = await getAuthRedirectPathWithSessionCheck(
-				page.url.pathname,
-				currentUser,
-				currentSettings
-			);
-			if (redirectPath && redirectPath !== page.url.pathname) {
-				await goto(redirectPath);
-			}
-		})();
-	});
+	const { versionInformation, user, settings } = data;
 
 	const isNavigating = $derived(navigating.type !== null);
 	const isOnboardingPage = $derived(String(page.url.pathname).startsWith('/onboarding'));
-	const isLoginPage = $derived(
-		String(page.url.pathname) === '/login' ||
-			String(page.url.pathname).startsWith('/auth/login') ||
-			String(page.url.pathname) === '/auth' ||
-			String(page.url.pathname).includes('/login') ||
-			String(page.url.pathname).includes('/callback')
-	);
-	const currentUser = $derived($userStore || user);
+	const isLoginPage = $derived(page.url.pathname.startsWith('/auth/login'));
+
+	const redirectPath = getAuthRedirectPath(page.url.pathname, user, settings);
+	console.log(page.url.pathname);
+	if (redirectPath) {
+		goto(redirectPath);
+	}
 </script>
 
 <svelte:head><title>Arcane</title></svelte:head>
+
+<div class="bg-background min-h-screen">
+	{#if !settings}
+		<Error message="An Error Occured" showButton={true} />
+	{:else if !isOnboardingPage && !isLoginPage}
+		<Sidebar.Provider>
+			<AppSidebar {versionInformation} {user} />
+			<main class="flex-1">
+				<section class="p-10">
+					{@render children()}
+				</section>
+			</main>
+		</Sidebar.Provider>
+	{:else}
+		<main class="flex-1">
+			{@render children()}
+		</main>
+	{/if}
+</div>
 
 <ModeWatcher />
 <Toaster
@@ -72,20 +70,3 @@
 />
 <ConfirmDialog />
 <LoadingIndicator active={isNavigating} thickness="h-1.5" />
-
-<div class="bg-background min-h-screen">
-	{#if currentUser && !isOnboardingPage && !isLoginPage}
-		<Sidebar.Provider>
-			<AppSidebar {versionInformation} user={currentUser} />
-			<main class="flex-1">
-				<section class="p-10">
-					{@render children()}
-				</section>
-			</main>
-		</Sidebar.Provider>
-	{:else}
-		<main class="flex-1">
-			{@render children()}
-		</main>
-	{/if}
-</div>

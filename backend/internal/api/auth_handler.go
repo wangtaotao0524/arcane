@@ -191,11 +191,20 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
-	user, exists := middleware.GetCurrentUser(c)
+	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"error":   "Not authenticated",
+		})
+		return
+	}
+
+	user, err := h.userService.GetUser(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to get user information",
 		})
 		return
 	}
@@ -206,7 +215,7 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		DisplayName:   user.DisplayName,
 		Email:         user.Email,
 		Roles:         user.Roles,
-		OidcSubjectId: user.OidcSubjectId, // add
+		OidcSubjectId: user.OidcSubjectId,
 	})
 }
 

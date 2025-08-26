@@ -1,8 +1,33 @@
 import type { User } from '$lib/types/user.type';
 import type { Settings } from '$lib/types/settings.type';
 
+const PROTECTED_PREFIXES = [
+	'dashboard',
+	'compose',
+	'containers',
+	'customize',
+	'events',
+	'environments',
+	'images',
+	'volumes',
+	'networks',
+	'settings'
+];
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const PROTECTED_RE = new RegExp(`^/(?:${PROTECTED_PREFIXES.map(escapeRe).join('|')})(?:/.*)?$`);
+
+const isProtectedPath = (path: string) => {
+	const result = PROTECTED_RE.test(path);
+	console.log(`Testing path: "${path}" against regex | Result: ${result}`);
+	console.log(`Regex pattern: ${PROTECTED_RE.source}`);
+	return result;
+};
+
 export function getAuthRedirectPath(path: string, user: User | null, settings: Settings | null) {
 	const isSignedIn = !!user;
+
+	console.log(`Path: ${path}, isProtected: ${isProtectedPath(path)}, isSignedIn: ${isSignedIn}`);
 
 	const isUnauthenticatedOnlyPath =
 		path === '/auth/login' ||
@@ -15,14 +40,9 @@ export function getAuthRedirectPath(path: string, user: User | null, settings: S
 		path.startsWith('/img') ||
 		path === '/favicon.ico';
 
-	// Root should not render; redirect explicitly
-	if (path === '/') {
-		return isSignedIn ? '/dashboard' : '/auth/login';
-	}
-
 	const isOnboardingPath = path === '/onboarding' || path.startsWith('/onboarding');
 
-	if (!isSignedIn && !isUnauthenticatedOnlyPath) {
+	if (!isSignedIn && isProtectedPath(path)) {
 		return '/auth/login';
 	}
 
@@ -36,40 +56,9 @@ export function getAuthRedirectPath(path: string, user: User | null, settings: S
 		return '/dashboard';
 	}
 
-	if (path === '/' && isSignedIn) {
-		return '/dashboard';
+	if (path === '/') {
+		return isSignedIn ? '/dashboard' : '/auth/login';
 	}
 
 	return null;
-}
-
-// Lightweight session validator
-async function validateSession(): Promise<boolean> {
-	if (typeof window === 'undefined') return true; // SSR: skip
-	try {
-		const res = await fetch('/api/auth/validate', { credentials: 'include' });
-		return res.ok;
-	} catch {
-		return false;
-	}
-}
-
-// Session-aware redirect
-export async function getAuthRedirectPathWithSessionCheck(
-	path: string,
-	user: User | null,
-	settings: Settings | null
-): Promise<string | null> {
-	let effectiveUser = user;
-
-	if (effectiveUser) {
-		const valid = await validateSession();
-		if (!valid) {
-			effectiveUser = null;
-			// Use normal logic for signed-out state; do not return '/'
-			return getAuthRedirectPath(path, null, settings);
-		}
-	}
-
-	return getAuthRedirectPath(path, effectiveUser, settings);
 }

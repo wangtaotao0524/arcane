@@ -334,3 +334,18 @@ func matchesSearch(u dto.UserResponseDto, searchLower string) bool {
 		(u.Email != nil && strings.Contains(strings.ToLower(*u.Email), searchLower)) ||
 		(u.DisplayName != nil && strings.Contains(strings.ToLower(*u.DisplayName), searchLower))
 }
+
+func (s *UserService) GetUser(ctx context.Context, userID string) (*models.User, error) {
+	fmt.Println(userID)
+	return s.getUserInternal(ctx, userID, s.db.DB)
+}
+
+func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *gorm.DB) (*models.User, error) {
+	var user models.User
+	err := tx.
+		WithContext(ctx).
+		Where("id = ?", userID).
+		First(&user).
+		Error
+	return &user, err
+}
