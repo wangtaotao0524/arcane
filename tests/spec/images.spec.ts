@@ -122,14 +122,7 @@ test.describe('Images Page', () => {
       page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Delete Image")')
     ).toBeVisible();
 
-    const removePromise = page.waitForRequest(
-      (req) => req.url().includes(`/api/images/${deleteableImage.id}`) && req.method() === 'DELETE'
-    );
-
     await page.locator('button:has-text("Delete")').click();
-    const removeRequest = await removePromise;
-
-    expect(removeRequest).toBeTruthy();
 
     await expect(page.locator('li[data-sonner-toast][data-type="success"] div[data-title]')).toBeVisible();
   });

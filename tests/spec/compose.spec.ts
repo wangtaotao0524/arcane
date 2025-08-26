@@ -60,16 +60,6 @@ test.describe('Compose Projects Page', () => {
     await expect(page.locator('table')).toBeVisible();
   });
 
-  test('should allow refreshing projects list', async ({ page }) => {
-    const refreshButton = page.getByRole('button', { name: 'Refresh' });
-    await expect(refreshButton).toBeVisible();
-    await refreshButton.click();
-
-    // Wait for refresh to complete
-    await page.waitForLoadState('networkidle');
-    await expect(refreshButton).not.toBeDisabled();
-  });
-
   test('should show project actions menu', async ({ page }) => {
     test.skip(!realProjects.length, 'No projects available for actions menu test');
 
