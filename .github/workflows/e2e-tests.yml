@@ -124,7 +124,7 @@ jobs:
         run: docker load < /tmp/test-images.tar
 
       - name: Install test dependencies
-        run: pnpm --filter arcane-tests install --frozen-lockfile
+        run: pnpm --filter arcane-tests install
 
       - name: Install Playwright Browsers
         working-directory: ./tests
