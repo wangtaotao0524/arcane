@@ -74,7 +74,7 @@
 									`${type.charAt(0).toUpperCase() + type.slice(1)} ${type === 'stack' ? 'Destroyed' : 'Removed'} Successfully`
 								);
 								await invalidateAll();
-								goto(`/${type}s`);
+								goto(`${type === 'stack' ? '/compose' : 'containers'}`);
 							}
 						});
 					}

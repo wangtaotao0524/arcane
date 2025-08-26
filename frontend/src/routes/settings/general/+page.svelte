@@ -29,7 +29,7 @@
 	function handleGeneralSettingUpdates() {
 		isLoading.saving = true;
 		updateSettingsConfig({
-			stacksDirectory: stacksDirectoryInput.value,
+			stacksDirectory: projectsDirectoryInput.value,
 			baseServerUrl: baseServerUrlInput.value
 		})
 			.then(async () => {
@@ -44,7 +44,7 @@
 			});
 	}
 
-	let stacksDirectoryInput = $state<FormInputType<string>>({
+	let projectsDirectoryInput = $state<FormInputType<string>>({
 		value: '',
 		error: null
 	});
@@ -65,7 +65,7 @@
 		currentSettings = s;
 
 		if (!isLoading.saving) {
-			stacksDirectoryInput.value = s.stacksDirectory || '';
+			projectsDirectoryInput.value = s.stacksDirectory || '';
 			baseServerUrlInput.value = s.baseServerUrl || 'localhost';
 		}
 	});
@@ -117,7 +117,7 @@
 				<FormInput
 					label="Projects Directory"
 					placeholder="data/projects"
-					bind:input={stacksDirectoryInput}
+					bind:input={projectsDirectoryInput}
 					helpText="Directory where Docker Compose files are stored (this is inside the container)"
 				/>
 			</Card.Content>

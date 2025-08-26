@@ -55,7 +55,7 @@
 			<h3 class="font-semibold">What's Next?</h3>
 			<ul class="mt-2 space-y-1 text-sm text-muted-foreground">
 				<li>• Start managing your Docker containers and images</li>
-				<li>• Create and deploy Docker Compose stacks</li>
+				<li>• Create and deploy Docker Compose Projects</li>
 				<li>• Monitor system resources and performance</li>
 				<li>• Configure additional settings as needed</li>
 			</ul>

@@ -69,7 +69,7 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Auto Update</Card.Title>
-				<Card.Description>Configure automatic updating of containers and stacks</Card.Description>
+				<Card.Description>Configure automatic updating of containers and projects</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="flex items-center justify-between">
