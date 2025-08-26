@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Trash2, Users, Ellipsis, Edit, ShieldEllipsis } from '@lucide/svelte';
+	import { Trash2, Users, Ellipsis, Edit } from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { toast } from 'svelte-sonner';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';

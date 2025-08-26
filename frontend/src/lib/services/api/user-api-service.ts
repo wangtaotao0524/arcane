@@ -13,16 +13,7 @@ export interface Role {
 	description?: string;
 }
 
-interface UsersResponse {
-	users: User[];
-}
-
 export default class UserAPIService extends BaseAPIService {
-	async list(): Promise<User[]> {
-		const response = (await this.handleResponse(this.api.get('/users'))) as UsersResponse;
-		return response.users;
-	}
-
 	async getUsers(
 		pagination?: PaginationRequest,
 		sort?: SortRequest,

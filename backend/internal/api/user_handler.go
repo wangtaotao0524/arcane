@@ -26,7 +26,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid pagination or sort parameters: " + err.Error(),
+			"data":    gin.H{"error": "Invalid pagination or sort parameters: " + err.Error()},
 		})
 		return
 	}
@@ -44,7 +44,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"error":   "Failed to fetch users",
+				"data":    gin.H{"error": "Failed to fetch users"},
 			})
 			return
 		}
@@ -72,7 +72,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to list users: " + err.Error(),
+			"data":    gin.H{"error": "Failed to list users: " + err.Error()},
 		})
 		return
 	}
@@ -89,7 +89,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid request format",
+			"data":    gin.H{"error": "Invalid request format"},
 		})
 		return
 	}
@@ -98,7 +98,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to hash password",
+			"data":    gin.H{"error": "Failed to hash password"},
 		})
 		return
 	}
@@ -122,14 +122,14 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to create user",
+			"data":    gin.H{"error": "Failed to create user"},
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"user": dto.UserResponseDto{
+		"data": dto.UserResponseDto{
 			ID:            createdUser.ID,
 			Username:      createdUser.Username,
 			DisplayName:   createdUser.DisplayName,
@@ -147,14 +147,14 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error":   "User not found",
+			"data":    gin.H{"error": "User not found"},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"user": dto.UserResponseDto{
+		"data": dto.UserResponseDto{
 			ID:            user.ID,
 			Username:      user.Username,
 			DisplayName:   user.DisplayName,
@@ -172,7 +172,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid request format",
+			"data":    gin.H{"error": "Invalid request format"},
 		})
 		return
 	}
@@ -181,7 +181,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error":   "User not found",
+			"data":    gin.H{"error": "User not found"},
 		})
 		return
 	}
@@ -203,14 +203,14 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to update user",
+			"data":    gin.H{"error": "Failed to update user"},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"user": dto.UserResponseDto{
+		"data": dto.UserResponseDto{
 			ID:            updatedUser.ID,
 			Username:      updatedUser.Username,
 			DisplayName:   updatedUser.DisplayName,
@@ -228,13 +228,13 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to delete user",
+			"data":    gin.H{"error": "Failed to delete user"},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "User deleted successfully",
+		"data":    gin.H{"message": "User deleted successfully"},
 	})
 }
