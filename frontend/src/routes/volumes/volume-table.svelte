@@ -210,6 +210,7 @@
 										<DropdownMenu.Item
 											variant="destructive"
 											onclick={() => handleRemoveVolumeConfirm(item.name)}
+											disabled={item.inUse}
 										>
 											<Trash2 class="size-4" />
 											Remove
