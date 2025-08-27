@@ -10,11 +10,21 @@ export interface LoginCredentials {
 	password: string;
 }
 
+type LoginResponseData = {
+	token: string;
+	refreshToken: string;
+	expiresAt: string;
+	user: User;
+	requirePasswordChange?: boolean;
+};
+
 export class AuthService extends BaseAPIService {
 	async login(credentials: LoginCredentials): Promise<User> {
 		try {
-			const response = await this.api.post('/auth/login', credentials);
-			const user = response.data.user as User;
+			const data = await this.handleResponse<LoginResponseData>(
+				this.api.post('/auth/login', credentials)
+			);
+			const user = data.user as User;
 
 			userStore.setUser(user);
 

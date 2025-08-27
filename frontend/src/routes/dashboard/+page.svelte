@@ -2,7 +2,6 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
-		AlertCircle,
 		Box,
 		HardDrive,
 		RefreshCw,
@@ -15,13 +14,12 @@
 		Cpu,
 		Container
 	} from '@lucide/svelte';
-	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { toast } from 'svelte-sonner';
 	import PruneConfirmationDialog from '$lib/components/dialogs/prune-confirmation-dialog.svelte';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
-	import { systemAPI, environmentAPI, settingsAPI } from '$lib/services/api';
+	import { systemAPI, settingsAPI } from '$lib/services/api';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import { onMount } from 'svelte';
 	import type { PruneType } from '$lib/types/actions.type';
@@ -29,14 +27,13 @@
 	import MeterMetric from '$lib/components/meter-metric.svelte';
 	import DockerIcon from '$lib/icons/docker-icon.svelte';
 	import type { SystemStats } from '$lib/models/system-stats';
-	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import DashboardContainerTable from './dash-container-table.svelte';
 	import DashboardImageTable from './dash-image-table.svelte';
-	import type { ContainerSummaryDto } from '$lib/types/container.type';
 
 	let { data } = $props();
 	let containers = $state(data.containers);
 	let images = $state(data.images);
+	let dockerInfo = $state(data.dockerInfo);
 
 	let dashboardStates = $state({
 		dockerInfo: data.dockerInfo,
@@ -66,10 +63,8 @@
 		containers: [] as Array<{ date: Date; value: number }>
 	});
 
-	const runningContainers = $derived(containers.data.filter((s) => s.state === 'running').length);
 	const stoppedContainers = $derived(containers.data.filter((s) => s.state != 'running').length);
 	const totalContainers = $derived(containers.pagination.totalItems);
-	const totalImages = $derived(images.pagination.totalItems);
 	const currentStats = $derived(dashboardStates.systemStats || liveSystemStats);
 
 	function addToHistoricalData(stats: SystemStats) {
@@ -99,76 +94,11 @@
 			}
 		}
 
-		historicalData.containers.push({ date: now, value: runningContainers });
+		historicalData.containers.push({ date: now, value: dockerInfo!.containersRunning });
 		if (historicalData.containers.length > maxPoints) {
 			historicalData.containers = historicalData.containers.slice(-maxPoints);
 		}
 	}
-
-	function getContainerDisplayName(container: ContainerSummaryDto): string {
-		if (container.names && container.names.length > 0) {
-			return container.names[0].startsWith('/')
-				? container.names[0].substring(1)
-				: container.names[0];
-		}
-		return container.id?.substring(0, 12) || 'Unknown';
-	}
-
-	// async function onContainerRefresh(options: SearchPaginationSortRequest) {
-	// 	const response = await environmentAPI.getContainers(
-	// 		options.pagination,
-	// 		options.sort,
-	// 		options.search,
-	// 		options.filters
-	// 	);
-
-	// 	if (Array.isArray(response)) {
-	// 		dashboardStates.containers = response;
-	// 		return {
-	// 			data: response,
-	// 			pagination: {
-	// 				totalPages: 1,
-	// 				totalItems: response.length,
-	// 				currentPage: options.pagination?.page || 1,
-	// 				itemsPerPage: response.length
-	// 			}
-	// 		};
-	// 	} else {
-	// 		dashboardStates.containers = response.data || [];
-	// 		return {
-	// 			data: response.data || [],
-	// 			pagination: response.pagination
-	// 		};
-	// 	}
-	// }
-
-	// async function onImageRefresh(options: SearchPaginationSortRequest) {
-	// 	const response = await environmentAPI.getImages(
-	// 		options.pagination,
-	// 		options.sort,
-	// 		options.search,
-	// 		options.filters
-	// 	);
-
-	// 	if (Array.isArray(response)) {
-	// 		dashboardStates.images = response;
-	// 		return {
-	// 			data: response,
-	// 			pagination: {
-	// 				totalPages: 1,
-	// 				totalItems: response.length,
-	// 				currentPage: options.pagination?.page || 1,
-	// 				itemsPerPage: response.length
-	// 			}
-	// 		};
-	// 	} else {
-	// 		dashboardStates.images = response.data || [];
-	// 		return {
-	// 			data: response.data || [],
-	// 			pagination: response.pagination
-	// 		};
-	// 	}
-	// }
 
 	async function fetchLiveSystemStats() {
 		if (!hasInitialStatsLoaded) {
@@ -209,7 +139,6 @@
 		if (isLoading.refreshing) return;
 		isLoading.refreshing = true;
 
-		// Set all loading states to true at start
 		isLoading.loadingDockerInfo = true;
 		isLoading.loadingImages = true;
 
@@ -218,7 +147,6 @@
 			tryCatch(settingsAPI.getSettings())
 		]);
 
-		// Handle results and clear individual loading states
 		if (dockerInfoResult.status === 'fulfilled' && !dockerInfoResult.value.error) {
 			dashboardStates.dockerInfo = dockerInfoResult.value.data;
 		}
@@ -269,7 +197,8 @@
 	}
 
 	async function handleStopAll() {
-		if (isLoading.stopping || !dashboardStates.dockerInfo || runningContainers === 0) return;
+		if (isLoading.stopping || !dashboardStates.dockerInfo || dockerInfo?.containersRunning === 0)
+			return;
 		openConfirmDialog({
 			title: 'Stop All Containers',
 			message: 'Are you sure you want to stop all running containers?',
@@ -320,7 +249,6 @@
 </script>
 
 <div class="space-y-8">
-	<!-- Header -->
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 		<div class="space-y-1">
 			<h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -345,7 +273,6 @@
 		</Button>
 	</div>
 
-	<!-- Quick Actions -->
 	<section>
 		<h2 class="mb-3 text-lg font-semibold tracking-tight">Quick Actions</h2>
 		{#if isLoading.loadingDockerInfo}
@@ -389,7 +316,7 @@
 				<button
 					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dashboardStates.dockerInfo ||
-						runningContainers === 0 ||
+						dockerInfo?.containersRunning === 0 ||
 						isLoading.starting ||
 						isLoading.stopping ||
 						isLoading.pruning}
@@ -438,7 +365,6 @@
 		{/if}
 	</section>
 
-	<!-- System Overview -->
 	<section>
 		<DropdownCard
 			id="system-overview"
@@ -452,10 +378,10 @@
 					title="Running Containers"
 					icon={Container}
 					description="Active containers"
-					currentValue={isLoading.loadingStats ? undefined : runningContainers}
+					currentValue={isLoading.loadingStats ? undefined : dockerInfo?.containersRunning}
 					formatValue={(v) => v.toString()}
 					maxValue={Math.max(totalContainers, 1)}
-					footerText={`${runningContainers} of ${totalContainers} running`}
+					footerText={`${dockerInfo?.containersRunning} of ${totalContainers} running`}
 					unit="containers"
 					loading={isLoading.loadingStats}
 				/>
@@ -503,7 +429,6 @@
 				/>
 			</div>
 
-			<!-- Always show these cards but with loading states -->
 			<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 				<Card.Root class="rounded-lg border shadow-sm">
 					<Card.Content class="p-4">

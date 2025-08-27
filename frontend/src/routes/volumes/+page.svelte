@@ -1,78 +1,30 @@
 <script lang="ts">
 	import { HardDrive, ArchiveRestore, ArchiveX } from '@lucide/svelte';
-	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { toast } from 'svelte-sonner';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import CreateVolumeSheet from '$lib/components/sheets/create-volume-sheet.svelte';
-	import type { VolumeCreateOptions, VolumeInspectInfo } from 'dockerode';
+	import type { VolumeCreateOptions } from 'dockerode';
 	import ArcaneButton from '$lib/components/arcane-button.svelte';
 	import { environmentAPI } from '$lib/services/api';
 	import StatCard from '$lib/components/stat-card.svelte';
 	import VolumeTable from './volume-table.svelte';
-	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
-
-	type EnhancedVolumeInfo = VolumeInspectInfo & {
-		InUse: boolean;
-		CreatedAt: string;
-		id: string;
-	};
 
 	let { data } = $props();
 
-	let volumes = $state<EnhancedVolumeInfo[]>(
-		Array.isArray(data.volumes) ? data.volumes : data.volumes.data || []
-	);
-	let error = $state<string | null>(null);
+	let volumes = $state(data.volumes);
+	let requestOptions = $state(data.volumeRequestOptions);
 	let selectedIds = $state<string[]>([]);
-	let requestOptions = $state<SearchPaginationSortRequest>(data.volumeRequestOptions);
-
-	let isDialogOpen = $state({
-		create: false
-	});
+	let isCreateDialogOpen = $state(false);
 
 	let isLoading = $state({
 		creating: false,
 		refresh: false
 	});
 
-	const totalVolumes = $derived(volumes.length);
-	const usedVolumes = $derived(volumes.filter((v) => v.InUse).length);
-	const unusedVolumes = $derived(volumes.filter((v) => !v.InUse).length);
-
-	async function loadVolumes() {
-		try {
-			isLoading.refresh = true;
-			const response = await environmentAPI.getVolumes(
-				requestOptions.pagination,
-				requestOptions.sort,
-				requestOptions.search,
-				requestOptions.filters
-			);
-			volumes = Array.isArray(response) ? response : response.data || [];
-			error = null;
-		} catch (err) {
-			console.error('Failed to load volumes:', err);
-			error = err instanceof Error ? err.message : 'Failed to load volumes';
-			volumes = [];
-		} finally {
-			isLoading.refresh = false;
-		}
-	}
-
-	async function onRefresh(options: SearchPaginationSortRequest) {
-		requestOptions = options;
-		await loadVolumes();
-		return {
-			data: volumes,
-			pagination: {
-				totalPages: Math.ceil(volumes.length / (requestOptions.pagination?.limit || 20)),
-				totalItems: volumes.length,
-				currentPage: requestOptions.pagination?.page || 1,
-				itemsPerPage: requestOptions.pagination?.limit || 20
-			}
-		};
-	}
+	const totalVolumes = $derived(volumes.data.length);
+	const usedVolumes = $derived(volumes.data.filter((v) => v.inUse).length);
+	const unusedVolumes = $derived(volumes.data.filter((v) => !v.inUse).length);
 
 	async function handleCreateVolumeSubmit(options: VolumeCreateOptions) {
 		isLoading.creating = true;
@@ -82,22 +34,22 @@
 			setLoadingState: (value) => (isLoading.creating = value),
 			onSuccess: async () => {
 				toast.success(`Volume "${options.Name}" Created Successfully.`);
-				await loadVolumes();
-				isDialogOpen.create = false;
+				volumes = await environmentAPI.getVolumes(requestOptions);
+				isCreateDialogOpen = false;
 			}
 		});
 	}
 
 	async function refreshVolumes() {
 		isLoading.refresh = true;
-		try {
-			await loadVolumes();
-		} catch (error) {
-			console.error('Failed to refresh volumes:', error);
-			toast.error('Failed to refresh volumes');
-		} finally {
-			isLoading.refresh = false;
-		}
+		handleApiResultWithCallbacks({
+			result: await tryCatch(environmentAPI.getVolumes(requestOptions)),
+			message: 'Failed to Refresh Volumes',
+			setLoadingState: (value) => (isLoading.refresh = value),
+			async onSuccess(newVolumes) {
+				volumes = newVolumes;
+			}
+		});
 	}
 </script>
 
@@ -111,7 +63,7 @@
 			<ArcaneButton
 				action="create"
 				label="Create Volume"
-				onClick={() => (isDialogOpen.create = true)}
+				onClick={() => (isCreateDialogOpen = true)}
 				loading={isLoading.creating}
 				disabled={isLoading.creating}
 			/>
@@ -124,13 +76,6 @@
 			/>
 		</div>
 	</div>
-
-	{#if error}
-		<Alert.Root variant="destructive">
-			<Alert.Title>Error Loading Volumes</Alert.Title>
-			<Alert.Description>{error}</Alert.Description>
-		</Alert.Root>
-	{/if}
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 		<StatCard
@@ -156,16 +101,10 @@
 		/>
 	</div>
 
-	<VolumeTable
-		{volumes}
-		bind:selectedIds
-		bind:requestOptions
-		{onRefresh}
-		onVolumesChanged={loadVolumes}
-	/>
+	<VolumeTable bind:volumes bind:selectedIds bind:requestOptions />
 
 	<CreateVolumeSheet
-		bind:open={isDialogOpen.create}
+		bind:open={isCreateDialogOpen}
 		isLoading={isLoading.creating}
 		onSubmit={handleCreateVolumeSubmit}
 	/>

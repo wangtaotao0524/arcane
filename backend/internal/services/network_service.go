@@ -3,11 +3,14 @@ package services
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/ofkm/arcane-backend/internal/database"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -292,79 +295,80 @@ func (s *NetworkService) GetUserDefinedNetworks(ctx context.Context) ([]network.
 }
 
 //nolint:gocognit
-func (s *NetworkService) ListNetworksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
-	networks, err := s.ListNetworks(ctx)
+func (s *NetworkService) ListNetworksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]dto.NetworkSummaryDto, utils.PaginationResponse, error) {
+	// Fetch from Docker
+	nets, err := s.ListNetworks(ctx)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to list Docker networks: %w", err)
 	}
 
-	var result []map[string]interface{}
-	for _, network := range networks {
-		networkData := map[string]interface{}{
-			"ID":         network.ID,
-			"Name":       network.Name,
-			"Driver":     network.Driver,
-			"Scope":      network.Scope,
-			"Created":    network.Created,
-			"Internal":   network.Internal,
-			"Attachable": network.Attachable,
-			"Ingress":    network.Ingress,
-			"ConfigFrom": network.ConfigFrom,
-			"ConfigOnly": network.ConfigOnly,
-			"Containers": network.Containers,
-			"Options":    network.Options,
-			"Labels":     network.Labels,
-		}
-
-		result = append(result, networkData)
+	// Map to DTOs
+	items := make([]dto.NetworkSummaryDto, 0, len(nets))
+	for _, n := range nets {
+		items = append(items, dto.NewNetworkSummaryDto(n))
 	}
 
+	// Search filter
 	if req.Search != "" {
-		filtered := make([]map[string]interface{}, 0)
-		searchLower := strings.ToLower(req.Search)
-		for _, network := range result {
-			if name, ok := network["Name"].(string); ok {
-				if strings.Contains(strings.ToLower(name), searchLower) {
-					filtered = append(filtered, network)
-					continue
-				}
-			}
-			if driver, ok := network["Driver"].(string); ok {
-				if strings.Contains(strings.ToLower(driver), searchLower) {
-					filtered = append(filtered, network)
-					continue
-				}
-			}
-			if scope, ok := network["Scope"].(string); ok {
-				if strings.Contains(strings.ToLower(scope), searchLower) {
-					filtered = append(filtered, network)
-					continue
-				}
+		search := strings.ToLower(req.Search)
+		filtered := make([]dto.NetworkSummaryDto, 0, len(items))
+		for _, n := range items {
+			if strings.Contains(strings.ToLower(n.Name), search) ||
+				strings.Contains(strings.ToLower(n.Driver), search) ||
+				strings.Contains(strings.ToLower(n.Scope), search) {
+				filtered = append(filtered, n)
 			}
 		}
-		result = filtered
+		items = filtered
 	}
 
-	totalItems := len(result)
+	totalItems := len(items)
 
-	if req.Sort.Column != "" {
-		utils.SortSliceByField(result, req.Sort.Column, req.Sort.Direction)
+	// Sort
+	if col := strings.TrimSpace(strings.ToLower(req.Sort.Column)); col != "" {
+		dir := utils.NormalizeSortDirection(req.Sort.Direction)
+		desc := dir == "desc"
+		lessStr := func(a, b string) bool {
+			if desc {
+				return a > b
+			}
+			return a < b
+		}
+		lessTime := func(a, b time.Time) bool {
+			if desc {
+				return a.After(b)
+			}
+			return a.Before(b)
+		}
+
+		sort.Slice(items, func(i, j int) bool {
+			a, b := items[i], items[j]
+			switch col {
+			case "name":
+				return lessStr(a.Name, b.Name)
+			case "driver":
+				return lessStr(a.Driver, b.Driver)
+			case "scope":
+				return lessStr(a.Scope, b.Scope)
+			case "created":
+				return lessTime(a.Created, b.Created)
+			default:
+				return false
+			}
+		})
 	}
 
 	startIdx := (req.Pagination.Page - 1) * req.Pagination.Limit
 	endIdx := startIdx + req.Pagination.Limit
-
-	if startIdx > len(result) {
-		startIdx = len(result)
+	if startIdx > len(items) {
+		startIdx = len(items)
 	}
-	if endIdx > len(result) {
-		endIdx = len(result)
+	if endIdx > len(items) {
+		endIdx = len(items)
 	}
-
+	pageItems := []dto.NetworkSummaryDto{}
 	if startIdx < endIdx {
-		result = result[startIdx:endIdx]
-	} else {
-		result = []map[string]interface{}{}
+		pageItems = items[startIdx:endIdx]
 	}
 
 	totalPages := (totalItems + req.Pagination.Limit - 1) / req.Pagination.Limit
@@ -375,5 +379,5 @@ func (s *NetworkService) ListNetworksPaginated(ctx context.Context, req utils.So
 		ItemsPerPage: req.Pagination.Limit,
 	}
 
-	return result, pagination, nil
+	return pageItems, pagination, nil
 }

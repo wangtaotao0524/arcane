@@ -77,42 +77,37 @@ func (h *StackHandler) ListStacks(c *gin.Context) {
 func (h *StackHandler) CreateStack(c *gin.Context) {
 	var req dto.CreateStackDto
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	stack, err := h.stackService.CreateStack(c.Request.Context(), req.Name, req.ComposeContent, req.EnvContent, *currentUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
-	// Convert to response DTO
-	response := dto.CreateStackResponseDto{
-		ID:           stack.ID,
-		Name:         stack.Name,
-		Path:         stack.Path,
-		Status:       string(stack.Status),
-		ServiceCount: stack.ServiceCount,
-		RunningCount: stack.RunningCount,
-		AutoUpdate:   stack.AutoUpdate,
-		IsExternal:   stack.IsExternal,
-		IsLegacy:     stack.IsLegacy,
-		IsRemote:     stack.IsRemote,
-		CreatedAt:    stack.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:    stack.UpdatedAt.Format(time.RFC3339),
+	var response dto.CreateStackResponseDto
+	if err := dto.MapStruct(stack, &response); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed to map response"})
+		return
 	}
-
+	response.Status = string(stack.Status)
+	response.CreatedAt = stack.CreatedAt.Format(time.RFC3339)
+	response.UpdatedAt = stack.UpdatedAt.Format(time.RFC3339)
 	if stack.DirName != nil {
 		response.DirName = *stack.DirName
 	}
 
-	c.JSON(http.StatusCreated, response)
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }
 
 func (h *StackHandler) GetStack(c *gin.Context) {
@@ -145,8 +140,9 @@ func (h *StackHandler) GetStack(c *gin.Context) {
 	var serviceCount, runningCount int
 	if services != nil {
 		serviceCount = len(services)
-		for _, service := range services {
-			if service.Status == "running" || service.Status == "Up" {
+		for _, s := range services {
+			st := strings.ToLower(strings.TrimSpace(s.Status))
+			if st == "running" || st == "up" {
 				runningCount++
 			}
 		}
@@ -155,27 +151,33 @@ func (h *StackHandler) GetStack(c *gin.Context) {
 		runningCount = stack.RunningCount
 	}
 
-	stackResponse := map[string]interface{}{
-		"id":             stack.ID,
-		"name":           stack.Name,
-		"path":           stack.Path,
-		"composeContent": composeContent,
-		"envContent":     envContent,
-		"status":         stack.Status,
-		"serviceCount":   serviceCount,
-		"runningCount":   runningCount,
-		"createdAt":      stack.CreatedAt,
-		"updatedAt":      stack.UpdatedAt,
-		"autoUpdate":     stack.AutoUpdate,
-		"isExternal":     stack.IsExternal,
-		"isLegacy":       stack.IsLegacy,
-		"isRemote":       stack.IsRemote,
-		"services":       services,
+	var resp dto.StackDetailsDto
+	if err := dto.MapStruct(stack, &resp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed to map response"})
+		return
+	}
+	resp.Status = string(stack.Status)
+	resp.CreatedAt = stack.CreatedAt.Format(time.RFC3339)
+	resp.UpdatedAt = stack.UpdatedAt.Format(time.RFC3339)
+	if stack.DirName != nil {
+		resp.DirName = *stack.DirName
+	}
+	resp.ComposeContent = composeContent
+	resp.EnvContent = envContent
+	resp.ServiceCount = serviceCount
+	resp.RunningCount = runningCount
+	if services != nil {
+		// pass-through as []any to avoid changing service shape
+		raw := make([]any, len(services))
+		for i := range services {
+			raw[i] = services[i]
+		}
+		resp.Services = raw
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"stack":   stackResponse,
+		"data":    resp,
 	})
 }
 
@@ -245,25 +247,30 @@ func (h *StackHandler) UpdateStack(c *gin.Context) {
 		services = nil
 	}
 
-	stackResponse := map[string]interface{}{
-		"id":           updatedStack.ID,
-		"name":         updatedStack.Name,
-		"path":         updatedStack.Path,
-		"status":       updatedStack.Status,
-		"serviceCount": len(services),
-		"runningCount": updatedStack.RunningCount,
-		"createdAt":    updatedStack.CreatedAt,
-		"updatedAt":    updatedStack.UpdatedAt,
-		"autoUpdate":   updatedStack.AutoUpdate,
-		"isExternal":   updatedStack.IsExternal,
-		"isLegacy":     updatedStack.IsLegacy,
-		"isRemote":     updatedStack.IsRemote,
-		"services":     services,
+	var resp dto.StackDetailsDto
+	if err := dto.MapStruct(updatedStack, &resp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed to map response"})
+		return
+	}
+	resp.Status = string(updatedStack.Status)
+	resp.CreatedAt = updatedStack.CreatedAt.Format(time.RFC3339)
+	resp.UpdatedAt = updatedStack.UpdatedAt.Format(time.RFC3339)
+	if updatedStack.DirName != nil {
+		resp.DirName = *updatedStack.DirName
+	}
+	resp.ServiceCount = len(services)
+	resp.RunningCount = updatedStack.RunningCount
+	if services != nil {
+		raw := make([]any, len(services))
+		for i := range services {
+			raw[i] = services[i]
+		}
+		resp.Services = raw
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"stack":   stackResponse,
+		"data":    resp,
 	})
 }
 
@@ -275,7 +282,7 @@ func (h *StackHandler) DeleteStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	err := h.stackService.DeleteStack(c.Request.Context(), stackID, *currentUser)
@@ -289,7 +296,7 @@ func (h *StackHandler) DeleteStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack deleted successfully",
+		"data":    gin.H{"message": "Stack deleted successfully"},
 	})
 }
 
@@ -309,7 +316,7 @@ func (h *StackHandler) StartStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.DeployStack(c.Request.Context(), stackID, *currentUser); err != nil {
@@ -322,7 +329,7 @@ func (h *StackHandler) StartStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack started successfully",
+		"data":    gin.H{"message": "Stack started successfully"},
 	})
 }
 
@@ -334,7 +341,7 @@ func (h *StackHandler) StopStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.StopStack(c.Request.Context(), stackID, *currentUser); err != nil {
@@ -347,7 +354,7 @@ func (h *StackHandler) StopStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack stopped successfully",
+		"data":    gin.H{"message": "Stack stopped successfully"},
 	})
 }
 
@@ -359,7 +366,7 @@ func (h *StackHandler) RestartStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.RestartStack(c.Request.Context(), stackID, *currentUser); err != nil {
@@ -372,7 +379,7 @@ func (h *StackHandler) RestartStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack restarted successfully",
+		"data":    gin.H{"message": "Stack restarted successfully"},
 	})
 }
 
@@ -392,7 +399,7 @@ func (h *StackHandler) RedeployStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.RedeployStack(c.Request.Context(), stackID, req.Profiles, req.EnvOverrides, *currentUser); err != nil {
@@ -405,7 +412,7 @@ func (h *StackHandler) RedeployStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack redeployed successfully",
+		"data":    gin.H{"message": "Stack redeployed successfully"},
 	})
 }
 
@@ -417,7 +424,7 @@ func (h *StackHandler) DownStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.DownStack(c.Request.Context(), stackID, *currentUser); err != nil {
@@ -430,7 +437,7 @@ func (h *StackHandler) DownStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack brought down successfully",
+		"data":    gin.H{"message": "Stack brought down successfully"},
 	})
 }
 
@@ -450,7 +457,7 @@ func (h *StackHandler) DestroyStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.DestroyStack(c.Request.Context(), stackID, req.RemoveFiles, req.RemoveVolumes, *currentUser); err != nil {
@@ -463,7 +470,7 @@ func (h *StackHandler) DestroyStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack destroyed successfully",
+		"data":    gin.H{"message": "Stack destroyed successfully"},
 	})
 }
 
@@ -472,8 +479,7 @@ func (h *StackHandler) PullStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack images pulled successfully",
-		"stackId": stackID,
+		"data":    gin.H{"message": "Stack images pulled successfully", "stackId": stackID},
 	})
 }
 
@@ -499,7 +505,7 @@ func (h *StackHandler) DeployStack(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
 		return
 	}
 	if err := h.stackService.DeployStack(c.Request.Context(), stackID, *currentUser); err != nil {
@@ -512,7 +518,7 @@ func (h *StackHandler) DeployStack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Stack deployed successfully",
+		"data":    gin.H{"message": "Stack deployed successfully"},
 	})
 }
 
@@ -553,7 +559,7 @@ func (h *StackHandler) PullImages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Images pulled successfully",
+		"data":    gin.H{"message": "Images pulled successfully"},
 	})
 }
 
@@ -587,11 +593,14 @@ func (h *StackHandler) ConvertDockerRun(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.ConvertDockerRunResponse{
-		Success:       true,
-		DockerCompose: dockerCompose,
-		EnvVars:       envVars,
-		ServiceName:   serviceName,
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": models.ConvertDockerRunResponse{
+			Success:       true,
+			DockerCompose: dockerCompose,
+			EnvVars:       envVars,
+			ServiceName:   serviceName,
+		},
 	})
 }
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/middleware"
@@ -30,7 +30,7 @@ func (h *ImageHandler) List(c *gin.Context) {
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid pagination or sort parameters: " + err.Error(),
+			"data":    dto.MessageDto{Message: "Invalid pagination or sort parameters: " + err.Error()},
 		})
 		return
 	}
@@ -46,7 +46,7 @@ func (h *ImageHandler) List(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to list images: " + err.Error(),
+			"data":    dto.MessageDto{Message: "Failed to list images: " + err.Error()},
 		})
 		return
 	}
@@ -63,13 +63,15 @@ func (h *ImageHandler) GetByID(c *gin.Context) {
 
 	img, err := h.imageService.GetImageByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "data": dto.MessageDto{Message: err.Error()}})
 		return
 	}
 
+	out := dto.NewImageDetailSummaryDto(img)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    dto.NewImageDetailSummaryDto(img),
+		"data":    out,
 	})
 }
 
@@ -79,20 +81,20 @@ func (h *ImageHandler) Remove(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "data": dto.MessageDto{Message: "User not authenticated"}})
 		return
 	}
 	if err := h.imageService.RemoveImage(c.Request.Context(), id, force, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    dto.MessageDto{Message: err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Image removed successfully",
+		"data":    dto.MessageDto{Message: "Image removed successfully"},
 	})
 }
 
@@ -103,7 +105,7 @@ func (h *ImageHandler) Pull(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid request body: " + err.Error(),
+			"data":    dto.MessageDto{Message: "Invalid request body: " + err.Error()},
 		})
 		return
 	}
@@ -115,33 +117,15 @@ func (h *ImageHandler) Pull(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "data": dto.MessageDto{Message: "User not authenticated"}})
 		return
 	}
-	err := h.imageService.PullImage(ctx, req.ImageName, c.Writer, *currentUser)
 
-	if err != nil {
-		if !c.Writer.Written() {
-			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "manifest unknown") {
-				c.JSON(http.StatusNotFound, gin.H{
-					"success": false,
-					"error":   fmt.Sprintf("Failed to pull image '%s': %s. Ensure the image name and tag are correct and the image exists in the registry.", req.ImageName, err.Error()),
-				})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"error":   fmt.Sprintf("Failed to pull image '%s': %s", req.ImageName, err.Error()),
-				})
-			}
-		} else {
-			slog.ErrorContext(ctx, "Error during image pull stream or post-stream operation",
-				slog.String("imageName", req.ImageName),
-				slog.String("error", err.Error()))
-			fmt.Fprintf(c.Writer, `{"error": {"code": 500, "message": "Stream interrupted or post-stream operation failed: %s"}}\n`, strings.ReplaceAll(err.Error(), "\"", "'"))
-			if flusher, ok := c.Writer.(http.Flusher); ok {
-				flusher.Flush()
-			}
-		}
+	if err := h.imageService.PullImage(ctx, req.ImageName, c.Writer, *currentUser); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    dto.MessageDto{Message: fmt.Sprintf("Failed to pull image '%s': %s", req.ImageName, err.Error())},
+		})
 		return
 	}
 
@@ -156,14 +140,16 @@ func (h *ImageHandler) Prune(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    dto.MessageDto{Message: err.Error()},
 		})
 		return
 	}
 
+	out := dto.NewImagePruneReportDto(*report)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    report,
+		"data":    out,
 	})
 }
 
@@ -174,14 +160,20 @@ func (h *ImageHandler) GetHistory(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    dto.MessageDto{Message: err.Error()},
 		})
+		return
+	}
+
+	out, mapErr := dto.MapSlice[image.HistoryResponseItem, dto.ImageHistoryItemDto](history)
+	if mapErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "data": dto.MessageDto{Message: mapErr.Error()}})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    history,
+		"data":    out,
 	})
 }
 
@@ -192,15 +184,13 @@ func (h *ImageHandler) GetTotalSize(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    dto.MessageDto{Message: err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			"totalSize": total,
-		},
+		"data":    dto.TotalImageSizeDto{TotalSize: total},
 	})
 }

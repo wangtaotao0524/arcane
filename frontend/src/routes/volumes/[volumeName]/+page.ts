@@ -6,16 +6,17 @@ export const load: PageLoad = async ({ params }) => {
 	const { volumeName } = params;
 
 	try {
-		const volume = await environmentAPI.getVolume(volumeName);
+		const volumeBase = await environmentAPI.getVolume(volumeName);
+		const volumeUsage = await environmentAPI.getVolumeUsage(volumeName);
 
-		if (!volume) {
-			throw error(404, 'Volume not found');
-		}
-		const inUseResponse = await environmentAPI.getVolumeUsage(volumeName);
+		const volume = {
+			...volumeBase,
+			inUse: volumeUsage,
+			containers: volumeUsage.containers
+		};
 
 		return {
-			volume: volume,
-			inUse: inUseResponse.data ? inUseResponse.data.inUse : false
+			volume
 		};
 	} catch (err: any) {
 		console.error('Failed to load volume:', err);

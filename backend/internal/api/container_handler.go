@@ -34,7 +34,7 @@ func (h *ContainerHandler) PullImage(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error":   "Container not found: " + err.Error(),
+			"data":    gin.H{"error": "Container not found: " + err.Error()},
 		})
 		return
 	}
@@ -43,29 +43,31 @@ func (h *ContainerHandler) PullImage(c *gin.Context) {
 	if imageName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Container has no image to pull",
+			"data":    gin.H{"error": "Container has no image to pull"},
 		})
 		return
 	}
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "User not authenticated"},
+		})
 		return
 	}
 	err = h.imageService.PullImage(c.Request.Context(), imageName, c.Writer, *currentUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to pull image: " + err.Error(),
+			"data":    gin.H{"error": "Failed to pull image: " + err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Image pulled successfully",
-		"image":   imageName,
+		"data":    gin.H{"message": "Image pulled successfully", "image": imageName},
 	})
 }
 
@@ -74,7 +76,7 @@ func (h *ContainerHandler) List(c *gin.Context) {
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid pagination or sort parameters: " + err.Error(),
+			"data":    gin.H{"error": "Invalid pagination or sort parameters: " + err.Error()},
 		})
 		return
 	}
@@ -88,28 +90,11 @@ func (h *ContainerHandler) List(c *gin.Context) {
 
 	includeAll := true
 
-	if req.Pagination.Page == 0 && req.Pagination.Limit == 0 {
-		containers, err := h.containerService.ListContainers(c.Request.Context(), includeAll)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   err.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    containers,
-		})
-		return
-	}
-
 	containers, pagination, err := h.containerService.ListContainersPaginated(c.Request.Context(), req, includeAll)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to list containers: " + err.Error(),
+			"data":    gin.H{"error": "Failed to list containers: " + err.Error()},
 		})
 		return
 	}
@@ -128,14 +113,16 @@ func (h *ContainerHandler) GetByID(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
 
+	details := dto.NewContainerDetailsDto(container)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    container,
+		"data":    details,
 	})
 }
 
@@ -144,20 +131,23 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "User not authenticated"},
+		})
 		return
 	}
 	if err := h.containerService.StartContainer(c.Request.Context(), id, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Container started successfully",
+		"data":    gin.H{"message": "Container started successfully"},
 	})
 }
 
@@ -166,20 +156,23 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "User not authenticated"},
+		})
 		return
 	}
 	if err := h.containerService.StopContainer(c.Request.Context(), id, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Container stopped successfully",
+		"data":    gin.H{"message": "Container stopped successfully"},
 	})
 }
 
@@ -188,20 +181,23 @@ func (h *ContainerHandler) Restart(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "User not authenticated"},
+		})
 		return
 	}
 	if err := h.containerService.RestartContainer(c.Request.Context(), id, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Container restarted successfully",
+		"data":    gin.H{"message": "Container restarted successfully"},
 	})
 }
 
@@ -213,7 +209,7 @@ func (h *ContainerHandler) GetLogs(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
@@ -231,20 +227,23 @@ func (h *ContainerHandler) Delete(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "User not authenticated"},
+		})
 		return
 	}
 	if err := h.containerService.DeleteContainer(c.Request.Context(), id, force, removeVolumes, *currentUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Container deleted successfully",
+		"data":    gin.H{"message": "Container deleted successfully"},
 	})
 }
 
@@ -253,7 +252,7 @@ func (h *ContainerHandler) IsImageInUse(c *gin.Context) {
 	if imageID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Image ID is required",
+			"data":    gin.H{"error": "Image ID is required"},
 		})
 		return
 	}
@@ -262,7 +261,7 @@ func (h *ContainerHandler) IsImageInUse(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to list containers: " + err.Error(),
+			"data":    gin.H{"error": "Failed to list containers: " + err.Error()},
 		})
 		return
 	}
@@ -277,7 +276,7 @@ func (h *ContainerHandler) IsImageInUse(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"inUse":   inUse,
+		"data":    gin.H{"inUse": inUse},
 	})
 }
 
@@ -286,7 +285,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid request format: " + err.Error(),
+			"data":    gin.H{"error": "Invalid request format: " + err.Error()},
 		})
 		return
 	}
@@ -310,7 +309,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid port format: " + err.Error(),
+				"data":    gin.H{"error": "Invalid port format: " + err.Error()},
 			})
 			return
 		}
@@ -351,7 +350,10 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 
 	currentUser, exists := middleware.GetCurrentUser(c)
 	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "User not authenticated"},
+		})
 		return
 	}
 	containerJSON, err := h.containerService.CreateContainer(
@@ -365,20 +367,22 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
 
+	out := dto.ContainerCreatedDto{
+		ID:      containerJSON.ID,
+		Name:    containerJSON.Name,
+		Image:   containerJSON.Config.Image,
+		Status:  containerJSON.State.Status,
+		Created: containerJSON.Created,
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data": gin.H{
-			"id":      containerJSON.ID,
-			"name":    containerJSON.Name,
-			"image":   containerJSON.Config.Image,
-			"status":  containerJSON.State.Status,
-			"created": containerJSON.Created,
-		},
+		"data":    out,
 	})
 }
 
@@ -388,7 +392,7 @@ func (h *ContainerHandler) GetStats(c *gin.Context) {
 	if containerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Container ID is required",
+			"data":    gin.H{"error": "Container ID is required"},
 		})
 		return
 	}
@@ -400,7 +404,7 @@ func (h *ContainerHandler) GetStats(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   err.Error(),
+			"data":    gin.H{"error": err.Error()},
 		})
 		return
 	}
@@ -416,7 +420,7 @@ func (h *ContainerHandler) GetStatsStream(c *gin.Context) {
 	if containerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Container ID is required",
+			"data":    gin.H{"error": "Container ID is required"},
 		})
 		return
 	}
@@ -464,7 +468,7 @@ func (h *ContainerHandler) GetLogsStream(c *gin.Context) {
 	if containerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Container ID is required",
+			"data":    gin.H{"error": "Container ID is required"},
 		})
 		return
 	}

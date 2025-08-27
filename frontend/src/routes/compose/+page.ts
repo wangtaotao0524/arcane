@@ -6,7 +6,7 @@ export const load: PageLoad = async () => {
 	const projectRequestOptions: SearchPaginationSortRequest = {
 		pagination: {
 			page: 1,
-			limit: 10
+			limit: 20
 		},
 		sort: {
 			column: 'name',

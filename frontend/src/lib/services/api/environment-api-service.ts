@@ -18,6 +18,8 @@ import type {
 import { browser } from '$app/environment';
 import type { ContainerSummaryDto } from '$lib/types/container.type';
 import type { ImageSummaryDto } from '$lib/types/image.type';
+import type { NetworkSummaryDto } from '$lib/types/network.type';
+import type { VolumeSummaryDto, VolumeDetailDto, VolumeUsageDto } from '$lib/types/volume.type';
 
 export class EnvironmentAPIService extends BaseAPIService {
 	private async getCurrentEnvironmentId(): Promise<string> {
@@ -162,46 +164,11 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.get(`/environments/${envId}/images/${imageId}/history`));
 	}
 
-	async getNetworks(
-		pagination?: PaginationRequest,
-		sort?: SortRequest,
-		search?: string,
-		filters?: Record<string, string>
-	): Promise<any[] | PaginatedApiResponse<any>> {
+	async getNetworks(options?: SearchPaginationSortRequest): Promise<Paginated<NetworkSummaryDto>> {
 		const envId = await this.getCurrentEnvironmentId();
 
-		if (!pagination) {
-			const response = await this.handleResponse<{ networks?: any[] }>(
-				this.api.get(`/environments/${envId}/networks`)
-			);
-			return Array.isArray(response.networks)
-				? response.networks
-				: Array.isArray(response)
-					? response
-					: [];
-		}
-
-		const params: any = {
-			'pagination[page]': pagination.page,
-			'pagination[limit]': pagination.limit
-		};
-
-		if (sort) {
-			params['sort[column]'] = sort.column;
-			params['sort[direction]'] = sort.direction;
-		}
-
-		if (search) {
-			params.search = search;
-		}
-
-		if (filters) {
-			Object.entries(filters).forEach(([key, value]) => {
-				params[key] = value;
-			});
-		}
-
-		return this.handleResponse(this.api.get(`/environments/${envId}/networks`, { params }));
+		const res = await this.api.get(`/environments/${envId}/networks`, { params: options });
+		return res.data;
 	}
 
 	async getNetwork(networkId: string): Promise<any> {
@@ -219,56 +186,25 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.delete(`/environments/${envId}/networks/${networkId}`));
 	}
 
-	async getVolumes(
-		pagination?: PaginationRequest,
-		sort?: SortRequest,
-		search?: string,
-		filters?: Record<string, string>
-	): Promise<any[] | PaginatedApiResponse<any>> {
+	async getVolumes(options?: SearchPaginationSortRequest): Promise<Paginated<VolumeSummaryDto>> {
 		const envId = await this.getCurrentEnvironmentId();
 
-		if (!pagination) {
-			const response = await this.handleResponse<{ volumes?: any[] }>(
-				this.api.get(`/environments/${envId}/volumes`)
-			);
-			return Array.isArray(response.volumes)
-				? response.volumes
-				: Array.isArray(response)
-					? response
-					: [];
-		}
-
-		const params: any = {
-			'pagination[page]': pagination.page,
-			'pagination[limit]': pagination.limit
-		};
-
-		if (sort) {
-			params['sort[column]'] = sort.column;
-			params['sort[direction]'] = sort.direction;
-		}
-
-		if (search) {
-			params.search = search;
-		}
-
-		if (filters) {
-			Object.entries(filters).forEach(([key, value]) => {
-				params[key] = value;
-			});
-		}
-
-		return this.handleResponse(this.api.get(`/environments/${envId}/volumes`, { params }));
+		const res = await this.api.get(`/environments/${envId}/volumes`, { params: options });
+		return res.data;
 	}
 
-	async getVolume(volumeName: string): Promise<any> {
+	async getVolume(volumeName: string): Promise<VolumeDetailDto> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.get(`/environments/${envId}/volumes/${volumeName}`));
+		return this.handleResponse(
+			this.api.get(`/environments/${envId}/volumes/${volumeName}`)
+		) as Promise<VolumeDetailDto>;
 	}
 
-	async getVolumeUsage(volumeName: string): Promise<any> {
+	async getVolumeUsage(volumeName: string): Promise<VolumeUsageDto> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.get(`/environments/${envId}/volumes/${volumeName}/usage`));
+		return this.handleResponse(
+			this.api.get(`/environments/${envId}/volumes/${volumeName}/usage`)
+		) as Promise<VolumeUsageDto>;
 	}
 
 	async createVolume(options: VolumeCreateOptions): Promise<any> {

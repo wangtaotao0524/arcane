@@ -76,7 +76,7 @@
 							<span class="text-sm">{item.image}</span>
 						</Table.Cell>
 						<Table.Cell class="py-3 md:py-3.5">
-							{@const stateVariant = statusVariantMap[item.state.toLowerCase()] || 'grey'}
+							{@const stateVariant = statusVariantMap[item.state.toLowerCase()] || 'gray'}
 							<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.state)} />
 						</Table.Cell>
 						<Table.Cell class="py-3 md:py-3.5">{item.status}</Table.Cell>

@@ -42,7 +42,7 @@
 		isLoading.refreshing = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.getContainers(requestOptions)),
-			message: 'Failed to Refresh Containers for Updates',
+			message: 'Failed to Refresh Containers',
 			setLoadingState: (value) => (isLoading.refreshing = value),
 			async onSuccess(newContainers) {
 				containers = newContainers;

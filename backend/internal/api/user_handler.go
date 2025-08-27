@@ -38,7 +38,6 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		req.Pagination.Limit = 20
 	}
 
-	// For non-paginated requests (when both page and limit are default/zero)
 	if req.Pagination.Page == 1 && req.Pagination.Limit == 20 && req.Search == "" && req.Sort.Column == "" {
 		users, err := h.userService.ListUsers(c.Request.Context())
 		if err != nil {
@@ -49,16 +48,13 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 			return
 		}
 
-		var userResponses []dto.UserResponseDto
-		for _, user := range users {
-			userResponses = append(userResponses, dto.UserResponseDto{
-				ID:            user.ID,
-				Username:      user.Username,
-				DisplayName:   user.DisplayName,
-				Email:         user.Email,
-				Roles:         user.Roles,
-				OidcSubjectId: user.OidcSubjectId,
+		userResponses, err := dto.MapSlice[models.User, dto.UserResponseDto](users)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"data":    gin.H{"error": "Failed to map users"},
 			})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -127,16 +123,18 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	out, err := dto.MapOne[*models.User, dto.UserResponseDto](createdUser)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "Failed to map user"},
+		})
+		return
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data": dto.UserResponseDto{
-			ID:            createdUser.ID,
-			Username:      createdUser.Username,
-			DisplayName:   createdUser.DisplayName,
-			Email:         createdUser.Email,
-			Roles:         createdUser.Roles,
-			OidcSubjectId: createdUser.OidcSubjectId,
-		},
+		"data":    out,
 	})
 }
 
@@ -152,16 +150,18 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
+	out, err := dto.MapOne[*models.User, dto.UserResponseDto](user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "Failed to map user"},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": dto.UserResponseDto{
-			ID:            user.ID,
-			Username:      user.Username,
-			DisplayName:   user.DisplayName,
-			Email:         user.Email,
-			Roles:         user.Roles,
-			OidcSubjectId: user.OidcSubjectId,
-		},
+		"data":    out,
 	})
 }
 
@@ -208,16 +208,18 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	out, err := dto.MapOne[*models.User, dto.UserResponseDto](updatedUser)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    gin.H{"error": "Failed to map user"},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": dto.UserResponseDto{
-			ID:            updatedUser.ID,
-			Username:      updatedUser.Username,
-			DisplayName:   updatedUser.DisplayName,
-			Email:         updatedUser.Email,
-			Roles:         updatedUser.Roles,
-			OidcSubjectId: updatedUser.OidcSubjectId,
-		},
+		"data":    out,
 	})
 }
 

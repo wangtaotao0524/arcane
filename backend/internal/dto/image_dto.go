@@ -183,3 +183,53 @@ func NewImageDetailSummaryDto(src *image.InspectResponse) ImageDetailSummaryDto 
 
 	return out
 }
+
+// Used for GET /images/:imageId
+type ImageInspectDto struct {
+	ID           string   `json:"id"`
+	RepoTags     []string `json:"repoTags"`
+	RepoDigests  []string `json:"repoDigests"`
+	Size         int64    `json:"size"`
+	Created      string   `json:"created"`
+	OS           string   `json:"os"`
+	Architecture string   `json:"architecture"`
+	Author       string   `json:"author"`
+	Comment      string   `json:"comment"`
+}
+
+type ImageHistoryItemDto struct {
+	ID        string   `json:"id"`
+	Created   int64    `json:"created"`
+	CreatedBy string   `json:"createdBy"`
+	Tags      []string `json:"tags"`
+	Size      int64    `json:"size"`
+	Comment   string   `json:"comment"`
+}
+
+type ImagePruneReportDto struct {
+	ImagesDeleted  []string `json:"imagesDeleted"`
+	SpaceReclaimed int64    `json:"spaceReclaimed"`
+}
+
+func NewImagePruneReportDto(src image.PruneReport) ImagePruneReportDto {
+	out := ImagePruneReportDto{
+		ImagesDeleted:  make([]string, 0, len(src.ImagesDeleted)),
+		SpaceReclaimed: int64(src.SpaceReclaimed),
+	}
+	for _, d := range src.ImagesDeleted {
+		if d.Deleted != "" {
+			out.ImagesDeleted = append(out.ImagesDeleted, d.Deleted)
+		} else if d.Untagged != "" {
+			out.ImagesDeleted = append(out.ImagesDeleted, d.Untagged)
+		}
+	}
+	return out
+}
+
+type MessageDto struct {
+	Message string `json:"message"`
+}
+
+type TotalImageSizeDto struct {
+	TotalSize int64 `json:"totalSize"`
+}

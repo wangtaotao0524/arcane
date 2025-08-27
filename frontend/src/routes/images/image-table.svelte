@@ -18,6 +18,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import FilterDropdown from '$lib/components/dropdowns/filter-dropdown.svelte';
 	import type { ImageSummaryDto } from '$lib/types/image.type';
+	import { formatFriendlyDate } from '$lib/utils/date.utils';
 
 	let {
 		images = $bindable(),
@@ -300,7 +301,9 @@
 							>
 						</Table.Cell>
 						<Table.Cell class="py-3 md:py-3.5">{formatBytes(item.size)}</Table.Cell>
-						<Table.Cell>{new Date((item.created || 0) * 1000).toLocaleDateString()}</Table.Cell>
+						<Table.Cell
+							>{formatFriendlyDate(new Date((item.created || 0) * 1000).toISOString())}</Table.Cell
+						>
 						<Table.Cell>
 							{#if item.inUse}
 								<StatusBadge text="In Use" variant="green" />

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { NetworkSummary } from '$lib/types/network.type';
+	import type { NetworkSummaryDto } from '$lib/types/network.type';
 	import ArcaneTable from '$lib/components/arcane-table.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ScanSearch, Trash2, Ellipsis, Network } from '@lucide/svelte';
@@ -16,57 +16,23 @@
 	import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
 	import * as Table from '$lib/components/ui/table';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
-
-	interface NetworkWithId extends NetworkSummary {
-		id: string;
-	}
+	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 
 	let {
-		networks,
+		networks = $bindable(),
 		selectedIds = $bindable(),
 		requestOptions = $bindable(),
-		onRefresh,
-		onNetworksChanged,
 		onCreateNetwork
 	}: {
-		networks: Paginated<NetworkSummary>;
+		networks: Paginated<NetworkSummaryDto>;
 		selectedIds: string[];
 		requestOptions: SearchPaginationSortRequest;
-		onRefresh: (options: SearchPaginationSortRequest) => Promise<Paginated<NetworkSummary>>;
-		onNetworksChanged: () => Promise<void>;
 		onCreateNetwork: () => void;
 	} = $props();
 
 	let isLoading = $state({
 		remove: false
 	});
-
-	const transformedNetworks = $derived.by(() => {
-		const transformed: NetworkWithId[] = networks.data.map((network) => ({
-			...network,
-			id: network.ID
-		}));
-
-		return {
-			data: transformed,
-			pagination: networks.pagination
-		};
-	});
-
-	async function handleRefresh(
-		options: SearchPaginationSortRequest
-	): Promise<Paginated<NetworkWithId>> {
-		const result = await onRefresh(options);
-		const transformed: NetworkWithId[] = result.data.map((network) => ({
-			...network,
-			id: network.ID
-		}));
-
-		return {
-			data: transformed,
-			pagination: result.pagination
-		};
-	}
 
 	async function handleDeleteNetwork(id: string, name: string) {
 		if (DEFAULT_NETWORK_NAMES.has(name)) {
@@ -86,7 +52,7 @@
 						setLoadingState: (value) => (isLoading.remove = value),
 						onSuccess: async () => {
 							toast.success(`Network "${name}" Removed Successfully.`);
-							await onNetworksChanged();
+							networks = await environmentAPI.getNetworks(requestOptions);
 						}
 					});
 				}
@@ -95,14 +61,14 @@
 	}
 
 	async function handleDeleteSelectedNetworks() {
-		const selectedNetworkList = networks.data.filter((network) => selectedIds.includes(network.ID));
+		const selectedNetworkList = networks.data.filter((network) => selectedIds.includes(network.id));
 		const defaultNetworks = selectedNetworkList.filter((network) =>
-			DEFAULT_NETWORK_NAMES.has(network.Name)
+			DEFAULT_NETWORK_NAMES.has(network.name)
 		);
 
 		if (defaultNetworks.length > 0) {
 			toast.error(
-				`Cannot delete default networks: ${defaultNetworks.map((n) => n.Name).join(', ')}`
+				`Cannot delete default networks: ${defaultNetworks.map((n) => n.name).join(', ')}`
 			);
 			return;
 		}
@@ -120,23 +86,23 @@
 					let failureCount = 0;
 
 					for (const networkId of selectedIds) {
-						const network = networks.data.find((n) => n.ID === networkId);
+						const network = networks.data.find((n) => n.id === networkId);
 						if (!network) continue;
 
 						const result = await tryCatch(environmentAPI.deleteNetwork(networkId));
 						if (result.error) {
 							failureCount++;
-							toast.error(`Failed to delete network "${network.Name}": ${result.error.message}`);
+							toast.error(`Failed to delete network "${network.name}": ${result.error.message}`);
 						} else {
 							successCount++;
-							toast.success(`Network "${network.Name}" deleted successfully.`);
+							toast.success(`Network "${network.name}" deleted successfully.`);
 						}
 					}
 
 					isLoading.remove = false;
 					if (successCount > 0) {
 						setTimeout(async () => {
-							await onNetworksChanged();
+							networks = await environmentAPI.getNetworks(requestOptions);
 						}, 500);
 					}
 					selectedIds = [];
@@ -148,9 +114,9 @@
 	const isAnyLoading = $derived(Object.values(isLoading).some((loading) => loading));
 	const hasNetworks = $derived(networks?.data?.length > 0);
 
-	const getConnectedContainers = (network: NetworkWithId) => {
-		return network.Containers ? Object.keys(network.Containers).length : 0;
-	};
+	// const getConnectedContainers = (network: NetworkSummaryDto) => {
+	// 	return network. ? Object.keys(network.Containers).length : 0;
+	// };
 </script>
 
 {#if hasNetworks}
@@ -176,15 +142,15 @@
 		</Card.Header>
 		<Card.Content>
 			<ArcaneTable
-				items={transformedNetworks}
+				items={networks}
 				bind:requestOptions
 				bind:selectedIds
-				onRefresh={handleRefresh}
+				onRefresh={async (options) => (networks = await environmentAPI.getNetworks(options))}
 				columns={[
-					{ label: 'Name', sortColumn: 'Name' },
-					{ label: 'Network ID', sortColumn: 'ID' },
-					{ label: 'Driver', sortColumn: 'Driver' },
-					{ label: 'Scope', sortColumn: 'Scope' },
+					{ label: 'Name', sortColumn: 'name' },
+					{ label: 'Network ID' },
+					{ label: 'Driver', sortColumn: 'driver' },
+					{ label: 'Scope', sortColumn: 'scope' },
 					{ label: ' ' }
 				]}
 				filterPlaceholder="Search networks..."
@@ -192,21 +158,28 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell>
-						<a class="font-medium hover:underline" href="/networks/{item.ID}/">{item.Name}</a>
+						<a class="font-medium hover:underline" href="/networks/{item.id}/">{item.name}</a>
 					</Table.Cell>
-					<Table.Cell class="truncate font-mono text-sm">{item.ID}</Table.Cell>
+					<Table.Cell class="truncate font-mono text-sm">{item.id}</Table.Cell>
 					<Table.Cell>
 						<StatusBadge
-							variant={item.Driver === 'bridge'
+							variant={item.driver === 'bridge'
 								? 'blue'
-								: item.Driver === 'overlay'
+								: item.driver === 'overlay'
 									? 'purple'
-									: 'gray'}
-							text={item.Driver}
+									: item.driver === 'ipvlan'
+										? 'red'
+										: item.driver === 'macvlan'
+											? 'orange'
+											: 'gray'}
+							text={capitalizeFirstLetter(item.driver)}
 						/>
 					</Table.Cell>
 					<Table.Cell>
-						<StatusBadge variant={item.Scope === 'local' ? 'green' : 'amber'} text={item.Scope} />
+						<StatusBadge
+							variant={item.scope === 'local' ? 'green' : 'amber'}
+							text={capitalizeFirstLetter(item.scope)}
+						/>
 					</Table.Cell>
 					<Table.Cell>
 						<DropdownMenu.Root>
@@ -221,17 +194,17 @@
 							<DropdownMenu.Content align="end">
 								<DropdownMenu.Group>
 									<DropdownMenu.Item
-										onclick={() => goto(`/networks/${item.ID}`)}
+										onclick={() => goto(`/networks/${item.id}`)}
 										disabled={isAnyLoading}
 									>
 										<ScanSearch class="size-4" />
 										Inspect
 									</DropdownMenu.Item>
-									{#if !DEFAULT_NETWORK_NAMES.has(item.Name)}
+									{#if !DEFAULT_NETWORK_NAMES.has(item.name)}
 										<DropdownMenu.Item
 											variant="destructive"
-											onclick={() => handleDeleteNetwork(item.ID, item.Name)}
-											disabled={DEFAULT_NETWORK_NAMES.has(item.Name) || isAnyLoading}
+											onclick={() => handleDeleteNetwork(item.id, item.name)}
+											disabled={DEFAULT_NETWORK_NAMES.has(item.name) || isAnyLoading}
 										>
 											<Trash2 class="size-4" />
 											Remove
