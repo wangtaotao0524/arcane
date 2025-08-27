@@ -206,13 +206,13 @@ type ImageHistoryItemDto struct {
 
 type ImagePruneReportDto struct {
 	ImagesDeleted  []string `json:"imagesDeleted"`
-	SpaceReclaimed int64    `json:"spaceReclaimed"`
+	SpaceReclaimed uint64   `json:"spaceReclaimed"`
 }
 
 func NewImagePruneReportDto(src image.PruneReport) ImagePruneReportDto {
 	out := ImagePruneReportDto{
 		ImagesDeleted:  make([]string, 0, len(src.ImagesDeleted)),
-		SpaceReclaimed: int64(src.SpaceReclaimed),
+		SpaceReclaimed: src.SpaceReclaimed,
 	}
 	for _, d := range src.ImagesDeleted {
 		if d.Deleted != "" {
