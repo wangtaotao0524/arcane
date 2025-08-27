@@ -91,10 +91,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Create Docker volumes for tests
+      - name: Create Docker Test Resources
         run: |
           docker volume create my-app-data || true
           docker volume create cache || true
+          docker network create my-test-network || true
 
       - name: Download Arcane Docker image artifact
         uses: actions/download-artifact@v4
