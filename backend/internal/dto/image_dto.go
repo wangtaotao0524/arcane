@@ -151,7 +151,6 @@ func NewImageDetailSummaryDto(src *image.InspectResponse) ImageDetailSummaryDto 
 			}
 		}
 		out.Config.WorkingDir = src.Config.WorkingDir
-		out.Config.ArgsEscaped = src.Config.ArgsEscaped
 	}
 
 	out.Architecture = src.Architecture
@@ -184,7 +183,6 @@ func NewImageDetailSummaryDto(src *image.InspectResponse) ImageDetailSummaryDto 
 	return out
 }
 
-// Used for GET /images/:imageId
 type ImageInspectDto struct {
 	ID           string   `json:"id"`
 	RepoTags     []string `json:"repoTags"`

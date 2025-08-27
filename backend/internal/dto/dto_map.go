@@ -1,5 +1,3 @@
-//Originally from pocket-id
-
 package dto
 
 import (
@@ -8,7 +6,6 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-// MapSlice maps []S -> []D and returns the new slice
 func MapSlice[S any, D any](source []S) ([]D, error) {
 	dest := make([]D, len(source))
 	for i := range source {
@@ -19,7 +16,6 @@ func MapSlice[S any, D any](source []S) ([]D, error) {
 	return dest, nil
 }
 
-// MapOne maps S -> D and returns the new value
 func MapOne[S any, D any](source S) (D, error) {
 	var dest D
 	if err := MapStruct(source, &dest); err != nil {
