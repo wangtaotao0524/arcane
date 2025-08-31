@@ -32,6 +32,7 @@ linters:
     - noctx
     - protogetter
     - reassign
+    - recvcheck
     - rowserrcheck
     - spancheck
     - sqlclosecheck

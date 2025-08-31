@@ -22,19 +22,19 @@ type SettingVariable struct {
 }
 
 // IsTrue returns true if the value is a truthy string
-func (s *SettingVariable) IsTrue() bool {
+func (s SettingVariable) IsTrue() bool {
 	ok, _ := strconv.ParseBool(s.Value)
 	return ok
 }
 
 // AsInt returns the value as an integer
-func (s *SettingVariable) AsInt() int {
+func (s SettingVariable) AsInt() int {
 	val, _ := strconv.Atoi(s.Value)
 	return val
 }
 
 // AsDurationSeconds returns the value as a time.Duration in seconds
-func (s *SettingVariable) AsDurationSeconds() time.Duration {
+func (s SettingVariable) AsDurationSeconds() time.Duration {
 	val, err := strconv.Atoi(s.Value)
 	if err != nil {
 		return 0
