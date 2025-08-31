@@ -27,7 +27,6 @@ type OidcTokenResponse struct {
 	IDToken      string `json:"id_token,omitempty"`
 }
 
-// Used by GET /auth/oidc/status
 type OidcStatusInfo struct {
 	EnvForced             bool `json:"envForced"`
 	EnvConfigured         bool `json:"envConfigured"`

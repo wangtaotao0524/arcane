@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// slogGormLogger implements gorm/logger.Interface using Go's slog for JSON logs.
 type slogGormLogger struct {
 	level                     logger.LogLevel
 	slowThreshold             time.Duration

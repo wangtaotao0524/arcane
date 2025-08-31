@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/lmittmann/tint"
 
 	"github.com/ofkm/arcane-backend/internal/api"
 	"github.com/ofkm/arcane-backend/internal/config"
@@ -34,18 +35,30 @@ type App struct {
 func InitializeApp() (*App, error) {
 	ctx := context.Background()
 
+	loadErr := godotenv.Load()
+
+	cfg := config.Load()
+
 	{
 		level := new(slog.LevelVar)
 		level.Set(slog.LevelInfo)
-		h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+
+		var h slog.Handler
+		if cfg.LogJson {
+			h = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+		} else {
+			h = tint.NewHandler(os.Stdout, &tint.Options{
+				Level:      level,
+				TimeFormat: "Jan 02 15:04:05.000",
+			})
+		}
 		slog.SetDefault(slog.New(h))
 	}
 
-	if err := godotenv.Load(); err != nil {
+	if loadErr != nil {
 		slog.InfoContext(ctx, "No .env file found, using environment variables")
 	}
 
-	cfg := config.Load()
 	appCtx, cancelApp := context.WithCancel(ctx)
 
 	utils.InitEncryption(cfg)

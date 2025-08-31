@@ -24,10 +24,11 @@ type Config struct {
 	OidcScopes       string
 
 	EncryptionKey string
+	LogJson       bool
 }
 
 func Load() *Config {
-	oidcEnabled, _ := strconv.ParseBool(os.Getenv("OIDC_ENABLED"))
+	oidcEnabled := getBoolEnvOrDefault("OIDC_ENABLED", false)
 
 	return &Config{
 		AppUrl:        getEnvOrDefault("APP_URL", "http://localhost:3552"),
@@ -42,6 +43,8 @@ func Load() *Config {
 		OidcClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OidcIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		OidcScopes:       getEnvOrDefault("OIDC_SCOPES", "openid email profile"),
+
+		LogJson: getBoolEnvOrDefault("LOG_JSON", false),
 	}
 }
 
@@ -53,6 +56,15 @@ func (c *Config) GetOidcRedirectURI() string {
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getBoolEnvOrDefault(key string, defaultValue bool) bool {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
 	}
 	return defaultValue
 }
