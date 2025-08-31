@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Box } from '@lucide/svelte';
+	import BoxIcon from '@lucide/svelte/icons/box';
 	import CreateContainerSheet from '$lib/components/sheets/create-container-sheet.svelte';
 	import { toast } from 'svelte-sonner';
 	import { tryCatch } from '$lib/utils/try-catch';
@@ -7,7 +7,7 @@
 	import StatCard from '$lib/components/stat-card.svelte';
 	import { autoUpdateAPI, environmentAPI } from '$lib/services/api';
 	import ContainerTable from './container-table.svelte';
-	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 
 	let { data } = $props();
 
@@ -60,15 +60,22 @@
 		<div class="flex items-center gap-2">
 			<ArcaneButton
 				action="create"
-				label="Create Container"
-				onClick={() => (isCreateDialogOpen = true)}
+				customLabel="Create Container"
+				onclick={() => (isCreateDialogOpen = true)}
 				loading={isLoading.create}
 				disabled={isLoading.create}
 			/>
 			<ArcaneButton
+				action="inspect"
+				customLabel="Update Containers"
+				onclick={handleCheckForUpdates}
+				loading={isLoading.checking}
+				disabled={isLoading.checking}
+			/>
+			<ArcaneButton
 				action="restart"
-				onClick={refreshContainers}
-				label="Refresh"
+				onclick={refreshContainers}
+				customLabel="Refresh"
 				loading={isLoading.refreshing}
 				disabled={isLoading.refreshing}
 			/>
@@ -79,13 +86,13 @@
 		<StatCard
 			title="Total"
 			value={containers.pagination.totalItems}
-			icon={Box}
+			icon={BoxIcon}
 			class="border-l-primary border-l-4 transition-shadow hover:shadow-lg"
 		/>
 		<StatCard
 			title="Running"
 			value={runningContainers}
-			icon={Box}
+			icon={BoxIcon}
 			iconColor="text-green-500"
 			bgColor="bg-green-500/10"
 			class="border-l-4 border-l-green-500"
@@ -93,18 +100,13 @@
 		<StatCard
 			title="Stopped"
 			value={stoppedContainers}
-			icon={Box}
+			icon={BoxIcon}
 			iconColor="text-amber-500"
 			class="border-l-4 border-l-amber-500"
 		/>
 	</div>
 
-	<ContainerTable
-		bind:containers
-		bind:selectedIds
-		bind:requestOptions
-		onCheckForUpdates={handleCheckForUpdates}
-	/>
+	<ContainerTable bind:containers bind:selectedIds bind:requestOptions />
 
 	<CreateContainerSheet
 		bind:open={isCreateDialogOpen}

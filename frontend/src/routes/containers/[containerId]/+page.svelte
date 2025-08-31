@@ -1,30 +1,27 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import {
-		ArrowLeft,
-		AlertCircle,
-		RefreshCw,
-		HardDrive,
-		Clock,
-		Network,
-		Terminal,
-		Settings,
-		Activity,
-		FileText,
-		Database
-	} from '@lucide/svelte';
+	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+	import CircleAlertIcon from '@lucide/svelte/icons/alert-circle';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import ClockIcon from '@lucide/svelte/icons/clock';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import TerminalIcon from '@lucide/svelte/icons/terminal';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import ActivityIcon from '@lucide/svelte/icons/activity';
+	import FileTextIcon from '@lucide/svelte/icons/file-text';
+	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import { invalidateAll } from '$app/navigation';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import ActionButtons from '$lib/components/action-buttons.svelte';
-	import { formatDate } from '$lib/utils/string.utils';
-	import { formatBytes } from '$lib/utils/bytes.util';
+	import { format } from 'date-fns';
+	import bytes from 'bytes';
 	import type Docker from 'dockerode';
 	import type { ContainerInspectInfo } from 'dockerode';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { onDestroy } from 'svelte';
-	import LogViewer from '$lib/components/LogViewer.svelte';
+	import LogViewer from '$lib/components/log-viewer.svelte';
 	import Meter from '$lib/components/ui/meter/meter.svelte';
 	import { browser } from '$app/environment';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
@@ -43,9 +40,8 @@
 		return config as NetworkConfig;
 	}
 
-	let { data }: { data: PageData } = $props();
+	let { data } = $props();
 	let { container, stats } = $derived(data);
-	console.log(data);
 
 	let starting = $state(false);
 	let stopping = $state(false);
@@ -127,13 +123,9 @@
 			return 0;
 		}
 
-		const cpuDelta =
-			statsData.cpu_stats.cpu_usage.total_usage -
-			(statsData.precpu_stats.cpu_usage?.total_usage || 0);
-		const systemDelta =
-			statsData.cpu_stats.system_cpu_usage - (statsData.precpu_stats.system_cpu_usage || 0);
-		const numberCPUs =
-			statsData.cpu_stats.online_cpus || statsData.cpu_stats.cpu_usage?.percpu_usage?.length || 1;
+		const cpuDelta = statsData.cpu_stats.cpu_usage.total_usage - (statsData.precpu_stats.cpu_usage?.total_usage || 0);
+		const systemDelta = statsData.cpu_stats.system_cpu_usage - (statsData.precpu_stats.system_cpu_usage || 0);
+		const numberCPUs = statsData.cpu_stats.online_cpus || statsData.cpu_stats.cpu_usage?.percpu_usage?.length || 1;
 
 		if (systemDelta > 0 && cpuDelta > 0) {
 			const cpuPercent = (cpuDelta / systemDelta) * numberCPUs * 100.0;
@@ -145,15 +137,11 @@
 	const cpuUsagePercent = $derived(calculateCPUPercent(stats));
 	const memoryUsageBytes = $derived(stats?.memory_stats?.usage || 0);
 	const memoryLimitBytes = $derived(stats?.memory_stats?.limit || 0);
-	const memoryUsageFormatted = $derived(formatBytes(memoryUsageBytes));
-	const memoryLimitFormatted = $derived(formatBytes(memoryLimitBytes));
-	const memoryUsagePercent = $derived(
-		memoryLimitBytes > 0 ? (memoryUsageBytes / memoryLimitBytes) * 100 : 0
-	);
+	const memoryUsageFormatted = $derived(bytes.format(memoryUsageBytes));
+	const memoryLimitFormatted = $derived(bytes.format(memoryLimitBytes));
+	const memoryUsagePercent = $derived(memoryLimitBytes > 0 ? (memoryUsageBytes / memoryLimitBytes) * 100 : 0);
 
-	const getPrimaryIpAddress = (
-		networkSettings: ContainerInspectInfo['NetworkSettings'] | undefined | null
-	): string => {
+	const getPrimaryIpAddress = (networkSettings: ContainerInspectInfo['NetworkSettings'] | undefined | null): string => {
 		if (!networkSettings) return 'N/A';
 
 		if (networkSettings.IPAddress) {
@@ -207,31 +195,24 @@
 
 	// Data presence flags
 	const hasEnvVars = $derived(!!(container?.Config?.Env && container.Config.Env.length > 0));
-	const hasPorts = $derived(
-		!!(container?.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0)
-	);
-	const hasLabels = $derived(
-		!!(container?.Config?.Labels && Object.keys(container.Config.Labels).length > 0)
-	);
+	const hasPorts = $derived(!!(container?.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0));
+	const hasLabels = $derived(!!(container?.Config?.Labels && Object.keys(container.Config.Labels).length > 0));
 	const showConfiguration = $derived(hasEnvVars || hasPorts || hasLabels);
 
 	const hasNetworks = $derived(
-		!!(
-			container?.NetworkSettings?.Networks &&
-			Object.keys(container.NetworkSettings.Networks).length > 0
-		)
+		!!(container?.NetworkSettings?.Networks && Object.keys(container.NetworkSettings.Networks).length > 0)
 	);
 	const hasMounts = $derived(!!(container?.Mounts && container.Mounts.length > 0));
 	const showStats = $derived(!!(container?.State?.Running && stats));
 
 	// Navigation sections for single-page layout
 	const navigationSections = [
-		{ id: 'overview', label: 'Overview', icon: HardDrive },
-		{ id: 'stats', label: 'Metrics', icon: Activity },
-		{ id: 'logs', label: 'Logs', icon: FileText },
-		{ id: 'config', label: 'Configuration', icon: Settings },
-		{ id: 'network', label: 'Networks', icon: Network },
-		{ id: 'storage', label: 'Storage', icon: Database }
+		{ id: 'overview', label: 'Overview', icon: HardDriveIcon },
+		{ id: 'stats', label: 'Metrics', icon: ActivityIcon },
+		{ id: 'logs', label: 'Logs', icon: FileTextIcon },
+		{ id: 'config', label: 'Configuration', icon: SettingsIcon },
+		{ id: 'network', label: 'Networks', icon: NetworkIcon },
+		{ id: 'storage', label: 'Storage', icon: DatabaseIcon }
 	] as const;
 
 	const visibleNavigationSections = $derived(
@@ -240,11 +221,10 @@
 			if (s.id === 'config') return showConfiguration;
 			if (s.id === 'network') return hasNetworks;
 			if (s.id === 'storage') return hasMounts;
-			return true; // overview, logs
+			return true;
 		})
 	);
 
-	// Ensure activeSection is always visible
 	$effect(() => {
 		if (!visibleNavigationSections.some((s) => s.id === activeSection)) {
 			activeSection = visibleNavigationSections[0]?.id ?? 'overview';
@@ -274,18 +254,15 @@
 
 <div class="bg-background min-h-screen">
 	{#if container}
-		<!-- Fixed Header (matches compose) -->
 		<div
 			class="bg-background/95 sticky top-0 z-20 border-b backdrop-blur transition-all duration-300"
-			style="opacity: {showFloatingHeader ? 0 : 1}; pointer-events: {showFloatingHeader
-				? 'none'
-				: 'auto'};"
+			style="opacity: {showFloatingHeader ? 0 : 1}; pointer-events: {showFloatingHeader ? 'none' : 'auto'};"
 		>
 			<div class="max-w-full px-4 py-3">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
 						<Button variant="ghost" size="sm" href="/containers">
-							<ArrowLeft class="mr-2 size-4" />
+							<ArrowLeftIcon class="mr-2 size-4" />
 							Back
 						</Button>
 						<div class="bg-border h-4 w-px"></div>
@@ -295,11 +272,7 @@
 							</h1>
 							{#if container?.State}
 								<StatusBadge
-									variant={container.State.Status === 'running'
-										? 'green'
-										: container.State.Status === 'exited'
-											? 'red'
-											: 'amber'}
+									variant={container.State.Status === 'running' ? 'green' : container.State.Status === 'exited' ? 'red' : 'amber'}
 									text={container.State.Status}
 								/>
 							{/if}
@@ -307,10 +280,6 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<Button variant="ghost" size="sm" onclick={refreshData} disabled={isRefreshing}>
-							<RefreshCw class={`mr-2 size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-							Refresh
-						</Button>
 						{#if container}
 							<ActionButtons
 								id={container.Id}
@@ -325,13 +294,8 @@
 		</div>
 
 		{#if showFloatingHeader}
-			<!-- Floating mini header (like compose) -->
-			<div
-				class="fixed left-1/2 top-4 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out"
-			>
-				<div
-					class="bg-background/90 rounded-lg border border-border/50 px-4 py-3 shadow-xl backdrop-blur-xl"
-				>
+			<div class="fixed left-1/2 top-4 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
+				<div class="bg-background/90 border-border/50 rounded-lg border px-4 py-3 shadow-xl backdrop-blur-xl">
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
 							<h2 class="max-w-[150px] truncate text-sm font-medium" title={containerDisplayName}>
@@ -339,11 +303,7 @@
 							</h2>
 							{#if container?.State}
 								<StatusBadge
-									variant={container.State.Status === 'running'
-										? 'green'
-										: container.State.Status === 'exited'
-											? 'red'
-											: 'amber'}
+									variant={container.State.Status === 'running' ? 'green' : container.State.Status === 'exited' ? 'red' : 'amber'}
 									text={container.State.Status}
 									class="text-xs"
 								/>
@@ -362,7 +322,6 @@
 		{/if}
 
 		<div class="flex min-h-0 overflow-hidden">
-			<!-- Left rail (align to compose proportions) -->
 			<div class="bg-background/50 w-16 shrink-0 border-r">
 				<div class="sticky top-16 p-2">
 					<nav class="space-y-1">
@@ -376,85 +335,75 @@
 									: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}"
 								title={section.label}
 							>
-								<IconComponent class="size-4" />
+								- <IconComponent class="size-4" />
+								+ <IconComponent class="size-4" />
 							</button>
 						{/each}
 					</nav>
 				</div>
 			</div>
 
-			<!-- Main content -->
 			<div class="min-w-0 flex-1 overflow-hidden">
 				<div class="max-w-none p-6">
 					<div class="space-y-8">
-						<!-- Overview -->
 						<section id="overview" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<HardDrive class="size-5" />
+								<HardDriveIcon class="size-5" />
 								Overview
 							</h2>
 
-							<!-- Single card that spans full width on mobile, stays in grid on lg+ -->
 							<div class="mb-6">
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Header class="pb-4">
 										<Card.Title>Container Details</Card.Title>
-										<Card.Description class="text-sm text-muted-foreground">
+										<Card.Description class="text-muted-foreground text-sm">
 											Identity, runtime, and system metadata
 										</Card.Description>
 									</Card.Header>
 
 									<Card.Content class="space-y-6">
-										<!-- Identity -->
 										<div class="space-y-4">
-											<!-- Image -->
 											<div class="flex items-center gap-3">
 												<div class="rounded bg-blue-50 p-2 dark:bg-blue-950/20">
-													<HardDrive class="size-4 text-blue-600" />
+													<HardDriveIcon class="size-4 text-blue-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-sm text-muted-foreground">Image</div>
+													<div class="text-muted-foreground text-sm">Image</div>
 													<div class="truncate font-medium" title={container.Config?.Image}>
 														{container.Config?.Image || 'N/A'}
 													</div>
 												</div>
 											</div>
 
-											<!-- Created -->
 											<div class="flex items-center gap-3">
 												<div class="rounded bg-green-50 p-2 dark:bg-green-950/20">
-													<Clock class="size-4 text-green-600" />
+													<ClockIcon class="size-4 text-green-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-sm text-muted-foreground">Created</div>
-													<div class="font-medium" title={formatDate(container.Created)}>
-														{formatDate(container.Created)}
+													<div class="text-muted-foreground text-sm">Created</div>
+													<div class="font-medium" title={format(new Date(container.Created), 'PP p')}>
+														{format(new Date(container.Created), 'PP p')}
 													</div>
 												</div>
 											</div>
 
-											<!-- IP -->
 											<div class="flex items-center gap-3">
 												<div class="rounded bg-purple-50 p-2 dark:bg-purple-950/20">
-													<Network class="size-4 text-purple-600" />
+													<NetworkIcon class="size-4 text-purple-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-sm text-muted-foreground">IP Address</div>
+													<div class="text-muted-foreground text-sm">IP Address</div>
 													<div class="font-medium">{primaryIpAddress}</div>
 												</div>
 											</div>
 
-											<!-- Command -->
 											<div class="flex items-center gap-3">
 												<div class="rounded bg-amber-50 p-2 dark:bg-amber-950/20">
-													<Terminal class="size-4 text-amber-600" />
+													<TerminalIcon class="size-4 text-amber-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-sm text-muted-foreground">Command</div>
-													<div
-														class="truncate font-medium"
-														title={container.Config?.Cmd?.join(' ')}
-													>
+													<div class="text-muted-foreground text-sm">Command</div>
+													<div class="truncate font-medium" title={container.Config?.Cmd?.join(' ')}>
 														{container.Config?.Cmd?.join(' ') || 'N/A'}
 													</div>
 												</div>
@@ -463,49 +412,38 @@
 
 										<Separator />
 
-										<!-- System -->
 										<div class="space-y-3">
 											<h4 class="text-sm font-semibold tracking-tight">System</h4>
 
 											<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-												<!-- Container ID -->
 												<div class="space-y-1">
-													<div class="text-xs text-muted-foreground">Container ID</div>
-													<div
-														class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs"
-													>
+													<div class="text-muted-foreground text-xs">Container ID</div>
+													<div class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs">
 														{container.Id}
 													</div>
 												</div>
 
-												<!-- Working Dir -->
 												{#if container.Config?.WorkingDir}
 													<div class="space-y-1">
-														<div class="text-xs text-muted-foreground">Working Directory</div>
-														<div
-															class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs"
-														>
+														<div class="text-muted-foreground text-xs">Working Directory</div>
+														<div class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs">
 															{container.Config.WorkingDir}
 														</div>
 													</div>
 												{/if}
 
-												<!-- User -->
 												{#if container.Config?.User}
 													<div class="space-y-1">
-														<div class="text-xs text-muted-foreground">User</div>
-														<div
-															class="bg-muted/50 inline-flex rounded px-2 py-1.5 font-mono text-xs"
-														>
+														<div class="text-muted-foreground text-xs">User</div>
+														<div class="bg-muted/50 inline-flex rounded px-2 py-1.5 font-mono text-xs">
 															{container.Config.User}
 														</div>
 													</div>
 												{/if}
 
-												<!-- Health -->
 												{#if container.State?.Health}
 													<div class="space-y-1 sm:col-span-2">
-														<div class="text-xs text-muted-foreground">Health</div>
+														<div class="text-muted-foreground text-xs">Health</div>
 														<div class="flex flex-wrap items-center gap-3">
 															<StatusBadge
 																variant={container.State.Health.Status === 'healthy'
@@ -516,10 +454,8 @@
 																text={container.State.Health.Status}
 															/>
 															{#if container.State.Health.Log && container.State.Health.Log.length > 0}
-																<span class="text-xs text-muted-foreground">
-																	Last check: {new Date(
-																		container.State.Health.Log[0].Start
-																	).toLocaleString()}
+																<span class="text-muted-foreground text-xs">
+																	Last check: {new Date(container.State.Health.Log[0].Start).toLocaleString()}
 																</span>
 															{/if}
 														</div>
@@ -532,11 +468,10 @@
 							</div>
 						</section>
 
-						<!-- Stats -->
 						{#if showStats}
 							<section id="stats" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-									<Activity class="size-5" />
+									<ActivityIcon class="size-5" />
 									Resource Metrics
 								</h2>
 
@@ -544,54 +479,42 @@
 									<Card.Content class="p-6">
 										{#if stats && container.State?.Running}
 											<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-												<!-- CPU and Memory -->
 												<div class="space-y-6">
 													<Meter
 														label="CPU Usage"
 														valueLabel="{cpuUsagePercent.toFixed(2)}%"
 														value={cpuUsagePercent}
 														max={100}
-														variant={cpuUsagePercent > 80
-															? 'destructive'
-															: cpuUsagePercent > 60
-																? 'warning'
-																: 'default'}
+														variant={cpuUsagePercent > 80 ? 'destructive' : cpuUsagePercent > 60 ? 'warning' : 'default'}
 														size="lg"
 													/>
 
 													<Meter
 														label="Memory Usage"
-														valueLabel="{memoryUsageFormatted} / {memoryLimitFormatted} ({memoryUsagePercent.toFixed(
-															1
-														)}%)"
+														valueLabel="{memoryUsageFormatted} / {memoryLimitFormatted} ({memoryUsagePercent.toFixed(1)}%)"
 														value={memoryUsagePercent}
 														max={100}
-														variant={memoryUsagePercent > 80
-															? 'destructive'
-															: memoryUsagePercent > 60
-																? 'warning'
-																: 'default'}
+														variant={memoryUsagePercent > 80 ? 'destructive' : memoryUsagePercent > 60 ? 'warning' : 'default'}
 														size="lg"
 													/>
 												</div>
 
-												<!-- Network I/O -->
 												<div class="space-y-6">
 													<div>
 														<h4 class="mb-4 flex items-center gap-2 font-medium">
-															<Network class="size-4" /> Network I/O
+															<NetworkIcon class="size-4" /> Network I/O + <NetworkIcon class="size-4" /> Network I/O
 														</h4>
 														<div class="grid grid-cols-2 gap-4">
 															<div class="bg-muted/30 rounded p-4">
 																<div class="text-muted-foreground text-sm">Received</div>
 																<div class="mt-1 font-medium">
-																	{formatBytes(stats.networks?.eth0?.rx_bytes || 0)}
+																	{bytes.format(stats.networks?.eth0?.rx_bytes || 0)}
 																</div>
 															</div>
 															<div class="bg-muted/30 rounded p-4">
 																<div class="text-muted-foreground text-sm">Transmitted</div>
 																<div class="mt-1 font-medium">
-																	{formatBytes(stats.networks?.eth0?.tx_bytes || 0)}
+																	{bytes.format(stats.networks?.eth0?.tx_bytes || 0)}
 																</div>
 															</div>
 														</div>
@@ -604,7 +527,7 @@
 																<div class="bg-muted/30 rounded p-4">
 																	<div class="text-muted-foreground text-sm">Read</div>
 																	<div class="mt-1 font-medium">
-																		{formatBytes(
+																		{bytes.format(
 																			stats.blkio_stats.io_service_bytes_recursive
 																				.filter((item) => item.op === 'Read')
 																				.reduce((acc, item) => acc + item.value, 0)
@@ -614,7 +537,7 @@
 																<div class="bg-muted/30 rounded p-4">
 																	<div class="text-muted-foreground text-sm">Write</div>
 																	<div class="mt-1 font-medium">
-																		{formatBytes(
+																		{bytes.format(
 																			stats.blkio_stats.io_service_bytes_recursive
 																				.filter((item) => item.op === 'Write')
 																				.reduce((acc, item) => acc + item.value, 0)
@@ -636,22 +559,19 @@
 												</div>
 											{/if}
 										{:else if !container.State?.Running}
-											<div class="py-12 text-center text-muted-foreground">
-												Container is not running. Stats unavailable.
-											</div>
+											<div class="text-muted-foreground py-12 text-center">Container is not running. Stats unavailable.</div>
 										{:else}
-											<div class="py-12 text-center text-muted-foreground">Loading stats...</div>
+											<div class="text-muted-foreground py-12 text-center">Loading stats...</div>
 										{/if}
 									</Card.Content>
 								</Card.Root>
 							</section>
 						{/if}
 
-						<!-- Logs (kept visible if container exists) -->
 						<section id="logs" class="scroll-mt-20">
 							<div class="mb-6 flex items-center justify-between">
 								<h2 class="flex items-center gap-2 text-xl font-semibold">
-									<FileText class="size-5" />
+									<FileTextIcon class="size-5" />
 									Container Logs
 								</h2>
 
@@ -660,24 +580,15 @@
 										<input type="checkbox" bind:checked={autoScrollLogs} class="size-4" />
 										Auto-scroll
 									</label>
-									<Button variant="outline" size="sm" onclick={() => logViewer?.clearLogs()}
-										>Clear</Button
-									>
+									<Button variant="outline" size="sm" onclick={() => logViewer?.clearLogs()}>Clear</Button>
 									{#if isStreaming}
 										<div class="flex items-center gap-2">
 											<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
 											<span class="text-sm font-medium text-green-600">Live</span>
 										</div>
-										<Button variant="outline" size="sm" onclick={() => logViewer?.stopLogStream()}
-											>Stop</Button
-										>
+										<Button variant="outline" size="sm" onclick={() => logViewer?.stopLogStream()}>Stop</Button>
 									{:else}
-										<Button
-											variant="outline"
-											size="sm"
-											onclick={() => logViewer?.startLogStream()}
-											disabled={!container?.Id}
-										>
+										<Button variant="outline" size="sm" onclick={() => logViewer?.startLogStream()} disabled={!container?.Id}>
 											Start
 										</Button>
 									{/if}
@@ -703,29 +614,25 @@
 							</Card.Root>
 						</section>
 
-						<!-- Configuration: only if any of Env, Ports, Labels exist -->
 						{#if showConfiguration}
 							<section id="config" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-									<Settings class="size-5" />
+									<SettingsIcon class="size-5" />
 									Configuration
 								</h2>
 
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Header class="pb-4">
 										<Card.Title>Environment, Ports & Labels</Card.Title>
-										<Card.Description class="text-sm text-muted-foreground">
+										<Card.Description class="text-muted-foreground text-sm">
 											Runtime configuration and metadata for this container
 										</Card.Description>
 									</Card.Header>
 
 									<Card.Content class="space-y-8">
 										{#if hasEnvVars}
-											<!-- Environment Variables -->
 											<div>
-												<h3 class="mb-3 text-sm font-semibold tracking-tight">
-													Environment Variables
-												</h3>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">Environment Variables</h3>
 
 												{#if container.Config?.Env && container.Config.Env.length > 0}
 													<ul class="divide-border/60 divide-y">
@@ -738,8 +645,7 @@
 																		<Badge variant="secondary">
 																			{key}:
 																		</Badge>
-																		<span class="truncate font-semibold" title={value}>{value}</span
-																		>
+																		<span class="truncate font-semibold" title={value}>{value}</span>
 																	</div>
 																</li>
 															{:else}
@@ -753,9 +659,7 @@
 														{/each}
 													</ul>
 												{:else}
-													<div class="text-muted-foreground py-8 text-center">
-														No environment variables
-													</div>
+													<div class="text-muted-foreground py-8 text-center">No environment variables</div>
 												{/if}
 											</div>
 										{/if}
@@ -765,7 +669,6 @@
 										{/if}
 
 										{#if hasPorts}
-											<!-- Port Mappings -->
 											<div>
 												<h3 class="mb-3 text-sm font-semibold tracking-tight">Port Mappings</h3>
 
@@ -781,16 +684,11 @@
 																	{#if Array.isArray(hostBindings) && hostBindings.length > 0}
 																		<span class="truncate font-semibold">
 																			{hostBindings
-																				.map(
-																					(binding) =>
-																						`${binding.HostIp || '0.0.0.0'}:${binding.HostPort}`
-																				)
+																				.map((binding) => `${binding.HostIp || '0.0.0.0'}:${binding.HostPort}`)
 																				.join(', ')}
 																		</span>
 																	{:else}
-																		<span class="text-muted-foreground font-semibold"
-																			>Not published</span
-																		>
+																		<span class="text-muted-foreground font-semibold">Not published</span>
 																	{/if}
 																</div>
 															</li>
@@ -807,7 +705,6 @@
 										{/if}
 
 										{#if hasLabels}
-											<!-- Labels -->
 											<div>
 												<h3 class="mb-3 text-sm font-semibold tracking-tight">Labels</h3>
 
@@ -827,9 +724,7 @@
 														{/each}
 													</ul>
 												{:else}
-													<div class="text-muted-foreground py-8 text-center">
-														No labels defined
-													</div>
+													<div class="text-muted-foreground py-8 text-center">No labels defined</div>
 												{/if}
 											</div>
 										{/if}
@@ -838,11 +733,10 @@
 							</section>
 						{/if}
 
-						<!-- Network -->
 						{#if hasNetworks}
 							<section id="network" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-									<Network class="size-5" />
+									<NetworkIcon class="size-5" />
 									Networks
 								</h2>
 
@@ -870,9 +764,7 @@
 															<div>
 																<div class="text-muted-foreground text-sm">Subnet</div>
 																<div class="font-mono">
-																	{networkConfig.IPPrefixLen
-																		? `${networkConfig.IPAddress}/${networkConfig.IPPrefixLen}`
-																		: 'N/A'}
+																	{networkConfig.IPPrefixLen ? `${networkConfig.IPAddress}/${networkConfig.IPPrefixLen}` : 'N/A'}
 																</div>
 															</div>
 															{#if networkConfig.Aliases && networkConfig.Aliases.length > 0}
@@ -886,20 +778,17 @@
 												{/each}
 											</div>
 										{:else}
-											<div class="py-12 text-center text-muted-foreground">
-												No networks connected
-											</div>
+											<div class="text-muted-foreground py-12 text-center">No networks connected</div>
 										{/if}
 									</Card.Content>
 								</Card.Root>
 							</section>
 						{/if}
 
-						<!-- Storage -->
 						{#if hasMounts}
 							<section id="storage" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-									<Database class="size-5" />
+									<DatabaseIcon class="size-5" />
 									Storage & Mounts
 								</h2>
 
@@ -919,11 +808,11 @@
 																			: 'bg-amber-100 dark:bg-amber-950'}"
 																>
 																	{#if mount.Type === 'volume'}
-																		<Database class="size-4 text-purple-600" />
+																		<DatabaseIcon class="size-4 text-purple-600" />
 																	{:else if mount.Type === 'bind'}
-																		<HardDrive class="size-4 text-blue-600" />
+																		<HardDriveIcon class="size-4 text-blue-600" />
 																	{:else}
-																		<Terminal class="size-4 text-amber-600" />
+																		<TerminalIcon class="size-4 text-amber-600" />
 																	{/if}
 																</div>
 																<div>
@@ -945,24 +834,14 @@
 														</div>
 														<div class="space-y-3 p-4">
 															<div class="flex">
-																<span class="text-muted-foreground w-24 font-medium"
-																	>Container:</span
-																>
-																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono"
-																	>{mount.Destination}</span
-																>
+																<span class="text-muted-foreground w-24 font-medium">Container:</span>
+																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.Destination}</span>
 															</div>
 															<div class="flex">
 																<span class="text-muted-foreground w-24 font-medium">
-																	{mount.Type === 'volume'
-																		? 'Volume:'
-																		: mount.Type === 'bind'
-																			? 'Host:'
-																			: 'Source:'}
+																	{mount.Type === 'volume' ? 'Volume:' : mount.Type === 'bind' ? 'Host:' : 'Source:'}
 																</span>
-																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono"
-																	>{mount.Source}</span
-																>
+																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.Source}</span>
 															</div>
 														</div>
 													</div>
@@ -970,10 +849,8 @@
 											</div>
 										{:else}
 											<div class="py-12 text-center">
-												<div
-													class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full"
-												>
-													<Database class="text-muted-foreground size-6" />
+												<div class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
+													<DatabaseIcon class="text-muted-foreground size-6" />
 												</div>
 												<div class="text-muted-foreground">No volumes or mounts configured</div>
 											</div>
@@ -990,20 +867,19 @@
 		<div class="flex min-h-screen items-center justify-center">
 			<div class="text-center">
 				<div class="bg-muted/50 mb-6 inline-flex rounded-full p-6">
-					<AlertCircle class="text-muted-foreground size-10" />
+					<CircleAlertIcon class="text-muted-foreground size-10" />
 				</div>
 				<h2 class="mb-3 text-2xl font-medium">Container Not Found</h2>
 				<p class="text-muted-foreground mb-8 max-w-md text-center">
-					Could not load container data. It may have been removed or the Docker engine is not
-					accessible.
+					Could not load container data. It may have been removed or the Docker engine is not accessible.
 				</p>
 				<div class="flex justify-center gap-4">
 					<Button variant="outline" href="/containers">
-						<ArrowLeft class="mr-2 size-4" />
+						<ArrowLeftIcon class="mr-2 size-4" />
 						Back to Containers
 					</Button>
 					<Button variant="default" onclick={refreshData}>
-						<RefreshCw class="mr-2 size-4" />
+						<RefreshCwIcon class="mr-2 size-4" />
 						Retry
 					</Button>
 				</div>

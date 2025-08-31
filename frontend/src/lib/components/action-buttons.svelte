@@ -2,13 +2,23 @@
 	import { openConfirmDialog } from './confirm-dialog';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import type { LoadingStates } from '$lib/types/loading-states.type';
 	import { environmentAPI } from '$lib/services/api';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
-	import ArcaneButton from './arcane-button.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 
 	type TargetType = 'container' | 'stack';
+
+	type LoadingStates = {
+		start?: boolean;
+		stop?: boolean;
+		restart?: boolean;
+		pull?: boolean;
+		deploy?: boolean;
+		redeploy?: boolean;
+		remove?: boolean;
+		validating?: boolean;
+	};
 
 	let {
 		id,
@@ -34,9 +44,7 @@
 		validating: false
 	});
 
-	const isRunning = $derived(
-		itemState === 'running' || (type === 'stack' && itemState === 'partially running')
-	);
+	const isRunning = $derived(itemState === 'running' || (type === 'stack' && itemState === 'partially running'));
 
 	$effect(() => {
 		isLoading.start = loading.start ?? false;
@@ -101,9 +109,7 @@
 							message: `Failed to Redeploy ${type}`,
 							setLoadingState: (value) => (isLoading.redeploy = value),
 							onSuccess: async () => {
-								toast.success(
-									`${type.charAt(0).toUpperCase() + type.slice(1)} Redeployed Successfully`
-								);
+								toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Redeployed Successfully`);
 								await invalidateAll();
 							}
 						});
@@ -116,9 +122,7 @@
 	async function handleStart() {
 		isLoading.start = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(
-				type === 'container' ? environmentAPI.startContainer(id) : environmentAPI.startProject(id)
-			),
+			result: await tryCatch(type === 'container' ? environmentAPI.startContainer(id) : environmentAPI.startProject(id)),
 			message: `Failed to Start ${type}`,
 			setLoadingState: (value) => (isLoading.start = value),
 			onSuccess: async () => {
@@ -144,9 +148,7 @@
 	async function handleStop() {
 		isLoading.stop = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(
-				type === 'container' ? environmentAPI.stopContainer(id) : environmentAPI.stopProject(id)
-			),
+			result: await tryCatch(type === 'container' ? environmentAPI.stopContainer(id) : environmentAPI.stopProject(id)),
 			message: `Failed to Stop ${type}`,
 			setLoadingState: (value) => (isLoading.stop = value),
 			onSuccess: async () => {
@@ -159,11 +161,7 @@
 	async function handleRestart() {
 		isLoading.restart = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(
-				type === 'container'
-					? environmentAPI.restartContainer(id)
-					: environmentAPI.restartProject(id)
-			),
+			result: await tryCatch(type === 'container' ? environmentAPI.restartContainer(id) : environmentAPI.restartProject(id)),
 			message: `Failed to Restart ${type}`,
 			setLoadingState: (value) => (isLoading.restart = value),
 			onSuccess: async () => {
@@ -176,11 +174,7 @@
 	async function handlePull() {
 		isLoading.pulling = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(
-				type === 'container'
-					? environmentAPI.pullContainerImage(id)
-					: environmentAPI.pullProjectImages(id)
-			),
+			result: await tryCatch(type === 'container' ? environmentAPI.pullContainerImage(id) : environmentAPI.pullProjectImages(id)),
 			message: 'Failed to Pull Image(s)',
 			setLoadingState: (value) => (isLoading.pulling = value),
 			onSuccess: async () => {
@@ -195,36 +189,28 @@
 	{#if !isRunning}
 		<ArcaneButton
 			action={type === 'container' ? 'start' : 'deploy'}
-			onClick={type === 'container' ? () => handleStart() : () => handleDeploy()}
+			onclick={type === 'container' ? () => handleStart() : () => handleDeploy()}
 			loading={isLoading.start}
 		/>
 	{:else}
 		<ArcaneButton
-			label={type === 'stack' ? 'Down' : 'Stop'}
+			customLabel={type === 'stack' ? 'Down' : 'Stop'}
 			action="stop"
-			onClick={() => handleStop()}
+			onclick={() => handleStop()}
 			loading={isLoading.stop}
 		/>
-		<ArcaneButton action="restart" onClick={() => handleRestart()} loading={isLoading.restart} />
+		<ArcaneButton action="restart" onclick={() => handleRestart()} loading={isLoading.restart} />
 	{/if}
 
 	{#if type === 'container'}
-		<ArcaneButton
-			action="remove"
-			onClick={() => confirmAction('remove')}
-			loading={isLoading.remove}
-		/>
+		<ArcaneButton action="remove" onclick={() => confirmAction('remove')} loading={isLoading.remove} />
 	{:else}
+		<ArcaneButton action="redeploy" onclick={() => confirmAction('redeploy')} loading={isLoading.redeploy} />
+		<ArcaneButton action="pull" onclick={handlePull} loading={isLoading.pulling} />
 		<ArcaneButton
-			action="redeploy"
-			onClick={() => confirmAction('redeploy')}
-			loading={isLoading.redeploy}
-		/>
-		<ArcaneButton action="pull" onClick={handlePull} loading={isLoading.pulling} />
-		<ArcaneButton
-			label={type === 'stack' ? 'Destroy' : 'Remove'}
+			customLabel={type === 'stack' ? 'Destroy' : 'Remove'}
 			action="remove"
-			onClick={() => confirmAction('remove')}
+			onclick={() => confirmAction('remove')}
 			loading={isLoading.remove}
 		/>
 	{/if}

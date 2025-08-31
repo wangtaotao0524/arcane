@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { Network, EthernetPort } from '@lucide/svelte';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import EthernetPortIcon from '@lucide/svelte/icons/ethernet-port';
 	import { toast } from 'svelte-sonner';
 	import type { NetworkCreateOptions } from 'dockerode';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import CreateNetworkSheet from '$lib/components/sheets/create-network-sheet.svelte';
 	import { environmentAPI } from '$lib/services/api';
-	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import StatCard from '$lib/components/stat-card.svelte';
 	import NetworkTable from './network-table.svelte';
 
@@ -59,10 +60,11 @@
 			<p class="text-muted-foreground mt-1 text-sm">Manage your Docker networks</p>
 		</div>
 		<div class="flex items-center gap-2">
+			<ArcaneButton action="create" customLabel="Create Network" onclick={() => (isCreateDialogOpen = true)} />
 			<ArcaneButton
 				action="restart"
-				onClick={refreshNetworks}
-				label="Refresh"
+				onclick={refreshNetworks}
+				customLabel="Refresh"
 				loading={isLoading.refresh}
 				disabled={isLoading.refresh}
 			/>
@@ -73,29 +75,20 @@
 		<StatCard
 			title="Total Networks"
 			value={totalNetworks}
-			icon={Network}
+			icon={NetworkIcon}
 			iconColor="text-blue-500"
 			class="border-l-4 border-l-blue-500"
 		/>
 		<StatCard
 			title="Bridge Networks"
 			value={bridgeNetworks}
-			icon={EthernetPort}
+			icon={EthernetPortIcon}
 			iconColor="text-green-500"
 			class="border-l-4 border-l-green-500"
 		/>
 	</div>
 
-	<NetworkTable
-		bind:networks
-		bind:selectedIds
-		bind:requestOptions
-		onCreateNetwork={() => (isCreateDialogOpen = true)}
-	/>
+	<NetworkTable bind:networks bind:selectedIds bind:requestOptions />
 
-	<CreateNetworkSheet
-		bind:open={isCreateDialogOpen}
-		isLoading={isLoading.create}
-		onSubmit={handleCreateNetworkSubmit}
-	/>
+	<CreateNetworkSheet bind:open={isCreateDialogOpen} isLoading={isLoading.create} onSubmit={handleCreateNetworkSubmit} />
 </div>

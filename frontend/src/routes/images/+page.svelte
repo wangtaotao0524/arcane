@@ -1,27 +1,24 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { AlertCircle, HardDrive, Loader2, Package } from '@lucide/svelte';
-	import * as Alert from '$lib/components/ui/alert/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import PackageIcon from '@lucide/svelte/icons/package';
 	import { toast } from 'svelte-sonner';
 	import ImagePullSheet from '$lib/components/sheets/image-pull-sheet.svelte';
-	import { formatBytes } from '$lib/utils/bytes.util';
+	import bytes from 'bytes';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
-	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { environmentAPI, imageUpdateAPI } from '$lib/services/api';
 	import StatCard from '$lib/components/stat-card.svelte';
-	import ImageTable from './image-table.svelte';
+	import ImageTableNew from './image-table.svelte';
 
 	let { data } = $props();
 
 	let images = $state(data.images);
 	let requestOptions = $state(data.imageRequestOptions);
-
-	let error = $state<string | null>(null);
 	let selectedIds = $state<string[]>([]);
-	let isLoadingImages = $state(false);
 
 	let isLoading = $state({
 		pulling: false,
@@ -82,113 +79,77 @@
 			<p class="text-muted-foreground mt-1 text-sm">View and Manage your Container Images</p>
 		</div>
 		<div class="flex items-center gap-2">
+			<ArcaneButton action="pull" customLabel="Pull Image" onclick={() => (isPullDialogOpen = true)} />
+			<ArcaneButton
+				action="inspect"
+				customLabel="Check Updates"
+				onclick={handleTriggerBulkUpdateCheck}
+				loading={isLoading.checking}
+				loadingLabel="Checking..."
+				disabled={isLoading.checking}
+			/>
 			<ArcaneButton
 				action="remove"
-				label="Prune Unused"
-				onClick={() => (isConfirmPruneDialogOpen = true)}
+				customLabel="Prune Unused"
+				onclick={() => (isConfirmPruneDialogOpen = true)}
 				loading={isLoading.pruning}
 				loadingLabel="Pruning..."
 				disabled={isLoading.pruning}
 			/>
 			<ArcaneButton
 				action="restart"
-				onClick={refreshImages}
-				label="Refresh"
+				onclick={refreshImages}
+				customLabel="Refresh"
 				loading={isLoading.refreshing}
 				disabled={isLoading.refreshing}
 			/>
 		</div>
 	</div>
 
-	{#if error}
-		<Alert.Root variant="destructive">
-			<AlertCircle class="mr-2 size-4" />
-			<Alert.Title>Error Loading Images</Alert.Title>
-			<Alert.Description>{error}</Alert.Description>
-		</Alert.Root>
-	{/if}
-
-	{#if isLoadingImages}
-		<Card.Root class="border shadow-sm">
-			<Card.Header class="px-6">
-				<div class="flex items-center justify-between">
-					<div>
-						<Card.Title>Images List</Card.Title>
-					</div>
-					<div class="flex items-center gap-2">
-						<div class="bg-muted h-9 w-32 animate-pulse rounded"></div>
-						<div class="bg-muted h-9 w-28 animate-pulse rounded"></div>
-					</div>
-				</div>
-			</Card.Header>
-			<Card.Content>
-				<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
-					<Loader2 class="text-muted-foreground mb-4 size-8 animate-spin" />
-					<p class="text-lg font-medium">Loading Images...</p>
-					<p class="text-muted-foreground mt-1 text-sm">Please wait while we fetch your images</p>
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{:else}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<StatCard
-				title="Total Images"
-				value={images.pagination.totalItems}
-				icon={HardDrive}
-				iconColor="text-blue-500"
-				class="border-l-4 border-l-blue-500"
-			/>
-			<StatCard
-				title="Total Size"
-				value={formatBytes(data.totalSize)}
-				icon={Package}
-				iconColor="text-amber-500"
-				class="border-l-4 border-l-amber-500"
-			/>
-		</div>
-
-		<ImageTable
-			bind:images
-			bind:selectedIds
-			bind:requestOptions
-			onPullDialogOpen={() => (isPullDialogOpen = true)}
-			onTriggerBulkUpdateCheck={handleTriggerBulkUpdateCheck}
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+		<StatCard
+			title="Total Images"
+			value={images.pagination.totalItems}
+			icon={HardDriveIcon}
+			iconColor="text-blue-500"
+			class="border-l-4 border-l-blue-500"
 		/>
-
-		<ImagePullSheet
-			bind:open={isPullDialogOpen}
-			onPullFinished={async () => (images = await environmentAPI.getImages(requestOptions))}
+		<StatCard
+			title="Total Size"
+			value={String(bytes.format(data.totalSize))}
+			icon={PackageIcon}
+			iconColor="text-amber-500"
+			class="border-l-4 border-l-amber-500"
 		/>
+	</div>
+	<ImageTableNew bind:images bind:selectedIds bind:requestOptions />
 
-		<Dialog.Root bind:open={isConfirmPruneDialogOpen}>
-			<Dialog.Content>
-				<Dialog.Header>
-					<Dialog.Title>Prune Unused Images</Dialog.Title>
-					<Dialog.Description>
-						Are you sure you want to remove all unused (dangling) Docker images? This will free up
-						disk space but cannot be undone. Images actively used by containers will not be
-						affected.
-					</Dialog.Description>
-				</Dialog.Header>
-				<div class="flex justify-end gap-3 pt-6">
-					<Button
-						variant="outline"
-						onclick={() => (isConfirmPruneDialogOpen = false)}
-						disabled={isLoading.pruning}
-					>
-						Cancel
-					</Button>
-					<Button variant="destructive" onclick={handlePruneImages} disabled={isLoading.pruning}>
-						{#if isLoading.pruning}
-							<Loader2 class="mr-2 size-4 animate-spin" /> Prune Images
-						{:else}
-							Prune Images
-						{/if}
-					</Button>
-				</div>
-			</Dialog.Content>
-		</Dialog.Root>
-	{/if}
+	<ImagePullSheet
+		bind:open={isPullDialogOpen}
+		onPullFinished={async () => (images = await environmentAPI.getImages(requestOptions))}
+	/>
+
+	<Dialog.Root bind:open={isConfirmPruneDialogOpen}>
+		<Dialog.Content>
+			<Dialog.Header>
+				<Dialog.Title>Prune Unused Images</Dialog.Title>
+				<Dialog.Description>
+					Are you sure you want to remove all unused (dangling) Docker images? This will free up disk space but cannot be undone.
+					Images actively used by containers will not be affected.
+				</Dialog.Description>
+			</Dialog.Header>
+			<div class="flex justify-end gap-3 pt-6">
+				<Button variant="outline" onclick={() => (isConfirmPruneDialogOpen = false)} disabled={isLoading.pruning}>Cancel</Button>
+				<Button variant="destructive" onclick={handlePruneImages} disabled={isLoading.pruning}>
+					{#if isLoading.pruning}
+						<LoaderCircleIcon class="mr-2 size-4 animate-spin" /> Prune Images
+					{:else}
+						Prune Images
+					{/if}
+				</Button>
+			</div>
+		</Dialog.Content>
+	</Dialog.Root>
 </div>
 
 <style>

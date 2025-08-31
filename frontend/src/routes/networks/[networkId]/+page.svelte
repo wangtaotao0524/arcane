@@ -1,27 +1,24 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import {
-		AlertCircle,
-		HardDrive,
-		Clock,
-		Tag,
-		Layers,
-		Hash,
-		Network,
-		Globe,
-		Settings,
-		ListTree,
-		Container
-	} from '@lucide/svelte';
+	import CircleAlertIcon from '@lucide/svelte/icons/alert-circle';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import ClockIcon from '@lucide/svelte/icons/clock';
+	import TagIcon from '@lucide/svelte/icons/tag';
+	import LayersIcon from '@lucide/svelte/icons/layers';
+	import HashIcon from '@lucide/svelte/icons/hash';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import ListTreeIcon from '@lucide/svelte/icons/list-tree';
+	import ContainerIcon from '@lucide/svelte/icons/container';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
-	import { formatDate } from '$lib/utils/string.utils';
-	import type { NetworkInspectInfo } from 'dockerode';
+	import { format } from 'date-fns';
 	import { toast } from 'svelte-sonner';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import ArcaneButton from '$lib/components/arcane-button.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { goto } from '$app/navigation';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
@@ -35,14 +32,10 @@
 	let isRemoving = $state(false);
 
 	const shortId = $derived(network?.id?.substring(0, 12) || 'N/A');
-	const createdDate = $derived(network?.created ? formatDate(network.created) : 'N/A');
-	const connectedContainers = $derived(
-		network?.containers ? Object.values(network.containers) : []
-	);
+	const createdDate = $derived(network?.created ? format(new Date(network.created), 'PP p') : 'N/A');
+	const connectedContainers = $derived(network?.containers ? Object.values(network.containers) : []);
 	const inUse = $derived(connectedContainers.length > 0);
-	const isPredefined = $derived(
-		network?.name === 'bridge' || network?.name === 'host' || network?.name === 'none'
-	);
+	const isPredefined = $derived(network?.name === 'bridge' || network?.name === 'host' || network?.name === 'none');
 
 	function triggerRemove() {
 		if (isPredefined) {
@@ -127,10 +120,9 @@
 				<ArcaneButton
 					action="remove"
 					customLabel="Remove Network"
-					onClick={triggerRemove}
+					onclick={triggerRemove}
 					loading={isRemoving}
 					disabled={isRemoving || isPredefined}
-					label={isPredefined ? 'Cannot remove predefined networks' : 'Delete Network'}
 				/>
 			</div>
 		</div>
@@ -138,7 +130,7 @@
 
 	{#if errorMessage}
 		<Alert.Root variant="destructive">
-			<AlertCircle class="mr-2 size-4" />
+			<CircleAlertIcon class="mr-2 size-4" />
 			<Alert.Title>Action Failed</Alert.Title>
 			<Alert.Description>{errorMessage}</Alert.Description>
 		</Alert.Root>
@@ -149,7 +141,7 @@
 			<Card.Root class="border shadow-sm">
 				<Card.Header class="pb-0">
 					<Card.Title class="flex items-center gap-2 text-lg">
-						<Network class="text-primary size-5" />
+						<NetworkIcon class="text-primary size-5" />
 						Network Details
 					</Card.Title>
 					<Card.Description>Basic information about this Docker network</Card.Description>
@@ -157,10 +149,8 @@
 				<Card.Content class="pt-6">
 					<div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-500/10 p-2"
-							>
-								<Hash class="size-5 text-gray-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-500/10 p-2">
+								<HashIcon class="size-5 text-gray-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">ID</p>
@@ -169,22 +159,18 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 p-2"
-							>
-								<Network class="size-5 text-blue-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 p-2">
+								<NetworkIcon class="size-5 text-blue-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Name</p>
-								<p class="mt-1 text-base font-semibold break-words">{network.name}</p>
+								<p class="mt-1 break-words text-base font-semibold">{network.name}</p>
 							</div>
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10 p-2"
-							>
-								<HardDrive class="size-5 text-orange-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10 p-2">
+								<HardDriveIcon class="size-5 text-orange-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Driver</p>
@@ -193,10 +179,8 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-purple-500/10 p-2"
-							>
-								<Globe class="size-5 text-purple-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-purple-500/10 p-2">
+								<GlobeIcon class="size-5 text-purple-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Scope</p>
@@ -205,10 +189,8 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-500/10 p-2"
-							>
-								<Clock class="size-5 text-green-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-500/10 p-2">
+								<ClockIcon class="size-5 text-green-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Created</p>
@@ -217,52 +199,37 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10 p-2"
-							>
-								<Layers class="size-5 text-yellow-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10 p-2">
+								<LayersIcon class="size-5 text-yellow-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Attachable</p>
 								<p class="mt-1 text-base font-semibold">
-									<StatusBadge
-										variant={network.attachable ? 'green' : 'gray'}
-										text={network.attachable ? 'Yes' : 'No'}
-									/>
+									<StatusBadge variant={network.attachable ? 'green' : 'gray'} text={network.attachable ? 'Yes' : 'No'} />
 								</p>
 							</div>
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-500/10 p-2"
-							>
-								<Settings class="size-5 text-red-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-500/10 p-2">
+								<SettingsIcon class="size-5 text-red-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Internal</p>
 								<p class="mt-1 text-base font-semibold">
-									<StatusBadge
-										variant={network.internal ? 'blue' : 'gray'}
-										text={network.internal ? 'Yes' : 'No'}
-									/>
+									<StatusBadge variant={network.internal ? 'blue' : 'gray'} text={network.internal ? 'Yes' : 'No'} />
 								</p>
 							</div>
 						</div>
 
 						<div class="flex items-start gap-3">
-							<div
-								class="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 p-2"
-							>
-								<ListTree class="size-5 text-indigo-500" />
+							<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 p-2">
+								<ListTreeIcon class="size-5 text-indigo-500" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">IPv6 Enabled</p>
 								<p class="mt-1 text-base font-semibold">
-									<StatusBadge
-										variant={network.enableIPv6 ? 'indigo' : 'gray'}
-										text={network.enableIPv6 ? 'Yes' : 'No'}
-									/>
+									<StatusBadge variant={network.enableIPv6 ? 'indigo' : 'gray'} text={network.enableIPv6 ? 'Yes' : 'No'} />
 								</p>
 							</div>
 						</div>
@@ -274,7 +241,7 @@
 				<Card.Root class="border shadow-sm">
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
-							<Settings class="text-primary size-5" />
+							<SettingsIcon class="text-primary size-5" />
 							IPAM Configuration
 						</Card.Title>
 						<Card.Description>IP Address Management settings for this network</Card.Description>
@@ -285,9 +252,7 @@
 								<div class="space-y-2">
 									{#if config.Subnet}
 										<div class="flex flex-col sm:flex-row sm:items-center">
-											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24"
-												>Subnet:</span
-											>
+											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24">Subnet:</span>
 											<code
 												class="bg-muted text-muted-foreground mt-1 rounded px-1.5 py-0.5 font-mono text-xs sm:mt-0 sm:text-sm"
 											>
@@ -298,9 +263,7 @@
 
 									{#if config.Gateway}
 										<div class="flex flex-col sm:flex-row sm:items-center">
-											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24"
-												>Gateway:</span
-											>
+											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24">Gateway:</span>
 											<code
 												class="bg-muted text-muted-foreground mt-1 rounded px-1.5 py-0.5 font-mono text-xs sm:mt-0 sm:text-sm"
 											>
@@ -311,9 +274,7 @@
 
 									{#if config.IPRange}
 										<div class="flex flex-col sm:flex-row sm:items-center">
-											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24"
-												>IP Range:</span
-											>
+											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24">IP Range:</span>
 											<code
 												class="bg-muted text-muted-foreground mt-1 rounded px-1.5 py-0.5 font-mono text-xs sm:mt-0 sm:text-sm"
 											>
@@ -324,16 +285,12 @@
 
 									{#if (config.AuxiliaryAddresses && Object.keys(config.AuxiliaryAddresses).length > 0) || (config.AuxAddress && Object.keys(config.AuxAddress).length > 0)}
 										<div class="mt-3">
-											<p class="text-muted-foreground mb-1 text-sm font-medium">
-												Auxiliary Addresses:
-											</p>
+											<p class="text-muted-foreground mb-1 text-sm font-medium">Auxiliary Addresses:</p>
 											<ul class="ml-4 space-y-1">
 												{#each Object.entries(config.AuxiliaryAddresses ?? config.AuxAddress ?? {}) as [name, addr] (name)}
 													<li class="flex font-mono text-xs">
 														<span class="text-muted-foreground mr-2">{name}:</span>
-														<code class="bg-muted text-muted-foreground rounded px-1 py-0.5"
-															>{addr}</code
-														>
+														<code class="bg-muted text-muted-foreground rounded px-1 py-0.5">{addr}</code>
 													</li>
 												{/each}
 											</ul>
@@ -371,31 +328,25 @@
 				<Card.Root class="border shadow-sm">
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
-							<Container class="text-primary size-5" />
+							<ContainerIcon class="text-primary size-5" />
 							Connected Containers
 						</Card.Title>
 						<Card.Description>
-							{connectedContainers.length} container{connectedContainers.length === 1 ? '' : 's'} connected
-							to this network
+							{connectedContainers.length} container{connectedContainers.length === 1 ? '' : 's'} connected to this network
 						</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
 							{#each connectedContainers as container (container.Name)}
 								<div class="flex flex-col p-3 sm:flex-row sm:items-center">
-									<div class="mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3">
-										<a
-											href="/containers/{container.Name}"
-											class="text-primary flex items-center hover:underline"
-										>
-											<Container class="text-muted-foreground mr-1.5 size-3.5" />
+									<div class="mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
+										<a href="/containers/{container.Name}" class="text-primary flex items-center hover:underline">
+											<ContainerIcon class="text-muted-foreground mr-1.5 size-3.5" />
 											{container.Name}
 										</a>
 									</div>
 									<div class="w-full pl-0 sm:w-2/3 sm:pl-4">
-										<code
-											class="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs break-all sm:text-sm"
-										>
+										<code class="bg-muted text-muted-foreground break-all rounded px-1.5 py-0.5 font-mono text-xs sm:text-sm">
 											{container.IPv4Address || container.IPv6Address || 'N/A'}
 										</code>
 									</div>
@@ -410,7 +361,7 @@
 				<Card.Root class="border shadow-sm">
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
-							<Tag class="text-primary size-5" />
+							<TagIcon class="text-primary size-5" />
 							Labels
 						</Card.Title>
 						<Card.Description>User-defined metadata attached to this network</Card.Description>
@@ -419,14 +370,10 @@
 						<div class="bg-card divide-y rounded-lg border">
 							{#each Object.entries(network.labels) as [key, value] (key)}
 								<div class="flex flex-col p-3 sm:flex-row">
-									<div
-										class="text-muted-foreground mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3"
-									>
+									<div class="text-muted-foreground mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
 										{key}
 									</div>
-									<div
-										class="bg-muted/50 w-full rounded p-2 font-mono text-xs break-all sm:w-2/3 sm:text-sm"
-									>
+									<div class="bg-muted/50 w-full break-all rounded p-2 font-mono text-xs sm:w-2/3 sm:text-sm">
 										{value}
 									</div>
 								</div>
@@ -440,7 +387,7 @@
 				<Card.Root class="border shadow-sm">
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
-							<Settings class="text-primary size-5" />
+							<SettingsIcon class="text-primary size-5" />
 							Options
 						</Card.Title>
 						<Card.Description>Network driver-specific options</Card.Description>
@@ -449,14 +396,10 @@
 						<div class="bg-card divide-y rounded-lg border">
 							{#each Object.entries(network.options) as [key, value] (key)}
 								<div class="flex flex-col p-3 sm:flex-row">
-									<div
-										class="text-muted-foreground mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3"
-									>
+									<div class="text-muted-foreground mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
 										{key}
 									</div>
-									<div
-										class="bg-muted/50 w-full rounded p-2 font-mono text-xs break-all sm:w-2/3 sm:text-sm"
-									>
+									<div class="bg-muted/50 w-full break-all rounded p-2 font-mono text-xs sm:w-2/3 sm:text-sm">
 										{value}
 									</div>
 								</div>
@@ -469,18 +412,11 @@
 	{:else}
 		<div class="flex flex-col items-center justify-center px-4 py-16 text-center">
 			<div class="bg-muted/30 mb-4 rounded-full p-4">
-				<Network class="text-muted-foreground size-10 opacity-70" />
+				<NetworkIcon class="text-muted-foreground size-10 opacity-70" />
 			</div>
 			<h2 class="mb-2 text-xl font-medium">Network Not Found</h2>
-			<p class="text-muted-foreground mb-6">
-				The requested network could not be found or is no longer available.
-			</p>
-			<ArcaneButton
-				action="cancel"
-				customLabel="Back to Networks"
-				onClick={() => goto('/networks')}
-				size="sm"
-			/>
+			<p class="text-muted-foreground mb-6">The requested network could not be found or is no longer available.</p>
+			<ArcaneButton action="cancel" customLabel="Back to Networks" onclick={() => goto('/networks')} size="sm" />
 		</div>
 	{/if}
 </div>

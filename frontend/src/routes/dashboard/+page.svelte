@@ -1,19 +1,17 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import {
-		Box,
-		HardDrive,
-		RefreshCw,
-		Loader2,
-		Monitor,
-		PlayCircle,
-		StopCircle,
-		Trash2,
-		MemoryStick,
-		Cpu,
-		Container
-	} from '@lucide/svelte';
+	import BoxIcon from '@lucide/svelte/icons/box';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import MonitorIcon from '@lucide/svelte/icons/monitor';
+	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
+	import CpuIcon from '@lucide/svelte/icons/cpu';
+	import ContainerIcon from '@lucide/svelte/icons/container';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import CirclePlayIcon from '@lucide/svelte/icons/circle-play';
+	import CircleStopIcon from '@lucide/svelte/icons/circle-stop';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { toast } from 'svelte-sonner';
 	import PruneConfirmationDialog from '$lib/components/dialogs/prune-confirmation-dialog.svelte';
@@ -22,11 +20,10 @@
 	import { systemAPI, settingsAPI } from '$lib/services/api';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import { onMount } from 'svelte';
-	import type { PruneType } from '$lib/types/actions.type';
 	import DropdownCard from '$lib/components/dropdown-card.svelte';
 	import MeterMetric from '$lib/components/meter-metric.svelte';
 	import DockerIcon from '$lib/icons/docker-icon.svelte';
-	import type { SystemStats } from '$lib/models/system-stats';
+	import type { SystemStats } from '$lib/types/system-stats.type';
 	import DashboardContainerTable from './dash-container-table.svelte';
 	import DashboardImageTable from './dash-image-table.svelte';
 
@@ -41,6 +38,8 @@
 		systemStats: null as SystemStats | null,
 		isPruneDialogOpen: false
 	});
+
+	type PruneType = 'containers' | 'images' | 'networks' | 'volumes';
 
 	let isLoading = $state({
 		starting: false,
@@ -197,8 +196,7 @@
 	}
 
 	async function handleStopAll() {
-		if (isLoading.stopping || !dashboardStates.dockerInfo || dockerInfo?.containersRunning === 0)
-			return;
+		if (isLoading.stopping || !dashboardStates.dockerInfo || dockerInfo?.containersRunning === 0) return;
 		openConfirmDialog({
 			title: 'Stop All Containers',
 			message: 'Are you sure you want to stop all running containers?',
@@ -239,9 +237,7 @@
 			onSuccess: async () => {
 				dashboardStates.isPruneDialogOpen = false;
 				const formattedTypes = selectedTypes.map((type) => capitalizeFirstLetter(type)).join(', ');
-				toast.success(
-					`${formattedTypes} ${selectedTypes.length > 1 ? 'were' : 'was'} pruned successfully.`
-				);
+				toast.success(`${formattedTypes} ${selectedTypes.length > 1 ? 'were' : 'was'} pruned successfully.`);
 				await refreshData();
 			}
 		});
@@ -254,23 +250,18 @@
 			<h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
 			<p class="text-muted-foreground max-w-2xl text-sm">Overview of your Container Environment</p>
 		</div>
-		<Button
-			variant="outline"
-			size="sm"
-			class="arcane-button-restart h-9"
+		<ArcaneButton
+			action="restart"
 			onclick={refreshData}
-			disabled={isLoading.refreshing ||
-				isLoading.starting ||
-				isLoading.stopping ||
-				isLoading.pruning}
+			disabled={isLoading.refreshing || isLoading.starting || isLoading.stopping || isLoading.pruning}
 		>
 			{#if isLoading.refreshing}
-				<Loader2 class="mr-2 size-4 animate-spin" />
+				<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
 			{:else}
-				<RefreshCw class="mr-2 size-4" />
+				<RefreshCwIcon class="mr-2 size-4" />
 			{/if}
 			Refresh
-		</Button>
+		</ArcaneButton>
 	</div>
 
 	<section>
@@ -290,7 +281,7 @@
 		{:else}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<button
-					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+					class="bg-card ring-offset-background focus-visible:ring-ring group flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dashboardStates.dockerInfo ||
 						stoppedContainers === 0 ||
 						isLoading.starting ||
@@ -302,9 +293,9 @@
 						class="mr-3 flex size-6 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20"
 					>
 						{#if isLoading.starting}
-							<Loader2 class="size-3 animate-spin text-green-500" />
+							<LoaderCircleIcon class="size-3 animate-spin text-green-500" />
 						{:else}
-							<PlayCircle class="size-3 text-green-500" />
+							<CirclePlayIcon class="size-3 text-green-500" />
 						{/if}
 					</div>
 					<div class="flex-1 text-left">
@@ -314,7 +305,7 @@
 				</button>
 
 				<button
-					class="group bg-card flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+					class="bg-card ring-offset-background focus-visible:ring-ring group flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dashboardStates.dockerInfo ||
 						dockerInfo?.containersRunning === 0 ||
 						isLoading.starting ||
@@ -326,34 +317,29 @@
 						class="mr-3 flex size-6 items-center justify-center rounded-full bg-blue-500/10 transition-colors group-hover:bg-blue-500/20"
 					>
 						{#if isLoading.stopping}
-							<Loader2 class="size-3 animate-spin text-blue-500" />
+							<LoaderCircleIcon class="size-3 animate-spin text-blue-500" />
 						{:else}
-							<StopCircle class="size-3 text-blue-500" />
+							<CircleStopIcon class="size-3 text-blue-500" />
 						{/if}
 					</div>
 					<div class="flex-1 text-left">
 						<div class="text-sm font-medium">Stop All Running</div>
-						<div class="text-muted-foreground text-xs">
-							{containers.pagination.totalItems} containers
-						</div>
+						<div class="text-muted-foreground text-xs">{containers.pagination.totalItems} containers</div>
 					</div>
 				</button>
 
 				<button
-					class="group bg-card hover:border-destructive/50 disabled:hover:border-border flex items-center rounded-lg border p-3 shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-					disabled={!dashboardStates.dockerInfo ||
-						isLoading.starting ||
-						isLoading.stopping ||
-						isLoading.pruning}
+					class="bg-card hover:border-destructive/50 disabled:hover:border-border ring-offset-background focus-visible:ring-ring group flex items-center rounded-lg border p-3 shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+					disabled={!dashboardStates.dockerInfo || isLoading.starting || isLoading.stopping || isLoading.pruning}
 					onclick={() => (dashboardStates.isPruneDialogOpen = true)}
 				>
 					<div
 						class="mr-3 flex size-6 items-center justify-center rounded-full bg-red-500/10 transition-colors group-hover:bg-red-500/20"
 					>
 						{#if isLoading.pruning}
-							<Loader2 class="size-3 animate-spin text-red-500" />
+							<LoaderCircleIcon class="size-3 animate-spin text-red-500" />
 						{:else}
-							<Trash2 class="size-3 text-red-500" />
+							<Trash2Icon class="size-3 text-red-500" />
 						{/if}
 					</div>
 					<div class="flex-1 text-left">
@@ -370,13 +356,13 @@
 			id="system-overview"
 			title="System Overview"
 			description="Hardware and Docker engine information"
-			icon={Monitor}
+			icon={MonitorIcon}
 			defaultExpanded={true}
 		>
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
 				<MeterMetric
 					title="Running Containers"
-					icon={Container}
+					icon={ContainerIcon}
 					description="Active containers"
 					currentValue={isLoading.loadingStats ? undefined : dockerInfo?.containersRunning}
 					formatValue={(v) => v.toString()}
@@ -388,11 +374,9 @@
 
 				<MeterMetric
 					title="CPU Usage"
-					icon={Cpu}
+					icon={CpuIcon}
 					description="Processor utilization"
-					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
-						? undefined
-						: currentStats?.cpuUsage}
+					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded ? undefined : currentStats?.cpuUsage}
 					unit="%"
 					maxValue={100}
 					loading={isLoading.loadingStats || !hasInitialStatsLoaded}
@@ -400,7 +384,7 @@
 
 				<MeterMetric
 					title="Memory Usage"
-					icon={MemoryStick}
+					icon={MemoryStickIcon}
 					description="RAM utilization"
 					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
 						? undefined
@@ -414,7 +398,7 @@
 				/>
 
 				<MeterMetric
-					icon={HardDrive}
+					icon={HardDriveIcon}
 					title="Disk Usage"
 					description="Storage utilization"
 					currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
@@ -430,25 +414,25 @@
 			</div>
 
 			<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-				<Card.Root class="rounded-lg border shadow-sm">
+				<Card.Root>
 					<Card.Content class="p-4">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-blue-500/10 p-2">
 								{#if isLoading.loadingDockerInfo}
-									<Loader2 class="size-5 text-blue-500 animate-spin" />
+									<LoaderCircleIcon class="size-5 animate-spin text-blue-500" />
 								{:else}
 									<DockerIcon class="size-5 text-blue-500" />
 								{/if}
 							</div>
-							<div class="flex-1 min-w-0">
+							<div class="min-w-0 flex-1">
 								{#if isLoading.loadingDockerInfo}
 									<div class="space-y-2">
-										<div class="h-4 w-24 bg-muted animate-pulse rounded"></div>
-										<div class="h-3 w-32 bg-muted animate-pulse rounded"></div>
+										<div class="bg-muted h-4 w-24 animate-pulse rounded"></div>
+										<div class="bg-muted h-3 w-32 animate-pulse rounded"></div>
 									</div>
 								{:else}
 									<p class="text-sm font-medium">Docker Engine</p>
-									<p class="text-xs text-muted-foreground">
+									<p class="text-muted-foreground text-xs">
 										{dashboardStates.dockerInfo?.version || 'Unknown'} •
 										{dashboardStates.dockerInfo?.os || 'Unknown'}
 									</p>
@@ -463,20 +447,20 @@
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-green-500/10 p-2">
 								{#if isLoading.loadingStats}
-									<Loader2 class="size-5 text-green-500 animate-spin" />
+									<LoaderCircleIcon class="size-5 animate-spin text-green-500" />
 								{:else}
-									<Box class="size-5 text-green-500" />
+									<BoxIcon class="size-5 text-green-500" />
 								{/if}
 							</div>
-							<div class="flex-1 min-w-0">
+							<div class="min-w-0 flex-1">
 								{#if isLoading.loadingStats}
 									<div class="space-y-2">
-										<div class="h-4 w-28 bg-muted animate-pulse rounded"></div>
-										<div class="h-3 w-20 bg-muted animate-pulse rounded"></div>
+										<div class="bg-muted h-4 w-24 animate-pulse rounded"></div>
+										<div class="bg-muted h-3 w-32 animate-pulse rounded"></div>
 									</div>
 								{:else}
 									<p class="text-sm font-medium">Total Containers</p>
-									<p class="text-xs text-muted-foreground">
+									<p class="text-muted-foreground text-xs">
 										{totalContainers} total • {stoppedContainers} stopped
 									</p>
 								{/if}
@@ -490,20 +474,20 @@
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg bg-purple-500/10 p-2">
 								{#if isLoading.loadingImages}
-									<Loader2 class="size-5 text-purple-500 animate-spin" />
+									<LoaderCircleIcon class="size-5 animate-spin text-purple-500" />
 								{:else}
-									<HardDrive class="size-5 text-purple-500" />
+									<HardDriveIcon class="size-5 text-purple-500" />
 								{/if}
 							</div>
-							<div class="flex-1 min-w-0">
+							<div class="min-w-0 flex-1">
 								{#if isLoading.loadingImages}
 									<div class="space-y-2">
-										<div class="h-4 w-24 bg-muted animate-pulse rounded"></div>
-										<div class="h-3 w-28 bg-muted animate-pulse rounded"></div>
+										<div class="bg-muted h-4 w-24 animate-pulse rounded"></div>
+										<div class="bg-muted h-3 w-28 animate-pulse rounded"></div>
 									</div>
 								{:else}
 									<p class="text-sm font-medium">Docker Images</p>
-									<p class="text-xs text-muted-foreground">
+									<p class="text-muted-foreground text-xs">
 										{images.pagination.totalItems} images
 									</p>
 								{/if}

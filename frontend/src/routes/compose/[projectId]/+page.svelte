@@ -3,24 +3,22 @@
 	import type { Project, ProjectService, ProjectPort } from '$lib/types/project.type';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import {
-		ArrowLeft,
-		AlertCircle,
-		FileStack,
-		Layers,
-		ArrowRight,
-		ExternalLink,
-		RefreshCw,
-		Terminal,
-		Settings,
-		Activity
-	} from '@lucide/svelte';
+	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+	import CircleAlertIcon from '@lucide/svelte/icons/alert-circle';
+	import FileStackIcon from '@lucide/svelte/icons/file-stack';
+	import LayersIcon from '@lucide/svelte/icons/layers';
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import TerminalIcon from '@lucide/svelte/icons/terminal';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import ActivityIcon from '@lucide/svelte/icons/activity';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import ActionButtons from '$lib/components/action-buttons.svelte';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
-	import { statusVariantMap } from '$lib/types/statuses';
+	import { getStatusVariant } from '$lib/utils/status.utils';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -28,8 +26,8 @@
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { environmentAPI } from '$lib/services/api';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
-	import ArcaneButton from '$lib/components/arcane-button.svelte';
-	import LogViewer from '$lib/components/LogViewer.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
+	import LogViewer from '$lib/components/log-viewer.svelte';
 	import { browser } from '$app/environment';
 
 	let { data }: { data: PageData } = $props();
@@ -55,9 +53,7 @@
 	let originalEnvContent = $derived(editorState.originalEnvContent || '');
 
 	let hasChanges = $derived(
-		name !== originalName ||
-			composeContent !== originalComposeContent ||
-			envContent !== originalEnvContent
+		name !== originalName || composeContent !== originalComposeContent || envContent !== originalEnvContent
 	);
 
 	const baseServerUrl = $derived(settings?.baseServerUrl || 'localhost');
@@ -126,11 +122,7 @@
 		return baseServerUrl;
 	}
 
-	function getServicePortUrl(
-		service: ProjectService,
-		port: string | number | ProjectPort,
-		protocol = 'http'
-	): string {
+	function getServicePortUrl(service: ProjectService, port: string | number | ProjectPort, protocol = 'http'): string {
 		const host = getHostForService(service);
 
 		if (typeof port === 'string') {
@@ -172,10 +164,10 @@
 	function handleToggleStackAutoScroll() {}
 
 	const navigationSections = [
-		{ id: 'overview', label: 'Overview', icon: FileStack },
-		{ id: 'services', label: 'Services', icon: Layers },
-		{ id: 'config', label: 'Configuration', icon: Settings },
-		{ id: 'logs', label: 'Logs', icon: Terminal }
+		{ id: 'overview', label: 'Overview', icon: FileStackIcon },
+		{ id: 'services', label: 'Services', icon: LayersIcon },
+		{ id: 'config', label: 'Configuration', icon: SettingsIcon },
+		{ id: 'logs', label: 'Logs', icon: TerminalIcon }
 	] as const;
 
 	type SectionId = (typeof navigationSections)[number]['id'];
@@ -193,15 +185,13 @@
 	{#if project}
 		<div
 			class="bg-background/95 sticky top-0 z-20 border-b backdrop-blur transition-all duration-300"
-			style="opacity: {showFloatingHeader ? 0 : 1}; pointer-events: {showFloatingHeader
-				? 'none'
-				: 'auto'};"
+			style="opacity: {showFloatingHeader ? 0 : 1}; pointer-events: {showFloatingHeader ? 'none' : 'auto'};"
 		>
 			<div class="max-w-full px-4 py-3">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
 						<Button variant="ghost" size="sm" href="/compose">
-							<ArrowLeft class="mr-2 size-4" />
+							<ArrowLeftIcon class="mr-2 size-4" />
 							Back
 						</Button>
 						<div class="bg-border h-4 w-px"></div>
@@ -210,10 +200,7 @@
 								{project.name}
 							</h1>
 							{#if project.status}
-								<StatusBadge
-									variant={statusVariantMap[project.status.toLowerCase()] || 'gray'}
-									text={capitalizeFirstLetter(project.status)}
-								/>
+								<StatusBadge variant={getStatusVariant(project.status)} text={capitalizeFirstLetter(project.status)} />
 							{/if}
 						</div>
 					</div>
@@ -236,20 +223,16 @@
 		</div>
 
 		{#if showFloatingHeader}
-			<div
-				class="fixed top-4 left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ease-in-out"
-			>
-				<div
-					class="bg-background/90 backdrop-blur-xl border border-border/50 rounded-lg shadow-xl px-4 py-3"
-				>
+			<div class="fixed left-1/2 top-4 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
+				<div class="bg-background/90 border-border/50 rounded-lg border px-4 py-3 shadow-xl backdrop-blur-xl">
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
-							<h2 class="text-sm font-medium truncate max-w-[150px]" title={project.name}>
+							<h2 class="max-w-[150px] truncate text-sm font-medium" title={project.name}>
 								{project.name}
 							</h2>
 							{#if project.status}
 								<StatusBadge
-									variant={statusVariantMap[project.status.toLowerCase()] || 'gray'}
+									variant={getStatusVariant(project.status)}
 									text={capitalizeFirstLetter(project.status)}
 									class="text-xs"
 								/>
@@ -276,7 +259,7 @@
 		{#if data.error}
 			<div class="max-w-full px-4 py-4">
 				<Alert.Root variant="destructive">
-					<AlertCircle class="size-4" />
+					<CircleAlertIcon class="size-4" />
 					<Alert.Title>Error Loading Stack</Alert.Title>
 					<Alert.Description>{data.error}</Alert.Description>
 				</Alert.Root>
@@ -300,7 +283,7 @@
 								<IconComponent class="size-4" />
 								{#if section.id === 'services' && project.serviceCount}
 									<span
-										class="bg-primary text-primary-foreground absolute -top-1 -right-1 rounded-full text-xs min-w-[18px] h-[18px] flex items-center justify-center px-1"
+										class="bg-primary text-primary-foreground absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-xs"
 									>
 										{project.serviceCount}
 									</span>
@@ -311,12 +294,12 @@
 				</div>
 			</div>
 
-			<div class="flex-1 min-w-0 overflow-hidden">
+			<div class="min-w-0 flex-1 overflow-hidden">
 				<div class="max-w-none p-6">
 					<div class="space-y-8">
 						<section id="overview" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<FileStack class="size-5" />
+								<FileStackIcon class="size-5" />
 								Overview
 							</h2>
 
@@ -328,7 +311,7 @@
 											<p class="text-2xl font-bold">{project.serviceCount}</p>
 										</div>
 										<div class="bg-primary/10 rounded-full p-3">
-											<Layers class="text-primary size-5" />
+											<LayersIcon class="text-primary size-5" />
 										</div>
 									</Card.Content>
 								</Card.Root>
@@ -340,7 +323,7 @@
 											<p class="text-2xl font-bold">{project.runningCount}</p>
 										</div>
 										<div class="rounded-full bg-green-500/10 p-3">
-											<Activity class="size-5 text-green-500" />
+											<ActivityIcon class="size-5 text-green-500" />
 										</div>
 									</Card.Content>
 								</Card.Root>
@@ -354,7 +337,7 @@
 											</p>
 										</div>
 										<div class="rounded-full bg-blue-500/10 p-3">
-											<FileStack class="size-5 text-blue-500" />
+											<FileStackIcon class="size-5 text-blue-500" />
 										</div>
 									</Card.Content>
 								</Card.Root>
@@ -369,14 +352,14 @@
 											<div class="flex flex-wrap gap-2">
 												{#each allUniquePorts as port (port)}
 													{@const portValue =
-														typeof port === 'string' ||
-														typeof port === 'number' ||
-														(typeof port === 'object' && port !== null)
+														typeof port === 'string' || typeof port === 'number' || (typeof port === 'object' && port !== null)
 															? port
 															: String(port)}
-													{@const serviceWithPort = project.services?.find((s) =>
-														s.ports?.includes(String(port))
-													) || { container_id: '', name: '', status: '' }}
+													{@const serviceWithPort = project.services?.find((s) => s.ports?.includes(String(port))) || {
+														container_id: '',
+														name: '',
+														status: ''
+													}}
 													<a
 														href={getServicePortUrl(serviceWithPort, portValue)}
 														target="_blank"
@@ -384,7 +367,7 @@
 														class="inline-flex items-center rounded-md bg-blue-500/10 px-3 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
 													>
 														Port {port}
-														<ExternalLink class="ml-2 size-4" />
+														<ExternalLinkIcon class="ml-2 size-4" />
 													</a>
 												{/each}
 											</div>
@@ -403,14 +386,14 @@
 										<div class="flex flex-wrap gap-2">
 											{#each allUniquePorts as port (port)}
 												{@const portValue =
-													typeof port === 'string' ||
-													typeof port === 'number' ||
-													(typeof port === 'object' && port !== null)
+													typeof port === 'string' || typeof port === 'number' || (typeof port === 'object' && port !== null)
 														? port
 														: String(port)}
-												{@const serviceWithPort = project.services?.find((s) =>
-													s.ports?.includes(String(port))
-												) || { container_id: '', name: '', status: '' }}
+												{@const serviceWithPort = project.services?.find((s) => s.ports?.includes(String(port))) || {
+													container_id: '',
+													name: '',
+													status: ''
+												}}
 												<a
 													href={getServicePortUrl(serviceWithPort, portValue)}
 													target="_blank"
@@ -418,7 +401,7 @@
 													class="inline-flex items-center rounded-md bg-blue-500/10 px-3 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
 												>
 													Port {port}
-													<ExternalLink class="ml-2 size-4" />
+													<ExternalLinkIcon class="ml-2 size-4" />
 												</a>
 											{/each}
 										</div>
@@ -429,44 +412,38 @@
 
 						<section id="services" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-								<Layers class="size-5" />
+								<LayersIcon class="size-5" />
 								Services ({project.serviceCount})
 							</h2>
 
 							{#if project.services && project.services.length > 0}
-								<div class="rounded-lg border bg-card">
+								<div class="bg-card rounded-lg border">
 									<div class="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
 										{#each project.services as service (service.container_id || service.name)}
 											{@const status = service.status || 'unknown'}
-											{@const variant = statusVariantMap[status.toLowerCase()] || 'gray'}
+											{@const variant = getStatusVariant(status)}
 
 											{#if service.container_id}
 												<a
 													href={`/containers/${service.container_id}`}
-													class="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-all hover:bg-muted/50"
+													class="bg-background hover:bg-muted/50 group flex items-center gap-3 rounded-lg border p-3 transition-all"
 												>
-													<div class="bg-primary/10 rounded-full p-2 shrink-0">
-														<Layers class="text-primary size-3" />
+													<div class="bg-primary/10 shrink-0 rounded-full p-2">
+														<LayersIcon class="text-primary size-3" />
 													</div>
 													<div class="min-w-0 flex-1">
 														<div class="flex items-center justify-between">
-															<p class="text-sm font-medium truncate" title={service.name}>
+															<p class="truncate text-sm font-medium" title={service.name}>
 																{service.name}
 															</p>
-															<ArrowRight
-																class="text-primary size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+															<ArrowRightIcon
+																class="text-primary size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
 															/>
 														</div>
-														<div class="flex items-center gap-2 mt-1">
-															<StatusBadge
-																{variant}
-																text={capitalizeFirstLetter(status)}
-																class="text-xs"
-															/>
+														<div class="mt-1 flex items-center gap-2">
+															<StatusBadge {variant} text={capitalizeFirstLetter(status)} class="text-xs" />
 															{#if service.ports && service.ports.length > 0}
-																<span
-																	class="bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-xs"
-																>
+																<span class="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs">
 																	{service.ports.length} port{service.ports.length > 1 ? 's' : ''}
 																</span>
 															{/if}
@@ -474,20 +451,16 @@
 													</div>
 												</a>
 											{:else}
-												<div class="flex items-center gap-3 rounded-lg border bg-muted/10 p-3">
-													<div class="bg-muted/50 rounded-full p-2 shrink-0">
-														<Layers class="text-muted-foreground size-3" />
+												<div class="bg-muted/10 flex items-center gap-3 rounded-lg border p-3">
+													<div class="bg-muted/50 shrink-0 rounded-full p-2">
+														<LayersIcon class="text-muted-foreground size-3" />
 													</div>
 													<div class="min-w-0 flex-1">
-														<p class="text-sm font-medium truncate" title={service.name}>
+														<p class="truncate text-sm font-medium" title={service.name}>
 															{service.name}
 														</p>
-														<div class="flex items-center gap-2 mt-1">
-															<StatusBadge
-																{variant}
-																text={capitalizeFirstLetter(status)}
-																class="text-xs"
-															/>
+														<div class="mt-1 flex items-center gap-2">
+															<StatusBadge {variant} text={capitalizeFirstLetter(status)} class="text-xs" />
 															<span class="text-muted-foreground text-xs">Not created</span>
 														</div>
 													</div>
@@ -498,10 +471,8 @@
 								</div>
 							{:else}
 								<div class="py-12 text-center">
-									<div
-										class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full"
-									>
-										<Layers class="text-muted-foreground size-6" />
+									<div class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
+										<LayersIcon class="text-muted-foreground size-6" />
 									</div>
 									<div class="text-muted-foreground">No services found for this project</div>
 								</div>
@@ -511,16 +482,16 @@
 						<section id="config" class="scroll-mt-20">
 							<div class="mb-6 flex items-center justify-between">
 								<h2 class="flex items-center gap-2 text-xl font-semibold">
-									<Settings class="size-5" />
+									<SettingsIcon class="size-5" />
 									Configuration
 								</h2>
 								{#if hasChanges}
 									<ArcaneButton
 										action="save"
 										loading={isLoading.saving}
-										onClick={handleSaveChanges}
+										onclick={handleSaveChanges}
 										disabled={!hasChanges}
-										label="Save Changes"
+										customLabel="Save Changes"
 										loadingLabel="Saving..."
 										class="bg-green-600 text-white hover:bg-green-700"
 									/>
@@ -528,7 +499,7 @@
 							</div>
 
 							<div class="mb-6 space-y-2">
-								<Label for="name" class="text-sm mb-10 font-medium">Project Name</Label>
+								<Label for="name" class="mb-10 text-sm font-medium">Project Name</Label>
 								<div class="max-w-md">
 									<Input
 										type="text"
@@ -537,9 +508,7 @@
 										bind:value={name}
 										required
 										class="my-2"
-										disabled={isLoading.saving ||
-											project?.status === 'running' ||
-											project?.status === 'partially running'}
+										disabled={isLoading.saving || project?.status === 'running' || project?.status === 'partially running'}
 									/>
 									{#if project?.status === 'running' || project?.status === 'partially running'}
 										<p class="text-muted-foreground mt-2 text-sm">
@@ -549,29 +518,21 @@
 								</div>
 							</div>
 
-							<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 min-w-0 overflow-hidden">
-								<div class="lg:col-span-2 min-w-0 overflow-hidden">
+							<div class="grid min-w-0 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-3">
+								<div class="min-w-0 overflow-hidden lg:col-span-2">
 									<div class="space-y-4">
 										<h3 class="text-lg">Compose File</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
-											<CodeEditor
-												bind:value={composeContent}
-												language="yaml"
-												placeholder="Enter YAML..."
-											/>
+											<CodeEditor bind:value={composeContent} language="yaml" placeholder="Enter YAML..." />
 										</div>
 									</div>
 								</div>
 
-								<div class="lg:col-span-1 min-w-0 overflow-hidden">
+								<div class="min-w-0 overflow-hidden lg:col-span-1">
 									<div class="space-y-4">
 										<h3 class="text-lg font-semibold">Environment (.env)</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
-											<CodeEditor
-												bind:value={envContent}
-												language="env"
-												placeholder="Enter environment variables..."
-											/>
+											<CodeEditor bind:value={envContent} language="env" placeholder="Enter environment variables..." />
 										</div>
 									</div>
 								</div>
@@ -582,7 +543,7 @@
 							<section id="logs" class="scroll-mt-20">
 								<div class="mb-6 flex items-center justify-between">
 									<h2 class="flex items-center gap-2 text-xl font-semibold">
-										<Terminal class="size-5" />
+										<TerminalIcon class="size-5" />
 										Project Logs
 									</h2>
 									<div class="flex items-center gap-3">
@@ -590,25 +551,16 @@
 											<input type="checkbox" bind:checked={autoScrollStackLogs} class="size-4" />
 											Auto-scroll
 										</label>
-										<Button variant="outline" size="sm" onclick={() => stackLogViewer?.clearLogs()}
-											>Clear</Button
-										>
+										<Button variant="outline" size="sm" onclick={() => stackLogViewer?.clearLogs()}>Clear</Button>
 										{#if isStackLogsStreaming}
 											<div class="flex items-center gap-2">
 												<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
 												<span class="text-sm font-medium text-green-600">Live</span>
 											</div>
-											<Button
-												variant="outline"
-												size="sm"
-												onclick={() => stackLogViewer?.stopLogStream()}>Stop</Button
-											>
+											<Button variant="outline" size="sm" onclick={() => stackLogViewer?.stopLogStream()}>Stop</Button>
 										{:else}
-											<Button
-												variant="outline"
-												size="sm"
-												onclick={() => stackLogViewer?.startLogStream()}
-												disabled={!project?.id}>Start</Button
+											<Button variant="outline" size="sm" onclick={() => stackLogViewer?.startLogStream()} disabled={!project?.id}
+												>Start</Button
 											>
 										{/if}
 										<Button
@@ -619,13 +571,13 @@
 												stackLogViewer?.startLogStream();
 											}}
 										>
-											<RefreshCw class="size-4" />
+											<RefreshCwIcon class="size-4" />
 										</Button>
 									</div>
 								</div>
 
-								<Card.Root class="border min-w-0 overflow-hidden">
-									<Card.Content class="p-0 min-w-0 overflow-hidden">
+								<Card.Root class="min-w-0 overflow-hidden border">
+									<Card.Content class="min-w-0 overflow-hidden p-0">
 										<div class="w-full min-w-0 overflow-hidden">
 											<LogViewer
 												bind:this={stackLogViewer}
@@ -653,15 +605,14 @@
 		<div class="flex min-h-screen items-center justify-center">
 			<div class="text-center">
 				<div class="bg-muted/50 mb-6 inline-flex rounded-full p-6">
-					<FileStack class="text-muted-foreground size-10" />
+					<FileStackIcon class="text-muted-foreground size-10" />
 				</div>
 				<h2 class="mb-3 text-2xl font-medium">Project Not Found</h2>
 				<p class="text-muted-foreground mb-8 max-w-md text-center">
-					Could not load Project data. It may have been removed or the Docker engine is not
-					accessible.
+					Could not load Project data. It may have been removed or the Docker engine is not accessible.
 				</p>
 				<Button variant="outline" href="/compose">
-					<ArrowLeft class="mr-2 size-4" />
+					<ArrowLeftIcon class="mr-2 size-4" />
 					Back to Projects
 				</Button>
 			</div>
