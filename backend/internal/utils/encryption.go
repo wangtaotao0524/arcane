@@ -4,41 +4,56 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/ofkm/arcane-backend/internal/config"
 )
 
 var encryptionKey []byte
 
-// InitEncryption initializes the encryption with the provided config
 func InitEncryption(cfg *config.Config) {
-	keyString := cfg.EncryptionKey
+	keyString := strings.TrimSpace(cfg.EncryptionKey)
 
 	if keyString == "" {
 		if cfg.Environment == "production" {
 			panic("ENCRYPTION_KEY is required in production environment")
 		}
-		log.Println("WARNING: No encryption key provided, using default development key")
-		keyString = "arcane-dev-key-32-characters!!!"
+		log.Println("WARNING: No ENCRYPTION_KEY provided; deriving development key")
+		sum := sha256.Sum256([]byte("arcane-dev-key"))
+		encryptionKey = sum[:]
+		if cfg.Environment != "production" {
+			log.Printf("Encryption initialized (env=%s, key length: %d bytes, mode=derived-dev)", cfg.Environment, len(encryptionKey))
+		}
+		return
 	}
 
-	if len(keyString) != 32 {
-		panic(fmt.Sprintf("Encryption key must be exactly 32 characters for AES-256, got %d characters", len(keyString)))
+	clean := strings.TrimSpace(keyString)
+
+	if len(clean) == 32 {
+		encryptionKey = []byte(clean)
+	} else {
+		if b, err := base64.StdEncoding.DecodeString(clean); err == nil && len(b) == 32 {
+			encryptionKey = b
+		} else if b, err := base64.RawStdEncoding.DecodeString(clean); err == nil && len(b) == 32 {
+			encryptionKey = b
+		} else if b, err := hex.DecodeString(clean); err == nil && len(b) == 32 {
+			encryptionKey = b
+		} else {
+			panic(fmt.Sprintf("ENCRYPTION_KEY must be 32 bytes (raw/base64/hex). Provided=%d chars", len(clean)))
+		}
 	}
 
-	encryptionKey = []byte(keyString)
-
-	// Log initialization status (but not the actual key)
 	if cfg.Environment != "production" {
-		log.Printf("Encryption initialized with %d-character key", len(keyString))
+		log.Printf("Encryption initialized (env=%s, key length: %d bytes)", cfg.Environment, len(encryptionKey))
 	}
 }
 
-// Encrypt encrypts plain text using AES-GCM
 func Encrypt(plaintext string) (string, error) {
 	if encryptionKey == nil {
 		return "", fmt.Errorf("encryption not initialized - call InitEncryption first")
@@ -67,7 +82,6 @@ func Encrypt(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// Decrypt decrypts cipher text using AES-GCM
 func Decrypt(ciphertext string) (string, error) {
 	if encryptionKey == nil {
 		return "", fmt.Errorf("encryption not initialized - call InitEncryption first")
@@ -97,8 +111,8 @@ func Decrypt(ciphertext string) (string, error) {
 		return "", fmt.Errorf("ciphertext too short")
 	}
 
-	nonce, ciphertext_bytes := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext_bytes, nil)
+	nonce, ciphertextBytes := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt: %w", err)
 	}
@@ -106,7 +120,6 @@ func Decrypt(ciphertext string) (string, error) {
 	return string(plaintext), nil
 }
 
-// IsInitialized returns true if encryption has been initialized
 func IsInitialized() bool {
 	return encryptionKey != nil
 }
