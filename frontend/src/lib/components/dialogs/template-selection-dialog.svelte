@@ -201,7 +201,7 @@
 						<p class="mb-2">No templates available</p>
 						<p class="text-sm">
 							Add a template registry in
-							<a href="/settings/templates" class="text-primary hover:underline">Template Settings</a>
+							<a href="/customize/templates" class="text-primary hover:underline">Template Settings</a>
 							to access community templates.
 						</p>
 					</div>
