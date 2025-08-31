@@ -61,8 +61,7 @@ func NewTemplateService(db *database.DB) *TemplateService {
 func (s *TemplateService) startRemoteCacheWorker() {
 	go func() {
 		for cmd := range s.cacheCmdCh {
-			switch cmd.kind {
-			case "ensure":
+			if cmd.kind == "ensure" {
 				rc := s.getRemoteCache()
 				if rc.templates != nil && time.Since(rc.lastFetch) < remoteCacheDuration {
 					cmd.reply <- nil
@@ -277,11 +276,8 @@ func (s *TemplateService) CreateRegistry(ctx context.Context, registry *models.T
 			if registry.Description == "" {
 				registry.Description = manifest.Description
 			}
-		} else {
-			// If required fields are still missing, bubble error
-			if registry.Name == "" || registry.Description == "" {
-				return fmt.Errorf("failed to fetch registry manifest: %w", err)
-			}
+		} else if registry.Name == "" || registry.Description == "" {
+			return fmt.Errorf("failed to fetch registry manifest: %w", err)
 		}
 	}
 
