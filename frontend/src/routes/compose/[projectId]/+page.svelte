@@ -29,6 +29,8 @@
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import LogViewer from '$lib/components/log-viewer.svelte';
 	import { browser } from '$app/environment';
+	import { z } from 'zod/v4';
+	import { createForm } from '$lib/utils/form.utils';
 
 	let { data }: { data: PageData } = $props();
 	let { project, editorState, servicePorts, settings } = $derived(data);
@@ -45,15 +47,32 @@
 		saving: false
 	});
 
-	let name = $derived(editorState.name);
-	let composeContent = $derived(editorState.composeContent);
-	let envContent = $derived(editorState.envContent || '');
+	// Remove local name/composeContent/envContent state; use form inputs instead
 	let originalName = $derived(editorState.originalName);
 	let originalComposeContent = $derived(editorState.originalComposeContent);
 	let originalEnvContent = $derived(editorState.originalEnvContent || '');
 
+	const formSchema = z.object({
+		name: z
+			.string()
+			.min(1, 'Project name is required')
+			.regex(/^[a-z0-9-]+$/i, 'Only letters, numbers, and hyphens are allowed'),
+		composeContent: z.string().min(1, 'Compose content is required'),
+		envContent: z.string().optional().default('')
+	});
+
+	let formData = $derived({
+		name: editorState.name,
+		composeContent: editorState.composeContent,
+		envContent: editorState.envContent || ''
+	});
+
+	let { inputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, formData));
+
 	let hasChanges = $derived(
-		name !== originalName || composeContent !== originalComposeContent || envContent !== originalEnvContent
+		$inputs.name.value !== originalName ||
+			$inputs.composeContent.value !== originalComposeContent ||
+			$inputs.envContent.value !== originalEnvContent
 	);
 
 	const baseServerUrl = $derived(settings?.baseServerUrl || 'localhost');
@@ -86,6 +105,11 @@
 	async function handleSaveChanges() {
 		if (!project || !hasChanges) return;
 
+		const validated = form.validate();
+		if (!validated) return;
+
+		const { composeContent, envContent } = validated;
+
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.updateProject(project.id, composeContent, envContent)),
 			message: 'Failed to Save Project',
@@ -93,17 +117,13 @@
 			onSuccess: async (updatedStack: Project) => {
 				toast.success('Project updated successfully!');
 
+				// Keep local "original" snapshots in sync so hasChanges resets
 				originalName = updatedStack.name;
-				originalComposeContent = composeContent;
-				originalEnvContent = envContent;
+				originalComposeContent = $inputs.composeContent.value;
+				originalEnvContent = $inputs.envContent.value;
 
 				await new Promise((resolve) => setTimeout(resolve, 200));
-
-				if (updatedStack && updatedStack.id !== project.id) {
-					await invalidateAll();
-				} else {
-					await invalidateAll();
-				}
+				await invalidateAll();
 			}
 		});
 	}
@@ -505,11 +525,14 @@
 										type="text"
 										id="name"
 										name="name"
-										bind:value={name}
+										bind:value={$inputs.name.value}
 										required
-										class="my-2"
+										class="my-2 {$inputs.name.error ? 'border-destructive' : ''}"
 										disabled={isLoading.saving || project?.status === 'running' || project?.status === 'partially running'}
 									/>
+									{#if $inputs.name.error}
+										<p class="text-destructive mt-1 text-xs">{$inputs.name.error}</p>
+									{/if}
 									{#if project?.status === 'running' || project?.status === 'partially running'}
 										<p class="text-muted-foreground mt-2 text-sm">
 											Project name cannot be changed while running. Please stop the project first.
@@ -523,8 +546,11 @@
 									<div class="space-y-4">
 										<h3 class="text-lg">Compose File</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
-											<CodeEditor bind:value={composeContent} language="yaml" placeholder="Enter YAML..." />
+											<CodeEditor bind:value={$inputs.composeContent.value} language="yaml" placeholder="Enter YAML..." />
 										</div>
+										{#if $inputs.composeContent.error}
+											<p class="text-destructive mt-1 text-xs">{$inputs.composeContent.error}</p>
+										{/if}
 									</div>
 								</div>
 
@@ -532,8 +558,15 @@
 									<div class="space-y-4">
 										<h3 class="text-lg font-semibold">Environment (.env)</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
-											<CodeEditor bind:value={envContent} language="env" placeholder="Enter environment variables..." />
+											<CodeEditor
+												bind:value={$inputs.envContent.value}
+												language="env"
+												placeholder="Enter environment variables..."
+											/>
 										</div>
+										{#if $inputs.envContent.error}
+											<p class="text-destructive mt-1 text-xs">{$inputs.envContent.error}</p>
+										{/if}
 									</div>
 								</div>
 							</div>

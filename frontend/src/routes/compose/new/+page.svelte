@@ -10,7 +10,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import CodeEditor from '$lib/components/editor.svelte';
-	import { preventDefault } from '$lib/utils/form.utils';
+	import { preventDefault, createForm } from '$lib/utils/form.utils';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { defaultComposeTemplate } from '$lib/constants';
@@ -20,6 +20,7 @@
 	import TemplateSelectionDialog from '$lib/components/dialogs/template-selection-dialog.svelte';
 	import { environmentAPI, converterAPI } from '$lib/services/api';
 	import type { Template } from '$lib/types/template.type';
+	import { z } from 'zod/v4';
 
 	let { data } = $props();
 
@@ -29,9 +30,26 @@
 	let showConverterDialog = $state(false);
 	let isLoadingTemplateContent = $state(false);
 
-	let name = $state('');
-	let composeContent = $state(data.defaultTemplate || defaultComposeTemplate);
-	let envContent = $state(data.envTemplate);
+	// Removed local name/compose/env variables in favor of form inputs
+
+	// Form schema + initial values
+	const formSchema = z.object({
+		name: z
+			.string()
+			.min(1, 'Project name is required')
+			.regex(/^[a-z0-9-]+$/i, 'Only letters, numbers, and hyphens are allowed'),
+		composeContent: z.string().min(1, 'Compose content is required'),
+		envContent: z.string().optional().default('')
+	});
+
+	let formData = $derived({
+		name: '',
+		composeContent: data.defaultTemplate || defaultComposeTemplate,
+		envContent: data.envTemplate || ''
+	});
+
+	let { inputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, formData));
+
 	let dockerRunCommand = $state('');
 
 	async function handleSubmit() {
@@ -39,6 +57,11 @@
 	}
 
 	async function handleCreateProject() {
+		const validated = form.validate();
+		if (!validated) return;
+
+		const { name, composeContent, envContent } = validated;
+
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.deployProject(name, composeContent, envContent)),
 			message: 'Failed to Create Project',
@@ -61,9 +84,9 @@
 			message: 'Failed to Convert Docker Run Command',
 			setLoadingState: (value) => (converting = value),
 			onSuccess: (data) => {
-				composeContent = data.dockerCompose;
-				envContent = data.envVars;
-				name = data.serviceName;
+				$inputs.composeContent.value = data.dockerCompose;
+				$inputs.envContent.value = data.envVars;
+				$inputs.name.value = data.serviceName;
 
 				toast.success('Docker run command converted successfully!');
 				dockerRunCommand = '';
@@ -75,13 +98,13 @@
 	async function handleTemplateSelect(template: Template) {
 		showTemplateDialog = false;
 
-		composeContent = template.content;
+		$inputs.composeContent.value = template.content;
 		if (template.envContent) {
-			envContent = template.envContent;
+			$inputs.envContent.value = template.envContent;
 		}
 
-		if (!name.trim()) {
-			name = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+		if (!$inputs.name.value?.trim()) {
+			$inputs.name.value = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
 		}
 		toast.success(`Template "${template.name}" loaded successfully!`);
 	}
@@ -178,7 +201,7 @@
 						action="create"
 						onclick={() => handleSubmit()}
 						loading={saving}
-						disabled={!name || !composeContent || saving || converting || isLoadingTemplateContent}
+						disabled={!$inputs.name.value || !$inputs.composeContent.value || saving || converting || isLoadingTemplateContent}
 					/>
 				</div>
 			</div>
@@ -195,11 +218,15 @@
 							type="text"
 							id="name"
 							name="name"
-							bind:value={name}
+							bind:value={$inputs.name.value}
 							required
 							placeholder="e.g., my-web-app"
 							disabled={saving || isLoadingTemplateContent}
+							class={$inputs.name.error ? 'border-destructive' : ''}
 						/>
+						{#if $inputs.name.error}
+							<p class="text-destructive mt-1 text-xs">{$inputs.name.error}</p>
+						{/if}
 					</div>
 				</div>
 
@@ -209,12 +236,15 @@
 							<h3 class="text-lg font-semibold">Docker Compose File</h3>
 							<div class="h-[590px] w-full overflow-hidden rounded-md">
 								<CodeEditor
-									bind:value={composeContent}
+									bind:value={$inputs.composeContent.value}
 									language="yaml"
 									placeholder="Enter YAML..."
 									readOnly={saving || isLoadingTemplateContent}
 								/>
 							</div>
+							{#if $inputs.composeContent.error}
+								<p class="text-destructive mt-1 text-xs">{$inputs.composeContent.error}</p>
+							{/if}
 						</div>
 					</div>
 
@@ -223,12 +253,15 @@
 							<h3 class="text-lg font-semibold">Environment (.env)</h3>
 							<div class="h-[590px] w-full overflow-hidden rounded-md">
 								<CodeEditor
-									bind:value={envContent}
+									bind:value={$inputs.envContent.value}
 									language="env"
 									placeholder="Enter environment variables..."
 									readOnly={saving || isLoadingTemplateContent}
 								/>
 							</div>
+							{#if $inputs.envContent.error}
+								<p class="text-destructive mt-1 text-xs">{$inputs.envContent.error}</p>
+							{/if}
 						</div>
 					</div>
 				</div>
