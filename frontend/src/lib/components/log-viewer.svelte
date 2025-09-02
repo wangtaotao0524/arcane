@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { get } from 'svelte/store';
 	import { environmentStore } from '$lib/stores/environment.store';
 
@@ -45,6 +45,9 @@
 	let isStreaming = $state(false);
 	let error: string | null = $state(null);
 	let eventSource: EventSource | null = null;
+
+	const DOCKER_TS_ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?\s*/;
+	const DOCKER_TS_SLASH_RE = /^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s*/;
 
 	async function buildLogStreamEndpoint(): Promise<string> {
 		if (browser) {
@@ -138,7 +141,7 @@
 			};
 
 			eventSource.onopen = () => {
-				console.log(`${type} log stream connected`);
+				if (dev) console.log(`${type} log stream connected`);
 				error = null;
 			};
 
@@ -160,7 +163,7 @@
 
 	export function stopLogStream() {
 		if (eventSource) {
-			console.log(`Stopping ${type} log stream`);
+			if (dev) console.log(`Stopping ${type} log stream`);
 			eventSource.close();
 			eventSource = null;
 		}
@@ -190,14 +193,11 @@
 		let cleanMessage = logData.message;
 		let timestamp = logData.timestamp || new Date().toISOString();
 
-		const dockerTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?\s*/;
-		if (dockerTimestampRegex.test(cleanMessage)) {
-			cleanMessage = cleanMessage.replace(dockerTimestampRegex, '').trim();
+		if (DOCKER_TS_ISO_RE.test(cleanMessage)) {
+			cleanMessage = cleanMessage.replace(DOCKER_TS_ISO_RE, '').trim();
 		}
-
-		const dockerTimestampRegex2 = /^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s*/;
-		if (dockerTimestampRegex2.test(cleanMessage)) {
-			cleanMessage = cleanMessage.replace(dockerTimestampRegex2, '').trim();
+		if (DOCKER_TS_SLASH_RE.test(cleanMessage)) {
+			cleanMessage = cleanMessage.replace(DOCKER_TS_SLASH_RE, '').trim();
 		}
 
 		const entry: LogEntry = {
@@ -211,11 +211,11 @@
 		logs = [...logs.slice(-(maxLines - 1)), entry];
 
 		if (autoScroll && logContainer) {
-			setTimeout(() => {
+			requestAnimationFrame(() => {
 				if (logContainer) {
 					logContainer.scrollTop = logContainer.scrollHeight;
 				}
-			}, 10);
+			});
 		}
 	}
 
@@ -269,6 +269,13 @@
 		bind:this={logContainer}
 		class="log-viewer overflow-y-auto rounded-lg border bg-black font-mono text-sm text-white"
 		style="height: {height}"
+		role="log"
+		aria-live={isStreaming ? 'polite' : 'off'}
+		aria-relevant="additions"
+		aria-busy={isStreaming}
+		tabindex="-1"
+		data-auto-scroll={autoScroll}
+		data-is-streaming={isStreaming}
 	>
 		{#if logs.length === 0}
 			<div class="p-4 text-center text-gray-500">
