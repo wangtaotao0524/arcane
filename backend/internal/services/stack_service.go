@@ -367,7 +367,6 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		return fmt.Errorf("failed to parse services from compose file: %w", err)
 	}
 
-	// Build a unique image list
 	seen := map[string]struct{}{}
 	var images []string
 	for _, svc := range servicesFromFile {
@@ -382,7 +381,6 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		images = append(images, img)
 	}
 
-	// Stream helper
 	flusher, ok := progressWriter.(http.Flusher)
 	writeJSON := func(m map[string]any) {
 		b, _ := json.Marshal(m)
@@ -402,7 +400,6 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		})
 
 		for _, img := range images {
-			// optional delimiter line per image
 			writeJSON(map[string]any{"status": "Pulling", "id": img})
 
 			if err := s.imageService.PullImage(ctx, img, progressWriter, systemUser); err != nil {
@@ -430,7 +427,6 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		return firstErr
 	}
 
-	// Fallback to docker-compose pull (legacy), stream as plain lines
 	cmd := exec.CommandContext(ctx, "docker-compose", "pull")
 	cmd.Dir = stack.Path
 	cmd.Env = append(os.Environ(),

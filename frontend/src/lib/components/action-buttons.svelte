@@ -6,8 +6,7 @@
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
-	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { Progress } from '$lib/components/ui/progress/index.js';
+	import ProgressPopover from '$lib/components/progress-popover.svelte';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import { environmentStore, LOCAL_DOCKER_ENVIRONMENT_ID } from '$lib/stores/environment.store';
 	import { get } from 'svelte/store';
@@ -357,17 +356,6 @@
 			}
 		}
 	}
-
-	function handlePopoverOpenChange(newOpenState: boolean) {
-		if (!newOpenState && isLoading.pulling) {
-			pullPopoverOpen = true;
-			return;
-		}
-		pullPopoverOpen = newOpenState;
-		if (newOpenState && !isLoading.pulling) {
-			resetPullState();
-		}
-	}
 </script>
 
 <div class="flex items-center gap-2">
@@ -393,49 +381,19 @@
 		<ArcaneButton action="redeploy" onclick={() => confirmAction('redeploy')} loading={isLoading.redeploy} />
 
 		{#if type === 'stack'}
-			<Popover.Root bind:open={pullPopoverOpen} onOpenChange={handlePopoverOpenChange}>
-				<Popover.Trigger>
-					<ArcaneButton action="pull" onclick={handlePull} loading={isLoading.pulling} />
-				</Popover.Trigger>
-				<Popover.Content class="w-80 p-4" align="center">
-					<div class="space-y-3">
-						<div class="flex items-center gap-3">
-							<div class="bg-primary/10 flex size-8 shrink-0 items-center justify-center rounded-full">
-								<DownloadIcon class="text-primary size-4" />
-							</div>
-							<div>
-								<h4 class="text-sm font-semibold">Pulling Images</h4>
-								<p class="text-muted-foreground text-xs">Downloading latest versions</p>
-							</div>
-						</div>
-
-						{#if pullError}
-							<div class="rounded-md bg-red-50 p-3 dark:bg-red-950/20">
-								<p class="text-destructive text-sm">{pullError}</p>
-							</div>
-						{:else}
-							<div class="space-y-2">
-								<div class="flex justify-between text-xs">
-									<span class="text-muted-foreground truncate pr-2">{pullStatusText || 'Preparing...'}</span>
-									<span class="text-muted-foreground shrink-0">{Math.round(pullProgress)}%</span>
-								</div>
-								<Progress value={pullProgress} max={100} class="h-2 w-full" />
-								{#if isLoading.pulling}
-									<p class="text-muted-foreground text-xs">This may take a while depending on image sizes and your connection.</p>
-								{/if}
-							</div>
-						{/if}
-
-						{#if !isLoading.pulling && pullProgress === 100 && !pullError}
-							<div class="rounded-md bg-green-50 p-3 dark:bg-green-950/20">
-								<p class="text-sm text-green-600 dark:text-green-400">✓ All images pulled successfully!</p>
-							</div>
-						{/if}
-					</div>
-				</Popover.Content>
-			</Popover.Root>
+			<ProgressPopover
+				bind:open={pullPopoverOpen}
+				bind:progress={pullProgress}
+				title="Pulling Images"
+				statusText={pullStatusText}
+				error={pullError}
+				loading={isLoading.pulling}
+				icon={DownloadIcon}
+			>
+				<ArcaneButton action="pull" onclick={() => handlePull()} loading={isLoading.pulling} />
+			</ProgressPopover>
 		{:else}
-			<ArcaneButton action="pull" onclick={handlePull} loading={isLoading.pulling} />
+			<ArcaneButton action="pull" onclick={() => handlePull()} loading={isLoading.pulling} />
 		{/if}
 
 		<ArcaneButton

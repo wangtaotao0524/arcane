@@ -480,7 +480,6 @@ func (h *StackHandler) PullStack(c *gin.Context) {
 		stackID = c.Param("id")
 	}
 
-	// Stream headers, same as image pull
 	c.Writer.Header().Set("Content-Type", "application/x-json-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
@@ -586,8 +585,6 @@ func (h *StackHandler) PullImages(c *gin.Context) {
 		})
 		return
 	}
-
-	// Do not send a final JSON body; stream completes like the image pull endpoint.
 }
 
 func (h *StackHandler) ConvertDockerRun(c *gin.Context) {
