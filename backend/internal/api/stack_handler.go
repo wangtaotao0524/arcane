@@ -476,11 +476,30 @@ func (h *StackHandler) DestroyStack(c *gin.Context) {
 
 func (h *StackHandler) PullStack(c *gin.Context) {
 	stackID := c.Param("stackId")
+	if stackID == "" {
+		stackID = c.Param("id")
+	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    gin.H{"message": "Stack images pulled successfully", "stackId": stackID},
-	})
+	// Stream headers, same as image pull
+	c.Writer.Header().Set("Content-Type", "application/x-json-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
+		return
+	}
+
+	if err := h.stackService.PullStackImages(c.Request.Context(), stackID, c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to pull stack images: %v", err),
+		})
+		return
+	}
+
 }
 
 func (h *StackHandler) DeployStack(c *gin.Context) {
@@ -549,7 +568,18 @@ func (h *StackHandler) PullImages(c *gin.Context) {
 		stackID = c.Param("id")
 	}
 
-	if err := h.stackService.PullStackImages(c.Request.Context(), stackID); err != nil {
+	c.Writer.Header().Set("Content-Type", "application/x-json-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+
+	currentUser, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
+		return
+	}
+
+	if err := h.stackService.PullStackImages(c.Request.Context(), stackID, c.Writer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -557,10 +587,7 @@ func (h *StackHandler) PullImages(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    gin.H{"message": "Images pulled successfully"},
-	})
+	// Do not send a final JSON body; stream completes like the image pull endpoint.
 }
 
 func (h *StackHandler) ConvertDockerRun(c *gin.Context) {

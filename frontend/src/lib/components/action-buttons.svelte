@@ -6,6 +6,11 @@
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
+	import { Progress } from '$lib/components/ui/progress/index.js';
+	import DownloadIcon from '@lucide/svelte/icons/download';
+	import { environmentStore, LOCAL_DOCKER_ENVIRONMENT_ID } from '$lib/stores/environment.store';
+	import { get } from 'svelte/store';
 
 	type TargetType = 'container' | 'stack';
 
@@ -44,6 +49,12 @@
 		validating: false
 	});
 
+	let pullPopoverOpen = $state(false);
+	let pullProgress = $state(0);
+	let pullStatusText = $state('');
+	let pullError = $state('');
+	let layerProgress = $state<Record<string, { current: number; total: number; status: string }>>({});
+
 	const isRunning = $derived(itemState === 'running' || (type === 'stack' && itemState === 'partially running'));
 
 	$effect(() => {
@@ -55,6 +66,52 @@
 		isLoading.redeploy = loading.redeploy ?? false;
 		isLoading.validating = loading.validating ?? false;
 	});
+
+	function resetPullState() {
+		pullProgress = 0;
+		pullStatusText = '';
+		pullError = '';
+		layerProgress = {};
+	}
+
+	function calculateOverallProgress() {
+		let totalCurrentBytes = 0;
+		let totalExpectedBytes = 0;
+		let activeLayers = 0;
+
+		for (const id in layerProgress) {
+			const layer = layerProgress[id];
+			if (layer.total > 0) {
+				totalCurrentBytes += layer.current;
+				totalExpectedBytes += layer.total;
+				activeLayers++;
+			}
+		}
+
+		if (totalExpectedBytes > 0) {
+			pullProgress = (totalCurrentBytes / totalExpectedBytes) * 100;
+		} else if (activeLayers > 0 && totalCurrentBytes > 0) {
+			pullProgress = 5;
+		} else if (Object.keys(layerProgress).length > 0 && activeLayers === 0) {
+			const allDone = Object.values(layerProgress).every(
+				(l) => l.status && (l.status.toLowerCase().includes('pull complete') || l.status.toLowerCase().includes('already exists'))
+			);
+			if (allDone) pullProgress = 100;
+		}
+	}
+
+	function buildPullApiUrl(): string {
+		const envId = getCurrentEnvironmentId();
+		if (envId === LOCAL_DOCKER_ENVIRONMENT_ID) {
+			return `/api/stacks/${id}/pull`;
+		}
+		return `/api/environments/${envId}/stacks/${id}/pull`;
+	}
+
+	function getCurrentEnvironmentId(): string {
+		const env = get(environmentStore.selected);
+		return env?.id || LOCAL_DOCKER_ENVIRONMENT_ID;
+	}
 
 	function confirmAction(action: string) {
 		if (action === 'remove') {
@@ -172,16 +229,144 @@
 	}
 
 	async function handlePull() {
+		if (type === 'container') {
+			// Use existing API for containers
+			isLoading.pulling = true;
+			handleApiResultWithCallbacks({
+				result: await tryCatch(environmentAPI.pullContainerImage(id)),
+				message: 'Failed to Pull Image(s)',
+				setLoadingState: (value) => (isLoading.pulling = value),
+				onSuccess: async () => {
+					toast.success('Image(s) Pulled Successfully.');
+					await invalidateAll();
+				}
+			});
+		} else {
+			await handleStackPull();
+		}
+	}
+
+	async function handleStackPull() {
+		resetPullState();
 		isLoading.pulling = true;
-		handleApiResultWithCallbacks({
-			result: await tryCatch(type === 'container' ? environmentAPI.pullContainerImage(id) : environmentAPI.pullProjectImages(id)),
-			message: 'Failed to Pull Image(s)',
-			setLoadingState: (value) => (isLoading.pulling = value),
-			onSuccess: async () => {
-				toast.success('Image(s) Pulled Successfully.');
-				await invalidateAll();
+		pullPopoverOpen = true;
+		pullStatusText = 'Initiating pull...';
+
+		let wasSuccessful = false;
+
+		try {
+			const response = await fetch(buildPullApiUrl(), {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok || !response.body) {
+				const errorData = await response.json().catch(() => ({
+					error: 'Failed to pull images. Server returned an error.'
+				}));
+				const errorMessage =
+					typeof errorData.error === 'string' ? errorData.error : errorData.message || `HTTP error ${response.status}`;
+				throw new Error(errorMessage);
 			}
-		});
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) {
+					pullStatusText = 'Processing final layers...';
+					break;
+				}
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				for (const line of lines) {
+					if (line.trim() === '') continue;
+					try {
+						const data = JSON.parse(line);
+
+						if (data.error) {
+							console.error('Error in stream:', data.error);
+							pullError = typeof data.error === 'string' ? data.error : data.error.message || 'An error occurred during pull.';
+							pullStatusText = `Error: ${pullError}`;
+							continue;
+						}
+
+						pullStatusText = data.status || pullStatusText;
+						if (data.id) {
+							const currentLayer = layerProgress[data.id] || { current: 0, total: 0, status: '' };
+							currentLayer.status = data.status || currentLayer.status;
+
+							if (data.progressDetail) {
+								currentLayer.current = data.progressDetail.current || currentLayer.current;
+								currentLayer.total = data.progressDetail.total || currentLayer.total;
+							}
+							layerProgress[data.id] = currentLayer;
+						}
+						calculateOverallProgress();
+					} catch (e: any) {
+						console.warn('Failed to parse stream line or process data:', line, e);
+					}
+				}
+			}
+
+			calculateOverallProgress();
+			if (!pullError && pullProgress < 100) {
+				const allLayersCompleteOrExisting = Object.values(layerProgress).every(
+					(l) =>
+						l.status &&
+						(l.status.toLowerCase().includes('complete') ||
+							l.status.toLowerCase().includes('already exists') ||
+							l.status.toLowerCase().includes('downloaded newer image'))
+				);
+				if (allLayersCompleteOrExisting && Object.keys(layerProgress).length > 0) {
+					pullProgress = 100;
+				}
+			}
+
+			if (pullError) {
+				throw new Error(pullError);
+			}
+
+			wasSuccessful = true;
+			pullProgress = 100;
+			pullStatusText = 'Images pulled successfully.';
+			toast.success('Images pulled successfully!');
+			await invalidateAll();
+
+			setTimeout(() => {
+				pullPopoverOpen = false;
+				isLoading.pulling = false;
+				resetPullState();
+			}, 2000);
+		} catch (error: any) {
+			console.error('Pull images error:', error);
+			const message = error.message || 'An unexpected error occurred while pulling images.';
+			pullError = message;
+			pullStatusText = `Failed: ${message}`;
+			toast.error(message);
+		} finally {
+			if (!wasSuccessful) {
+				isLoading.pulling = false;
+			}
+		}
+	}
+
+	function handlePopoverOpenChange(newOpenState: boolean) {
+		if (!newOpenState && isLoading.pulling) {
+			pullPopoverOpen = true;
+			return;
+		}
+		pullPopoverOpen = newOpenState;
+		if (newOpenState && !isLoading.pulling) {
+			resetPullState();
+		}
 	}
 </script>
 
@@ -206,7 +391,53 @@
 		<ArcaneButton action="remove" onclick={() => confirmAction('remove')} loading={isLoading.remove} />
 	{:else}
 		<ArcaneButton action="redeploy" onclick={() => confirmAction('redeploy')} loading={isLoading.redeploy} />
-		<ArcaneButton action="pull" onclick={handlePull} loading={isLoading.pulling} />
+
+		{#if type === 'stack'}
+			<Popover.Root bind:open={pullPopoverOpen} onOpenChange={handlePopoverOpenChange}>
+				<Popover.Trigger>
+					<ArcaneButton action="pull" onclick={handlePull} loading={isLoading.pulling} />
+				</Popover.Trigger>
+				<Popover.Content class="w-80 p-4" align="center">
+					<div class="space-y-3">
+						<div class="flex items-center gap-3">
+							<div class="bg-primary/10 flex size-8 shrink-0 items-center justify-center rounded-full">
+								<DownloadIcon class="text-primary size-4" />
+							</div>
+							<div>
+								<h4 class="text-sm font-semibold">Pulling Images</h4>
+								<p class="text-muted-foreground text-xs">Downloading latest versions</p>
+							</div>
+						</div>
+
+						{#if pullError}
+							<div class="rounded-md bg-red-50 p-3 dark:bg-red-950/20">
+								<p class="text-destructive text-sm">{pullError}</p>
+							</div>
+						{:else}
+							<div class="space-y-2">
+								<div class="flex justify-between text-xs">
+									<span class="text-muted-foreground truncate pr-2">{pullStatusText || 'Preparing...'}</span>
+									<span class="text-muted-foreground shrink-0">{Math.round(pullProgress)}%</span>
+								</div>
+								<Progress value={pullProgress} max={100} class="h-2 w-full" />
+								{#if isLoading.pulling}
+									<p class="text-muted-foreground text-xs">This may take a while depending on image sizes and your connection.</p>
+								{/if}
+							</div>
+						{/if}
+
+						{#if !isLoading.pulling && pullProgress === 100 && !pullError}
+							<div class="rounded-md bg-green-50 p-3 dark:bg-green-950/20">
+								<p class="text-sm text-green-600 dark:text-green-400">✓ All images pulled successfully!</p>
+							</div>
+						{/if}
+					</div>
+				</Popover.Content>
+			</Popover.Root>
+		{:else}
+			<ArcaneButton action="pull" onclick={handlePull} loading={isLoading.pulling} />
+		{/if}
+
 		<ArcaneButton
 			customLabel={type === 'stack' ? 'Destroy' : 'Remove'}
 			action="remove"

@@ -59,7 +59,7 @@ func NewAutoUpdateService(
 		imageService:       imageService,
 		imageUpdateService: imageUpdateService,
 		registryService:    registryService,
-		eventService:       eventService, // Add this line
+		eventService:       eventService,
 		updatingContainers: make(map[string]bool),
 		updatingStacks:     make(map[string]bool),
 	}
@@ -73,7 +73,6 @@ func (s *AutoUpdateService) CheckForUpdates(ctx context.Context, req dto.AutoUpd
 		Results:   []dto.AutoUpdateResourceResult{},
 	}
 
-	// Log auto-update check start event
 	metadata := models.JSON{
 		"action":        "check_start",
 		"type":          req.Type,
@@ -821,7 +820,6 @@ func (s *AutoUpdateService) updateStack(
 ) error {
 	log.Printf("Updating stack: %s", stack.Name)
 
-	// Log stack update start event
 	updateMetadata := models.JSON{
 		"action": "auto_update_start",
 		"reason": "image_updates_available",
@@ -831,7 +829,7 @@ func (s *AutoUpdateService) updateStack(
 	}
 
 	log.Printf("Pulling latest images for stack: %s", stack.Name)
-	if err := s.stackService.PullStackImages(ctx, stack.ID); err != nil {
+	if err := s.stackService.PullStackImages(ctx, stack.ID, io.Discard); err != nil {
 		log.Printf("Warning: Failed to pull some images: %v", err)
 		// Log image pull warning
 		pullWarningMetadata := models.JSON{

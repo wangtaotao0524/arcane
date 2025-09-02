@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,13 +35,15 @@ type StackService struct {
 	db              *database.DB
 	settingsService *SettingsService
 	eventService    *EventService
+	imageService    *ImageService
 }
 
-func NewStackService(db *database.DB, settingsService *SettingsService, eventService *EventService) *StackService {
+func NewStackService(db *database.DB, settingsService *SettingsService, eventService *EventService, imageService *ImageService) *StackService {
 	return &StackService{
 		db:              db,
 		settingsService: settingsService,
 		eventService:    eventService,
+		imageService:    imageService,
 	}
 }
 
@@ -348,24 +351,168 @@ func (s *StackService) RestartStack(ctx context.Context, stackID string, user mo
 	return s.updateStackStatusAndCounts(ctx, stackID, models.StackStatusRunning)
 }
 
-func (s *StackService) PullStackImages(ctx context.Context, stackID string) error {
+func (s *StackService) PullStackImages(ctx context.Context, stackID string, progressWriter io.Writer) error {
 	stack, err := s.GetStackByID(ctx, stackID)
 	if err != nil {
 		return err
 	}
 
+	composeFile := s.findComposeFile(stack.Path)
+	if composeFile == "" {
+		return fmt.Errorf("no compose file found for stack")
+	}
+
+	servicesFromFile, err := s.parseServicesFromComposeFile(ctx, composeFile, stack.Name)
+	if err != nil {
+		return fmt.Errorf("failed to parse services from compose file: %w", err)
+	}
+
+	// Build a unique image list
+	seen := map[string]struct{}{}
+	var images []string
+	for _, svc := range servicesFromFile {
+		img := strings.TrimSpace(svc.Image)
+		if img == "" {
+			continue
+		}
+		if _, ok := seen[img]; ok {
+			continue
+		}
+		seen[img] = struct{}{}
+		images = append(images, img)
+	}
+
+	// Stream helper
+	flusher, ok := progressWriter.(http.Flusher)
+	writeJSON := func(m map[string]any) {
+		b, _ := json.Marshal(m)
+		_, _ = progressWriter.Write(b)
+		_, _ = progressWriter.Write([]byte("\n"))
+		if ok {
+			flusher.Flush()
+		}
+	}
+
+	if s.imageService != nil && len(images) > 0 {
+		var firstErr error
+
+		writeJSON(map[string]any{
+			"status": "Pulling images for stack",
+			"id":     stack.Name,
+		})
+
+		for _, img := range images {
+			// optional delimiter line per image
+			writeJSON(map[string]any{"status": "Pulling", "id": img})
+
+			if err := s.imageService.PullImage(ctx, img, progressWriter, systemUser); err != nil {
+				writeJSON(map[string]any{
+					"error":   err.Error(),
+					"status":  "error",
+					"id":      img,
+					"stackId": stackID,
+				})
+				if firstErr == nil {
+					firstErr = err
+				}
+				// continue pulling the rest
+				continue
+			}
+
+			writeJSON(map[string]any{
+				"status":         "Pull complete",
+				"id":             img,
+				"progressDetail": map[string]any{"hidecounts": true},
+			})
+		}
+
+		writeJSON(map[string]any{"status": "Done", "id": stack.Name})
+		return firstErr
+	}
+
+	// Fallback to docker-compose pull (legacy), stream as plain lines
 	cmd := exec.CommandContext(ctx, "docker-compose", "pull")
 	cmd.Dir = stack.Path
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("COMPOSE_PROJECT_NAME=%s", stack.Name),
 	)
 
-	output, err := cmd.CombinedOutput()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to pull images: %w\nOutput: %s", err, string(output))
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
-	return nil
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start docker-compose pull: %w", err)
+	}
+
+	writeLine := func(line string) error {
+		if _, werr := progressWriter.Write([]byte(line)); werr != nil {
+			return werr
+		}
+		if _, werr := progressWriter.Write([]byte("\n")); werr != nil {
+			return werr
+		}
+		if ok {
+			flusher.Flush()
+		}
+		return nil
+	}
+
+	errCh := make(chan error, 3)
+
+	go func() {
+		sc := bufio.NewScanner(stdout)
+		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for sc.Scan() {
+			if ctx.Err() != nil {
+				errCh <- ctx.Err()
+				return
+			}
+			if werr := writeLine(sc.Text()); werr != nil {
+				errCh <- fmt.Errorf("error writing stdout: %w", werr)
+				return
+			}
+		}
+		errCh <- sc.Err()
+	}()
+
+	go func() {
+		sc := bufio.NewScanner(stderr)
+		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for sc.Scan() {
+			if ctx.Err() != nil {
+				errCh <- ctx.Err()
+				return
+			}
+			if werr := writeLine(sc.Text()); werr != nil {
+				errCh <- fmt.Errorf("error writing stderr: %w", werr)
+				return
+			}
+		}
+		errCh <- sc.Err()
+	}()
+
+	go func() {
+		errCh <- cmd.Wait()
+	}()
+
+	var firstErr error
+	for i := 0; i < 3; i++ {
+		if e := <-errCh; e != nil && firstErr == nil && !errors.Is(e, io.EOF) && !errors.Is(e, context.Canceled) {
+			firstErr = e
+		}
+	}
+
+	if ctx.Err() != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+
+	return firstErr
 }
 
 func (s *StackService) ListStacks(ctx context.Context) ([]models.Stack, error) {
@@ -754,7 +901,7 @@ func (s *StackService) RedeployStack(ctx context.Context, stackID string, profil
 		return err
 	}
 
-	if err := s.PullStackImages(ctx, stackID); err != nil {
+	if err := s.PullStackImages(ctx, stackID, io.Discard); err != nil {
 		fmt.Printf("Warning: failed to pull images: %v\n", err)
 	}
 
