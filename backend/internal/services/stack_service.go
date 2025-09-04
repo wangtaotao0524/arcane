@@ -3,7 +3,6 @@ package services
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,7 +19,6 @@ import (
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type StackServiceInfo struct {
@@ -86,7 +84,6 @@ func (s *StackService) CreateStack(ctx context.Context, name, composeContent str
 		return nil, fmt.Errorf("failed to save stack files: %w", err)
 	}
 
-	// Log stack creation event (use the DB-assigned BaseModel.ID)
 	metadata := models.JSON{
 		"action":    "create",
 		"stackId":   stack.ID,
@@ -512,67 +509,25 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 }
 
 func (s *StackService) ListStacks(ctx context.Context) ([]models.Stack, error) {
-	// First, sync with filesystem to discover new stacks and update existing ones
-	if err := s.SyncAllStacksFromFilesystem(ctx); err != nil {
-		// Log error but don't fail - continue with what we have in DB
-		fmt.Printf("Warning: failed to sync with filesystem: %v\n", err)
-	}
-
 	var stacks []models.Stack
 	if err := s.db.WithContext(ctx).Find(&stacks).Error; err != nil {
 		return nil, fmt.Errorf("failed to get stacks: %w", err)
 	}
-
-	// Update each stack with live status from filesystem
-	for i := range stacks {
-		s.syncStackWithFilesystem(ctx, &stacks[i])
-	}
-
 	return stacks, nil
 }
 
 func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
-	// Try cache first for better performance
-	cachedData, pagination, err := s.getCachedStacksPaginated(ctx, req)
-	if err == nil && len(cachedData) > 0 && s.isCacheRecent() {
-		return cachedData, pagination, nil
-	}
-
-	if err := s.SyncAllStacksFromFilesystem(ctx); err != nil {
-		fmt.Printf("Warning: failed to sync with filesystem: %v\n", err)
-	}
-
 	var stacks []models.Stack
 	query := s.db.WithContext(ctx).Model(&models.Stack{})
 
-	pagination, err = utils.PaginateAndSort(req, query, &stacks)
+	pagination, err := utils.PaginateAndSort(req, query, &stacks)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate stacks: %w", err)
 	}
 
-	// Update each stack with live status but handle context cancellation
-	for i := range stacks {
-		select {
-		case <-ctx.Done():
-			// Context canceled, return what we have so far
-			goto processResult
-		default:
-			s.syncStackWithFilesystem(ctx, &stacks[i])
-		}
-	}
-
-processResult:
-	// Update cache in background with separate context
-	go func(ctx context.Context) {
-		// Detach cancellation but preserve values
-		detached := context.WithoutCancel(ctx)
-		s.updateProjectCache(detached, stacks)
-	}(ctx)
-
-	// Convert to response format
 	var result []map[string]interface{}
 	for _, stack := range stacks {
-		stackData := map[string]interface{}{
+		result = append(result, map[string]interface{}{
 			"id":           stack.ID,
 			"name":         stack.Name,
 			"path":         stack.Path,
@@ -582,10 +537,8 @@ processResult:
 			"createdAt":    stack.CreatedAt,
 			"updatedAt":    stack.UpdatedAt,
 			"autoUpdate":   stack.AutoUpdate,
-		}
-		result = append(result, stackData)
+		})
 	}
-
 	return result, pagination, nil
 }
 
@@ -1388,101 +1341,4 @@ func (s *StackService) importExternalStack(ctx context.Context, dirName, stackNa
 	}
 
 	return stack, nil
-}
-
-func (s *StackService) getCachedStacksPaginated(ctx context.Context, req utils.SortedPaginationRequest) ([]map[string]interface{}, utils.PaginationResponse, error) {
-	var cached []models.ProjectCache
-	query := s.db.WithContext(ctx).Model(&models.ProjectCache{})
-
-	pagination, err := utils.PaginateAndSort(req, query, &cached)
-	if err != nil {
-		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate cached stacks: %w", err)
-	}
-
-	var result []map[string]interface{}
-	for _, cache := range cached {
-		stackData := map[string]interface{}{
-			"id":           cache.StackID,
-			"name":         cache.Name,
-			"status":       cache.Status,
-			"serviceCount": cache.ServiceCount,
-			"runningCount": cache.RunningCount,
-			"autoUpdate":   cache.AutoUpdate,
-			"createdAt":    cache.CreatedAt,
-			"updatedAt":    cache.UpdatedAt,
-			"isExternal":   false, // Cache doesn't store this, assume false
-			"isLegacy":     false,
-			"isRemote":     false,
-		}
-		result = append(result, stackData)
-	}
-
-	return result, pagination, nil
-}
-
-func (s *StackService) updateProjectCache(ctx context.Context, stacks []models.Stack) {
-	for _, stack := range stacks {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		composeContent, _, err := s.GetStackContent(ctx, stack.ID)
-		if err != nil {
-			continue
-		}
-
-		cache := models.ProjectCache{
-			StackID:      stack.ID,
-			Name:         stack.Name,
-			Status:       stack.Status,
-			ServiceCount: stack.ServiceCount,
-			RunningCount: stack.RunningCount,
-			AutoUpdate:   stack.AutoUpdate,
-			LastModified: time.Now(),
-			ComposeHash:  s.calculateComposeHash(composeContent),
-			CachedAt:     time.Now(),
-		}
-
-		// Upsert on stack_id to avoid UNIQUE(stack_id) violations
-		err = s.db.WithContext(ctx).
-			Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "stack_id"}},
-				DoUpdates: clause.Assignments(map[string]interface{}{
-					"name":          cache.Name,
-					"status":        cache.Status,
-					"service_count": cache.ServiceCount,
-					"running_count": cache.RunningCount,
-					"auto_update":   cache.AutoUpdate,
-					"last_modified": cache.LastModified,
-					"compose_hash":  cache.ComposeHash,
-					"cached_at":     cache.CachedAt,
-					"updated_at":    time.Now(),
-				}),
-			}).
-			Create(&cache).Error
-
-		if err != nil {
-			fmt.Printf("Warning: failed to update cache for stack %s: %v\n", stack.ID, err)
-		}
-	}
-}
-
-func (s *StackService) isCacheRecent() bool {
-	// TODO: Implement actual time-based cache validation
-	// For now, consider cache valid for 5 minutes
-	var lastCacheTime time.Time
-	s.db.Model(&models.ProjectCache{}).Select("MAX(cached_at)").Scan(&lastCacheTime)
-
-	if lastCacheTime.IsZero() {
-		return false
-	}
-
-	return time.Since(lastCacheTime) < 5*time.Minute
-}
-
-func (s *StackService) calculateComposeHash(content string) string {
-	hash := sha256.Sum256([]byte(content))
-	return fmt.Sprintf("%x", hash)
 }

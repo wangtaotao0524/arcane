@@ -10,7 +10,6 @@ import (
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
-// When building for E2E tests, add the playwright controller
 func init() {
 	registerPlaywrightRoutes = []func(apiGroup *gin.RouterGroup, services *api.Services){
 		func(apiGroup *gin.RouterGroup, svc *api.Services) {

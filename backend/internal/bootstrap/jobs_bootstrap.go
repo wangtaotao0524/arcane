@@ -22,10 +22,6 @@ func registerJobs(appCtx context.Context, scheduler *job.Scheduler, appServices 
 		slog.ErrorContext(appCtx, "Failed to register auto-update job", slog.Any("error", err))
 	}
 
-	if err := job.RegisterStackSyncJob(appCtx, scheduler, appServices.Stack); err != nil {
-		slog.ErrorContext(appCtx, "Failed to register stack sync job", slog.Any("error", err))
-	}
-
 	if err := job.RegisterEventCleanupJob(appCtx, scheduler, appServices.Event); err != nil {
 		slog.ErrorContext(appCtx, "Failed to register event cleanup job", slog.Any("error", err))
 	}
