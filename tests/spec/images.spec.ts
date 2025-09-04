@@ -151,6 +151,8 @@ test.describe('Images Page', () => {
 
     await page.locator('button[type="submit"]:has-text("Pull Image")').click();
 
+    await page.waitForLoadState('networkidle');
+
     await expect(page.locator('li[data-sonner-toast][data-type="success"] div[data-title]')).toBeVisible();
   });
 });

@@ -104,23 +104,11 @@ jobs:
       - name: Load Arcane Docker image
         run: docker load -i /tmp/arcane-image.tar
 
-      - name: Cache test images
-        uses: actions/cache@v4
-        id: test-images-cache
-        with:
-          path: /tmp/test-images.tar
-          key: test-images-${{ runner.os }}-latest
-
       - name: Pull and save test images
-        if: steps.test-images-cache.outputs.cache-hit != 'true'
         run: |
           docker pull ghcr.io/linuxserver/nginx:latest
           docker pull ghcr.io/linuxserver/radarr:nightly
           docker save ghcr.io/linuxserver/nginx:latest ghcr.io/linuxserver/radarr:nightly > /tmp/test-images.tar
-
-      - name: Load test images from cache
-        if: steps.test-images-cache.outputs.cache-hit == 'true'
-        run: docker load < /tmp/test-images.tar
 
       - name: Install test dependencies
         run: pnpm --filter arcane-tests install
