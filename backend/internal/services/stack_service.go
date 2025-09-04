@@ -354,14 +354,66 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		return err
 	}
 
+	images, err := s.collectStackImages(ctx, stack)
+	if err != nil {
+		return err
+	}
+
+	// Prefer ImageService when available (structured progress), otherwise fallback to docker-compose pull
+	if s.imageService != nil && len(images) > 0 {
+		return s.pullImagesViaImageService(ctx, stack, images, progressWriter)
+	}
+
+	return s.composePull(ctx, stack, progressWriter)
+}
+
+// lineEmitter provides line/JSON writing with optional HTTP flushing.
+type lineEmitter struct {
+	w       io.Writer
+	flusher http.Flusher
+}
+
+func newLineEmitter(w io.Writer) lineEmitter {
+	if w == nil {
+		w = io.Discard
+	}
+	f, _ := w.(http.Flusher)
+	return lineEmitter{w: w, flusher: f}
+}
+
+func (le lineEmitter) WriteLine(b []byte) error {
+	if len(b) > 0 {
+		if _, err := le.w.Write(b); err != nil {
+			return err
+		}
+	}
+	if _, err := le.w.Write([]byte("\n")); err != nil {
+		return err
+	}
+	if le.flusher != nil {
+		le.flusher.Flush()
+	}
+	return nil
+}
+
+func (le lineEmitter) WriteJSON(m map[string]any) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		fmt.Printf("failed to marshal json: %v\n", err)
+		return
+	}
+	_ = le.WriteLine(data)
+}
+
+func (s *StackService) collectStackImages(ctx context.Context, stack *models.Stack) ([]string, error) {
 	composeFile := s.findComposeFile(stack.Path)
 	if composeFile == "" {
-		return fmt.Errorf("no compose file found for stack")
+		return nil, fmt.Errorf("no compose file found for stack")
 	}
 
 	servicesFromFile, err := s.parseServicesFromComposeFile(ctx, composeFile, stack.Name)
 	if err != nil {
-		return fmt.Errorf("failed to parse services from compose file: %w", err)
+		return nil, fmt.Errorf("failed to parse services from compose file: %w", err)
 	}
 
 	seen := map[string]struct{}{}
@@ -377,52 +429,46 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		seen[img] = struct{}{}
 		images = append(images, img)
 	}
+	return images, nil
+}
 
-	flusher, ok := progressWriter.(http.Flusher)
-	writeJSON := func(m map[string]any) {
-		b, _ := json.Marshal(m)
-		_, _ = progressWriter.Write(b)
-		_, _ = progressWriter.Write([]byte("\n"))
-		if ok {
-			flusher.Flush()
-		}
-	}
+func (s *StackService) pullImagesViaImageService(ctx context.Context, stack *models.Stack, images []string, w io.Writer) error {
+	le := newLineEmitter(w)
+	le.WriteJSON(map[string]any{
+		"status": "Pulling images for stack",
+		"id":     stack.Name,
+	})
 
-	if s.imageService != nil && len(images) > 0 {
-		var firstErr error
+	var firstErr error
+	for _, img := range images {
+		le.WriteJSON(map[string]any{"status": "Pulling", "id": img})
 
-		writeJSON(map[string]any{
-			"status": "Pulling images for stack",
-			"id":     stack.Name,
-		})
-
-		for _, img := range images {
-			writeJSON(map[string]any{"status": "Pulling", "id": img})
-
-			if err := s.imageService.PullImage(ctx, img, progressWriter, systemUser); err != nil {
-				writeJSON(map[string]any{
-					"error":   err.Error(),
-					"status":  "error",
-					"id":      img,
-					"stackId": stackID,
-				})
-				if firstErr == nil {
-					firstErr = err
-				}
-				// continue pulling the rest
-				continue
-			}
-
-			writeJSON(map[string]any{
-				"status":         "Pull complete",
-				"id":             img,
-				"progressDetail": map[string]any{"hidecounts": true},
+		if err := s.imageService.PullImage(ctx, img, w, systemUser); err != nil {
+			le.WriteJSON(map[string]any{
+				"error":   err.Error(),
+				"status":  "error",
+				"id":      img,
+				"stackId": stack.ID,
 			})
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
 		}
 
-		writeJSON(map[string]any{"status": "Done", "id": stack.Name})
-		return firstErr
+		le.WriteJSON(map[string]any{
+			"status":         "Pull complete",
+			"id":             img,
+			"progressDetail": map[string]any{"hidecounts": true},
+		})
 	}
+
+	le.WriteJSON(map[string]any{"status": "Done", "id": stack.Name})
+	return firstErr
+}
+
+func (s *StackService) composePull(ctx context.Context, stack *models.Stack, w io.Writer) error {
+	le := newLineEmitter(w)
 
 	cmd := exec.CommandContext(ctx, "docker-compose", "pull")
 	cmd.Dir = stack.Path
@@ -443,56 +489,11 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 		return fmt.Errorf("failed to start docker-compose pull: %w", err)
 	}
 
-	writeLine := func(line string) error {
-		if _, werr := progressWriter.Write([]byte(line)); werr != nil {
-			return werr
-		}
-		if _, werr := progressWriter.Write([]byte("\n")); werr != nil {
-			return werr
-		}
-		if ok {
-			flusher.Flush()
-		}
-		return nil
-	}
-
 	errCh := make(chan error, 3)
 
-	go func() {
-		sc := bufio.NewScanner(stdout)
-		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-		for sc.Scan() {
-			if ctx.Err() != nil {
-				errCh <- ctx.Err()
-				return
-			}
-			if werr := writeLine(sc.Text()); werr != nil {
-				errCh <- fmt.Errorf("error writing stdout: %w", werr)
-				return
-			}
-		}
-		errCh <- sc.Err()
-	}()
-
-	go func() {
-		sc := bufio.NewScanner(stderr)
-		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-		for sc.Scan() {
-			if ctx.Err() != nil {
-				errCh <- ctx.Err()
-				return
-			}
-			if werr := writeLine(sc.Text()); werr != nil {
-				errCh <- fmt.Errorf("error writing stderr: %w", werr)
-				return
-			}
-		}
-		errCh <- sc.Err()
-	}()
-
-	go func() {
-		errCh <- cmd.Wait()
-	}()
+	go func() { errCh <- s.streamPipeToWriter(ctx, stdout, le, "stdout") }()
+	go func() { errCh <- s.streamPipeToWriter(ctx, stderr, le, "stderr") }()
+	go func() { errCh <- cmd.Wait() }()
 
 	var firstErr error
 	for i := 0; i < 3; i++ {
@@ -506,6 +507,20 @@ func (s *StackService) PullStackImages(ctx context.Context, stackID string, prog
 	}
 
 	return firstErr
+}
+
+func (s *StackService) streamPipeToWriter(ctx context.Context, r io.Reader, le lineEmitter, label string) error {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for sc.Scan() {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err := le.WriteLine([]byte(sc.Text())); err != nil {
+			return fmt.Errorf("error writing %s: %w", label, err)
+		}
+	}
+	return sc.Err()
 }
 
 func (s *StackService) ListStacks(ctx context.Context) ([]models.Stack, error) {
