@@ -1,14 +1,16 @@
 <script lang="ts">
 	import CodeMirror from 'svelte-codemirror-editor';
-	import { browser } from '$app/environment';
 	import { yaml } from '@codemirror/lang-yaml';
 	import { StreamLanguage } from '@codemirror/language';
 	import { properties } from '@codemirror/legacy-modes/mode/properties';
 	import { linter, lintGutter } from '@codemirror/lint';
 	import jsyaml from 'js-yaml';
 	import { githubDark } from '@uiw/codemirror-theme-github';
-	import type { EditorView } from 'codemirror';
+	import { arcaneDark } from './theme';
+	import type { EditorView } from '@codemirror/view';
 	import type { Extension } from '@codemirror/state';
+	import type { Diagnostic, LintSource } from '@codemirror/lint';
+	import { mode } from 'mode-watcher';
 
 	type CodeLanguage = 'yaml' | 'env';
 
@@ -18,7 +20,8 @@
 		placeholder = 'Enter code...',
 		readOnly = false,
 		height = '550px',
-		fontSize = '11px'
+		fontSize = '11px',
+		class: className = ''
 	} = $props();
 
 	let editorView: EditorView;
@@ -41,48 +44,63 @@
 		return extensions;
 	}
 
-	function yamlLinter(view: { state: { doc: { toString(): string } } }) {
-		const diagnostics = [];
+	const yamlLinter: LintSource = (view): Diagnostic[] => {
+		const diagnostics: Diagnostic[] = [];
 		try {
 			jsyaml.load(view.state.doc.toString());
 		} catch (e: unknown) {
 			const err = e as { mark?: { position: number }; message: string };
 			const start = err.mark?.position || 0;
-			const end =
-				err.mark?.position !== undefined ? Math.max(start + 1, err.mark.position + 1) : start + 1;
+			const end = err.mark?.position !== undefined ? Math.max(start + 1, err.mark.position + 1) : start + 1;
 			diagnostics.push({
 				from: start,
 				to: end,
-				severity: 'error' as const,
+				severity: 'error',
 				message: err.message
 			});
 		}
 		return diagnostics;
+	};
+
+	const extensions = $derived([...getLanguageExtension(language), arcaneDark]);
+
+	const styles = $derived({
+		'&': {
+			height,
+			fontSize
+		},
+		'&.cm-editor[contenteditable=false]': {
+			cursor: 'not-allowed'
+		},
+		'.cm-content[contenteditable=false]': {
+			cursor: 'not-allowed'
+		}
+	});
+
+	function handleReady(view: EditorView) {
+		editorView = view;
 	}
 </script>
 
-{#if browser}
-	<div class="overflow-hidden rounded-md border">
-		<CodeMirror
-			bind:value
-			on:ready={(e) => (editorView = e.detail)}
-			theme={githubDark}
-			extensions={getLanguageExtension(language)}
-			styles={{
-				'&': {
-					height,
-					fontSize
-				},
-				'&.cm-editor[contenteditable=false]': {
-					cursor: 'not-allowed'
-				},
-				'.cm-content[contenteditable=false]': {
-					cursor: 'not-allowed'
-				}
-			}}
-			{placeholder}
-			readonly={readOnly}
-			nodebounce={true}
-		/>
-	</div>
-{/if}
+<div class={`overflow-hidden rounded-md border ${className}`}>
+	<CodeMirror
+		bind:value
+		on:ready={(view) => handleReady(view.detail)}
+		{extensions}
+		{styles}
+		{placeholder}
+		readonly={readOnly}
+		nodebounce={true}
+	/>
+</div>
+
+<style>
+	:global(.cm-editor .cm-gutters) {
+		background-color: #18181b;
+		border-right: none;
+	}
+	:global(.cm-editor .cm-activeLineGutter) {
+		background-color: #2c313a;
+		color: #e5e7eb;
+	}
+</style>
