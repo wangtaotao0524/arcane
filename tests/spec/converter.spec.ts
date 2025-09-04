@@ -1,15 +1,19 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function openConvertFromDockerRun(page: Page) {
+  await page.locator('[data-slot="dropdown-button-trigger"]').first().click();
+  await page.getByRole('menuitem', { name: 'Convert from Docker Run' }).click();
+}
 
 test.describe('Docker Run to Compose Converter', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the new stack page
     await page.goto('/compose/new');
     await page.waitForLoadState('networkidle');
   });
 
   test('should convert simple docker run command', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: 'Convert Docker Run' }).first().click();
+    await openConvertFromDockerRun(page);
 
     // Enter a simple docker run command using the textarea
     const dockerCommand = 'docker run -d --name nginx -p 8080:80 nginx:alpine';
@@ -48,7 +52,7 @@ test.describe('Docker Run to Compose Converter', () => {
   });
 
   test('should convert docker run command with environment variables', async ({ page }) => {
-    await page.getByRole('button', { name: 'Convert Docker Run' }).first().click();
+    await openConvertFromDockerRun(page);
     await page.waitForTimeout(300);
 
     // Enter docker run command with environment variables
@@ -88,7 +92,7 @@ test.describe('Docker Run to Compose Converter', () => {
   });
 
   test('should use example commands', async ({ page }) => {
-    await page.getByRole('button', { name: 'Convert Docker Run' }).first().click();
+    await openConvertFromDockerRun(page);
     await page.waitForTimeout(300);
 
     // Click on the first example command (using a more specific selector)
@@ -99,13 +103,11 @@ test.describe('Docker Run to Compose Converter', () => {
 
     // Check if the command was populated in the textarea
     const expectedCommand = 'docker run -d --name nginx -p 8080:80 -v nginx_data:/usr/share/nginx/html nginx:alpine';
-    await expect(page.getByPlaceholder('docker run -d --name my-app -p 8080:80 nginx:alpine')).toHaveValue(
-      expectedCommand
-    );
+    await expect(page.getByPlaceholder('docker run -d --name my-app -p 8080:80 nginx:alpine')).toHaveValue(expectedCommand);
   });
 
   test('should disable convert button when no command is entered', async ({ page }) => {
-    await page.getByRole('button', { name: 'Convert Docker Run' }).first().click();
+    await openConvertFromDockerRun(page);
     await page.waitForTimeout(300);
 
     // Check that convert button is disabled when textarea is empty
@@ -125,13 +127,11 @@ test.describe('Docker Run to Compose Converter', () => {
   });
 
   test('should populate stack name only when empty', async ({ page }) => {
-    await page.getByRole('button', { name: 'Convert Docker Run' }).first().click();
+    await openConvertFromDockerRun(page);
     await page.waitForTimeout(300);
 
     // Enter docker run command with name
-    await page
-      .getByPlaceholder('docker run -d --name my-app -p 8080:80 nginx:alpine')
-      .fill('docker run --name redis redis:alpine');
+    await page.getByPlaceholder('docker run -d --name my-app -p 8080:80 nginx:alpine').fill('docker run --name redis redis:alpine');
 
     // Mock the API response
     await page.route('/api/convert', async (route) => {
