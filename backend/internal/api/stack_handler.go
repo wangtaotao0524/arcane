@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/middleware"
-	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -585,47 +584,6 @@ func (h *StackHandler) PullImages(c *gin.Context) {
 		})
 		return
 	}
-}
-
-func (h *StackHandler) ConvertDockerRun(c *gin.Context) {
-	var req models.ConvertDockerRunRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request format: " + err.Error(),
-		})
-		return
-	}
-
-	parsed, err := h.converterService.ParseDockerRunCommand(req.DockerRunCommand)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Failed to parse docker run command. Please check the syntax.",
-			"code":    "BAD_REQUEST",
-		})
-		return
-	}
-
-	dockerCompose, envVars, serviceName, err := h.converterService.ConvertToDockerCompose(parsed)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to convert to Docker Compose format.",
-			"code":    "CONVERSION_ERROR",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": models.ConvertDockerRunResponse{
-			Success:       true,
-			DockerCompose: dockerCompose,
-			EnvVars:       envVars,
-			ServiceName:   serviceName,
-		},
-	})
 }
 
 func (h *StackHandler) GetStackLogsStream(c *gin.Context) {

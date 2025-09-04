@@ -204,9 +204,6 @@ func (h *EnvironmentHandler) handleStackEndpoints(c *gin.Context, endpoint strin
 	case endpoint == "/stacks" && c.Request.Method == http.MethodPost:
 		stackHandler.CreateStack(c)
 		return true
-	case endpoint == "/stacks/convert" && c.Request.Method == http.MethodPost:
-		stackHandler.ConvertDockerRun(c)
-		return true
 	case strings.HasPrefix(endpoint, "/stacks/") && strings.HasSuffix(endpoint, "/deploy"):
 		stackHandler.DeployStack(c)
 		return true

@@ -136,7 +136,6 @@
 </script>
 
 <div class="bg-background min-h-screen">
-	<!-- Sticky header: softer glass effect without changing spacing -->
 	<div class="bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 border-b backdrop-blur">
 		<div class="max-w-full px-4 py-3">
 			<div class="flex items-center justify-between">

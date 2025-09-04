@@ -1,12 +1,7 @@
 import BaseAPIService from './api-service';
 import { get } from 'svelte/store';
 import { environmentStore, LOCAL_DOCKER_ENVIRONMENT_ID } from '$lib/stores/environment.store';
-import type {
-	ContainerCreateOptions,
-	NetworkCreateOptions,
-	VolumeCreateOptions,
-	ContainerStats
-} from 'dockerode';
+import type { ContainerCreateOptions, NetworkCreateOptions, VolumeCreateOptions, ContainerStats } from 'dockerode';
 import type { Project } from '$lib/types/project.type';
 import type {
 	PaginationRequest,
@@ -33,9 +28,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return currentEnvironment.id;
 	}
 
-	async getContainers(
-		options?: SearchPaginationSortRequest
-	): Promise<Paginated<ContainerSummaryDto>> {
+	async getContainers(options?: SearchPaginationSortRequest): Promise<Paginated<ContainerSummaryDto>> {
 		const envId = await this.getCurrentEnvironmentId();
 
 		const res = await this.api.get(`/environments/${envId}/containers`, { params: options });
@@ -49,9 +42,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async startContainer(containerId: string): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/containers/${containerId}/start`)
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/containers/${containerId}/start`));
 	}
 
 	async createContainer(options: ContainerCreateOptions): Promise<any> {
@@ -67,16 +58,12 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async stopContainer(containerId: string): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/containers/${containerId}/stop`)
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/containers/${containerId}/stop`));
 	}
 
 	async restartContainer(containerId: string): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/containers/${containerId}/restart`)
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/containers/${containerId}/restart`));
 	}
 
 	async deleteContainer(containerId: string): Promise<any> {
@@ -86,9 +73,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async pullContainerImage(containerId: string): Promise<Project> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/containers/${containerId}/pull`)
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/containers/${containerId}/pull`));
 	}
 
 	async getImages(options?: SearchPaginationSortRequest): Promise<Paginated<ImageSummaryDto>> {
@@ -100,15 +85,12 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async getTotalImageSize(): Promise<number> {
 		const envId = await this.getCurrentEnvironmentId();
-		const res = await this.handleResponse<any>(
-			this.api.get(`/environments/${envId}/images/total-size`)
-		);
+		const res = await this.handleResponse<any>(this.api.get(`/environments/${envId}/images/total-size`));
 		// Support both shapes just in case
 		if (typeof res === 'number') return res;
 		if (res && typeof res === 'object') {
 			if ('totalSize' in res && typeof res.totalSize === 'number') return res.totalSize;
-			if ('data' in res && res.data && typeof res.data.totalSize === 'number')
-				return res.data.totalSize;
+			if ('data' in res && res.data && typeof res.data.totalSize === 'number') return res.data.totalSize;
 		}
 		return 0;
 	}
@@ -120,19 +102,12 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async pullImage(imageName: string, tag: string = 'latest', auth?: any): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/images/pull`, { imageName, tag, auth })
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/images/pull`, { imageName, tag, auth }));
 	}
 
-	async deleteImage(
-		imageId: string,
-		options?: { force?: boolean; noprune?: boolean }
-	): Promise<void> {
+	async deleteImage(imageId: string, options?: { force?: boolean; noprune?: boolean }): Promise<void> {
 		const envId = await this.getCurrentEnvironmentId();
-		await this.handleResponse(
-			this.api.delete(`/environments/${envId}/images/${imageId}`, { params: options })
-		);
+		await this.handleResponse(this.api.delete(`/environments/${envId}/images/${imageId}`, { params: options }));
 	}
 
 	async pruneImages(filters?: Record<string, string>): Promise<any> {
@@ -147,16 +122,12 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async searchImages(term: string, limit?: number): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.get(`/environments/${envId}/images/search`, { params: { term, limit } })
-		);
+		return this.handleResponse(this.api.get(`/environments/${envId}/images/search`, { params: { term, limit } }));
 	}
 
 	async tagImage(imageId: string, repo: string, tag: string): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/images/${imageId}/tag`, { repo, tag })
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/images/${imageId}/tag`, { repo, tag }));
 	}
 
 	async getImageHistory(imageId: string): Promise<any> {
@@ -195,16 +166,12 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async getVolume(volumeName: string): Promise<VolumeDetailDto> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.get(`/environments/${envId}/volumes/${volumeName}`)
-		) as Promise<VolumeDetailDto>;
+		return this.handleResponse(this.api.get(`/environments/${envId}/volumes/${volumeName}`)) as Promise<VolumeDetailDto>;
 	}
 
 	async getVolumeUsage(volumeName: string): Promise<VolumeUsageDto> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.get(`/environments/${envId}/volumes/${volumeName}/usage`)
-		) as Promise<VolumeUsageDto>;
+		return this.handleResponse(this.api.get(`/environments/${envId}/volumes/${volumeName}/usage`)) as Promise<VolumeUsageDto>;
 	}
 
 	async createVolume(options: VolumeCreateOptions): Promise<any> {
@@ -268,11 +235,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return response as Project;
 	}
 
-	async deployProject(
-		projectName: string,
-		composeContent: string,
-		envContent?: string
-	): Promise<Project> {
+	async deployProject(projectName: string, composeContent: string, envContent?: string): Promise<Project> {
 		const envId = await this.getCurrentEnvironmentId();
 		const payload = {
 			name: projectName,
@@ -282,19 +245,13 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.post(`/environments/${envId}/stacks`, payload));
 	}
 
-	async updateProject(
-		projectName: string,
-		composeContent: string,
-		envContent?: string
-	): Promise<Project> {
+	async updateProject(projectName: string, composeContent: string, envContent?: string): Promise<Project> {
 		const envId = await this.getCurrentEnvironmentId();
 		const payload = {
 			composeContent,
 			envContent
 		};
-		return this.handleResponse(
-			this.api.put(`/environments/${envId}/stacks/${projectName}`, payload)
-		);
+		return this.handleResponse(this.api.put(`/environments/${envId}/stacks/${projectName}`, payload));
 	}
 
 	async deleteProject(projectName: string): Promise<void> {
@@ -330,9 +287,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 		options?: { profiles?: string[]; envOverrides?: Record<string, string> }
 	): Promise<Project> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/stacks/${projectName}/deploy`, options || {})
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/stacks/${projectName}/deploy`, options || {}));
 	}
 
 	async downProject(projectName: string): Promise<Project> {
@@ -342,9 +297,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async redeployProject(projectName: string): Promise<Project> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(
-			this.api.post(`/environments/${envId}/stacks/${projectName}/redeploy`)
-		);
+		return this.handleResponse(this.api.post(`/environments/${envId}/stacks/${projectName}/redeploy`));
 	}
 
 	async pullProjectImages(projectName: string): Promise<Project> {
@@ -352,11 +305,7 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.post(`/environments/${envId}/stacks/${projectName}/pull`));
 	}
 
-	async destroyProject(
-		projectName: string,
-		removeVolumes = false,
-		removeFiles = false
-	): Promise<void> {
+	async destroyProject(projectName: string, removeVolumes = false, removeFiles = false): Promise<void> {
 		const envId = await this.getCurrentEnvironmentId();
 		await this.handleResponse(
 			this.api.delete(`/environments/${envId}/stacks/${projectName}/destroy`, {
@@ -366,11 +315,6 @@ export class EnvironmentAPIService extends BaseAPIService {
 				}
 			})
 		);
-	}
-
-	async convertDockerRun(command: string): Promise<{ composeContent: string }> {
-		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.post(`/environments/${envId}/stacks/convert`, { command }));
 	}
 }
 
