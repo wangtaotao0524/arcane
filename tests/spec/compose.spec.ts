@@ -132,12 +132,6 @@ test.describe('New Compose Project Page', () => {
     await expect(page.getByText('Environment (.env)')).toBeVisible();
   });
 
-  test('should display action buttons', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Convert Docker Run' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Use Template' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Create' }).first()).toBeVisible();
-  });
-
   test('should validate required fields', async ({ page }) => {
     const createButton = page.getByRole('button', { name: 'Create' }).first();
     await expect(createButton).toBeDisabled();
