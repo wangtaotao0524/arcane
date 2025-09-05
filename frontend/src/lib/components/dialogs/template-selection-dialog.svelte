@@ -179,7 +179,7 @@
 				/>
 			</div>
 			<div class="flex items-center gap-3">
-				<Label for="sortBy" class="whitespace-nowrap text-sm font-medium">Sort by</Label>
+				<Label for="sortBy" class="text-sm font-medium whitespace-nowrap">Sort by</Label>
 				<Select.Root bind:value={sortBy} type="single">
 					<Select.Trigger id="sortBy" class="bg-background h-9 rounded-md border px-2 text-sm">
 						{filters[sortBy]}

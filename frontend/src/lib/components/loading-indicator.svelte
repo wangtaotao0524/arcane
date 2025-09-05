@@ -40,17 +40,13 @@
 </script>
 
 {#if visible}
-	<div
-		class={`pointer-events-none fixed inset-x-0 top-0 z-[9999] ${thickness} ${className}`}
-		role="progressbar"
-		aria-busy="true"
-	>
+	<div class={`pointer-events-none fixed inset-x-0 top-0 z-[9999] ${thickness} ${className}`} role="progressbar" aria-busy="true">
 		<div class="relative h-full w-full overflow-hidden">
-			<div class="absolute inset-0 bg-primary/25"></div>
+			<div class="bg-primary/25 absolute inset-0"></div>
 
 			<span class="bar absolute inset-y-0 w-1/3"></span>
 
-			<span class="peg absolute right-0 top-0 h-full w-3"></span>
+			<span class="peg absolute top-0 right-0 h-full w-3"></span>
 		</div>
 	</div>
 {/if}

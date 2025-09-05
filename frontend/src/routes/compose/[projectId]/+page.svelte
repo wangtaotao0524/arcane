@@ -241,7 +241,7 @@
 		</div>
 
 		{#if showFloatingHeader}
-			<div class="fixed left-1/2 top-4 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
+			<div class="fixed top-4 left-1/2 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
 				<div class="bg-background/90 border-border/50 rounded-lg border px-4 py-3 shadow-xl backdrop-blur-xl">
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
@@ -301,7 +301,7 @@
 								<IconComponent class="size-4" />
 								{#if section.id === 'services' && project.serviceCount}
 									<span
-										class="bg-primary text-primary-foreground absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-xs"
+										class="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-xs"
 									>
 										{project.serviceCount}
 									</span>

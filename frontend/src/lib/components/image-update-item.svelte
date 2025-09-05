@@ -181,7 +181,7 @@
 									{/if}
 								</div>
 								<div class="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/30">
-									<div class="text-center text-xs font-medium leading-relaxed text-blue-700 dark:text-blue-300">
+									<div class="text-center text-xs leading-relaxed font-medium text-blue-700 dark:text-blue-300">
 										{priority.description}
 									</div>
 								</div>
@@ -229,7 +229,7 @@
 									{/if}
 								</div>
 								<div class="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30">
-									<div class="text-center text-xs font-medium leading-relaxed text-amber-700 dark:text-amber-300">
+									<div class="text-center text-xs leading-relaxed font-medium text-amber-700 dark:text-amber-300">
 										{priority.description}
 									</div>
 								</div>

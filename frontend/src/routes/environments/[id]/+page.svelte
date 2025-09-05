@@ -206,7 +206,7 @@
 						<Card.Content class="space-y-4">
 							<div>
 								<Label class="text-muted-foreground text-sm font-medium">API URL</Label>
-								<div class="bg-muted mt-1 break-all rounded-md px-3 py-2 font-mono text-sm">{environment.apiUrl}</div>
+								<div class="bg-muted mt-1 rounded-md px-3 py-2 font-mono text-sm break-all">{environment.apiUrl}</div>
 							</div>
 							{#if environment.lastSeen}
 								<div>
@@ -280,7 +280,7 @@
 	</div>
 
 	{#if isRefreshing}
-		<div class="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg">
+		<div class="fixed right-4 bottom-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg">
 			<RefreshCwIcon class="h-4 w-4 animate-spin" />
 			<span class="text-sm">Refreshing...</span>
 		</div>

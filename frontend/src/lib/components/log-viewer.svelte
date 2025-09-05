@@ -306,7 +306,7 @@
 						</span>
 					{/if}
 
-					<span class="flex-1 whitespace-pre-wrap break-words text-gray-300">
+					<span class="flex-1 break-words whitespace-pre-wrap text-gray-300">
 						{log.message}
 					</span>
 				</div>

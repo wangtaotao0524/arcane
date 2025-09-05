@@ -68,7 +68,7 @@
 {/snippet}
 
 <Card.Root class="relative flex flex-col rounded-lg border shadow-sm">
-	<Card.Header class="px-6 pb-3 pt-5">
+	<Card.Header class="px-6 pt-5 pb-3">
 		<div class="flex items-center justify-between">
 			<div>
 				<Card.Title>

@@ -46,11 +46,17 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<Sidebar.MenuButton size="lg" class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" {...props}>
+					<Sidebar.MenuButton
+						size="lg"
+						class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+						{...props}
+					>
 						{#if user && user.displayName}
 							<Avatar.Root class="size-8 rounded-lg">
 								<Avatar.Image src={gravatarUrl} alt={user.displayName} />
-								<Avatar.Fallback class="from-primary/20 to-primary/10 text-primary border-primary/20 rounded-lg border bg-gradient-to-br">
+								<Avatar.Fallback
+									class="from-primary/20 to-primary/10 text-primary border-primary/20 rounded-lg border bg-gradient-to-br"
+								>
 									{user.displayName?.charAt(0).toUpperCase()}
 								</Avatar.Fallback>
 							</Avatar.Root>
@@ -65,12 +71,19 @@
 					</Sidebar.MenuButton>
 				{/snippet}
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg" side={sidebar.isMobile ? 'bottom' : 'right'} align="end" sideOffset={4}>
+			<DropdownMenu.Content
+				class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
+				side={sidebar.isMobile ? 'bottom' : 'right'}
+				align="end"
+				sideOffset={4}
+			>
 				<DropdownMenu.Label class="p-0 font-normal">
 					<div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 						<Avatar.Root class="size-8 rounded-lg">
 							<Avatar.Image src={gravatarUrl} alt={user.displayName} />
-							<Avatar.Fallback class="from-primary/20 to-primary/10 text-primary border-primary/20 rounded-lg border bg-gradient-to-br">
+							<Avatar.Fallback
+								class="from-primary/20 to-primary/10 text-primary border-primary/20 rounded-lg border bg-gradient-to-br"
+							>
 								{user.displayName?.charAt(0).toUpperCase()}
 							</Avatar.Fallback>
 						</Avatar.Root>

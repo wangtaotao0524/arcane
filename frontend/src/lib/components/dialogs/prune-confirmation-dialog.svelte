@@ -73,7 +73,7 @@
 				<Checkbox.Root id="prune-containers" bind:checked={pruneContainers} disabled={isPruning} />
 				<Label
 					for="prune-containers"
-					class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 					>Stopped Containers</Label
 				>
 			</div>
@@ -81,7 +81,7 @@
 				<Checkbox.Root id="prune-images" bind:checked={pruneImages} disabled={isPruning} />
 				<Label
 					for="prune-images"
-					class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 				>
 					Unused Images ({imagePruneMode === 'dangling' ? 'Dangling Only' : 'All Unused'})
 				</Label>
@@ -90,7 +90,7 @@
 				<Checkbox.Root id="prune-networks" bind:checked={pruneNetworks} disabled={isPruning} />
 				<Label
 					for="prune-networks"
-					class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 					>Unused Networks</Label
 				>
 			</div>

@@ -76,7 +76,7 @@
 
 <span
 	class={cn(
-		'inline-flex items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium text-center',
+		'inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-center text-xs font-medium whitespace-nowrap',
 		minWidthClasses[resolvedMinWidth],
 		variantStyles[variant as Variant],
 		className

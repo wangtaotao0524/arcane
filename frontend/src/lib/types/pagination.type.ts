@@ -1,56 +1,56 @@
 export type PaginationRequest = {
-    page: number;
-    limit: number;
+	page: number;
+	limit: number;
 };
 
 export type SortRequest = {
-    column: string;
-    direction: 'asc' | 'desc';
+	column: string;
+	direction: 'asc' | 'desc';
 };
 
 export type FilterMap = Record<string, string>;
 
 export type SearchPaginationSortRequest = {
-    search?: string;
-    pagination?: PaginationRequest;
-    sort?: SortRequest;
-    filters?: FilterMap;
+	search?: string;
+	pagination?: PaginationRequest;
+	sort?: SortRequest;
+	filters?: FilterMap;
 };
 
 export type PaginationResponse = {
-    totalPages: number;
-    totalItems: number;
-    currentPage: number;
-    itemsPerPage: number;
+	totalPages: number;
+	totalItems: number;
+	currentPage: number;
+	itemsPerPage: number;
 };
 
 export type Paginated<T> = {
-    data: T[];
-    pagination: PaginationResponse;
+	data: T[];
+	pagination: PaginationResponse;
 };
 
 export interface PaginatedApiResponse<T> {
-    success: boolean;
-    data: T[];
-    pagination: PaginationResponse;
+	success: boolean;
+	data: T[];
+	pagination: PaginationResponse;
 }
 
 export interface SortedPaginationRequest {
-    pagination: {
-        page: number;
-        limit: number;
-    };
-    sort: {
-        column: string;
-        direction: 'asc' | 'desc';
-    };
+	pagination: {
+		page: number;
+		limit: number;
+	};
+	sort: {
+		column: string;
+		direction: 'asc' | 'desc';
+	};
 }
 
 export interface ExternalPagination {
-    pageSize: number;
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
+	pageSize: number;
+	currentPage: number;
+	totalPages: number;
+	totalItems: number;
 }
 
 export const DEFAULT_PAGE_SIZE = 20;

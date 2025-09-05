@@ -55,11 +55,7 @@ export default class SettingsAPIService extends BaseAPIService {
 
 	private parseValue(key: string, value: string) {
 		// Special handling for JSON fields
-		if (
-			key === 'onboardingSteps' ||
-			key === 'registryCredentials' ||
-			key === 'templateRegistries'
-		) {
+		if (key === 'onboardingSteps' || key === 'registryCredentials' || key === 'templateRegistries') {
 			try {
 				return JSON.parse(value);
 			} catch {

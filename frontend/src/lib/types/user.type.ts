@@ -46,14 +46,7 @@ export interface UpdateUserDto {
 
 export type CreateUser = Omit<
 	User,
-	| 'id'
-	| 'createdAt'
-	| 'updatedAt'
-	| 'lastLogin'
-	| 'oidcSubjectId'
-	| 'passwordHash'
-	| 'requirePasswordChange'
-	| 'roles'
+	'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'oidcSubjectId' | 'passwordHash' | 'requirePasswordChange' | 'roles'
 > & {
 	password: string;
 	roles?: string[];

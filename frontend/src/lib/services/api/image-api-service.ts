@@ -1,9 +1,5 @@
 import BaseAPIService from './api-service';
-import type {
-	PaginationRequest,
-	SortRequest,
-	PaginatedApiResponse
-} from '$lib/types/pagination.type';
+import type { PaginationRequest, SortRequest, PaginatedApiResponse } from '$lib/types/pagination.type';
 
 export default class ImageAPIService extends BaseAPIService {
 	async list(filters?: Record<string, string>) {

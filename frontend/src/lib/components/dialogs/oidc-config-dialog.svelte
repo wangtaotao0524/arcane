@@ -117,7 +117,7 @@
 					{#if isOidcViewMode}
 						<div class="bg-card/50 rounded-lg border p-4">
 							<h3 class="text-base font-semibold">Server Environment Configuration</h3>
-							<p class="text-muted-foreground mb-4 mt-1 text-sm">
+							<p class="text-muted-foreground mt-1 mb-4 text-sm">
 								The following OIDC settings are loaded from the server environment:
 							</p>
 
@@ -157,7 +157,7 @@
 						<!-- Editable form -->
 						<div class="bg-card/50 rounded-lg border p-4">
 							<h3 class="text-base font-semibold">Basic Configuration</h3>
-							<p class="text-muted-foreground mb-4 mt-1 text-sm">Essential OIDC provider settings</p>
+							<p class="text-muted-foreground mt-1 mb-4 text-sm">Essential OIDC provider settings</p>
 
 							<div class="space-y-4">
 								<div class="space-y-2">
@@ -226,7 +226,7 @@
 						</div>
 						<p class="text-muted-foreground mb-3 text-sm">Configure this redirect URI in your OIDC provider:</p>
 						<div class="flex items-center gap-2">
-							<code class="bg-muted flex-1 break-all rounded p-2 font-mono text-xs">{redirectUri}</code>
+							<code class="bg-muted flex-1 rounded p-2 font-mono text-xs break-all">{redirectUri}</code>
 							<Button size="sm" variant="outline" onclick={() => copyToClipboard(redirectUri)} class="flex-shrink-0">
 								<CopyIcon class="size-3" />
 							</Button>

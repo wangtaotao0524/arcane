@@ -164,7 +164,7 @@
 				<MonitorIcon class="text-muted-foreground size-4" />
 			</div>
 			<div
-				class="border-background absolute -right-1 -top-1 size-3 rounded-full border-2 {item.status === 'online'
+				class="border-background absolute -top-1 -right-1 size-3 rounded-full border-2 {item.status === 'online'
 					? 'bg-green-500'
 					: 'bg-red-500'}"
 			></div>
@@ -214,7 +214,7 @@
 				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item
-					class="focus:text-red-700! text-red-500"
+					class="text-red-500 focus:text-red-700!"
 					onclick={() => handleDeleteOne(item.id, item.hostname)}
 					disabled={isLoading.removing}
 				>

@@ -207,7 +207,7 @@
 					Edit
 				</DropdownMenu.Item>
 				<DropdownMenu.Item
-					class="focus:text-red-700! text-red-500"
+					class="text-red-500 focus:text-red-700!"
 					onclick={() => handleDeleteOne(item.id, item.url)}
 					disabled={isLoading.removing}
 				>

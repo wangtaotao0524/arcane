@@ -34,10 +34,7 @@ export class AppVersionService {
 
 		if (!this.cachedVersionInfo || cacheExpired) {
 			try {
-				const [newestVersion, isUpToDate] = await Promise.all([
-					this.getNewestVersion(),
-					this.isUpToDate()
-				]);
+				const [newestVersion, isUpToDate] = await Promise.all([this.getNewestVersion(), this.isUpToDate()]);
 
 				this.cachedVersionInfo = {
 					currentVersion: this.getCurrentVersion(),

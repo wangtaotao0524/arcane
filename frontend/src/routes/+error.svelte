@@ -7,9 +7,7 @@
 
 	const status = $derived(props.status ?? page.status ?? 500);
 	const message = $derived(
-		props.error?.message ??
-			page.error?.message ??
-			(status === 404 ? 'Not Found' : 'Something went wrong')
+		props.error?.message ?? page.error?.message ?? (status === 404 ? 'Not Found' : 'Something went wrong')
 	);
 </script>
 

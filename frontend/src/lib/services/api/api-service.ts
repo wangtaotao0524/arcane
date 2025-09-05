@@ -66,10 +66,7 @@ abstract class BaseAPIService {
 		const response = await promise;
 		const payload = response.data;
 		const extracted =
-			payload &&
-			typeof payload === 'object' &&
-			'data' in payload &&
-			(payload as any).data !== undefined
+			payload && typeof payload === 'object' && 'data' in payload && (payload as any).data !== undefined
 				? (payload as any).data
 				: payload;
 		return extracted as T;

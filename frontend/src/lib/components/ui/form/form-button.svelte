@@ -11,15 +11,7 @@
 		children?: import('svelte').Snippet;
 	}
 
-	let {
-		ref = $bindable(null),
-		variant,
-		size,
-		disabled,
-		class: className,
-		onclick,
-		children
-	}: Props = $props();
+	let { ref = $bindable(null), variant, size, disabled, class: className, onclick, children }: Props = $props();
 </script>
 
 <Button bind:ref type="submit" {variant} {size} {disabled} class={className} {onclick}>

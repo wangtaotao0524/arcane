@@ -53,11 +53,7 @@
 		<SidebarItemGroup label="Administration" items={sidebarItems.settingsItems} />
 	</Sidebar.Content>
 	<Sidebar.Footer>
-		<SidebarUpdatebanner
-			{isCollapsed}
-			{versionInformation}
-			updateAvailable={versionInformation.updateAvailable}
-		/>
+		<SidebarUpdatebanner {isCollapsed} {versionInformation} updateAvailable={versionInformation.updateAvailable} />
 		{#if effectiveUser}
 			<SidebarUser {isCollapsed} user={effectiveUser} />
 		{/if}

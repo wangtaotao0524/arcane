@@ -21,9 +21,7 @@ type LoginResponseData = {
 export class AuthService extends BaseAPIService {
 	async login(credentials: LoginCredentials): Promise<User> {
 		try {
-			const data = await this.handleResponse<LoginResponseData>(
-				this.api.post('/auth/login', credentials)
-			);
+			const data = await this.handleResponse<LoginResponseData>(this.api.post('/auth/login', credentials));
 			const user = data.user as User;
 
 			userStore.setUser(user);

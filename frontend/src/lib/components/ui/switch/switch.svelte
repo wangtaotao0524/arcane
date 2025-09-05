@@ -2,7 +2,12 @@
 	import { Switch as SwitchPrimitive, type WithoutChildrenOrChild } from 'bits-ui';
 	import { cn } from '$lib/utils.js';
 
-	let { ref = $bindable(null), class: className, checked = $bindable(false), ...restProps }: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
+	let {
+		ref = $bindable(null),
+		class: className,
+		checked = $bindable(false),
+		...restProps
+	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
 </script>
 
 <SwitchPrimitive.Root
@@ -14,5 +19,9 @@
 	)}
 	{...restProps}
 >
-	<SwitchPrimitive.Thumb class={cn('bg-background pointer-events-none block size-5 rounded-full shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0')} />
+	<SwitchPrimitive.Thumb
+		class={cn(
+			'bg-background pointer-events-none block size-5 rounded-full shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0'
+		)}
+	/>
 </SwitchPrimitive.Root>

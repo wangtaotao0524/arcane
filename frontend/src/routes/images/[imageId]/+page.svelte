@@ -87,7 +87,7 @@
 				</Breadcrumb.List>
 			</Breadcrumb.Root>
 			<div class="mt-2 flex items-center gap-2">
-				<h1 class="break-all text-2xl font-bold tracking-tight">
+				<h1 class="text-2xl font-bold tracking-tight break-all">
 					{image?.repoTags?.[0] || shortId}
 				</h1>
 			</div>
@@ -197,8 +197,8 @@
 							{@const [key, ...valueParts] = env.split('=')}
 							{@const value = valueParts.join('=')}
 							<div class="flex flex-col text-sm sm:flex-row sm:items-center">
-								<span class="text-muted-foreground w-full break-all font-medium sm:w-1/4">{key}:</span>
-								<span class="w-full break-all font-mono text-xs sm:w-3/4 sm:text-sm">{value}</span>
+								<span class="text-muted-foreground w-full font-medium break-all sm:w-1/4">{key}:</span>
+								<span class="w-full font-mono text-xs break-all sm:w-3/4 sm:text-sm">{value}</span>
 							</div>
 							{#if env !== image.config.env[image.config.env.length - 1]}
 								<Separator class="my-2" />
