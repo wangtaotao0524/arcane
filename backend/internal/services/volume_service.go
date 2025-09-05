@@ -184,6 +184,10 @@ func (s *VolumeService) DeleteVolume(ctx context.Context, name string, force boo
 }
 
 func (s *VolumeService) PruneVolumes(ctx context.Context) (*dto.VolumePruneReportDto, error) {
+	return s.PruneVolumesWithOptions(ctx, false)
+}
+
+func (s *VolumeService) PruneVolumesWithOptions(ctx context.Context, all bool) (*dto.VolumePruneReportDto, error) {
 	dockerClient, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
@@ -191,6 +195,9 @@ func (s *VolumeService) PruneVolumes(ctx context.Context) (*dto.VolumePruneRepor
 	defer dockerClient.Close()
 
 	filterArgs := filters.NewArgs()
+	if all {
+		filterArgs.Add("all", "true")
+	}
 
 	report, err := dockerClient.VolumesPrune(ctx, filterArgs)
 	if err != nil {
@@ -199,6 +206,7 @@ func (s *VolumeService) PruneVolumes(ctx context.Context) (*dto.VolumePruneRepor
 
 	metadata := models.JSON{
 		"action":         "prune",
+		"all":            all,
 		"volumesDeleted": len(report.VolumesDeleted),
 		"spaceReclaimed": report.SpaceReclaimed,
 	}

@@ -311,7 +311,14 @@ func (s *SystemService) pruneBuildCache(ctx context.Context, result *dto.PruneAl
 }
 
 func (s *SystemService) pruneVolumes(ctx context.Context, result *dto.PruneAllResult) error {
-	report, err := s.volumeService.PruneVolumes(ctx)
+	allVolumes := false
+	if s.settingsService != nil {
+		danglingOnly, _ := s.getDanglingModeFromSettings(ctx)
+		allVolumes = !danglingOnly
+	}
+	slog.DebugContext(ctx, "Processing volume pruning", slog.Bool("all", allVolumes))
+
+	report, err := s.volumeService.PruneVolumesWithOptions(ctx, allVolumes)
 	if err != nil {
 		return err
 	}

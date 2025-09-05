@@ -23,12 +23,21 @@
 	let pruneMode = $state(settings.dockerPruneMode);
 
 	const pruneModeOptions = [
-		{ value: 'all', label: 'All', description: 'Remove all images not referenced by containers (docker image prune -a)' },
-		{ value: 'dangling', label: 'Dangling', description: 'Remove only untagged images (docker image prune)' }
+		{
+			value: 'all',
+			label: 'All',
+			description:
+				'Remove all images not referenced by containers and include named, unused volumes during System Prune (docker image prune -a + volume prune --all behavior).'
+		},
+		{
+			value: 'dangling',
+			label: 'Dangling',
+			description: 'Remove only dangling (untagged) images and anonymous volumes during System Prune.'
+		}
 	];
 
 	const pruneModeDescription = $derived(
-		pruneModeOptions.find((o) => o.value === pruneMode)?.description ?? 'Choose how unused images should be pruned.'
+		pruneModeOptions.find((o) => o.value === pruneMode)?.description ?? 'Choose how unused images and volumes should be pruned.'
 	);
 
 	const formSchema = z.object({
@@ -119,11 +128,11 @@
 						id="dockerPruneMode"
 						name="pruneMode"
 						bind:value={$formInputs.dockerPruneMode.value}
-						label="Image Prune Action Behavior"
+						label="Docker Prune Action Behavior"
 						description={pruneModeDescription}
 						placeholder="Docker Prune Mode"
 						options={pruneModeOptions}
-						groupLabel="Image Prune Modes"
+						groupLabel="Prune Modes"
 						onValueChange={(v) => (pruneMode = v as 'all' | 'dangling')}
 					/>
 				</div>
