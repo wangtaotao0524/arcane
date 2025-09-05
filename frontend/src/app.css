@@ -15,14 +15,6 @@
 	font-display: swap;
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
- 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
 	*,
 	::after,
@@ -158,8 +150,6 @@
 	opacity: 0.7;
 }
 
-/* Removed legacy arcane-button CSS; component now uses Tailwind classes via tv() */
-
 html,
 body {
 	overflow-x: hidden;
@@ -172,123 +162,10 @@ main {
 	overflow-x: hidden;
 }
 
-.settings-page {
-	@apply space-y-8;
-}
-
 .settings-header {
 	@apply flex flex-col justify-between gap-4;
 }
 
-.settings-header-content {
-	@apply space-y-1;
-}
-
 .settings-title {
 	@apply text-foreground text-3xl font-bold tracking-tight;
-}
-
-.settings-description {
-	@apply text-muted-foreground text-sm leading-relaxed;
-}
-
-.settings-actions {
-	@apply flex gap-2;
-}
-
-/* Button consistency */
-.arcane-button-save {
-	@apply h-10 min-w-[120px];
-}
-
-.arcane-button-test {
-	@apply h-10;
-}
-
-/* Card grid layouts */
-.settings-grid {
-	@apply grid gap-6;
-}
-
-.settings-grid-single {
-	@apply grid-cols-1;
-}
-
-.settings-grid-double {
-	@apply grid-cols-1 lg:grid-cols-2;
-}
-
-.settings-grid-triple {
-	@apply grid-cols-1 md:grid-cols-2 xl:grid-cols-3;
-}
-
-/* Card styling */
-.settings-card {
-	@apply border shadow-sm transition-shadow hover:shadow-md;
-}
-
-.settings-card-header {
-	@apply pb-4;
-}
-
-.settings-card-title-wrapper {
-	@apply flex items-center gap-3;
-}
-
-.settings-card-icon {
-	@apply rounded-full p-2;
-}
-
-.settings-card-title {
-	@apply text-lg font-semibold;
-}
-
-.settings-card-description {
-	@apply text-muted-foreground mt-1 text-sm;
-}
-
-.settings-form-section {
-	@apply space-y-4;
-}
-
-.settings-form-row {
-	@apply space-y-2;
-}
-
-.settings-form-group {
-	@apply bg-muted/30 flex items-center justify-between rounded-lg border p-4;
-}
-
-.settings-form-label {
-	@apply text-sm font-medium;
-}
-
-.settings-form-help {
-	@apply text-muted-foreground mt-1 text-xs;
-}
-
-/* Alert styling */
-.settings-alert {
-	@apply mb-6;
-}
-
-/* Responsive styles for settings */
-@media (min-width: 640px) {
-	.settings-header {
-		@apply flex-row items-center;
-	}
-}
-
-@media (max-width: 640px) {
-	.settings-page {
-		@apply space-y-6;
-	}
-
-	.settings-header {
-		@apply gap-3;
-	}
-
-	.settings-grid {
-		@apply gap-4;
-	}
 }
