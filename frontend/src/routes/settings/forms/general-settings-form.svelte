@@ -6,6 +6,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import type { Settings } from '$lib/types/settings.type';
 	import { toast } from 'svelte-sonner';
+	import SwitchWithLabel from '$lib/components/form/labeled-switch.svelte';
 
 	let {
 		settings,
@@ -19,7 +20,8 @@
 
 	const formSchema = z.object({
 		stacksDirectory: z.string().min(1, 'Projects directory is required'),
-		baseServerUrl: z.string().min(1, 'Base server URL is required')
+		baseServerUrl: z.string().min(1, 'Base server URL is required'),
+		enableGravatar: z.boolean()
 	});
 
 	let { inputs: formInputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, settings));
@@ -38,8 +40,13 @@
 <form onsubmit={preventDefault(onSubmit)} class="space-y-6">
 	<div class="w-full p-6">
 		<FieldSet.Root>
-			<FieldSet.Content class="flex flex-col gap-8">
-				<div class="min-w-0 space-y-4">
+			<FieldSet.Content class="grid grid-cols-1 gap-6 md:grid-cols-2">
+				<div class="bg-background/40 min-w-0 space-y-4 rounded-lg border p-5 shadow-sm">
+					<div class="space-y-1">
+						<h3 class="text-base font-medium">Project Paths</h3>
+						<p class="text-muted-foreground text-sm">Configure where Arcane looks for your Compose files.</p>
+					</div>
+
 					<FormInput
 						label="Projects Directory"
 						placeholder="data/projects"
@@ -51,7 +58,21 @@
 						label="Base Server URL"
 						placeholder="localhost"
 						bind:input={$formInputs.baseServerUrl}
-						helpText="Base URL for accessing Arcane (used for webhooks and notifications)"
+						helpText="The Base URL for your docker host. Used when opening containers from the service links"
+					/>
+				</div>
+
+				<div class="bg-background/40 min-w-0 space-y-4 rounded-lg border p-5 shadow-sm">
+					<div class="space-y-1">
+						<h3 class="text-base font-medium">User Avatars</h3>
+						<p class="text-muted-foreground text-sm">Control Gravatar usage for profile images.</p>
+					</div>
+
+					<SwitchWithLabel
+						id="enableGravatar"
+						label="Enable Gravatar"
+						description="Whether to use Gravatar-based avatars for user accounts"
+						bind:checked={$formInputs.enableGravatar.value}
 					/>
 				</div>
 			</FieldSet.Content>

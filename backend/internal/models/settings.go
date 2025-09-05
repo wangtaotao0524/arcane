@@ -51,6 +51,7 @@ type Settings struct {
 	PollingInterval    SettingVariable `key:"pollingInterval"`
 	PruneMode          SettingVariable `key:"dockerPruneMode"`
 	BaseServerURL      SettingVariable `key:"baseServerUrl"`
+	EnableGravatar     SettingVariable `key:"enableGravatar"`
 
 	// Authentication
 	AuthLocalEnabled   SettingVariable `key:"authLocalEnabled,public"`

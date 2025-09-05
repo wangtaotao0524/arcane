@@ -13,6 +13,7 @@ export type Settings = {
 	pollingInterval: number;
 	dockerPruneMode: 'all' | 'dangling';
 	baseServerUrl: string;
+	enableGravatar: boolean;
 
 	authLocalEnabled: boolean;
 	authOidcEnabled: boolean;

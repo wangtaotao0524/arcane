@@ -20,6 +20,7 @@ type UpdateSettingsDto struct {
 	PollingInterval    *string `json:"pollingInterval,omitempty"`
 	PruneMode          *string `json:"dockerPruneMode,omitempty" binding:"omitempty,oneof=all dangling"`
 	BaseServerURL      *string `json:"baseServerUrl,omitempty"`
+	EnableGravatar     *string `json:"enableGravatar,omitempty"`
 
 	// Authentication settings
 	AuthLocalEnabled   *string `json:"authLocalEnabled,omitempty"`

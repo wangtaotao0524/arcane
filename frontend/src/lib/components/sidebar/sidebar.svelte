@@ -28,15 +28,12 @@
 
 	const sidebar = useSidebar();
 
-	// Fallback to global user store so the user block appears immediately after login
 	let storeUser: User | null = $state(null);
 	$effect(() => {
 		const unsub = userStore.subscribe((u) => (storeUser = u));
 		return unsub;
 	});
 	const effectiveUser = $derived(user ?? storeUser);
-
-	console.log('USEROBJECT: ', user);
 
 	const isCollapsed = $derived(sidebar.state === 'collapsed');
 </script>

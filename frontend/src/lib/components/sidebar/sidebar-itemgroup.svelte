@@ -22,17 +22,14 @@
 		}[];
 	} = $props();
 
-	// Helper function to check if a URL is active
 	function isActiveItem(url: string): boolean {
 		return page.url.pathname === url || (page.url.pathname.startsWith(url) && url !== '/');
 	}
 
-	// Helper function to check if any child items are active
 	function hasActiveChild(items?: { url: string }[]): boolean {
 		return items?.some((child) => isActiveItem(child.url)) ?? false;
 	}
 
-	// Transform items to include isActive state
 	const enhancedItems = $derived(
 		items.map((item) => {
 			const isItemActive = isActiveItem(item.url);

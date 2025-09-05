@@ -60,6 +60,7 @@ func (s *SettingsService) getDefaultSettings() *models.Settings {
 		PollingInterval:    models.SettingVariable{Value: "300"},
 		PruneMode:          models.SettingVariable{Value: "dangling"},
 		BaseServerURL:      models.SettingVariable{Value: ""},
+		EnableGravatar:     models.SettingVariable{Value: "true"},
 
 		// Authentication settings
 		AuthLocalEnabled:   models.SettingVariable{Value: "true"},
