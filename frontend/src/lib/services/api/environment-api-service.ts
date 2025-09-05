@@ -66,9 +66,13 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.post(`/environments/${envId}/containers/${containerId}/restart`));
 	}
 
-	async deleteContainer(containerId: string): Promise<any> {
+	async deleteContainer(containerId: string, opts?: { force?: boolean; volumes?: boolean }): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.delete(`/environments/${envId}/containers/${containerId}`));
+		const params: Record<string, string> = {};
+		if (opts?.force !== undefined) params.force = String(!!opts.force);
+		if (opts?.volumes !== undefined) params.volumes = String(!!opts.volumes);
+
+		return this.handleResponse(this.api.delete(`/environments/${envId}/containers/${containerId}`, { params }));
 	}
 
 	async pullContainerImage(containerId: string): Promise<Project> {

@@ -87,12 +87,26 @@
 		openConfirmDialog({
 			title: 'Confirm Container Removal',
 			message: 'Are you sure you want to remove this container? This action cannot be undone.',
+			checkboxes: [
+				{
+					id: 'force',
+					label: 'Force remove (kill the container if running)',
+					initialState: false
+				},
+				{
+					id: 'volumes',
+					label: 'Remove container volumes',
+					initialState: false
+				}
+			],
 			confirm: {
 				label: 'Remove',
 				destructive: true,
-				action: async () => {
+				action: async (checkboxStates) => {
+					const force = !!checkboxStates.force;
+					const volumes = !!checkboxStates.volumes;
 					handleApiResultWithCallbacks({
-						result: await tryCatch(environmentAPI.deleteContainer(id)),
+						result: await tryCatch(environmentAPI.deleteContainer(id, { force, volumes })),
 						message: 'Failed to Remove Container',
 						setLoadingState: (value) => (isLoading.remove = value),
 						async onSuccess() {
