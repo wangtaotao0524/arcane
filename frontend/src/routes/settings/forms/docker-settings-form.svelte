@@ -118,7 +118,7 @@
 					<SelectWithLabel
 						id="dockerPruneMode"
 						name="pruneMode"
-						bind:value={pruneMode}
+						bind:value={$formInputs.dockerPruneMode.value}
 						label="Image Prune Action Behavior"
 						description={pruneModeDescription}
 						placeholder="Docker Prune Mode"

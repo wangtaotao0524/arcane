@@ -32,8 +32,9 @@
 
 	async function handlePruneImages() {
 		isLoading.pruning = true;
+		const dangling = data.settings?.dockerPruneMode === 'dangling';
 		handleApiResultWithCallbacks({
-			result: await tryCatch(environmentAPI.pruneImages()),
+			result: await tryCatch(environmentAPI.pruneImages(dangling)),
 			message: 'Failed to Prune Images',
 			setLoadingState: (value) => (isLoading.pruning = value),
 			onSuccess: async () => {
@@ -134,8 +135,8 @@
 			<Dialog.Header>
 				<Dialog.Title>Prune Unused Images</Dialog.Title>
 				<Dialog.Description>
-					Are you sure you want to remove all unused (dangling) Docker images? This will free up disk space but cannot be undone.
-					Images actively used by containers will not be affected.
+					Removes unused Docker images (prune mode: {String(data.settings.dockerPruneMode)}). This frees disk space and cannot be
+					undone. Images referenced by any container will not be removed.
 				</Dialog.Description>
 			</Dialog.Header>
 			<div class="flex justify-end gap-3 pt-6">

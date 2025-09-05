@@ -291,6 +291,8 @@ func (s *ImageService) PruneImages(ctx context.Context, dangling bool) (*image.P
 	filterArgs := filters.NewArgs()
 	if dangling {
 		filterArgs.Add("dangling", "true")
+	} else {
+		filterArgs.Add("dangling", "false")
 	}
 
 	report, err := dockerClient.ImagesPrune(ctx, filterArgs)

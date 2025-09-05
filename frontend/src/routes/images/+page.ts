@@ -1,4 +1,4 @@
-import { environmentAPI, systemAPI } from '$lib/services/api';
+import { environmentAPI, settingsAPI, systemAPI } from '$lib/services/api';
 import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { PageLoad } from './$types';
 
@@ -16,6 +16,7 @@ export const load: PageLoad = async () => {
 
 	const totalSize = await environmentAPI.getTotalImageSize();
 	const images = await environmentAPI.getImages(imageRequestOptions);
+	const settings = await settingsAPI.getSettings();
 
-	return { totalSize, images, imageRequestOptions };
+	return { totalSize, images, imageRequestOptions, settings };
 };
