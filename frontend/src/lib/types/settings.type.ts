@@ -7,7 +7,7 @@ export type SettingRawResponse = {
 
 export type Settings = {
 	stacksDirectory: string;
-	autoUpdateEnabled: boolean;
+	autoUpdate: boolean;
 	autoUpdateInterval: number;
 	pollingEnabled: boolean;
 	pollingInterval: number;
@@ -17,7 +17,7 @@ export type Settings = {
 	authLocalEnabled: boolean;
 	authOidcEnabled: boolean;
 	authSessionTimeout: number;
-	authPasswordPolicy: string;
+	authPasswordPolicy: 'basic' | 'standard' | 'strong';
 	authRbacEnabled: boolean;
 	authOidcConfig: string;
 
