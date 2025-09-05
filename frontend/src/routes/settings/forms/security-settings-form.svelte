@@ -31,18 +31,33 @@
 		scopes: 'openid email profile'
 	});
 
-	const formSchema = z.object({
-		authLocalEnabled: z.boolean(),
-		authOidcEnabled: z.boolean(),
-		authSessionTimeout: z
-			.number('Session timeout is required')
-			.int('Must be an integer')
-			.min(15, 'Minimum is 15 minutes')
-			.max(1440, 'Maximum is 1440 minutes'),
-		authPasswordPolicy: z.enum(['basic', 'standard', 'strong'])
-	});
+	const formSchema = z
+		.object({
+			authLocalEnabled: z.boolean(),
+			authOidcEnabled: z.boolean(),
+			authSessionTimeout: z
+				.number('Session timeout is required')
+				.int('Must be an integer')
+				.min(15, 'Minimum is 15 minutes')
+				.max(1440, 'Maximum is 1440 minutes'),
+			authPasswordPolicy: z.enum(['basic', 'standard', 'strong'])
+		})
+		.superRefine((data, ctx) => {
+			// If server forces OIDC, the constraint is already satisfied
+			if (oidcStatus.envForced) return;
+			if (!data.authLocalEnabled && !data.authOidcEnabled) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'Enable at least one authentication provider.',
+					path: ['authLocalEnabled']
+				});
+			}
+		});
 
 	let { inputs: formInputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, settings));
+
+	// Helper: treat OIDC as active if forced by server or enabled in form
+	const isOidcActive = () => $formInputs.authOidcEnabled.value || oidcStatus.envForced;
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -74,9 +89,23 @@
 	function handleOidcSwitchChange(checked: boolean) {
 		$formInputs.authOidcEnabled.value = checked;
 
+		if (!checked && !$formInputs.authLocalEnabled.value && !oidcStatus.envForced) {
+			$formInputs.authLocalEnabled.value = true;
+			toast.info('Local Authentication enabled to ensure at least one provider is active.');
+		}
+
 		if (checked && !oidcStatus.envForced && !effectivelyEnabled) {
 			showOidcConfigDialog = true;
 		}
+	}
+
+	function handleLocalSwitchChange(checked: boolean) {
+		if (!checked && !isOidcActive()) {
+			$formInputs.authLocalEnabled.value = true;
+			toast.error('At least one authentication provider must be enabled.');
+			return;
+		}
+		$formInputs.authLocalEnabled.value = checked;
 	}
 
 	function openOidcDialog() {
@@ -133,6 +162,7 @@
 						label="Local Authentication"
 						description="Username and password stored by Arcane. Keep enabled as a fallback."
 						bind:checked={$formInputs.authLocalEnabled.value}
+						onCheckedChange={handleLocalSwitchChange}
 					/>
 
 					<div class="space-y-2">
