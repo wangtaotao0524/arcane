@@ -144,7 +144,7 @@ func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*dto.Oidc
 func (s *AuthService) GetSessionTimeout(ctx context.Context) (int, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
-		return 60, nil
+		return 60, err
 	}
 
 	timeoutSeconds := settings.AuthSessionTimeout.AsInt()
