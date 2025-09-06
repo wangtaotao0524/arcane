@@ -48,6 +48,7 @@ export interface NetworkDto {
 
 export interface HostConfigDto {
 	networkMode: string;
+	restartPolicy?: string;
 }
 
 export interface NetworkSettingsDto {
@@ -85,4 +86,47 @@ export interface ContainerActionResult {
 	failed?: string[];
 	success: boolean;
 	errors?: string[];
+}
+
+export interface ContainerStateDto {
+	status: string;
+	running: boolean;
+	startedAt: string;
+	finishedAt: string;
+	health?: {
+		status: string;
+		log?: Array<{
+			start?: string;
+			Start?: string;
+			end?: string;
+			End?: string;
+			exitCode?: number;
+			ExitCode?: number;
+			output?: string;
+			Output?: string;
+		}>;
+	};
+}
+
+export interface ContainerConfigDto {
+	env?: string[];
+	cmd?: string[];
+	entrypoint?: string[];
+	workingDir?: string;
+	user?: string;
+}
+
+export interface ContainerDetailsDto {
+	id: string;
+	name: string;
+	image: string;
+	imageId: string;
+	created: string;
+	state: ContainerStateDto;
+	config: ContainerConfigDto;
+	hostConfig: HostConfigDto;
+	networkSettings: NetworkSettingsDto;
+	ports: PortDto[];
+	mounts: MountDto[];
+	labels: Record<string, string>;
 }

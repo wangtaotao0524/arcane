@@ -18,13 +18,13 @@
 	import { format } from 'date-fns';
 	import bytes from 'bytes';
 	import type Docker from 'dockerode';
-	import type { ContainerInspectInfo } from 'dockerode';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { onDestroy } from 'svelte';
 	import LogViewer from '$lib/components/log-viewer.svelte';
 	import Meter from '$lib/components/ui/meter/meter.svelte';
 	import { browser } from '$app/environment';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
+	import type { ContainerDetailsDto, NetworkSettingsDto } from '$lib/types/container.type';
 
 	interface NetworkConfig {
 		IPAddress?: string;
@@ -41,7 +41,9 @@
 	}
 
 	let { data } = $props();
-	let { container, stats } = $derived(data);
+	// Use new DTO types for the page data
+	let container = $derived(data?.container as ContainerDetailsDto);
+	let stats = $derived((data?.stats ?? null) as Docker.ContainerStats | null);
 
 	let starting = $state(false);
 	let stopping = $state(false);
@@ -62,13 +64,13 @@
 		return name.replace(/^\/+/, '');
 	};
 
-	const containerDisplayName = $derived(cleanContainerName(container?.Name));
+	const containerDisplayName = $derived(cleanContainerName(container?.name));
 
 	function startStatsStream() {
-		if (statsEventSource || !container?.Id || !container.State?.Running) return;
+		if (statsEventSource || !container?.id || !container.state?.running) return;
 
 		try {
-			const url = `/api/containers/${container.Id}/stats/stream`;
+			const url = `/api/containers/${container.id}/stats/stream`;
 			const eventSource = new EventSource(url);
 			statsEventSource = eventSource;
 
@@ -107,7 +109,7 @@
 	}
 
 	$effect(() => {
-		if (activeSection === 'stats' && container?.State?.Running) {
+		if (activeSection === 'stats' && container?.state?.running) {
 			startStatsStream();
 		} else if (statsEventSource) {
 			closeStatsStream();
@@ -141,26 +143,17 @@
 	const memoryLimitFormatted = $derived(bytes.format(memoryLimitBytes));
 	const memoryUsagePercent = $derived(memoryLimitBytes > 0 ? (memoryUsageBytes / memoryLimitBytes) * 100 : 0);
 
-	const getPrimaryIpAddress = (networkSettings: ContainerInspectInfo['NetworkSettings'] | undefined | null): string => {
-		if (!networkSettings) return 'N/A';
+	const getPrimaryIpAddress = (networkSettings: NetworkSettingsDto | undefined | null): string => {
+		if (!networkSettings?.networks) return 'N/A';
 
-		if (networkSettings.IPAddress) {
-			return networkSettings.IPAddress;
+		for (const networkName in networkSettings.networks) {
+			const net = networkSettings.networks[networkName];
+			if (net?.ipAddress) return net.ipAddress;
 		}
-
-		if (networkSettings.Networks) {
-			for (const networkName in networkSettings.Networks) {
-				const network = networkSettings.Networks[networkName];
-				if (network?.IPAddress) {
-					return network.IPAddress;
-				}
-			}
-		}
-
 		return 'N/A';
 	};
 
-	const primaryIpAddress = $derived(getPrimaryIpAddress(container?.NetworkSettings));
+	const primaryIpAddress = $derived(getPrimaryIpAddress(container?.networkSettings));
 
 	$effect(() => {
 		starting = false;
@@ -189,23 +182,19 @@
 		invalidateAll();
 	}
 
-	function handleToggleAutoScroll() {
-		// Custom logic when auto-scroll is toggled if needed
-	}
+	function handleToggleAutoScroll() {}
 
-	// Data presence flags
-	const hasEnvVars = $derived(!!(container?.Config?.Env && container.Config.Env.length > 0));
-	const hasPorts = $derived(!!(container?.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0));
-	const hasLabels = $derived(!!(container?.Config?.Labels && Object.keys(container.Config.Labels).length > 0));
+	const hasEnvVars = $derived(!!(container?.config?.env && container.config.env.length > 0));
+	const hasPorts = $derived(!!(container?.ports && container.ports.length > 0));
+	const hasLabels = $derived(!!(container?.labels && Object.keys(container.labels).length > 0));
 	const showConfiguration = $derived(hasEnvVars || hasPorts || hasLabels);
 
 	const hasNetworks = $derived(
-		!!(container?.NetworkSettings?.Networks && Object.keys(container.NetworkSettings.Networks).length > 0)
+		!!(container?.networkSettings?.networks && Object.keys(container.networkSettings.networks).length > 0)
 	);
-	const hasMounts = $derived(!!(container?.Mounts && container.Mounts.length > 0));
-	const showStats = $derived(!!(container?.State?.Running && stats));
+	const hasMounts = $derived(!!(container?.mounts && container.mounts.length > 0));
+	const showStats = $derived(!!(container?.state?.running && stats));
 
-	// Navigation sections for single-page layout
 	const navigationSections = [
 		{ id: 'overview', label: 'Overview', icon: HardDriveIcon },
 		{ id: 'stats', label: 'Metrics', icon: ActivityIcon },
@@ -250,6 +239,31 @@
 			return () => window.removeEventListener('scroll', onScroll);
 		}
 	});
+
+	function parseDockerDate(input: string | Date | undefined | null): Date | null {
+		if (!input) return null;
+		if (input instanceof Date) return isNaN(input.getTime()) ? null : input;
+
+		const s = String(input).trim();
+		if (!s || s.startsWith('0001-01-01')) return null;
+
+		const m = s.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?Z$/);
+		let normalized = s;
+		if (m) {
+			const base = m[1];
+			const frac = m[2] ? m[2].slice(1) : '';
+			const ms = frac ? '.' + frac.slice(0, 3).padEnd(3, '0') : '';
+			normalized = `${base}${ms}Z`;
+		}
+
+		const d = new Date(normalized);
+		return isNaN(d.getTime()) ? null : d;
+	}
+
+	function formatDockerDate(input: string | Date | undefined | null, fmt = 'PP p'): string {
+		const d = parseDockerDate(input);
+		return d ? format(d, fmt) : 'N/A';
+	}
 </script>
 
 <div class="bg-background min-h-screen">
@@ -270,10 +284,10 @@
 							<h1 class="max-w-[300px] truncate text-lg font-semibold" title={containerDisplayName}>
 								{containerDisplayName}
 							</h1>
-							{#if container?.State}
+							{#if container?.state}
 								<StatusBadge
-									variant={container.State.Status === 'running' ? 'green' : container.State.Status === 'exited' ? 'red' : 'amber'}
-									text={container.State.Status}
+									variant={container.state.status === 'running' ? 'green' : container.state.status === 'exited' ? 'red' : 'amber'}
+									text={container.state.status}
 								/>
 							{/if}
 						</div>
@@ -282,9 +296,9 @@
 					<div class="flex items-center gap-2">
 						{#if container}
 							<ActionButtons
-								id={container.Id}
+								id={container.id}
 								type="container"
-								itemState={container.State?.Running ? 'running' : 'stopped'}
+								itemState={container.state?.running ? 'running' : 'stopped'}
 								loading={{ start: starting, stop: stopping, restart: restarting, remove: removing }}
 							/>
 						{/if}
@@ -294,26 +308,26 @@
 		</div>
 
 		{#if showFloatingHeader}
-			<div class="fixed top-4 left-1/2 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
+			<div class="fixed left-1/2 top-4 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
 				<div class="bg-background/90 border-border/50 rounded-lg border px-4 py-3 shadow-xl backdrop-blur-xl">
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
 							<h2 class="max-w-[150px] truncate text-sm font-medium" title={containerDisplayName}>
 								{containerDisplayName}
 							</h2>
-							{#if container?.State}
+							{#if container?.state}
 								<StatusBadge
-									variant={container.State.Status === 'running' ? 'green' : container.State.Status === 'exited' ? 'red' : 'amber'}
-									text={container.State.Status}
+									variant={container.state.status === 'running' ? 'green' : container.state.status === 'exited' ? 'red' : 'amber'}
+									text={container.state.status}
 									class="text-xs"
 								/>
 							{/if}
 						</div>
 						<div class="bg-border h-4 w-px"></div>
 						<ActionButtons
-							id={container.Id}
+							id={container.id}
 							type="container"
-							itemState={container.State?.Running ? 'running' : 'stopped'}
+							itemState={container.state?.running ? 'running' : 'stopped'}
 							loading={{ start: starting, stop: stopping, restart: restarting, remove: removing }}
 						/>
 					</div>
@@ -330,13 +344,12 @@
 							<button
 								onclick={() => scrollToSection(section.id)}
 								class="relative flex w-full items-center justify-center rounded-md p-3 text-sm font-medium transition-colors
-									{activeSection === section.id
+                                    {activeSection === section.id
 									? 'bg-primary/10 text-primary border-primary/20 border'
 									: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}"
 								title={section.label}
 							>
-								- <IconComponent class="size-4" />
-								+ <IconComponent class="size-4" />
+								<IconComponent class="size-4" />
 							</button>
 						{/each}
 					</nav>
@@ -369,8 +382,8 @@
 												</div>
 												<div class="min-w-0 flex-1">
 													<div class="text-muted-foreground text-sm">Image</div>
-													<div class="truncate font-medium" title={container.Config?.Image}>
-														{container.Config?.Image || 'N/A'}
+													<div class="truncate font-medium" title={container.image}>
+														{container.image || 'N/A'}
 													</div>
 												</div>
 											</div>
@@ -381,8 +394,8 @@
 												</div>
 												<div class="min-w-0 flex-1">
 													<div class="text-muted-foreground text-sm">Created</div>
-													<div class="font-medium" title={format(new Date(container.Created), 'PP p')}>
-														{format(new Date(container.Created), 'PP p')}
+													<div class="font-medium" title={formatDockerDate(container?.created)}>
+														{formatDockerDate(container?.created)}
 													</div>
 												</div>
 											</div>
@@ -403,8 +416,8 @@
 												</div>
 												<div class="min-w-0 flex-1">
 													<div class="text-muted-foreground text-sm">Command</div>
-													<div class="truncate font-medium" title={container.Config?.Cmd?.join(' ')}>
-														{container.Config?.Cmd?.join(' ') || 'N/A'}
+													<div class="truncate font-medium" title={container.config?.cmd?.join(' ')}>
+														{container.config?.cmd?.join(' ') || 'N/A'}
 													</div>
 												</div>
 											</div>
@@ -419,44 +432,48 @@
 												<div class="space-y-1">
 													<div class="text-muted-foreground text-xs">Container ID</div>
 													<div class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs">
-														{container.Id}
+														{container.id}
 													</div>
 												</div>
 
-												{#if container.Config?.WorkingDir}
+												{#if container.config?.workingDir}
 													<div class="space-y-1">
 														<div class="text-muted-foreground text-xs">Working Directory</div>
 														<div class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs">
-															{container.Config.WorkingDir}
+															{container.config.workingDir}
 														</div>
 													</div>
 												{/if}
 
-												{#if container.Config?.User}
+												{#if container.config?.user}
 													<div class="space-y-1">
 														<div class="text-muted-foreground text-xs">User</div>
 														<div class="bg-muted/50 inline-flex rounded px-2 py-1.5 font-mono text-xs">
-															{container.Config.User}
+															{container.config.user}
 														</div>
 													</div>
 												{/if}
 
-												{#if container.State?.Health}
+												{#if container.state?.health}
 													<div class="space-y-1 sm:col-span-2">
 														<div class="text-muted-foreground text-xs">Health</div>
 														<div class="flex flex-wrap items-center gap-3">
 															<StatusBadge
-																variant={container.State.Health.Status === 'healthy'
+																variant={container.state.health.status === 'healthy'
 																	? 'green'
-																	: container.State.Health.Status === 'unhealthy'
+																	: container.state.health.status === 'unhealthy'
 																		? 'red'
 																		: 'amber'}
-																text={container.State.Health.Status}
+																text={container.state.health.status}
 															/>
-															{#if container.State.Health.Log && container.State.Health.Log.length > 0}
-																<span class="text-muted-foreground text-xs">
-																	Last check: {new Date(container.State.Health.Log[0].Start).toLocaleString()}
-																</span>
+															{#if container.state.health.log && container.state.health.log.length > 0}
+																{@const first = container.state.health.log[0]}
+																{@const lastCheck = (first?.Start ?? first?.start) as string | undefined}
+																{#if lastCheck}
+																	<span class="text-muted-foreground text-xs">
+																		Last check: {formatDockerDate(lastCheck)}
+																	</span>
+																{/if}
 															{/if}
 														</div>
 													</div>
@@ -477,7 +494,7 @@
 
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Content class="p-6">
-										{#if stats && container.State?.Running}
+										{#if stats && container.state?.running}
 											<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 												<div class="space-y-6">
 													<Meter
@@ -502,7 +519,7 @@
 												<div class="space-y-6">
 													<div>
 														<h4 class="mb-4 flex items-center gap-2 font-medium">
-															<NetworkIcon class="size-4" /> Network I/O + <NetworkIcon class="size-4" /> Network I/O
+															<NetworkIcon class="size-4" /> Network I/O
 														</h4>
 														<div class="grid grid-cols-2 gap-4">
 															<div class="bg-muted/30 rounded p-4">
@@ -558,7 +575,7 @@
 													</div>
 												</div>
 											{/if}
-										{:else if !container.State?.Running}
+										{:else if !container.state?.running}
 											<div class="text-muted-foreground py-12 text-center">Container is not running. Stats unavailable.</div>
 										{:else}
 											<div class="text-muted-foreground py-12 text-center">Loading stats...</div>
@@ -588,7 +605,7 @@
 										</div>
 										<Button variant="outline" size="sm" onclick={() => logViewer?.stopLogStream()}>Stop</Button>
 									{:else}
-										<Button variant="outline" size="sm" onclick={() => logViewer?.startLogStream()} disabled={!container?.Id}>
+										<Button variant="outline" size="sm" onclick={() => logViewer?.startLogStream()} disabled={!container?.id}>
 											Start
 										</Button>
 									{/if}
@@ -601,7 +618,7 @@
 										bind:this={logViewer}
 										bind:autoScroll={autoScrollLogs}
 										type="container"
-										containerId={container?.Id}
+										containerId={container?.id}
 										maxLines={500}
 										showTimestamps={true}
 										height="400px"
@@ -634,9 +651,9 @@
 											<div>
 												<h3 class="mb-3 text-sm font-semibold tracking-tight">Environment Variables</h3>
 
-												{#if container.Config?.Env && container.Config.Env.length > 0}
+												{#if container.config?.env && container.config.env.length > 0}
 													<ul class="divide-border/60 divide-y">
-														{#each container.Config.Env as env, index (index)}
+														{#each container.config.env as env, index (index)}
 															{#if env.includes('=')}
 																{@const [key, ...valueParts] = env.split('=')}
 																{@const value = valueParts.join('=')}
@@ -672,31 +689,24 @@
 											<div>
 												<h3 class="mb-3 text-sm font-semibold tracking-tight">Port Mappings</h3>
 
-												{#if container.NetworkSettings?.Ports && Object.keys(container.NetworkSettings.Ports).length > 0}
-													<ul class="divide-border/60 divide-y">
-														{#each Object.entries(container.NetworkSettings.Ports) as [containerPort, hostBindings] (containerPort)}
-															<li class="px-4 py-2.5">
-																<div class="flex min-w-0 items-center gap-3">
-																	<Badge variant="secondary">
-																		{containerPort}:
-																	</Badge>
-
-																	{#if Array.isArray(hostBindings) && hostBindings.length > 0}
-																		<span class="truncate font-semibold">
-																			{hostBindings
-																				.map((binding) => `${binding.HostIp || '0.0.0.0'}:${binding.HostPort}`)
-																				.join(', ')}
-																		</span>
-																	{:else}
-																		<span class="text-muted-foreground font-semibold">Not published</span>
-																	{/if}
-																</div>
-															</li>
-														{/each}
-													</ul>
-												{:else}
-													<div class="text-muted-foreground py-8 text-center">No ports exposed</div>
-												{/if}
+												<ul class="divide-border/60 divide-y">
+													{#each container.ports as p, idx (idx)}
+														<li class="px-4 py-2.5">
+															<div class="flex min-w-0 items-center gap-3">
+																<Badge variant="secondary">
+																	{p.privatePort}/{p.type}
+																</Badge>
+																{#if p.publicPort}
+																	<span class="truncate font-semibold">
+																		{p.ip || '0.0.0.0'}:{p.publicPort} → {p.privatePort}/{p.type}
+																	</span>
+																{:else}
+																	<span class="text-muted-foreground font-semibold">Not published</span>
+																{/if}
+															</div>
+														</li>
+													{/each}
+												</ul>
 											</div>
 										{/if}
 
@@ -708,9 +718,9 @@
 											<div>
 												<h3 class="mb-3 text-sm font-semibold tracking-tight">Labels</h3>
 
-												{#if container.Config?.Labels && Object.keys(container.Config.Labels).length > 0}
+												{#if container.labels && Object.keys(container.labels).length > 0}
 													<ul class="divide-border/60 divide-y">
-														{#each Object.entries(container.Config.Labels) as [key, value] (key)}
+														{#each Object.entries(container.labels) as [key, value] (key)}
 															<li class="px-4 py-2.5">
 																<div class="flex min-w-0 items-center gap-3">
 																	<Badge variant="secondary">
@@ -742,35 +752,43 @@
 
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Content class="p-6">
-										{#if container.NetworkSettings?.Networks && Object.keys(container.NetworkSettings.Networks).length > 0}
+										{#if container.networkSettings?.networks && Object.keys(container.networkSettings.networks).length > 0}
 											<div class="space-y-6">
-												{#each Object.entries(container.NetworkSettings.Networks) as [networkName, rawNetworkConfig] (networkName)}
-													{@const networkConfig = ensureNetworkConfig(rawNetworkConfig)}
+												{#each Object.entries(container.networkSettings.networks) as [networkName, rawNetworkConfig] (networkName)}
+													{@const networkConfig = ensureNetworkConfig({
+														IPAddress: rawNetworkConfig.ipAddress,
+														IPPrefixLen: rawNetworkConfig.ipPrefixLen,
+														Gateway: rawNetworkConfig.gateway,
+														MacAddress: rawNetworkConfig.macAddress,
+														Aliases: rawNetworkConfig.aliases
+													})}
 													<div class="rounded border p-4">
 														<div class="mb-4 font-medium">{networkName}</div>
 														<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 															<div>
 																<div class="text-muted-foreground text-sm">IP Address</div>
-																<div class="font-mono">{networkConfig.IPAddress || 'N/A'}</div>
+																<div class="font-mono">{rawNetworkConfig.ipAddress || 'N/A'}</div>
 															</div>
 															<div>
 																<div class="text-muted-foreground text-sm">Gateway</div>
-																<div class="font-mono">{networkConfig.Gateway || 'N/A'}</div>
+																<div class="font-mono">{rawNetworkConfig.gateway || 'N/A'}</div>
 															</div>
 															<div>
 																<div class="text-muted-foreground text-sm">MAC Address</div>
-																<div class="font-mono">{networkConfig.MacAddress || 'N/A'}</div>
+																<div class="font-mono">{rawNetworkConfig.macAddress || 'N/A'}</div>
 															</div>
 															<div>
 																<div class="text-muted-foreground text-sm">Subnet</div>
 																<div class="font-mono">
-																	{networkConfig.IPPrefixLen ? `${networkConfig.IPAddress}/${networkConfig.IPPrefixLen}` : 'N/A'}
+																	{rawNetworkConfig.ipPrefixLen
+																		? `${rawNetworkConfig.ipAddress}/${rawNetworkConfig.ipPrefixLen}`
+																		: 'N/A'}
 																</div>
 															</div>
-															{#if networkConfig.Aliases && networkConfig.Aliases.length > 0}
+															{#if rawNetworkConfig.aliases && rawNetworkConfig.aliases.length > 0}
 																<div class="col-span-2">
 																	<div class="text-muted-foreground text-sm">Aliases</div>
-																	<div class="font-mono">{networkConfig.Aliases.join(', ')}</div>
+																	<div class="font-mono">{rawNetworkConfig.aliases.join(', ')}</div>
 																</div>
 															{/if}
 														</div>
@@ -794,22 +812,22 @@
 
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Content class="p-6">
-										{#if container.Mounts && container.Mounts.length > 0}
+										{#if container.mounts && container.mounts.length > 0}
 											<div class="space-y-4">
-												{#each container.Mounts as mount (mount.Destination)}
+												{#each container.mounts as mount (mount.destination)}
 													<div class="overflow-hidden rounded border">
 														<div class="bg-muted/20 flex items-center justify-between p-4">
 															<div class="flex items-center gap-3">
 																<div
-																	class="rounded p-2 {mount.Type === 'volume'
+																	class="rounded p-2 {mount.type === 'volume'
 																		? 'bg-purple-100 dark:bg-purple-950'
-																		: mount.Type === 'bind'
+																		: mount.type === 'bind'
 																			? 'bg-blue-100 dark:bg-blue-950'
 																			: 'bg-amber-100 dark:bg-amber-950'}"
 																>
-																	{#if mount.Type === 'volume'}
+																	{#if mount.type === 'volume'}
 																		<DatabaseIcon class="size-4 text-purple-600" />
-																	{:else if mount.Type === 'bind'}
+																	{:else if mount.type === 'bind'}
 																		<HardDriveIcon class="size-4 text-blue-600" />
 																	{:else}
 																		<TerminalIcon class="size-4 text-amber-600" />
@@ -817,31 +835,31 @@
 																</div>
 																<div>
 																	<div class="font-medium">
-																		{mount.Type === 'tmpfs'
+																		{mount.type === 'tmpfs'
 																			? 'Temporary filesystem'
-																			: mount.Type === 'volume'
-																				? mount.Name || 'Docker volume'
+																			: mount.type === 'volume'
+																				? mount.name || 'Docker volume'
 																				: 'Host directory'}
 																	</div>
 																	<div class="text-muted-foreground text-sm">
-																		{mount.Type} mount {mount.RW ? '(read-write)' : '(read-only)'}
+																		{mount.type} mount {mount.rw ? '(read-write)' : '(read-only)'}
 																	</div>
 																</div>
 															</div>
-															<Badge variant={mount.RW ? 'outline' : 'secondary'}>
-																{mount.RW ? 'RW' : 'RO'}
+															<Badge variant={mount.rw ? 'outline' : 'secondary'}>
+																{mount.rw ? 'RW' : 'RO'}
 															</Badge>
 														</div>
 														<div class="space-y-3 p-4">
 															<div class="flex">
 																<span class="text-muted-foreground w-24 font-medium">Container:</span>
-																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.Destination}</span>
+																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.destination}</span>
 															</div>
 															<div class="flex">
 																<span class="text-muted-foreground w-24 font-medium">
-																	{mount.Type === 'volume' ? 'Volume:' : mount.Type === 'bind' ? 'Host:' : 'Source:'}
+																	{mount.type === 'volume' ? 'Volume:' : mount.type === 'bind' ? 'Host:' : 'Source:'}
 																</span>
-																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.Source}</span>
+																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.source}</span>
 															</div>
 														</div>
 													</div>
