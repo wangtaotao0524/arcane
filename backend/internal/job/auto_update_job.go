@@ -47,7 +47,7 @@ func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, updaterSer
 		"auto-update",
 		jobDefinition,
 		job.Execute,
-		true,
+		false,
 	)
 }
 
