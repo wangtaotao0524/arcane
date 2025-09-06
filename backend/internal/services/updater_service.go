@@ -229,10 +229,31 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 		}
 	}
 
-	// Refresh image_updates by re-checking
-	for oldRef := range oldRefToNewRef {
-		if _, err := s.imageUpdateService.CheckImageUpdate(ctx, oldRef); err != nil {
-			log.Printf("refresh update record failed for %s: %v", oldRef, err)
+	// After applying updates, clear has_update locally if no containers still use old image IDs.
+	if !dryRun {
+		for _, p := range plans {
+			if len(p.oldIDs) == 0 {
+				continue
+			}
+			stillUsed, _ := s.anyImageIDsStillInUse(ctx, p.oldIDs)
+			if stillUsed {
+				continue
+			}
+			repo, tag := s.parseRepoAndTag(p.oldRef)
+			if repo == "" || tag == "" {
+				continue
+			}
+			if err := s.clearImageUpdateRecord(ctx, repo, tag); err == nil {
+				s.logAutoUpdate(ctx, models.EventSeverityInfo, models.JSON{
+					"phase":    "record_clear",
+					"imageOld": p.oldRef,
+					"status":   "cleared",
+				})
+			}
+		}
+
+		if err := s.imageUpdateService.CleanupOrphanedRecords(ctx); err != nil {
+			log.Printf("cleanup orphaned update records failed: %v", err)
 		}
 	}
 
@@ -780,4 +801,61 @@ func (s *UpdaterService) severityFromStatus(status string) models.EventSeverity 
 	default:
 		return models.EventSeverityInfo
 	}
+}
+
+func (s *UpdaterService) anyImageIDsStillInUse(ctx context.Context, ids []string) (bool, error) {
+	if len(ids) == 0 {
+		return false, nil
+	}
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if id != "" {
+			set[id] = struct{}{}
+		}
+	}
+
+	dcli, err := s.dockerService.CreateConnection(ctx)
+	if err != nil {
+		return false, fmt.Errorf("docker connect: %w", err)
+	}
+	defer dcli.Close()
+
+	list, err := dcli.ContainerList(ctx, container.ListOptions{All: false})
+	if err != nil {
+		return false, fmt.Errorf("list containers: %w", err)
+	}
+	for _, c := range list {
+		inspect, ierr := dcli.ContainerInspect(ctx, c.ID)
+		if ierr != nil {
+			continue
+		}
+		if _, ok := set[inspect.Image]; ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *UpdaterService) clearImageUpdateRecord(ctx context.Context, repository, tag string) error {
+	return s.db.WithContext(ctx).
+		Model(&models.ImageUpdateRecord{}).
+		Where("repository = ? AND tag = ?", repository, tag).
+		Update("has_update", false).Error
+}
+
+// parseRepoAndTag extracts repository and tag from a reference like "registry/repo:tag".
+// Uses the last ":" occurring after the last "/" as the tag separator. Defaults tag to "latest".
+func (s *UpdaterService) parseRepoAndTag(ref string) (string, string) {
+	// strip digest if present
+	ref = s.stripDigest(ref)
+
+	tag := "latest"
+	slash := strings.LastIndex(ref, "/")
+	colon := strings.LastIndex(ref, ":")
+	if colon > slash && colon != -1 {
+		tag = ref[colon+1:]
+		ref = ref[:colon]
+	}
+	// Keep registry in repository as stored in records (they store Repository without tag)
+	return ref, tag
 }

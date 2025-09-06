@@ -345,6 +345,13 @@ func (s *ImageService) syncImagesToDatabase(ctx context.Context, dockerImages []
 		lastErr = err
 	}
 
+	if err := s.imageUpdateService.CleanupOrphanedRecords(ctx); err != nil {
+		fmt.Printf("Warning: failed to cleanup orphaned image update records: %v\n", err)
+		if lastErr == nil {
+			lastErr = err
+		}
+	}
+
 	return lastErr
 }
 
