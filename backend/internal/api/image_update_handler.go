@@ -38,25 +38,9 @@ func (h *ImageUpdateHandler) CheckImageUpdate(c *gin.Context) {
 		return
 	}
 
-	response := &dto.ImageUpdateResponse{
-		HasUpdate:      result.HasUpdate,
-		UpdateType:     result.UpdateType,
-		CurrentVersion: result.CurrentVersion,
-		LatestVersion:  result.LatestVersion,
-		CurrentDigest:  result.CurrentDigest,
-		LatestDigest:   result.LatestDigest,
-		CheckTime:      result.CheckTime,
-		ResponseTimeMs: result.ResponseTimeMs,
-		Error:          result.Error,
-		AuthMethod:     result.AuthMethod,
-		AuthUsername:   result.AuthUsername,
-		AuthRegistry:   result.AuthRegistry,
-		UsedCredential: result.UsedCredential,
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    response,
+		"data":    result,
 	})
 }
 
@@ -79,25 +63,9 @@ func (h *ImageUpdateHandler) CheckImageUpdateByID(c *gin.Context) {
 		return
 	}
 
-	response := &dto.ImageUpdateResponse{
-		HasUpdate:      result.HasUpdate,
-		UpdateType:     result.UpdateType,
-		CurrentVersion: result.CurrentVersion,
-		LatestVersion:  result.LatestVersion,
-		CurrentDigest:  result.CurrentDigest,
-		LatestDigest:   result.LatestDigest,
-		CheckTime:      result.CheckTime,
-		ResponseTimeMs: result.ResponseTimeMs,
-		Error:          result.Error,
-		AuthMethod:     result.AuthMethod,
-		AuthUsername:   result.AuthUsername,
-		AuthRegistry:   result.AuthRegistry,
-		UsedCredential: result.UsedCredential,
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    response,
+		"data":    result,
 	})
 }
 
@@ -128,24 +96,7 @@ func (h *ImageUpdateHandler) CheckMultipleImages(c *gin.Context) {
 		return
 	}
 
-	response := make(dto.BatchImageUpdateResponse)
-	for imageRef, result := range results {
-		response[imageRef] = &dto.ImageUpdateResponse{
-			HasUpdate:      result.HasUpdate,
-			UpdateType:     result.UpdateType,
-			CurrentVersion: result.CurrentVersion,
-			LatestVersion:  result.LatestVersion,
-			CurrentDigest:  result.CurrentDigest,
-			LatestDigest:   result.LatestDigest,
-			CheckTime:      result.CheckTime,
-			ResponseTimeMs: result.ResponseTimeMs,
-			Error:          result.Error,
-			AuthMethod:     result.AuthMethod,
-			AuthUsername:   result.AuthUsername,
-			AuthRegistry:   result.AuthRegistry,
-			UsedCredential: result.UsedCredential,
-		}
-	}
+	response := dto.BatchImageUpdateResponse(results)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -173,24 +124,7 @@ func (h *ImageUpdateHandler) CheckAllImages(c *gin.Context) {
 		return
 	}
 
-	response := make(dto.BatchImageUpdateResponse)
-	for imageRef, result := range results {
-		response[imageRef] = &dto.ImageUpdateResponse{
-			HasUpdate:      result.HasUpdate,
-			UpdateType:     result.UpdateType,
-			CurrentVersion: result.CurrentVersion,
-			LatestVersion:  result.LatestVersion,
-			CurrentDigest:  result.CurrentDigest,
-			LatestDigest:   result.LatestDigest,
-			CheckTime:      result.CheckTime,
-			ResponseTimeMs: result.ResponseTimeMs,
-			Error:          result.Error,
-			AuthMethod:     result.AuthMethod,
-			AuthUsername:   result.AuthUsername,
-			AuthRegistry:   result.AuthRegistry,
-			UsedCredential: result.UsedCredential,
-		}
-	}
+	response := dto.BatchImageUpdateResponse(results)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -208,17 +142,9 @@ func (h *ImageUpdateHandler) GetUpdateSummary(c *gin.Context) {
 		return
 	}
 
-	response := &dto.ImageUpdateSummaryResponse{
-		TotalImages:       summary.TotalImages,
-		ImagesWithUpdates: summary.ImagesWithUpdates,
-		DigestUpdates:     summary.DigestUpdates,
-		TagUpdates:        summary.TagUpdates,
-		ErrorsCount:       summary.ErrorsCount,
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    response,
+		"data":    summary,
 	})
 }
 
@@ -251,16 +177,9 @@ func (h *ImageUpdateHandler) GetImageVersions(c *gin.Context) {
 		return
 	}
 
-	response := &dto.ImageVersionsResponse{
-		ImageRef: versions.ImageRef,
-		Current:  versions.Current,
-		Versions: versions.Versions,
-		Latest:   versions.Latest,
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    response,
+		"data":    versions,
 	})
 }
 
@@ -283,16 +202,8 @@ func (h *ImageUpdateHandler) CompareVersions(c *gin.Context) {
 		return
 	}
 
-	response := &dto.VersionComparisonResponse{
-		CurrentVersion: comparison.CurrentVersion,
-		TargetVersion:  comparison.TargetVersion,
-		IsNewer:        comparison.IsNewer,
-		UpdateType:     comparison.UpdateType,
-		ChangeLevel:    comparison.ChangeLevel,
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    response,
+		"data":    comparison,
 	})
 }

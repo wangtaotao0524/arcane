@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/ofkm/arcane-backend/internal/database"
+	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -21,32 +22,6 @@ type ImageUpdateService struct {
 	registryService *ContainerRegistryService
 	dockerService   *DockerClientService
 	eventService    *EventService
-}
-
-type UpdateResult struct {
-	HasUpdate      bool      `json:"hasUpdate"`
-	UpdateType     string    `json:"updateType"` // "tag" or "digest"
-	CurrentVersion string    `json:"currentVersion"`
-	LatestVersion  string    `json:"latestVersion,omitempty"`
-	CurrentDigest  string    `json:"currentDigest,omitempty"`
-	LatestDigest   string    `json:"latestDigest,omitempty"`
-	CheckTime      time.Time `json:"checkTime"`
-	ResponseTimeMs int       `json:"responseTimeMs"`
-	Error          string    `json:"error,omitempty"`
-
-	// Auth metadata (for UI visibility; not persisted)
-	AuthMethod     string `json:"authMethod,omitempty"`     // "none" | "anonymous" | "credential"
-	AuthUsername   string `json:"authUsername,omitempty"`   // populated for credential method
-	AuthRegistry   string `json:"authRegistry,omitempty"`   // registry host we authenticated against
-	UsedCredential bool   `json:"usedCredential,omitempty"` // convenience flag
-}
-
-type UpdateSummary struct {
-	TotalImages       int `json:"totalImages"`
-	ImagesWithUpdates int `json:"imagesWithUpdates"`
-	DigestUpdates     int `json:"digestUpdates"`
-	TagUpdates        int `json:"tagUpdates"`
-	ErrorsCount       int `json:"errorsCount"`
 }
 
 type ImageParts struct {
@@ -62,21 +37,6 @@ type VersionInfo struct {
 	FormatStr string `json:"formatStr"`
 }
 
-type VersionComparison struct {
-	CurrentVersion string `json:"currentVersion"`
-	TargetVersion  string `json:"targetVersion"`
-	IsNewer        bool   `json:"isNewer"`
-	UpdateType     string `json:"updateType"`
-	ChangeLevel    string `json:"changeLevel"`
-}
-
-type AvailableVersions struct {
-	ImageRef string   `json:"imageRef"`
-	Current  string   `json:"current"`
-	Versions []string `json:"versions"`
-	Latest   string   `json:"latest,omitempty"`
-}
-
 func NewImageUpdateService(db *database.DB, settingsService *SettingsService, registryService *ContainerRegistryService, dockerService *DockerClientService, eventService *EventService) *ImageUpdateService {
 	return &ImageUpdateService{
 		db:              db,
@@ -87,30 +47,28 @@ func NewImageUpdateService(db *database.DB, settingsService *SettingsService, re
 	}
 }
 
-func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef string) (*UpdateResult, error) {
+func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef string) (*dto.ImageUpdateResponse, error) {
 	startTime := time.Now()
 
 	parts := s.parseImageReference(imageRef)
 	if parts == nil {
-		return &UpdateResult{
+		return &dto.ImageUpdateResponse{
 			Error:          "Invalid image reference format",
 			CheckTime:      time.Now(),
 			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
 		}, nil
 	}
 
-	// Use all enabled registry credentials that match the image domain
 	registries := s.getRegistriesForImage(ctx, parts.Registry)
 
 	digestResult, err := s.checkDigestUpdate(ctx, parts, registries)
 	if err != nil {
-		result := &UpdateResult{
+		result := &dto.ImageUpdateResponse{
 			Error:          err.Error(),
 			CheckTime:      time.Now(),
 			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
 		}
 
-		// Log error event
 		metadata := models.JSON{
 			"action":    "check_update",
 			"imageRef":  imageRef,
@@ -134,13 +92,12 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 	if !digestResult.HasUpdate && !s.isSpecialTag(parts.Tag) {
 		tagResult, err := s.checkTagUpdate(ctx, parts, registries)
 		if err != nil {
-			result := &UpdateResult{
+			result := &dto.ImageUpdateResponse{
 				Error:          err.Error(),
 				CheckTime:      time.Now(),
 				ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
 			}
 
-			// Log error event
 			metadata := models.JSON{
 				"action":    "check_update",
 				"imageRef":  imageRef,
@@ -163,7 +120,6 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 		if tagResult.HasUpdate {
 			tagResult.ResponseTimeMs = int(time.Since(startTime).Milliseconds())
 
-			// Log successful tag update check
 			metadata := models.JSON{
 				"action":         "check_update",
 				"imageRef":       imageRef,
@@ -190,7 +146,6 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 
 	digestResult.ResponseTimeMs = int(time.Since(startTime).Milliseconds())
 
-	// Log successful digest update check
 	metadata := models.JSON{
 		"action":         "check_update",
 		"imageRef":       imageRef,
@@ -334,7 +289,7 @@ func (s *ImageUpdateService) getRegistryToken(ctx context.Context, registry, rep
 	return "", nil, fmt.Errorf("failed to get registry token")
 }
 
-func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) (*UpdateResult, error) {
+func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) (*dto.ImageUpdateResponse, error) {
 	startTime := time.Now()
 	registryUtils := utils.NewRegistryUtils()
 
@@ -361,7 +316,7 @@ func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *Image
 
 	hasUpdate := localDigest != remoteDigest
 
-	return &UpdateResult{
+	return &dto.ImageUpdateResponse{
 		HasUpdate:      hasUpdate,
 		UpdateType:     "digest",
 		CurrentDigest:  localDigest,
@@ -375,18 +330,18 @@ func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *Image
 	}, nil
 }
 
-func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) (*UpdateResult, error) {
+func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) (*dto.ImageUpdateResponse, error) {
 	startTime := time.Now()
 
 	currentVersion := s.parseVersion(parts.Tag)
 	if currentVersion == nil {
-		return &UpdateResult{
+		return &dto.ImageUpdateResponse{
 			HasUpdate:      false,
 			UpdateType:     "tag",
 			CurrentVersion: parts.Tag,
 			CheckTime:      time.Now(),
 			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
-			AuthRegistry:   parts.Registry, // best-effort
+			AuthRegistry:   parts.Registry,
 			AuthMethod:     "unknown",
 		}, nil
 	}
@@ -398,7 +353,7 @@ func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImagePar
 
 	latestVersion := s.findLatestCompatibleVersion(currentVersion, tags)
 	if latestVersion == nil {
-		return &UpdateResult{
+		return &dto.ImageUpdateResponse{
 			HasUpdate:      false,
 			UpdateType:     "tag",
 			CurrentVersion: parts.Tag,
@@ -413,7 +368,7 @@ func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImagePar
 
 	hasUpdate := s.isNewerVersion(latestVersion, currentVersion)
 
-	return &UpdateResult{
+	return &dto.ImageUpdateResponse{
 		HasUpdate:      hasUpdate,
 		UpdateType:     "tag",
 		CurrentVersion: parts.Tag,
@@ -817,7 +772,7 @@ func (s *ImageUpdateService) isSpecialTag(tag string) bool {
 	return false
 }
 
-func (s *ImageUpdateService) CheckImageUpdateByID(ctx context.Context, imageID string) (*UpdateResult, error) {
+func (s *ImageUpdateService) CheckImageUpdateByID(ctx context.Context, imageID string) (*dto.ImageUpdateResponse, error) {
 	imageRef, err := s.getImageRefByID(ctx, imageID)
 	if err != nil {
 		// Log error event
@@ -847,7 +802,7 @@ func (s *ImageUpdateService) CheckImageUpdateByID(ctx context.Context, imageID s
 	return result, nil
 }
 
-func (s *ImageUpdateService) saveUpdateResult(ctx context.Context, imageRef string, result *UpdateResult) error {
+func (s *ImageUpdateService) saveUpdateResult(ctx context.Context, imageRef string, result *dto.ImageUpdateResponse) error {
 	parts := s.parseImageReference(imageRef)
 	if parts == nil {
 		return fmt.Errorf("invalid image reference")
@@ -861,7 +816,7 @@ func (s *ImageUpdateService) saveUpdateResult(ctx context.Context, imageRef stri
 	return s.saveUpdateResultByID(ctx, imageID, result)
 }
 
-func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID string, result *UpdateResult) error {
+func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID string, result *dto.ImageUpdateResponse) error {
 	var lastError *string
 	if result.Error != "" {
 		lastError = &result.Error
@@ -945,13 +900,13 @@ func (s *ImageUpdateService) getImageIDByRef(ctx context.Context, imageRef strin
 	return inspectResponse.ID, nil
 }
 
-func (s *ImageUpdateService) CheckMultipleImages(ctx context.Context, imageRefs []string) (map[string]*UpdateResult, error) {
-	results := make(map[string]*UpdateResult)
+func (s *ImageUpdateService) CheckMultipleImages(ctx context.Context, imageRefs []string) (map[string]*dto.ImageUpdateResponse, error) {
+	results := make(map[string]*dto.ImageUpdateResponse)
 
 	for _, imageRef := range imageRefs {
 		result, err := s.CheckImageUpdate(ctx, imageRef)
 		if err != nil {
-			results[imageRef] = &UpdateResult{
+			results[imageRef] = &dto.ImageUpdateResponse{
 				Error:     err.Error(),
 				CheckTime: time.Now(),
 			}
@@ -963,7 +918,7 @@ func (s *ImageUpdateService) CheckMultipleImages(ctx context.Context, imageRefs 
 	return results, nil
 }
 
-func (s *ImageUpdateService) CheckAllImages(ctx context.Context, limit int) (map[string]*UpdateResult, error) {
+func (s *ImageUpdateService) CheckAllImages(ctx context.Context, limit int) (map[string]*dto.ImageUpdateResponse, error) {
 	imageRefs, err := s.getAllImageRefs(ctx, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image references: %w", err)
@@ -1032,7 +987,7 @@ func (s *ImageUpdateService) CleanupOrphanedRecords(ctx context.Context) error {
 		Delete(&models.ImageUpdateRecord{}).Error
 }
 
-func (s *ImageUpdateService) GetUpdateSummary(ctx context.Context) (*UpdateSummary, error) {
+func (s *ImageUpdateService) GetUpdateSummary(ctx context.Context) (*dto.ImageUpdateSummaryResponse, error) {
 	var totalImages int64
 	var imagesWithUpdates int64
 	var digestUpdates int64
@@ -1045,7 +1000,7 @@ func (s *ImageUpdateService) GetUpdateSummary(ctx context.Context) (*UpdateSumma
 	s.db.WithContext(ctx).Model(&models.ImageUpdateRecord{}).Where("has_update = ? AND update_type = ?", true, "tag").Count(&tagUpdates)
 	s.db.WithContext(ctx).Model(&models.ImageUpdateRecord{}).Where("last_error IS NOT NULL").Count(&errorsCount)
 
-	return &UpdateSummary{
+	return &dto.ImageUpdateSummaryResponse{
 		TotalImages:       int(totalImages),
 		ImagesWithUpdates: int(imagesWithUpdates),
 		DigestUpdates:     int(digestUpdates),
@@ -1054,13 +1009,12 @@ func (s *ImageUpdateService) GetUpdateSummary(ctx context.Context) (*UpdateSumma
 	}, nil
 }
 
-func (s *ImageUpdateService) GetAvailableVersions(ctx context.Context, imageRef string, limit int) (*AvailableVersions, error) {
+func (s *ImageUpdateService) GetAvailableVersions(ctx context.Context, imageRef string, limit int) (*dto.ImageVersionsResponse, error) {
 	parts := s.parseImageReference(imageRef)
 	if parts == nil {
 		return nil, fmt.Errorf("invalid image reference format")
 	}
 
-	// Use all matching credentials
 	registries := s.getRegistriesForImage(ctx, parts.Registry)
 
 	tags, _, err := s.getImageTags(ctx, parts, registries)
@@ -1081,7 +1035,7 @@ func (s *ImageUpdateService) GetAvailableVersions(ctx context.Context, imageRef 
 		}
 	}
 
-	return &AvailableVersions{
+	return &dto.ImageVersionsResponse{
 		ImageRef: imageRef,
 		Current:  parts.Tag,
 		Versions: tags,
@@ -1089,12 +1043,12 @@ func (s *ImageUpdateService) GetAvailableVersions(ctx context.Context, imageRef 
 	}, nil
 }
 
-func (s *ImageUpdateService) CompareVersions(ctx context.Context, imageRef, currentVersion, targetVersion string) (*VersionComparison, error) {
+func (s *ImageUpdateService) CompareVersions(ctx context.Context, imageRef, currentVersion, targetVersion string) (*dto.VersionComparisonResponse, error) {
 	currentVer := s.parseVersion(currentVersion)
 	targetVer := s.parseVersion(targetVersion)
 
 	if currentVer == nil || targetVer == nil {
-		return &VersionComparison{
+		return &dto.VersionComparisonResponse{
 			CurrentVersion: currentVersion,
 			TargetVersion:  targetVersion,
 			IsNewer:        false,
@@ -1119,7 +1073,7 @@ func (s *ImageUpdateService) CompareVersions(ctx context.Context, imageRef, curr
 		changeLevel = "unknown"
 	}
 
-	return &VersionComparison{
+	return &dto.VersionComparisonResponse{
 		CurrentVersion: currentVersion,
 		TargetVersion:  targetVersion,
 		IsNewer:        isNewer,
