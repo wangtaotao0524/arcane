@@ -35,7 +35,7 @@
 		try {
 			await settingsAPI.updateSettings({
 				...currentSettings,
-				autoUpdateEnabled: appSettings.autoUpdate,
+				autoUpdate: appSettings.autoUpdate,
 				autoUpdateInterval: parseInt(appSettings.autoUpdateInterval),
 				dockerPruneMode: appSettings.pruneMode,
 				baseServerUrl: appSettings.baseServerUrl,

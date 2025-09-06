@@ -1,5 +1,29 @@
 package dto
 
+type UpdaterRunRequest struct {
+	DryRun bool `json:"dryRun"`
+}
+
+type UpdaterItem struct {
+	ResourceID    string            `json:"resourceId"`
+	ResourceType  string            `json:"resourceType"` // "image" | "container" | "stack"
+	ResourceName  string            `json:"resourceName,omitempty"`
+	Status        string            `json:"status"` // "checked" | "updated" | "skipped" | "failed" | "up_to_date" | "update_available"
+	Error         string            `json:"error,omitempty"`
+	OldImages     map[string]string `json:"oldImages,omitempty"`
+	NewImages     map[string]string `json:"newImages,omitempty"`
+	UpdateApplied bool              `json:"updateApplied,omitempty"`
+}
+
+type UpdaterRunResult struct {
+	Checked  int           `json:"checked"`
+	Updated  int           `json:"updated"`
+	Skipped  int           `json:"skipped"`
+	Failed   int           `json:"failed"`
+	Items    []UpdaterItem `json:"items"`
+	Duration string        `json:"duration"`
+}
+
 type AutoUpdateCheckDto struct {
 	Type        string   `json:"type,omitempty"`
 	ResourceIds []string `json:"resourceIds,omitempty"`
@@ -30,15 +54,4 @@ type AutoUpdateResourceResult struct {
 	NewImages       map[string]string      `json:"newImages,omitempty"`
 	Error           string                 `json:"error,omitempty"`
 	Details         map[string]interface{} `json:"details,omitempty"`
-}
-
-type AutoUpdateConfigDto struct {
-	Enabled            bool     `json:"enabled"`
-	CheckInterval      int      `json:"checkInterval"` // minutes
-	IncludeContainers  bool     `json:"includeContainers"`
-	IncludeStacks      bool     `json:"includeStacks"`
-	AutoApplyUpdates   bool     `json:"autoApplyUpdates"`
-	ExcludedImages     []string `json:"excludedImages,omitempty"`
-	ExcludedContainers []string `json:"excludedContainers,omitempty"`
-	ExcludedStacks     []string `json:"excludedStacks,omitempty"`
 }

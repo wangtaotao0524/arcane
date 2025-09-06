@@ -31,11 +31,10 @@
 		scopes: 'openid email profile'
 	});
 
-	// Page state mirrors the main Security Settings page
 	let localAuthEnabled = $state(true);
 	let oidcEnabled = $state(false);
-	let sessionTimeout = $state(60); // minutes, to match settings page
-	let passwordPolicy = $state('strong');
+	let sessionTimeout = $state(60);
+	let passwordPolicy = $state<'strong' | 'standard' | 'basic'>('strong');
 
 	let isLoading = $state({ saving: false });
 
@@ -47,7 +46,6 @@
 		sessionTimeout = currentSettings.authSessionTimeout ?? 60;
 		passwordPolicy = currentSettings.authPasswordPolicy ?? 'strong';
 
-		// Parse OIDC config if present (do not persist clientSecret in state)
 		if (currentSettings.authOidcConfig) {
 			try {
 				const cfg = JSON.parse(currentSettings.authOidcConfig);

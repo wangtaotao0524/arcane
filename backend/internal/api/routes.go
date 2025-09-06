@@ -24,7 +24,7 @@ type Services struct {
 	Template          *services.TemplateService
 	ContainerRegistry *services.ContainerRegistryService
 	System            *services.SystemService
-	AutoUpdate        *services.AutoUpdateService
+	Updater           *services.UpdaterService
 	Event             *services.EventService
 }
 
@@ -44,10 +44,10 @@ func SetupRoutes(r *gin.Engine, services *Services, appConfig *config.Config) {
 	setupNetworkRoutes(api, services)
 	setupTemplateRoutes(api, services)
 	setupContainerRegistryRoutes(api, services)
-	setupAutoUpdateRoutes(api, services)
 	setupConverterRoutes(api, services)
 	setupImageUpdateRoutes(api, services)
 	setupEventRoutes(api, services)
+	setupUpdaterRoutes(api, services)
 }
 
 func setupContainerRegistryRoutes(api *gin.RouterGroup, services *Services) {
@@ -253,17 +253,15 @@ func setupSystemRoutes(api *gin.RouterGroup, dockerService *services.DockerClien
 	system.POST("/containers/stop-all", systemHandler.StopAllContainers)
 }
 
-func setupAutoUpdateRoutes(api *gin.RouterGroup, services *Services) {
-	autoUpdate := api.Group("/updates")
+func setupUpdaterRoutes(api *gin.RouterGroup, services *Services) {
+	autoUpdate := api.Group("/updater")
 	autoUpdate.Use(middleware.AuthMiddleware(services.Auth))
 
-	autoUpdateHandler := NewAutoUpdateHandler(services.AutoUpdate)
+	updaterHandler := NewUpdaterHandler(services.Updater)
 
-	autoUpdate.POST("/check", autoUpdateHandler.CheckForUpdates)
-	autoUpdate.POST("/check/containers", autoUpdateHandler.CheckContainers)
-	autoUpdate.POST("/check/compose", autoUpdateHandler.CheckStacks)
-	autoUpdate.GET("/history", autoUpdateHandler.GetUpdateHistory)
-	autoUpdate.GET("/status", autoUpdateHandler.GetUpdateStatus)
+	autoUpdate.POST("/run", updaterHandler.Run)
+	autoUpdate.GET("/history", updaterHandler.History)
+	autoUpdate.GET("/status", updaterHandler.Status)
 }
 
 func setupContainerRoutes(api *gin.RouterGroup, services *Services) {

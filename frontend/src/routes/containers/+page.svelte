@@ -25,7 +25,7 @@
 	async function handleCheckForUpdates() {
 		isLoading.checking = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(autoUpdateAPI.checkContainers()),
+			result: await tryCatch(autoUpdateAPI.checkForUpdates()),
 			message: 'Failed to Check Containers for Updates',
 			setLoadingState: (value) => (isLoading.checking = value),
 			async onSuccess() {

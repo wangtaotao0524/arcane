@@ -865,12 +865,14 @@ func (s *StackService) RedeployStack(ctx context.Context, stackID string, profil
 		return err
 	}
 
+	// Pull first (wait for completion and auth via ImageService)
 	if err := s.PullStackImages(ctx, stackID, io.Discard); err != nil {
 		fmt.Printf("Warning: failed to pull images: %v\n", err)
 	}
 
-	if err := s.StopStack(ctx, stackID, systemUser); err != nil {
-		return fmt.Errorf("failed to stop stack for redeploy: %w", err)
+	// Use down (not stop) to avoid port/name conflicts and ensure a clean restart
+	if err := s.DownStack(ctx, stackID, systemUser); err != nil {
+		return fmt.Errorf("failed to down stack for redeploy: %w", err)
 	}
 
 	// Log stack redeploy event

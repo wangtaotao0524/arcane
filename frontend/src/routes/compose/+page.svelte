@@ -29,7 +29,7 @@
 	async function handleCheckForUpdates() {
 		isLoading.updating = true;
 		handleApiResultWithCallbacks({
-			result: await tryCatch(autoUpdateAPI.checkStacks()),
+			result: await tryCatch(autoUpdateAPI.checkForUpdates()),
 			message: 'Failed to Check Compose Projects for Updates',
 			setLoadingState: (value) => (isLoading.updating = value),
 			async onSuccess() {

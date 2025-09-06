@@ -6,24 +6,23 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
-	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
 type AutoUpdateJob struct {
-	autoUpdateService *services.AutoUpdateService
-	settingsService   *services.SettingsService
+	updaterService  *services.UpdaterService
+	settingsService *services.SettingsService
 }
 
-func NewAutoUpdateJob(autoUpdateService *services.AutoUpdateService, settingsService *services.SettingsService) *AutoUpdateJob {
+func NewAutoUpdateJob(updaterService *services.UpdaterService, settingsService *services.SettingsService) *AutoUpdateJob {
 	return &AutoUpdateJob{
-		autoUpdateService: autoUpdateService,
-		settingsService:   settingsService,
+		updaterService:  updaterService,
+		settingsService: settingsService,
 	}
 }
 
-func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, autoUpdateService *services.AutoUpdateService, settingsService *services.SettingsService) error {
-	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdateEnabled", false)
+func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, updaterService *services.UpdaterService, settingsService *services.SettingsService) error {
+	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdate", false)
 	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 300)
 
 	if !autoUpdateEnabled {
@@ -39,7 +38,7 @@ func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, autoUpdate
 
 	log.Printf("Registering auto-update job with %v interval", interval)
 
-	job := NewAutoUpdateJob(autoUpdateService, settingsService)
+	job := NewAutoUpdateJob(updaterService, settingsService)
 
 	jobDefinition := gocron.DurationJob(interval)
 
@@ -53,36 +52,27 @@ func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, autoUpdate
 }
 
 func (j *AutoUpdateJob) Execute(ctx context.Context) error {
-	log.Println("=== Starting scheduled auto-update check ===")
+	log.Println("=== Starting scheduled updater run ===")
 
-	// Get individual settings
-	autoUpdateEnabled := j.settingsService.GetBoolSetting(ctx, "autoUpdateEnabled", false)
-
-	if !autoUpdateEnabled {
-		log.Println("Auto-update disabled, skipping scheduled check")
+	enabled := j.settingsService.GetBoolSetting(ctx, "autoUpdate", false)
+	if !enabled {
+		log.Println("Auto-update disabled, skipping")
 		return nil
 	}
 
-	req := dto.AutoUpdateCheckDto{
-		Type:        "all",
-		ForceUpdate: false,
-		DryRun:      false,
-	}
-
-	result, err := j.autoUpdateService.CheckForUpdates(ctx, req)
+	result, err := j.updaterService.ApplyPending(ctx, false)
 	if err != nil {
-		log.Printf("Error during auto-update: %v", err)
+		log.Printf("Updater error: %v", err)
 		return err
 	}
 
-	log.Printf("Auto-update completed: %d checked, %d updated, %d skipped, %d failed",
+	log.Printf("Updater completed: checked=%d updated=%d skipped=%d failed=%d",
 		result.Checked, result.Updated, result.Skipped, result.Failed)
-
 	return nil
 }
 
-func UpdateAutoUpdateJobSchedule(ctx context.Context, scheduler *Scheduler, autoUpdateService *services.AutoUpdateService, settingsService *services.SettingsService) error {
-	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdateEnabled", false)
+func UpdateAutoUpdateJobSchedule(ctx context.Context, scheduler *Scheduler, updaterService *services.UpdaterService, settingsService *services.SettingsService) error {
+	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdate", false)
 	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 300)
 
 	if !autoUpdateEnabled {
@@ -92,6 +82,5 @@ func UpdateAutoUpdateJobSchedule(ctx context.Context, scheduler *Scheduler, auto
 
 	interval := time.Duration(autoUpdateInterval) * time.Second
 	log.Printf("Auto-update settings changed - new interval: %v", interval)
-
 	return nil
 }
