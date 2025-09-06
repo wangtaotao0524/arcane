@@ -16,6 +16,8 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { Event } from '$lib/types/event.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import EventDetailsDialog from '$lib/components/dialogs/event-details-dialog.svelte';
+	import InfoIcon from '@lucide/svelte/icons/info';
 
 	let {
 		events = $bindable(),
@@ -28,6 +30,8 @@
 	} = $props();
 
 	let isLoading = $state({ removing: false });
+	let detailsOpen = $state(false);
+	let detailsEvent = $state<Event | null>(null);
 
 	function getSeverityBadgeVariant(severity: string) {
 		switch (severity) {
@@ -74,6 +78,11 @@
 				}
 			}
 		});
+	}
+
+	function openDetails(e: Event) {
+		detailsEvent = e;
+		detailsOpen = true;
 	}
 
 	const columns = [
@@ -154,6 +163,10 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end">
 			<DropdownMenu.Group>
+				<DropdownMenu.Item onclick={() => openDetails(item)}>
+					<InfoIcon class="size-4" />
+					View Details
+				</DropdownMenu.Item>
 				<DropdownMenu.Item
 					variant="destructive"
 					onclick={() => handleDeleteEvent(item.id, item.title)}
@@ -182,3 +195,5 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<EventDetailsDialog bind:open={detailsOpen} event={detailsEvent} />

@@ -59,15 +59,11 @@ func NewUpdaterService(
 // ApplyPending pulls images and restarts impacted containers/stacks for all image_updates with has_update = true.
 // - For tag updates: repo:latestVersion
 // - For digest updates: keep tag ref (repo:tag), pulling refreshes digest; recreate with same ref.
+
+//nolint:gocognit
 func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.UpdaterRunResult, error) {
 	start := time.Now()
 	out := &dto.UpdaterRunResult{Items: []dto.UpdaterItem{}}
-
-	// enabled := s.settingsService.GetBoolSetting(ctx, "autoUpdate", false)
-	// if !enabled {
-	// 	out.Duration = time.Since(start).String()
-	// 	return out, nil
-	// }
 
 	var records []models.ImageUpdateRecord
 	if err := s.db.WithContext(ctx).Where("has_update = ?", true).Find(&records).Error; err != nil {
@@ -120,6 +116,14 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 		return out, nil
 	}
 
+	// Log run start
+	s.logAutoUpdate(ctx, models.EventSeverityInfo, models.JSON{
+		"phase":   "start",
+		"dryRun":  dryRun,
+		"planned": len(plans),
+		"time":    time.Now().UTC().Format(time.RFC3339),
+	})
+
 	// Build maps for fast matching later
 	oldRefToNewRef := map[string]string{}
 	oldIDToNewRef := map[string]string{} // sha256 -> newRef
@@ -147,6 +151,14 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 			out.Skipped++
 			out.Items = append(out.Items, item)
 			_ = s.recordRun(ctx, item)
+
+			s.logAutoUpdate(ctx, s.severityFromStatus(item.Status), models.JSON{
+				"phase":    "image_pull",
+				"imageOld": p.oldRef,
+				"imageNew": p.newRef,
+				"status":   item.Status,
+				"dryRun":   true,
+			})
 			continue
 		}
 
@@ -161,6 +173,14 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 		}
 		out.Items = append(out.Items, item)
 		_ = s.recordRun(ctx, item)
+
+		s.logAutoUpdate(ctx, s.severityFromStatus(item.Status), models.JSON{
+			"phase":    "image_pull",
+			"imageOld": p.oldRef,
+			"imageNew": p.newRef,
+			"status":   item.Status,
+			"error":    item.Error,
+		})
 	}
 
 	// Restart containers using old image IDs (skip stack-managed)
@@ -191,6 +211,16 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 				out.Skipped++
 			}
 			_ = s.recordRun(ctx, item)
+
+			s.logAutoUpdate(ctx, s.severityFromStatus(item.Status), models.JSON{
+				"phase":        "container",
+				"containerId":  r.ResourceID,
+				"container":    r.ResourceName,
+				"status":       r.Status,
+				"oldImageMain": r.OldImages["main"],
+				"newImageMain": r.NewImages["main"],
+				"error":        r.Error,
+			})
 		}
 
 		// Redeploy impacted stacks (only running ones)
@@ -206,7 +236,19 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 		}
 	}
 
-	out.Duration = time.Since(start).String()
+	// Log run complete
+	duration := time.Since(start).String()
+	out.Duration = duration
+	s.logAutoUpdate(ctx, models.EventSeverityInfo, models.JSON{
+		"phase":    "complete",
+		"checked":  out.Checked,
+		"updated":  out.Updated,
+		"skipped":  out.Skipped,
+		"failed":   out.Failed,
+		"duration": duration,
+		"time":     time.Now().UTC().Format(time.RFC3339),
+	})
+
 	return out, nil
 }
 
@@ -323,7 +365,6 @@ func (s *UpdaterService) stripDigest(ref string) string {
 	return ref
 }
 
-// collectUsedImages builds a set of normalized image refs used by running containers and running stacks.
 func (s *UpdaterService) collectUsedImages(ctx context.Context) (map[string]struct{}, error) {
 	out := map[string]struct{}{}
 
@@ -475,7 +516,6 @@ func (s *UpdaterService) resolveLocalImageIDsForRef(ctx context.Context, ref str
 	return ids, nil
 }
 
-// Containers: match by old image ID. Fallback to tag match if needed.
 func (s *UpdaterService) restartContainersUsingOldIDs(ctx context.Context, oldIDToNewRef map[string]string, oldRefToNewRef map[string]string) ([]dto.AutoUpdateResourceResult, error) {
 	dcli, err := s.dockerService.CreateConnection(ctx)
 	if err != nil {
@@ -548,7 +588,6 @@ func (s *UpdaterService) restartContainersUsingOldIDs(ctx context.Context, oldID
 	return results, nil
 }
 
-// Stacks: impacted if any container in the stack runs an image ID in oldIDToNewRef.
 func (s *UpdaterService) redeployStacksUsingOldIDs(ctx context.Context, oldIDToNewRef map[string]string, out *dto.UpdaterRunResult) error {
 	stacks, err := s.stackService.ListStacks(ctx)
 	if err != nil {
@@ -628,11 +667,19 @@ func (s *UpdaterService) redeployStacksUsingOldIDs(ctx context.Context, oldIDToN
 		}
 		out.Items = append(out.Items, item)
 		_ = s.recordRun(ctx, item)
+
+		// Emit auto-update stack event
+		s.logAutoUpdate(ctx, s.severityFromStatus(item.Status), models.JSON{
+			"phase":     "stack",
+			"stackId":   st.ID,
+			"stackName": st.Name,
+			"status":    item.Status,
+			"error":     item.Error,
+		})
 	}
 	return nil
 }
 
-// getStackContainers returns the union of containers matching compose or swarm stack labels (OR semantics).
 func (s *UpdaterService) getStackContainers(ctx context.Context, dcli *client.Client, stackName string) ([]container.Summary, error) {
 	byID := map[string]container.Summary{}
 
@@ -666,4 +713,71 @@ func (s *UpdaterService) getStackContainers(ctx context.Context, dcli *client.Cl
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+func (s *UpdaterService) logAutoUpdate(ctx context.Context, sev models.EventSeverity, metadata models.JSON) {
+	phase, _ := metadata["phase"].(string)
+
+	title := "Auto-update"
+	switch phase {
+	case "start":
+		title = "Auto-update run started"
+	case "image_pull":
+		img := fmt.Sprint(metadata["imageNew"])
+		if img == "" {
+			img = fmt.Sprint(metadata["imageOld"])
+		}
+		if img != "" {
+			title = fmt.Sprintf("Auto-update: image pull %s", img)
+		} else {
+			title = "Auto-update: image pull"
+		}
+	case "container":
+		name := fmt.Sprint(metadata["container"])
+		if name == "" {
+			name = fmt.Sprint(metadata["containerId"])
+		}
+		if name != "" {
+			title = fmt.Sprintf("Auto-update: container %s", name)
+		} else {
+			title = "Auto-update: container"
+		}
+	case "stack":
+		name := fmt.Sprint(metadata["stackName"])
+		if name == "" {
+			name = fmt.Sprint(metadata["stackId"])
+		}
+		if name != "" {
+			title = fmt.Sprintf("Auto-update: stack %s", name)
+		} else {
+			title = "Auto-update: stack"
+		}
+	case "complete":
+		title = "Auto-update run completed"
+	}
+
+	resourceType := "system"
+	resourceName := "auto_updater"
+	environmentID := "0"
+
+	_, _ = s.eventService.CreateEvent(ctx, CreateEventRequest{
+		Type:          models.EventTypeSystemAutoUpdate,
+		Severity:      sev,
+		Title:         title,
+		ResourceType:  &resourceType,
+		ResourceName:  &resourceName,
+		EnvironmentID: &environmentID,
+		Metadata:      metadata,
+	})
+}
+
+func (s *UpdaterService) severityFromStatus(status string) models.EventSeverity {
+	switch status {
+	case "failed":
+		return models.EventSeverityError
+	case "updated":
+		return models.EventSeveritySuccess
+	default:
+		return models.EventSeverityInfo
+	}
 }
