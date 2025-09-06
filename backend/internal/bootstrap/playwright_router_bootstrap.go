@@ -3,7 +3,7 @@
 package bootstrap
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/api"
@@ -15,12 +15,12 @@ func init() {
 		func(apiGroup *gin.RouterGroup, svc *api.Services) {
 			playwrightService := services.NewPlaywrightService(svc.Settings)
 			if playwrightService == nil {
-				log.Println("Playwright service not available, skipping playwright routes")
+				slog.Warn("Playwright service not available, skipping playwright routes")
 				return
 			}
 
 			api.SetupPlaywrightRoutes(apiGroup, playwrightService)
-			log.Println("Playwright routes registered for E2E testing")
+			slog.Info("Playwright routes registered for E2E testing")
 		},
 	}
 }

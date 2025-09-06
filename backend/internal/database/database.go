@@ -25,8 +25,15 @@ type DB struct {
 	*gorm.DB
 }
 
+var (
+	customGormLogger logger.Interface
+)
+
+func SetGormLogger(l logger.Interface) {
+	customGormLogger = l
+}
+
 func Initialize(databaseURL string, environment string) (*DB, error) {
-	// First connect to database
 	db, err := connectDatabase(databaseURL, environment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -93,14 +100,12 @@ func connectDatabase(databaseURL string, environment string) (*DB, error) {
 		return nil, fmt.Errorf("unsupported database type in URL: %s", databaseURL)
 	}
 
-	gormLogger := getLogger(environment)
-
 	// Retry connection up to 3 times
 	var db *gorm.DB
 	var err error
 	for i := 1; i <= 3; i++ {
 		db, err = gorm.Open(dialector, &gorm.Config{
-			Logger: gormLogger,
+			Logger: customGormLogger,
 			NowFunc: func() time.Time {
 				return time.Now().UTC()
 			},
@@ -183,20 +188,6 @@ func parseSqliteConnectionString(connString string) (string, error) {
 
 	connStringUrl.RawQuery = qs.Encode()
 	return connStringUrl.String(), nil
-}
-
-func getLogger(environment string) logger.Interface {
-	var lvl logger.LogLevel
-	switch environment {
-	case "development":
-		lvl = logger.Info
-	case "production":
-		lvl = logger.Warn
-	default:
-		lvl = logger.Warn
-	}
-
-	return newSlogGormLogger(lvl, 200*time.Millisecond, true)
 }
 
 func (db *DB) Close() error {

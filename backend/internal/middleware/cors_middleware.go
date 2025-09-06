@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"log/slog"
 	"net/url"
 
 	"github.com/gin-contrib/cors"
@@ -31,7 +31,7 @@ func SetupCORS(cfg *config.Config) gin.HandlerFunc {
 
 	if len(allowedOrigins) == 0 {
 		if cfg.Environment == "production" {
-			log.Printf("⚠️  CORS: No origins specified for production - this may cause issues")
+			slog.Warn("CORS: No origins specified for production - this may cause issues")
 			allowedOrigins = []string{"https://localhost"}
 		} else {
 			allowedOrigins = []string{"*"}

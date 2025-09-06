@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"strings"
 
@@ -213,7 +213,7 @@ func (s *UserService) CreateDefaultAdmin() error {
 	}
 
 	if count > 0 {
-		log.Printf("👤 Users already exist, skipping default admin creation")
+		slog.Warn("Users already exist, skipping default admin creation")
 		return nil
 	}
 
@@ -222,9 +222,9 @@ func (s *UserService) CreateDefaultAdmin() error {
 		return fmt.Errorf("failed to create default admin user: %w", err)
 	}
 
-	log.Printf("👑 Default admin user created!")
-	log.Printf("🔑 Username: admin")
-	log.Printf("⚠️  Please change this password after first login!")
+	slog.Info("👑 Default admin user created!")
+	slog.Info("🔑 Username: admin")
+	slog.Info("⚠️  Please change this password after first login!")
 
 	return nil
 }
@@ -336,7 +336,7 @@ func matchesSearch(u dto.UserResponseDto, searchLower string) bool {
 }
 
 func (s *UserService) GetUser(ctx context.Context, userID string) (*models.User, error) {
-	fmt.Println(userID)
+	slog.Debug("GetUser called", "user_id", userID)
 	return s.getUserInternal(ctx, userID, s.db.DB)
 }
 

@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/ofkm/arcane-backend/internal/api"
 	"github.com/ofkm/arcane-backend/internal/config"
@@ -10,7 +10,7 @@ import (
 )
 
 func initializeServices(db *database.DB, cfg *config.Config) (*api.Services, *services.DockerClientService, error) {
-	log.Println("Initializing services...")
+	slog.Info("Initializing services...")
 	eventService := services.NewEventService(db)
 	converterService := services.NewConverterService()
 	settingsService := services.NewSettingsService(db, cfg)

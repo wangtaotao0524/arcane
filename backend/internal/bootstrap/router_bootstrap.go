@@ -18,6 +18,7 @@ import (
 var registerPlaywrightRoutes []func(apiGroup *gin.RouterGroup, services *api.Services)
 
 func setupRouter(cfg *config.Config, appServices *api.Services) *gin.Engine {
+
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	} else {

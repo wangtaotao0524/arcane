@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -187,7 +187,7 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 	if !dryRun && len(oldIDToNewRef) > 0 {
 		results, err := s.restartContainersUsingOldIDs(ctx, oldIDToNewRef, oldRefToNewRef)
 		if err != nil {
-			log.Printf("container restarts had errors: %v", err)
+			slog.Warn("container restarts had errors", "err", err)
 		}
 		for _, r := range results {
 			item := dto.UpdaterItem{
@@ -225,7 +225,7 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 
 		// Redeploy impacted stacks (only running ones)
 		if err := s.redeployStacksUsingOldIDs(ctx, oldIDToNewRef, out); err != nil {
-			log.Printf("stack redeploys had errors: %v", err)
+			slog.Warn("stack redeploys had errors", "err", err)
 		}
 	}
 
@@ -253,7 +253,7 @@ func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.Up
 		}
 
 		if err := s.imageUpdateService.CleanupOrphanedRecords(ctx); err != nil {
-			log.Printf("cleanup orphaned update records failed: %v", err)
+			slog.Warn("cleanup orphaned update records failed", "err", err)
 		}
 	}
 
@@ -637,7 +637,7 @@ func (s *UpdaterService) redeployStacksUsingOldIDs(ctx context.Context, oldIDToN
 
 		containers, lerr := s.getStackContainers(ctx, dcli, st.Name)
 		if lerr != nil {
-			log.Printf("list stack containers %s: %v", st.Name, lerr)
+			slog.Warn("list stack containers failed", "stack", st.Name, "err", lerr)
 			continue
 		}
 
@@ -675,7 +675,7 @@ func (s *UpdaterService) redeployStacksUsingOldIDs(ctx context.Context, oldIDToN
 
 		// Pull, down, deploy to avoid conflicts and ensure fresh images
 		if err := s.stackService.PullStackImages(ctx, st.ID, io.Discard); err != nil {
-			log.Printf("stack pull warning: %v", err)
+			slog.Warn("stack pull warning", "stack_id", st.ID, "err", err)
 		}
 		if err := s.stackService.RedeployStack(ctx, st.ID, nil, nil, systemUser); err != nil {
 			item.Status = "failed"

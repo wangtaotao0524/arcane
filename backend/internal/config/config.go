@@ -11,11 +11,12 @@ const (
 )
 
 type Config struct {
-	AppUrl      string
-	DatabaseURL string
-	Port        string
-	Environment string
-	JWTSecret   string
+	AppUrl        string
+	DatabaseURL   string
+	Port          string
+	Environment   string
+	JWTSecret     string
+	EncryptionKey string
 
 	OidcEnabled      bool
 	OidcClientID     string
@@ -23,13 +24,11 @@ type Config struct {
 	OidcIssuerURL    string
 	OidcScopes       string
 
-	EncryptionKey string
-	LogJson       bool
+	LogJson  bool
+	LogLevel string
 }
 
 func Load() *Config {
-	oidcEnabled := getBoolEnvOrDefault("OIDC_ENABLED", false)
-
 	return &Config{
 		AppUrl:        getEnvOrDefault("APP_URL", "http://localhost:3552"),
 		DatabaseURL:   getEnvOrDefault("DATABASE_URL", defaultSqliteString),
@@ -38,13 +37,14 @@ func Load() *Config {
 		JWTSecret:     getEnvOrDefault("JWT_SECRET", "default-jwt-secret-change-me"),
 		EncryptionKey: getEnvOrDefault("ENCRYPTION_KEY", "arcane-dev-key-32-characters!!!"),
 
-		OidcEnabled:      oidcEnabled,
+		OidcEnabled:      getBoolEnvOrDefault("OIDC_ENABLED", false),
 		OidcClientID:     os.Getenv("OIDC_CLIENT_ID"),
 		OidcClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OidcIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		OidcScopes:       getEnvOrDefault("OIDC_SCOPES", "openid email profile"),
 
-		LogJson: getBoolEnvOrDefault("LOG_JSON", false),
+		LogJson:  getBoolEnvOrDefault("LOG_JSON", false),
+		LogLevel: strings.ToLower(getEnvOrDefault("LOG_LEVEL", "info")),
 	}
 }
 

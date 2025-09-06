@@ -2,7 +2,7 @@ package job
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -26,20 +26,21 @@ func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, updaterSer
 	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 300)
 
 	if !autoUpdateEnabled {
-		log.Println("Auto-update is disabled, not registering auto-update job")
+		slog.InfoContext(ctx, "auto-update disabled; job not registered")
 		return nil
 	}
 
 	interval := time.Duration(autoUpdateInterval) * time.Second
 	if interval < 5*time.Minute {
+		slog.WarnContext(ctx, "auto-update interval too low; using default",
+			"requested_seconds", autoUpdateInterval,
+			"effective_interval", "60m")
 		interval = 60 * time.Minute
-		log.Printf("Auto-update interval too low, using default 60 minutes")
 	}
 
-	log.Printf("Registering auto-update job with %v interval", interval)
+	slog.InfoContext(ctx, "registering auto-update job", "interval", interval.String())
 
 	job := NewAutoUpdateJob(updaterService, settingsService)
-
 	jobDefinition := gocron.DurationJob(interval)
 
 	return scheduler.RegisterJob(
@@ -52,22 +53,27 @@ func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, updaterSer
 }
 
 func (j *AutoUpdateJob) Execute(ctx context.Context) error {
-	log.Println("=== Starting scheduled updater run ===")
+	slog.InfoContext(ctx, "auto-update run started")
 
 	enabled := j.settingsService.GetBoolSetting(ctx, "autoUpdate", false)
 	if !enabled {
-		log.Println("Auto-update disabled, skipping")
+		slog.InfoContext(ctx, "auto-update disabled; skipping run")
 		return nil
 	}
 
 	result, err := j.updaterService.ApplyPending(ctx, false)
 	if err != nil {
-		log.Printf("Updater error: %v", err)
+		slog.ErrorContext(ctx, "auto-update run failed", "err", err)
 		return err
 	}
 
-	log.Printf("Updater completed: checked=%d updated=%d skipped=%d failed=%d",
-		result.Checked, result.Updated, result.Skipped, result.Failed)
+	slog.InfoContext(ctx, "auto-update run completed",
+		"checked", result.Checked,
+		"updated", result.Updated,
+		"skipped", result.Skipped,
+		"failed", result.Failed,
+	)
+
 	return nil
 }
 
@@ -76,11 +82,12 @@ func UpdateAutoUpdateJobSchedule(ctx context.Context, scheduler *Scheduler, upda
 	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 300)
 
 	if !autoUpdateEnabled {
-		log.Println("Auto-update disabled, job will be skipped")
+		slog.InfoContext(ctx, "auto-update disabled; job will be skipped")
 		return nil
 	}
 
 	interval := time.Duration(autoUpdateInterval) * time.Second
-	log.Printf("Auto-update settings changed - new interval: %v", interval)
+	slog.InfoContext(ctx, "auto-update settings changed", "interval", interval.String())
+
 	return nil
 }

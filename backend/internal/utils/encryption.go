@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/ofkm/arcane-backend/internal/config"
@@ -24,11 +24,11 @@ func InitEncryption(cfg *config.Config) {
 		if cfg.Environment == "production" {
 			panic("ENCRYPTION_KEY is required in production environment")
 		}
-		log.Println("WARNING: No ENCRYPTION_KEY provided; deriving development key")
+		slog.Warn("No ENCRYPTION_KEY provided; deriving development key")
 		sum := sha256.Sum256([]byte("arcane-dev-key"))
 		encryptionKey = sum[:]
 		if cfg.Environment != "production" {
-			log.Printf("Encryption initialized (env=%s, key length: %d bytes, mode=derived-dev)", cfg.Environment, len(encryptionKey))
+			slog.Info("Encryption initialized", "env", cfg.Environment, "key_length_bytes", len(encryptionKey), "mode", "derived-dev")
 		}
 		return
 	}
@@ -50,7 +50,7 @@ func InitEncryption(cfg *config.Config) {
 	}
 
 	if cfg.Environment != "production" {
-		log.Printf("Encryption initialized (env=%s, key length: %d bytes)", cfg.Environment, len(encryptionKey))
+		slog.Info("Encryption initialized", "env", cfg.Environment, "key_length_bytes", len(encryptionKey))
 	}
 }
 
