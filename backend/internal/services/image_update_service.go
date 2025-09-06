@@ -214,9 +214,8 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 	return digestResult, nil
 }
 
-// Internal helper to describe how we authenticated when acquiring a token
 type authDetails struct {
-	Method   string // "none" | "anonymous" | "credential"
+	Method   string
 	Username string
 	Registry string
 }
@@ -251,17 +250,19 @@ func (s *ImageUpdateService) getRegistryToken(ctx context.Context, registry, rep
 		slog.String("registry", registry),
 		slog.String("repository", repository))
 	anonToken, anonErr := registryUtils.GetToken(ctx, authURL, repository, nil)
-	if anonErr != nil {
+
+	switch {
+	case anonErr != nil:
 		slog.DebugContext(ctx, "Anonymous token attempt failed",
 			slog.String("registry", registry),
 			slog.String("repository", repository),
 			slog.String("error", anonErr.Error()))
-	} else if anonToken != "" {
+	case anonToken != "":
 		slog.DebugContext(ctx, "Anonymous token acquired",
 			slog.String("registry", registry),
 			slog.String("repository", repository))
 		return anonToken, &authDetails{Method: "anonymous", Registry: registry}, nil
-	} else {
+	default:
 		slog.DebugContext(ctx, "Anonymous token attempt returned empty token",
 			slog.String("registry", registry),
 			slog.String("repository", repository))
