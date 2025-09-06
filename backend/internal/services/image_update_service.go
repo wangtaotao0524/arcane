@@ -33,6 +33,12 @@ type UpdateResult struct {
 	CheckTime      time.Time `json:"checkTime"`
 	ResponseTimeMs int       `json:"responseTimeMs"`
 	Error          string    `json:"error,omitempty"`
+
+	// Auth metadata (for UI visibility; not persisted)
+	AuthMethod     string `json:"authMethod,omitempty"`     // "none" | "anonymous" | "credential"
+	AuthUsername   string `json:"authUsername,omitempty"`   // populated for credential method
+	AuthRegistry   string `json:"authRegistry,omitempty"`   // registry host we authenticated against
+	UsedCredential bool   `json:"usedCredential,omitempty"` // convenience flag
 }
 
 type UpdateSummary struct {
@@ -93,9 +99,10 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 		}, nil
 	}
 
-	registry := s.getRegistryForImage(ctx, parts.Registry)
+	// Use all enabled registry credentials that match the image domain
+	registries := s.getRegistriesForImage(ctx, parts.Registry)
 
-	digestResult, err := s.checkDigestUpdate(ctx, parts, registry)
+	digestResult, err := s.checkDigestUpdate(ctx, parts, registries)
 	if err != nil {
 		result := &UpdateResult{
 			Error:          err.Error(),
@@ -125,7 +132,7 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 	}
 
 	if !digestResult.HasUpdate && !s.isSpecialTag(parts.Tag) {
-		tagResult, err := s.checkTagUpdate(ctx, parts, registry)
+		tagResult, err := s.checkTagUpdate(ctx, parts, registries)
 		if err != nil {
 			result := &UpdateResult{
 				Error:          err.Error(),
@@ -207,37 +214,138 @@ func (s *ImageUpdateService) CheckImageUpdate(ctx context.Context, imageRef stri
 	return digestResult, nil
 }
 
-func (s *ImageUpdateService) getRegistryToken(ctx context.Context, registry, repository string, reg *models.ContainerRegistry) (string, error) {
+// Internal helper to describe how we authenticated when acquiring a token
+type authDetails struct {
+	Method   string // "none" | "anonymous" | "credential"
+	Username string
+	Registry string
+}
+
+// Try anonymous first, then each matching registry credential (decrypting token)
+// until one returns a token. If auth is not required, returns empty token.
+func (s *ImageUpdateService) getRegistryToken(ctx context.Context, registry, repository string, regs []models.ContainerRegistry) (string, *authDetails, error) {
 	registryUtils := utils.NewRegistryUtils()
+
+	slog.DebugContext(ctx, "Checking registry auth",
+		slog.String("registry", registry),
+		slog.String("repository", repository))
 
 	authURL, err := registryUtils.CheckAuth(ctx, registry)
 	if err != nil {
-		return "", fmt.Errorf("failed to check auth: %w", err)
+		slog.DebugContext(ctx, "Registry auth check failed",
+			slog.String("registry", registry),
+			slog.String("error", err.Error()))
+		return "", nil, fmt.Errorf("failed to check auth: %w", err)
 	}
 
+	// No auth required
 	if authURL == "" {
-		return "", nil
+		slog.DebugContext(ctx, "Registry does not require auth",
+			slog.String("registry", registry),
+			slog.String("repository", repository))
+		return "", &authDetails{Method: "none", Registry: registry}, nil
 	}
 
-	var creds *utils.RegistryCredentials
-	if reg != nil && reg.Username != "" && reg.Token != "" {
-		creds = &utils.RegistryCredentials{
+	// 1) Try anonymous (works for many public repos)
+	slog.DebugContext(ctx, "Attempting anonymous token acquisition",
+		slog.String("registry", registry),
+		slog.String("repository", repository))
+	anonToken, anonErr := registryUtils.GetToken(ctx, authURL, repository, nil)
+	if anonErr != nil {
+		slog.DebugContext(ctx, "Anonymous token attempt failed",
+			slog.String("registry", registry),
+			slog.String("repository", repository),
+			slog.String("error", anonErr.Error()))
+	} else if anonToken != "" {
+		slog.DebugContext(ctx, "Anonymous token acquired",
+			slog.String("registry", registry),
+			slog.String("repository", repository))
+		return anonToken, &authDetails{Method: "anonymous", Registry: registry}, nil
+	} else {
+		slog.DebugContext(ctx, "Anonymous token attempt returned empty token",
+			slog.String("registry", registry),
+			slog.String("repository", repository))
+	}
+
+	// 2) Try each matching enabled registry credential
+	var lastErr error
+	for i, reg := range regs {
+		if reg.Username == "" || reg.Token == "" {
+			slog.DebugContext(ctx, "Skipping credential (missing username or token)",
+				slog.Int("index", i),
+				slog.String("registryURL", reg.URL))
+			continue
+		}
+
+		slog.DebugContext(ctx, "Trying credential for registry",
+			slog.Int("index", i),
+			slog.String("registryURL", reg.URL),
+			slog.String("username", reg.Username),
+			slog.String("repository", repository))
+
+		decrypted, decErr := utils.Decrypt(reg.Token)
+		if decErr != nil {
+			slog.DebugContext(ctx, "Credential decrypt failed",
+				slog.Int("index", i),
+				slog.String("registryURL", reg.URL),
+				slog.String("username", reg.Username),
+				slog.String("error", decErr.Error()))
+			lastErr = decErr
+			continue
+		}
+
+		creds := &utils.RegistryCredentials{
 			Username: reg.Username,
-			Token:    reg.Token,
+			Token:    decrypted,
+		}
+		token, err := registryUtils.GetToken(ctx, authURL, repository, creds)
+		if err == nil && token != "" {
+			slog.DebugContext(ctx, "Credential succeeded acquiring token",
+				slog.Int("index", i),
+				slog.String("registryURL", reg.URL),
+				slog.String("username", reg.Username))
+			return token, &authDetails{Method: "credential", Username: reg.Username, Registry: registry}, nil
+		}
+
+		if err != nil {
+			slog.DebugContext(ctx, "Credential token attempt failed",
+				slog.Int("index", i),
+				slog.String("registryURL", reg.URL),
+				slog.String("username", reg.Username),
+				slog.String("error", err.Error()))
+			lastErr = err
+		} else {
+			slog.DebugContext(ctx, "Credential token attempt returned empty token",
+				slog.Int("index", i),
+				slog.String("registryURL", reg.URL),
+				slog.String("username", reg.Username))
+			lastErr = fmt.Errorf("empty token returned")
 		}
 	}
 
-	return registryUtils.GetToken(ctx, authURL, repository, creds)
+	slog.DebugContext(ctx, "No usable token found after trying all methods",
+		slog.String("registry", registry),
+		slog.String("repository", repository))
+
+	if lastErr != nil {
+		return "", nil, fmt.Errorf("failed to get registry token: %w", lastErr)
+	}
+	return "", nil, fmt.Errorf("failed to get registry token")
 }
 
-func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *ImageParts, registry *models.ContainerRegistry) (*UpdateResult, error) {
+func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) (*UpdateResult, error) {
 	startTime := time.Now()
 	registryUtils := utils.NewRegistryUtils()
 
-	token, err := s.getRegistryToken(ctx, parts.Registry, parts.Repository, registry)
+	token, auth, err := s.getRegistryToken(ctx, parts.Registry, parts.Repository, registries)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get registry token: %w", err)
 	}
+
+	slog.DebugContext(ctx, "Using registry auth method",
+		slog.String("method", auth.Method),
+		slog.String("registry", parts.Registry),
+		slog.String("username", auth.Username))
 
 	normalizedRepo := s.normalizeRepository(parts.Registry, parts.Repository)
 	remoteDigest, err := registryUtils.GetLatestDigest(ctx, parts.Registry, normalizedRepo, parts.Tag, token)
@@ -259,10 +367,14 @@ func (s *ImageUpdateService) checkDigestUpdate(ctx context.Context, parts *Image
 		LatestDigest:   remoteDigest,
 		CheckTime:      time.Now(),
 		ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
+		AuthMethod:     auth.Method,
+		AuthUsername:   auth.Username,
+		AuthRegistry:   auth.Registry,
+		UsedCredential: auth.Method == "credential",
 	}, nil
 }
 
-func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImageParts, registry *models.ContainerRegistry) (*UpdateResult, error) {
+func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) (*UpdateResult, error) {
 	startTime := time.Now()
 
 	currentVersion := s.parseVersion(parts.Tag)
@@ -273,10 +385,12 @@ func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImagePar
 			CurrentVersion: parts.Tag,
 			CheckTime:      time.Now(),
 			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
+			AuthRegistry:   parts.Registry, // best-effort
+			AuthMethod:     "unknown",
 		}, nil
 	}
 
-	tags, err := s.getImageTags(ctx, parts, registry)
+	tags, auth, err := s.getImageTags(ctx, parts, registries)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags: %w", err)
 	}
@@ -289,6 +403,10 @@ func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImagePar
 			CurrentVersion: parts.Tag,
 			CheckTime:      time.Now(),
 			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
+			AuthMethod:     auth.Method,
+			AuthUsername:   auth.Username,
+			AuthRegistry:   auth.Registry,
+			UsedCredential: auth.Method == "credential",
 		}, nil
 	}
 
@@ -301,19 +419,33 @@ func (s *ImageUpdateService) checkTagUpdate(ctx context.Context, parts *ImagePar
 		LatestVersion:  s.versionToString(latestVersion),
 		CheckTime:      time.Now(),
 		ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
+		AuthMethod:     auth.Method,
+		AuthUsername:   auth.Username,
+		AuthRegistry:   auth.Registry,
+		UsedCredential: auth.Method == "credential",
 	}, nil
 }
 
-func (s *ImageUpdateService) getImageTags(ctx context.Context, parts *ImageParts, registry *models.ContainerRegistry) ([]string, error) {
+func (s *ImageUpdateService) getImageTags(ctx context.Context, parts *ImageParts, registries []models.ContainerRegistry) ([]string, *authDetails, error) {
 	registryUtils := utils.NewRegistryUtils()
 
-	token, err := s.getRegistryToken(ctx, parts.Registry, parts.Repository, registry)
+	token, auth, err := s.getRegistryToken(ctx, parts.Registry, parts.Repository, registries)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get registry token: %w", err)
+		return nil, nil, fmt.Errorf("failed to get registry token: %w", err)
 	}
 
 	normalizedRepo := s.normalizeRepository(parts.Registry, parts.Repository)
-	return registryUtils.GetImageTags(ctx, parts.Registry, normalizedRepo, token)
+	slog.DebugContext(ctx, "Fetching tags",
+		slog.String("registry", parts.Registry),
+		slog.String("repository", normalizedRepo),
+		slog.String("authMethod", auth.Method),
+		slog.String("authUser", auth.Username))
+
+	tags, err := registryUtils.GetImageTags(ctx, parts.Registry, normalizedRepo, token)
+	if err != nil {
+		return nil, nil, err
+	}
+	return tags, auth, nil
 }
 
 func (s *ImageUpdateService) parseVersion(tag string) *VersionInfo {
@@ -608,27 +740,42 @@ func (s *ImageUpdateService) versionToString(version *VersionInfo) string {
 	return result
 }
 
-// Helper methods that can reuse existing logic from ImageMaturityService
-func (s *ImageUpdateService) getRegistryForImage(ctx context.Context, registry string) *models.ContainerRegistry {
+// Returns all enabled credentials whose URL matches the image registry domain (normalized)
+func (s *ImageUpdateService) getRegistriesForImage(ctx context.Context, registry string) []models.ContainerRegistry {
 	normalizedDomain := s.normalizeRegistryURL(registry)
 
 	registries, err := s.registryService.GetAllRegistries(ctx)
 	if err != nil {
+		slog.DebugContext(ctx, "Failed to load registries for image",
+			slog.String("registry", registry),
+			slog.String("error", err.Error()))
 		return nil
 	}
 
+	var matches []models.ContainerRegistry
 	for _, reg := range registries {
 		if !reg.Enabled {
 			continue
 		}
-
 		normalizedRegURL := s.normalizeRegistryURL(reg.URL)
 		if normalizedRegURL == normalizedDomain {
-			return &reg
+			matches = append(matches, reg)
 		}
 	}
 
-	return nil
+	slog.DebugContext(ctx, "Matched registry credentials for image",
+		slog.String("registry", registry),
+		slog.String("normalizedDomain", normalizedDomain),
+		slog.Int("matchCount", len(matches)))
+
+	for i, reg := range matches {
+		slog.DebugContext(ctx, "Matched credential",
+			slog.Int("index", i),
+			slog.String("registryURL", reg.URL),
+			slog.String("username", reg.Username))
+	}
+
+	return matches
 }
 
 func (s *ImageUpdateService) normalizeRegistryURL(url string) string {
@@ -744,6 +891,20 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 		currentVersion = image.Tag
 	}
 
+	// map auth fields to pointers
+	var authMethod *string
+	if result.AuthMethod != "" {
+		authMethod = &result.AuthMethod
+	}
+	var authUsername *string
+	if result.AuthUsername != "" {
+		authUsername = &result.AuthUsername
+	}
+	var authRegistry *string
+	if result.AuthRegistry != "" {
+		authRegistry = &result.AuthRegistry
+	}
+
 	updateRecord := &models.ImageUpdateRecord{
 		ID:             imageID,
 		Repository:     image.Repo,
@@ -757,6 +918,12 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 		CheckTime:      result.CheckTime,
 		ResponseTimeMs: result.ResponseTimeMs,
 		LastError:      lastError,
+
+		// new auth fields
+		AuthMethod:     authMethod,
+		AuthUsername:   authUsername,
+		AuthRegistry:   authRegistry,
+		UsedCredential: result.UsedCredential,
 	}
 
 	return s.db.WithContext(ctx).Save(updateRecord).Error
@@ -892,9 +1059,10 @@ func (s *ImageUpdateService) GetAvailableVersions(ctx context.Context, imageRef 
 		return nil, fmt.Errorf("invalid image reference format")
 	}
 
-	registry := s.getRegistryForImage(ctx, parts.Registry)
+	// Use all matching credentials
+	registries := s.getRegistriesForImage(ctx, parts.Registry)
 
-	tags, err := s.getImageTags(ctx, parts, registry)
+	tags, _, err := s.getImageTags(ctx, parts, registries)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags: %w", err)
 	}

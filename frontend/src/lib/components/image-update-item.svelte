@@ -8,6 +8,7 @@
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import PackageIcon from '@lucide/svelte/icons/package';
+	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import { imageUpdateAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
 	import type { ImageUpdateData } from '$lib/services/api/image-update-api-service';
@@ -30,16 +31,50 @@
 		localUpdateInfo = updateInfo;
 	});
 
-	const canCheckUpdate = $derived(repo && tag && repo !== '<none>' && tag !== '<none>');
+	function canCheckUpdate() {
+		return !!(repo && tag && repo !== '<none>' && tag !== '<none>');
+	}
 
-	const displayCurrentVersion = $derived(() => {
+	function hasError() {
+		return !!localUpdateInfo?.error && localUpdateInfo.error.trim() !== '';
+	}
+
+	type AuthBadge = { label: string; classes: string };
+
+	function authBadge(): AuthBadge | null {
+		const m = localUpdateInfo?.authMethod;
+		if (!m) return null;
+
+		if (m === 'credential') {
+			return {
+				label: `Credential${localUpdateInfo?.authUsername ? ` (${localUpdateInfo.authUsername})` : ''}`,
+				classes: 'border-amber-200/60 text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30'
+			};
+		}
+		if (m === 'anonymous') {
+			return {
+				label: 'Anonymous',
+				classes: 'border-slate-200/60 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/40'
+			};
+		}
+		if (m === 'none') {
+			return {
+				label: 'No Auth',
+				classes: 'border-gray-200/60 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900/40'
+			};
+		}
+		return null;
+	}
+
+	function displayCurrentVersion(): string {
 		if (localUpdateInfo?.currentVersion && localUpdateInfo.currentVersion.trim() !== '') {
 			return localUpdateInfo.currentVersion;
 		}
 		return tag || 'Unknown';
-	});
+	}
 
-	const displayLatestVersion = $derived(() => {
+	function displayLatestVersion(): string | null {
+		if (hasError()) return null;
 		if (localUpdateInfo?.latestVersion && localUpdateInfo.latestVersion.trim() !== '') {
 			return localUpdateInfo.latestVersion;
 		}
@@ -47,24 +82,40 @@
 			return localUpdateInfo.latestDigest.slice(7, 19) + '...';
 		}
 		return null;
-	});
+	}
 
 	async function checkImageUpdate() {
-		if (!canCheckUpdate || isChecking) return;
+		if (!canCheckUpdate() || isChecking) return;
 
 		isChecking = true;
 		try {
 			const result = await imageUpdateAPI.checkImageUpdateByID(imageId);
-			if (result && !result.error) {
-				localUpdateInfo = result;
-				onUpdated?.(result);
-				toast.success('Update check completed');
+			if (result) {
+				if (result.error) {
+					localUpdateInfo = result;
+					toast.error(result.error);
+				} else {
+					localUpdateInfo = result;
+					onUpdated?.(result);
+					toast.success('Update check completed');
+				}
 			} else {
-				toast.error(result?.error || 'Update check failed');
+				toast.error('Update check failed');
 			}
 		} catch (error) {
 			console.error('Error checking update:', error);
-			toast.error('Failed to check for updates');
+			localUpdateInfo = {
+				hasUpdate: false,
+				updateType: 'error',
+				currentVersion: tag || '',
+				currentDigest: '',
+				latestVersion: '',
+				latestDigest: '',
+				checkTime: new Date().toISOString(),
+				responseTimeMs: 0,
+				error: (error as Error)?.message || 'Failed to check for updates'
+			};
+			toast.error(localUpdateInfo?.error || 'Failed to check for updates');
 		} finally {
 			isChecking = false;
 		}
@@ -75,6 +126,7 @@
 		color: string;
 		description: string;
 	} {
+		if (u.error) return { level: 'Error', color: 'text-red-500', description: 'Failed to check updates' };
 		if (!u.hasUpdate) return { level: 'None', color: 'text-green-500', description: 'Image is up to date' };
 		if (u.updateType === 'digest')
 			return {
@@ -97,7 +149,9 @@
 		<Tooltip.Root>
 			<Tooltip.Trigger>
 				<span class="mr-2 inline-flex size-4 items-center justify-center align-middle">
-					{#if !localUpdateInfo.hasUpdate}
+					{#if hasError()}
+						<TriangleAlertIcon class="size-4 text-red-500" />
+					{:else if !localUpdateInfo.hasUpdate}
 						<CircleCheckIcon class="size-4 text-green-500" />
 					{:else if localUpdateInfo.updateType === 'digest'}
 						<CircleArrowUpIcon class="size-4 text-blue-500" />
@@ -112,18 +166,70 @@
 				align="center"
 			>
 				<div class="overflow-hidden rounded-xl">
-					{#if !localUpdateInfo.hasUpdate}
+					{#if hasError()}
+						{@const badge = authBadge()}
+						<!-- Error State -->
+						<div class="bg-gradient-to-br from-rose-50 to-red-50/40 p-4 dark:from-rose-950/20 dark:to-red-950/10">
+							<div class="flex items-start gap-3">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-red-500 shadow-lg shadow-red-500/25"
+								>
+									<TriangleAlertIcon class="size-5 text-white" />
+								</div>
+								<div class="flex-1">
+									<div class="text-sm font-semibold text-red-900 dark:text-red-100">Update Check Failed</div>
+									<div class="text-xs text-red-700/80 dark:text-red-300/80">Could not query the registry</div>
+									{#if badge}
+										+ <div class="mt-2">
+											<div
+												class={'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
+													badge.classes}
+											>
+												<KeyRoundIcon class="size-3 opacity-80" />
+												<span>Auth: {badge.label}</span>
+											</div>
+										</div>
+									{/if}
+								</div>
+							</div>
+						</div>
+						<div class="bg-white/90 p-4 dark:bg-gray-950/90">
+							<div class="space-y-3">
+								<div class="text-xs text-gray-600 dark:text-gray-300">
+									<span class="font-medium">Error:</span>
+									<span class="ml-1 break-words">{localUpdateInfo.error}</span>
+								</div>
+								{#if repo && tag}
+									<div class="text-xs text-gray-500 dark:text-gray-400">
+										Image: <span class="font-mono">{repo}:{tag}</span>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{:else if !localUpdateInfo.hasUpdate}
+						{@const badge = authBadge()}
 						<!-- Success State -->
 						<div class="bg-gradient-to-br from-emerald-50 to-green-50/30 p-4 dark:from-emerald-950/20 dark:to-green-950/10">
-							<div class="flex items-center gap-3">
+							<div class="flex items-start gap-3">
 								<div
 									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-500 shadow-lg shadow-emerald-500/25"
 								>
 									<CircleCheckIcon class="size-5 text-white" />
 								</div>
-								<div>
+								<div class="flex-1">
 									<div class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Up to Date</div>
 									<div class="text-xs text-emerald-700/80 dark:text-emerald-300/80">No updates available</div>
+									{#if badge}
+										<div class="mt-2">
+											<div
+												class={'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
+													badge.classes}
+											>
+												<KeyRoundIcon class="size-3 opacity-80" />
+												<span>Auth: {badge.label}</span>
+											</div>
+										</div>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -140,17 +246,29 @@
 							</div>
 						</div>
 					{:else if localUpdateInfo.updateType === 'digest'}
+						{@const badge = authBadge()}
 						<!-- Digest Update State -->
 						<div class="bg-gradient-to-br from-blue-50 to-cyan-50/30 p-4 dark:from-blue-950/20 dark:to-cyan-950/10">
-							<div class="flex items-center gap-3">
+							<div class="flex items-start gap-3">
 								<div
 									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25"
 								>
 									<CircleArrowUpIcon class="size-5 text-white" />
 								</div>
-								<div>
+								<div class="flex-1">
 									<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">Digest Update</div>
 									<div class="text-xs text-blue-700/80 dark:text-blue-300/80">Security or bug fixes available</div>
+									{#if badge}
+										<div class="mt-2">
+											<div
+												class={'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
+													badge.classes}
+											>
+												<KeyRoundIcon class="size-3 opacity-80" />
+												<span>Auth: {badge.label}</span>
+											</div>
+										</div>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -181,24 +299,36 @@
 									{/if}
 								</div>
 								<div class="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/30">
-									<div class="text-center text-xs leading-relaxed font-medium text-blue-700 dark:text-blue-300">
+									<div class="text-center text-xs font-medium leading-relaxed text-blue-700 dark:text-blue-300">
 										{priority.description}
 									</div>
 								</div>
 							</div>
 						</div>
 					{:else}
+						{@const badge = authBadge()}
 						<!-- Version Update State -->
 						<div class="bg-gradient-to-br from-amber-50 to-yellow-50/30 p-4 dark:from-amber-950/20 dark:to-yellow-950/10">
-							<div class="flex items-center gap-3">
+							<div class="flex items-start gap-3">
 								<div
 									class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-yellow-500 shadow-lg shadow-amber-500/25"
 								>
 									<CircleFadingArrowUpIcon class="size-5 text-white" />
 								</div>
-								<div>
+								<div class="flex-1">
 									<div class="text-sm font-semibold text-amber-900 dark:text-amber-100">Version Update</div>
 									<div class="text-xs text-amber-700/80 dark:text-amber-300/80">New version available</div>
+									{#if badge}
+										<div class="mt-2">
+											<div
+												class={'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
+													badge.classes}
+											>
+												<KeyRoundIcon class="size-3 opacity-80" />
+												<span>Auth: {badge.label}</span>
+											</div>
+										</div>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -229,7 +359,7 @@
 									{/if}
 								</div>
 								<div class="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30">
-									<div class="text-center text-xs leading-relaxed font-medium text-amber-700 dark:text-amber-300">
+									<div class="text-center text-xs font-medium leading-relaxed text-amber-700 dark:text-amber-300">
 										{priority.description}
 									</div>
 								</div>
@@ -237,7 +367,7 @@
 						</div>
 					{/if}
 
-					{#if canCheckUpdate}
+					{#if canCheckUpdate()}
 						<div class="border-t border-gray-200/50 bg-gray-50/50 p-3 dark:border-gray-800/50 dark:bg-gray-900/50">
 							<button
 								onclick={checkImageUpdate}
@@ -294,7 +424,7 @@
 		<Tooltip.Root>
 			<Tooltip.Trigger>
 				<span class="mr-2 inline-flex size-4 items-center justify-center">
-					{#if canCheckUpdate}
+					{#if canCheckUpdate()}
 						<button
 							onclick={checkImageUpdate}
 							disabled={isChecking}
@@ -329,7 +459,7 @@
 							<div>
 								<div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Status Unknown</div>
 								<div class="text-xs text-gray-700/80 dark:text-gray-300/80">
-									{#if canCheckUpdate}
+									{#if canCheckUpdate()}
 										Click to check for updates from registry.
 									{:else}
 										Unable to check updates for images without proper tags.

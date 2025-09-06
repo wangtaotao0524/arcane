@@ -12,6 +12,11 @@ type ImageUpdateResponse struct {
 	CheckTime      time.Time `json:"checkTime"`
 	ResponseTimeMs int       `json:"responseTimeMs"`
 	Error          string    `json:"error,omitempty"`
+
+	AuthMethod     string `json:"authMethod,omitempty"`     // "none" | "anonymous" | "credential" | "unknown"
+	AuthUsername   string `json:"authUsername,omitempty"`   // for credential method
+	AuthRegistry   string `json:"authRegistry,omitempty"`   // registry host
+	UsedCredential bool   `json:"usedCredential,omitempty"` // convenience flag
 }
 
 type ImageUpdateSummaryResponse struct {

@@ -48,6 +48,10 @@ func (h *ImageUpdateHandler) CheckImageUpdate(c *gin.Context) {
 		CheckTime:      result.CheckTime,
 		ResponseTimeMs: result.ResponseTimeMs,
 		Error:          result.Error,
+		AuthMethod:     result.AuthMethod,
+		AuthUsername:   result.AuthUsername,
+		AuthRegistry:   result.AuthRegistry,
+		UsedCredential: result.UsedCredential,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -85,6 +89,10 @@ func (h *ImageUpdateHandler) CheckImageUpdateByID(c *gin.Context) {
 		CheckTime:      result.CheckTime,
 		ResponseTimeMs: result.ResponseTimeMs,
 		Error:          result.Error,
+		AuthMethod:     result.AuthMethod,
+		AuthUsername:   result.AuthUsername,
+		AuthRegistry:   result.AuthRegistry,
+		UsedCredential: result.UsedCredential,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -132,6 +140,10 @@ func (h *ImageUpdateHandler) CheckMultipleImages(c *gin.Context) {
 			CheckTime:      result.CheckTime,
 			ResponseTimeMs: result.ResponseTimeMs,
 			Error:          result.Error,
+			AuthMethod:     result.AuthMethod,
+			AuthUsername:   result.AuthUsername,
+			AuthRegistry:   result.AuthRegistry,
+			UsedCredential: result.UsedCredential,
 		}
 	}
 
@@ -173,6 +185,10 @@ func (h *ImageUpdateHandler) CheckAllImages(c *gin.Context) {
 			CheckTime:      result.CheckTime,
 			ResponseTimeMs: result.ResponseTimeMs,
 			Error:          result.Error,
+			AuthMethod:     result.AuthMethod,
+			AuthUsername:   result.AuthUsername,
+			AuthRegistry:   result.AuthRegistry,
+			UsedCredential: result.UsedCredential,
 		}
 	}
 

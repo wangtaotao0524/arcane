@@ -1,16 +1,7 @@
 import BaseAPIService from './api-service';
+import type { ImageUpdateInfoDto } from '$lib/types/image.type';
 
-export interface ImageUpdateData {
-	hasUpdate: boolean;
-	updateType: string;
-	currentVersion: string;
-	latestVersion?: string;
-	currentDigest?: string;
-	latestDigest?: string;
-	checkTime: string;
-	responseTimeMs: number;
-	error?: string;
-}
+export type ImageUpdateData = ImageUpdateInfoDto;
 
 export interface ImageUpdateSummary {
 	totalImages: number;

@@ -5,9 +5,13 @@ export interface ImageUpdateInfoDto {
 	latestVersion: string;
 	currentDigest: string;
 	latestDigest: string;
-	checkTime: string; // ISO string from backend
+	checkTime: string;
 	responseTimeMs: number;
 	error: string;
+	authMethod?: 'none' | 'anonymous' | 'credential' | 'unknown';
+	authUsername?: string;
+	authRegistry?: string;
+	usedCredential?: boolean;
 }
 
 export interface ImageSummaryDto {

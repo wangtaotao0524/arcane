@@ -18,6 +18,11 @@ type ImageUpdateRecord struct {
 	ResponseTimeMs int       `json:"responseTimeMs" gorm:"column:response_time_ms"`
 	LastError      *string   `json:"lastError,omitempty" gorm:"column:last_error"`
 
+	AuthMethod     *string `json:"authMethod,omitempty" gorm:"column:auth_method"`
+	AuthUsername   *string `json:"authUsername,omitempty" gorm:"column:auth_username"`
+	AuthRegistry   *string `json:"authRegistry,omitempty" gorm:"column:auth_registry"`
+	UsedCredential bool    `json:"usedCredential,omitempty" gorm:"column:used_credential;default:false"`
+
 	Image *Image `json:"image,omitempty" gorm:"foreignKey:ID;references:ID"`
 
 	BaseModel

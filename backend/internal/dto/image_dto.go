@@ -22,6 +22,11 @@ type ImageUpdateInfoDto struct {
 	CheckTime      time.Time `json:"checkTime"`
 	ResponseTimeMs int       `json:"responseTimeMs"`
 	Error          string    `json:"error"`
+
+	AuthMethod     string `json:"authMethod,omitempty"`
+	AuthUsername   string `json:"authUsername,omitempty"`
+	AuthRegistry   string `json:"authRegistry,omitempty"`
+	UsedCredential bool   `json:"usedCredential,omitempty"`
 }
 
 type ImageSummaryDto struct {
@@ -63,6 +68,11 @@ func NewImageSummaryDto(m *models.Image) ImageSummaryDto {
 			CheckTime:      m.UpdateRecord.CheckTime,
 			ResponseTimeMs: m.UpdateRecord.ResponseTimeMs,
 			Error:          sp(m.UpdateRecord.LastError),
+
+			AuthMethod:     sp(m.UpdateRecord.AuthMethod),
+			AuthUsername:   sp(m.UpdateRecord.AuthUsername),
+			AuthRegistry:   sp(m.UpdateRecord.AuthRegistry),
+			UsedCredential: m.UpdateRecord.UsedCredential,
 		}
 	}
 
