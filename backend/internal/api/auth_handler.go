@@ -92,7 +92,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if errors.Is(err, services.ErrPasswordChangeRequired) && user != nil {
 		if tokenPair != nil {
 			c.SetSameSite(http.SameSiteLaxMode)
-			maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+			maxAge := int(time.Until(tokenPair.ExpiresAt).Minutes())
 			if maxAge < 0 {
 				maxAge = 0
 			}
@@ -160,9 +160,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Set token cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+	maxAge := int(time.Until(tokenPair.ExpiresAt).Minutes())
 	if maxAge < 0 {
 		maxAge = 0
 	}
@@ -265,7 +264,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
+	maxAge := int(time.Until(tokenPair.ExpiresAt).Minutes())
 	if maxAge < 0 {
 		maxAge = 0
 	}
