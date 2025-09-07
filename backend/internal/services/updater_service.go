@@ -403,77 +403,89 @@ func (s *UpdaterService) isUpdateDisabled(labels map[string]string) bool {
 	return false
 }
 
+// collectUsedImagesFromContainers adds normalized image tags from non-opted-out running containers.
+func (s *UpdaterService) collectUsedImagesFromContainers(ctx context.Context, dcli *client.Client, out map[string]struct{}) error {
+	if dcli == nil {
+		return nil
+	}
+	list, err := dcli.ContainerList(ctx, container.ListOptions{All: false})
+	if err != nil {
+		return err
+	}
+	for _, c := range list {
+		if s.isUpdateDisabled(c.Labels) {
+			continue
+		}
+		inspect, err := dcli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			continue
+		}
+		if inspect.Config != nil && s.isUpdateDisabled(inspect.Config.Labels) {
+			continue
+		}
+		for _, t := range s.getNormalizedTagsForContainer(ctx, dcli, inspect) {
+			out[t] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func (s *UpdaterService) isStackOptedOut(ctx context.Context, dcli *client.Client, stackName string) bool {
+	containers, err := s.getStackContainers(ctx, dcli, stackName)
+	if err != nil {
+		return false
+	}
+	for _, c := range containers {
+		if s.isUpdateDisabled(c.Labels) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *UpdaterService) collectUsedImagesFromStacks(ctx context.Context, dcli *client.Client, out map[string]struct{}) error {
+	stacks, err := s.stackService.ListStacks(ctx)
+	if err != nil {
+		return err
+	}
+	for _, st := range stacks {
+		if st.Status != models.StackStatusRunning {
+			continue
+		}
+		if dcli != nil && s.isStackOptedOut(ctx, dcli, st.Name) {
+			continue
+		}
+		srvs, err := s.stackService.GetStackServices(ctx, st.ID)
+		if err != nil {
+			continue
+		}
+		for _, svc := range srvs {
+			if svc.Image == "" {
+				continue
+			}
+			out[s.normalizeRef(svc.Image)] = struct{}{}
+		}
+	}
+	return nil
+}
+
 func (s *UpdaterService) collectUsedImages(ctx context.Context) (map[string]struct{}, error) {
 	out := map[string]struct{}{}
 
-	// Running containers
+	// Try to connect to Docker once; proceed with stacks even if it fails.
 	dcli, err := s.dockerService.CreateConnection(ctx)
-	if err == nil {
+	if err != nil {
+		_ = err // keep going without container details
+	} else {
 		defer dcli.Close()
-		list, err := dcli.ContainerList(ctx, container.ListOptions{All: false})
-		if err == nil {
-			for _, c := range list {
-				// Skip containers with opt-out label
-				if s.isUpdateDisabled(c.Labels) {
-					continue
-				}
-				inspect, err := dcli.ContainerInspect(ctx, c.ID)
-				if err != nil {
-					continue
-				}
-				// Also honor labels from the full inspect if present
-				if inspect.Config != nil && s.isUpdateDisabled(inspect.Config.Labels) {
-					continue
-				}
-				for _, t := range s.getNormalizedTagsForContainer(ctx, dcli, inspect) {
-					out[t] = struct{}{}
-				}
-			}
-		}
 	}
 
-	// Running stacks (service definitions)
-	stacks, err2 := s.stackService.ListStacks(ctx)
-	if err2 == nil {
-		for _, st := range stacks {
-			if st.Status != models.StackStatusRunning {
-				continue
-			}
-
-			// If any container in the stack has the opt-out label, skip the entire stack
-			disabledStack := false
-			if dcli != nil {
-				if cs, err := s.getStackContainers(ctx, dcli, st.Name); err == nil {
-					for _, c := range cs {
-						if s.isUpdateDisabled(c.Labels) {
-							disabledStack = true
-							break
-						}
-					}
-				}
-			}
-			if disabledStack {
-				continue
-			}
-
-			srvs, err := s.stackService.GetStackServices(ctx, st.ID)
-			if err != nil {
-				continue
-			}
-			for _, svc := range srvs {
-				if svc.Image == "" {
-					continue
-				}
-				out[s.normalizeRef(svc.Image)] = struct{}{}
-			}
-		}
-	}
+	_ = s.collectUsedImagesFromContainers(ctx, dcli, out)
+	_ = s.collectUsedImagesFromStacks(ctx, dcli, out)
 
 	return out, nil
 }
 
-// Resolve a container's image to all normalized repo:tags that reference it.
-// Falls back to the config image reference as a tag if present.
 func (s *UpdaterService) getNormalizedTagsForContainer(ctx context.Context, dcli *client.Client, inspect container.InspectResponse) []string {
 	seen := map[string]struct{}{}
 
@@ -489,7 +501,6 @@ func (s *UpdaterService) getNormalizedTagsForContainer(ctx context.Context, dcli
 		}
 	}
 
-	// Fallback to the configured image ref (may already be a tag)
 	if inspect.Config != nil && inspect.Config.Image != "" {
 		seen[s.normalizeRef(inspect.Config.Image)] = struct{}{}
 	}

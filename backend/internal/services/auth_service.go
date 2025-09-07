@@ -2,14 +2,12 @@ package services
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/config"
@@ -81,26 +79,18 @@ func NewAuthService(userService *UserService, settingsService *SettingsService, 
 	}
 }
 
-func getClientIP(ctx context.Context) string {
-	if ginCtx, ok := ctx.(*gin.Context); ok {
-		return ginCtx.ClientIP()
-	}
-	return ""
-}
-
 func (s *AuthService) getAuthSettings(ctx context.Context) (*AuthSettings, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get settings: %w", err)
 	}
 
-	// Normalize using GetSessionTimeout so UI sees the same effective minutes we enforce
 	timeoutMinutes, _ := s.GetSessionTimeout(ctx)
 
 	authSettings := &AuthSettings{
 		LocalAuthEnabled: settings.AuthLocalEnabled.IsTrue(),
 		OidcEnabled:      settings.AuthOidcEnabled.IsTrue(),
-		SessionTimeout:   timeoutMinutes, // minutes
+		SessionTimeout:   timeoutMinutes,
 	}
 
 	if authSettings.OidcEnabled && settings.AuthOidcConfig.Value != "" {
@@ -238,9 +228,8 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 	}
 
 	metadata := models.JSON{
-		"action":    "login",
-		"method":    "local",
-		"ipAddress": getClientIP(ctx),
+		"action": "login",
+		"method": "local",
 	}
 	if logErr := s.eventService.LogUserEvent(ctx, models.EventTypeUserLogin, user.ID, user.Username, metadata); logErr != nil {
 		fmt.Printf("Could not log user login action: %s\n", logErr)
@@ -265,11 +254,10 @@ func (s *AuthService) OidcLogin(ctx context.Context, userInfo dto.OidcUserInfo, 
 	}
 
 	metadata := models.JSON{
-		"action":    "login",
-		"method":    "oidc",
-		"newUser":   isNewUser,
-		"subject":   userInfo.Subject,
-		"ipAddress": getClientIP(ctx),
+		"action":  "login",
+		"method":  "oidc",
+		"newUser": isNewUser,
+		"subject": userInfo.Subject,
 	}
 	if logErr := s.eventService.LogUserEvent(ctx, models.EventTypeUserLogin, user.ID, user.Username, metadata); logErr != nil {
 		fmt.Printf("Could not log OIDC user login action: %s\n", logErr)
@@ -352,7 +340,6 @@ func (s *AuthService) updateOidcUser(ctx context.Context, user *models.User, use
 		user.Email = &userInfo.Email
 	}
 
-	// Sync admin role to current mapping result
 	wantAdmin := s.isAdminFromOidc(ctx, userInfo, tokenResp)
 	hasAdmin := hasRole(user.Roles, "admin")
 	switch {
@@ -397,44 +384,18 @@ func removeRole(roles models.StringSlice, role string) models.StringSlice {
 }
 
 func (s *AuthService) isAdminFromOidc(ctx context.Context, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) bool {
-	// 1) Configured claim mapping
-	if claimKey, values := s.getAdminClaimConfig(ctx); claimKey != "" {
-		// Check userinfo raw claims
-		if v, ok := getByPath(userInfo.Extra, claimKey); ok {
-			if evalAdminMatch(v, values) {
-				return true
-			}
-		}
-		// Check ID token payload if present
-		if tokenResp != nil && tokenResp.IDToken != "" {
-			if claims := parseJWTClaims(tokenResp.IDToken); claims != nil {
-				if v, ok := getByPath(claims, claimKey); ok && evalAdminMatch(v, values) {
-					return true
-				}
-			}
-		}
+	claimKey, values := s.getAdminClaimConfig(ctx)
+	if claimKey == "" {
+		return false
 	}
 
-	// 2) Heuristics fallback (common providers)
-	if userInfo.Admin {
+	if v, ok := utils.GetByPath(userInfo.Extra, claimKey); ok && utils.EvalMatch(v, values) {
 		return true
 	}
-	if sliceContainsFold(userInfo.Roles, "admin") || sliceContainsFold(userInfo.Groups, "admin") {
-		return true
-	}
+
 	if tokenResp != nil && tokenResp.IDToken != "" {
-		if claims := parseJWTClaims(tokenResp.IDToken); claims != nil {
-			// realm_access.roles, roles, groups, admin:true
-			if v, ok := getByPath(claims, "realm_access.roles"); ok && evalAdminMatch(v, []string{"admin"}) {
-				return true
-			}
-			if v, ok := getByPath(claims, "roles"); ok && evalAdminMatch(v, []string{"admin"}) {
-				return true
-			}
-			if v, ok := getByPath(claims, "groups"); ok && evalAdminMatch(v, []string{"admin"}) {
-				return true
-			}
-			if v, ok := claims["admin"]; ok && evalAdminMatch(v, []string{"true"}) {
+		if claims := utils.ParseJWTClaims(tokenResp.IDToken); claims != nil {
+			if v, ok := utils.GetByPath(claims, claimKey); ok && utils.EvalMatch(v, values) {
 				return true
 			}
 		}
@@ -454,7 +415,6 @@ func (s *AuthService) getAdminClaimConfig(ctx context.Context) (claim string, va
 		return "", nil
 	}
 	if raw == "" {
-		// Treat truthy/true for boolean claims if no explicit values provided
 		return claim, nil
 	}
 	parts := strings.Split(raw, ",")
@@ -465,93 +425,6 @@ func (s *AuthService) getAdminClaimConfig(ctx context.Context) (claim string, va
 		}
 	}
 	return claim, values
-}
-
-func parseJWTClaims(idToken string) map[string]any {
-	parts := strings.Split(idToken, ".")
-	if len(parts) < 2 {
-		return nil
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil
-	}
-	var claims map[string]any
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil
-	}
-	return claims
-}
-
-func getByPath(m map[string]any, path string) (any, bool) {
-	if m == nil {
-		return nil, false
-	}
-	keys := strings.Split(path, ".")
-	var cur any = m
-	for _, k := range keys {
-		obj, ok := cur.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		v, ok := obj[k]
-		if !ok {
-			return nil, false
-		}
-		cur = v
-	}
-	return cur, true
-}
-
-func evalAdminMatch(v any, want []string) bool {
-	// No explicit values => accept truthy bool
-	if len(want) == 0 {
-		if b, ok := v.(bool); ok {
-			return b
-		}
-		// no values for non-bool: do not match
-		return false
-	}
-
-	// Normalize want set (lower-cased)
-	wantSet := map[string]struct{}{}
-	for _, s := range want {
-		wantSet[strings.ToLower(s)] = struct{}{}
-	}
-
-	switch x := v.(type) {
-	case string:
-		_, ok := wantSet[strings.ToLower(x)]
-		return ok
-	case []any:
-		for _, it := range x {
-			if s, ok := it.(string); ok {
-				if _, ok2 := wantSet[strings.ToLower(s)]; ok2 {
-					return true
-				}
-			}
-		}
-		return false
-	case map[string]any:
-		// Unexpected: nested object; no match
-		return false
-	case bool:
-		// Compare against accepted strings like "true"/"1"
-		_, ok := wantSet[strings.ToLower(fmt.Sprintf("%v", x))]
-		return ok
-	default:
-		return false
-	}
-}
-
-func sliceContainsFold(ss []string, want string) bool {
-	want = strings.ToLower(want)
-	for _, s := range ss {
-		if strings.ToLower(s) == want {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *AuthService) persistOidcTokens(user *models.User, tokenResp *dto.OidcTokenResponse) {

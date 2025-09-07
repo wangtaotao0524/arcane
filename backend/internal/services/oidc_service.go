@@ -289,11 +289,18 @@ func (s *OidcService) getUserInfo(ctx context.Context, config *models.OidcConfig
 		return nil, err
 	}
 
-	// Map known fields into struct, keep raw claims
-	b, _ := json.Marshal(raw)
-	var userInfo dto.OidcUserInfo
-	_ = json.Unmarshal(b, &userInfo)
-	userInfo.Extra = raw
+	userInfo := dto.OidcUserInfo{
+		Subject:           utils.GetStringClaim(raw, "sub"),
+		Name:              utils.GetStringClaim(raw, "name"),
+		Email:             utils.GetStringClaim(raw, "email"),
+		PreferredUsername: utils.GetStringClaim(raw, "preferred_username"),
+		GivenName:         utils.GetStringClaim(raw, "given_name"),
+		FamilyName:        utils.GetStringClaim(raw, "family_name"),
+		Admin:             utils.GetBoolClaim(raw, "admin"),
+		Roles:             utils.GetStringSliceClaim(raw, "roles"),
+		Groups:            utils.GetStringSliceClaim(raw, "groups"),
+		Extra:             raw,
+	}
 
 	if userInfo.Subject == "" {
 		return nil, errors.New("missing required 'sub' field in userinfo response")
