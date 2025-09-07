@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -540,6 +541,7 @@ func (s *AuthService) generateTokenPair(ctx context.Context, user *models.User) 
 	sessionTimeout, _ := s.GetSessionTimeout(ctx)
 
 	accessTokenExpiry := time.Now().Add(time.Duration(sessionTimeout) * time.Minute)
+	slog.DebugContext(ctx, "accessTokenExpiry", "expiry", accessTokenExpiry)
 
 	userClaims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
