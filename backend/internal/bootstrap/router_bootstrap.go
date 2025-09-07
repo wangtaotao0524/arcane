@@ -15,9 +15,9 @@ import (
 	"github.com/ofkm/arcane-backend/internal/middleware"
 )
 
-var registerPlaywrightRoutes []func(apiGroup *gin.RouterGroup, services *api.Services)
+var registerPlaywrightRoutes []func(apiGroup *gin.RouterGroup, services *Services)
 
-func setupRouter(cfg *config.Config, appServices *api.Services) *gin.Engine {
+func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -37,6 +37,7 @@ func setupRouter(cfg *config.Config, appServices *api.Services) *gin.Engine {
 		"GET /health",
 		"HEAD /health",
 	}
+
 	router.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{
 		Filters: []sloggin.Filter{
 			func(c *gin.Context) bool {
@@ -57,17 +58,32 @@ func setupRouter(cfg *config.Config, appServices *api.Services) *gin.Engine {
 		},
 	}))
 
+	authMiddleware := middleware.NewAuthMiddleware(appServices.Auth)
 	router.Use(middleware.SetupCORS(cfg))
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	api.SetupRoutes(router, appServices, cfg)
+	apiGroup := router.Group("/api")
+	api.NewAuthHandler(apiGroup, appServices.User, appServices.Auth, appServices.Oidc, authMiddleware)
+	api.NewContainerHandler(apiGroup, appServices.Container, appServices.Image, authMiddleware)
+	api.NewContainerRegistryHandler(apiGroup, appServices.ContainerRegistry, authMiddleware)
+	api.NewConverterHandler(apiGroup, appServices.Converter, authMiddleware)
+	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Container, appServices.Image, appServices.Network, appServices.Volume, appServices.Stack, authMiddleware)
+	api.NewEventHandler(apiGroup, appServices.Event, authMiddleware)
+	api.NewImageHandler(apiGroup, appServices.Image, appServices.ImageUpdate, authMiddleware)
+	api.NewImageUpdateHandler(apiGroup, appServices.ImageUpdate, authMiddleware)
+	api.NewNetworkHandler(apiGroup, appServices.Network, authMiddleware)
+	api.NewOidcHandler(apiGroup, appServices.Auth, appServices.Oidc, cfg)
+	api.NewSettingsHandler(apiGroup, appServices.Settings, authMiddleware)
+	api.NewSystemHandler(apiGroup, appServices.Docker, appServices.System, authMiddleware)
+	api.NewTemplateHandler(apiGroup, appServices.Template, authMiddleware)
+	api.NewUpdaterHandler(apiGroup, appServices.Updater, authMiddleware)
+	api.NewUserHandler(apiGroup, appServices.User, authMiddleware)
+	api.NewVolumeHandler(apiGroup, appServices.Volume, authMiddleware)
 
-	// Register playwright routes if available
-	if registerPlaywrightRoutes != nil {
-		apiGroup := router.Group("/api")
+	if cfg.Environment != "production" {
 		for _, registerFunc := range registerPlaywrightRoutes {
 			registerFunc(apiGroup, appServices)
 		}

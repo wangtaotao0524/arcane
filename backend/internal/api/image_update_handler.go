@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
@@ -13,9 +14,20 @@ type ImageUpdateHandler struct {
 	imageUpdateService *services.ImageUpdateService
 }
 
-func NewImageUpdateHandler(imageUpdateService *services.ImageUpdateService) *ImageUpdateHandler {
-	return &ImageUpdateHandler{
-		imageUpdateService: imageUpdateService,
+func NewImageUpdateHandler(group *gin.RouterGroup, imageUpdateService *services.ImageUpdateService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &ImageUpdateHandler{imageUpdateService: imageUpdateService}
+
+	apiGroup := group.Group("/image-updates")
+
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("/check", handler.CheckImageUpdate)
+		apiGroup.GET("/check/:imageId", handler.CheckImageUpdateByID)
+		apiGroup.POST("/check-batch", handler.CheckMultipleImages)
+		apiGroup.GET("/check-all", handler.CheckAllImages)
+		apiGroup.GET("/summary", handler.GetUpdateSummary)
+		apiGroup.GET("/versions", handler.GetImageVersions)
+		apiGroup.POST("/compare", handler.CompareVersions)
 	}
 }
 

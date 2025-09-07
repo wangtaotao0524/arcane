@@ -1,55 +1,54 @@
 package bootstrap
 
 import (
-	"log/slog"
-
-	"github.com/ofkm/arcane-backend/internal/api"
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
-func initializeServices(db *database.DB, cfg *config.Config) (*api.Services, *services.DockerClientService, error) {
-	slog.Info("Initializing services...")
-	eventService := services.NewEventService(db)
-	converterService := services.NewConverterService()
-	settingsService := services.NewSettingsService(db, cfg)
-	dockerClientService := services.NewDockerClientService(db)
-	userService := services.NewUserService(db)
-	containerRegistry := services.NewContainerRegistryService(db)
-	imageUpdate := services.NewImageUpdateService(db, settingsService, containerRegistry, dockerClientService, eventService)
-	imageService := services.NewImageService(db, dockerClientService, containerRegistry, imageUpdate, eventService)
-	stackService := services.NewStackService(db, settingsService, eventService, imageService)
-	environmentService := services.NewEnvironmentService(db)
-	containerService := services.NewContainerService(db, eventService, dockerClientService)
-	volumeService := services.NewVolumeService(db, dockerClientService, eventService)
-	networkService := services.NewNetworkService(db, dockerClientService, eventService)
-	templateService := services.NewTemplateService(db)
-	authService := services.NewAuthService(userService, settingsService, eventService, cfg.JWTSecret, cfg)
-	oidcService := services.NewOidcService(authService, cfg)
-	updaterService := services.NewUpdaterService(db, settingsService, dockerClientService, stackService, imageUpdate, containerRegistry, eventService, imageService)
-	systemService := services.NewSystemService(db, dockerClientService, containerService, imageService, volumeService, networkService, settingsService)
+type Services struct {
+	User              *services.UserService
+	Stack             *services.StackService
+	Environment       *services.EnvironmentService
+	Settings          *services.SettingsService
+	Container         *services.ContainerService
+	Image             *services.ImageService
+	Volume            *services.VolumeService
+	Network           *services.NetworkService
+	ImageUpdate       *services.ImageUpdateService
+	Auth              *services.AuthService
+	Oidc              *services.OidcService
+	Docker            *services.DockerClientService
+	Converter         *services.ConverterService
+	Template          *services.TemplateService
+	ContainerRegistry *services.ContainerRegistryService
+	System            *services.SystemService
+	Updater           *services.UpdaterService
+	Event             *services.EventService
+}
 
-	appServices := &api.Services{
-		User:              userService,
-		Stack:             stackService,
-		Environment:       environmentService,
-		Settings:          settingsService,
-		Container:         containerService,
-		Image:             imageService,
-		Volume:            volumeService,
-		Network:           networkService,
-		Auth:              authService,
-		Oidc:              oidcService,
-		Docker:            dockerClientService,
-		Converter:         converterService,
-		Template:          templateService,
-		ContainerRegistry: containerRegistry,
-		System:            systemService,
-		Updater:           updaterService,
-		ImageUpdate:       imageUpdate,
-		Event:             eventService,
-	}
+func initializeServices(db *database.DB, cfg *config.Config) (*Services, *services.DockerClientService, error) {
+	svc := &Services{}
 
-	return appServices, dockerClientService, nil
+	svc.Event = services.NewEventService(db)
+	svc.Converter = services.NewConverterService()
+	svc.Settings = services.NewSettingsService(db, cfg)
+	dockerClient := services.NewDockerClientService(db)
+	svc.Docker = dockerClient
+	svc.User = services.NewUserService(db)
+	svc.ContainerRegistry = services.NewContainerRegistryService(db)
+	svc.ImageUpdate = services.NewImageUpdateService(db, svc.Settings, svc.ContainerRegistry, svc.Docker, svc.Event)
+	svc.Image = services.NewImageService(db, svc.Docker, svc.ContainerRegistry, svc.ImageUpdate, svc.Event)
+	svc.Stack = services.NewStackService(db, svc.Settings, svc.Event, svc.Image)
+	svc.Environment = services.NewEnvironmentService(db)
+	svc.Container = services.NewContainerService(db, svc.Event, svc.Docker)
+	svc.Volume = services.NewVolumeService(db, svc.Docker, svc.Event)
+	svc.Network = services.NewNetworkService(db, svc.Docker, svc.Event)
+	svc.Template = services.NewTemplateService(db)
+	svc.Auth = services.NewAuthService(svc.User, svc.Settings, svc.Event, cfg.JWTSecret, cfg)
+	svc.Oidc = services.NewOidcService(svc.Auth, cfg)
+	svc.Updater = services.NewUpdaterService(db, svc.Settings, svc.Docker, svc.Stack, svc.ImageUpdate, svc.ContainerRegistry, svc.Event, svc.Image)
+	svc.System = services.NewSystemService(db, svc.Docker, svc.Container, svc.Image, svc.Volume, svc.Network, svc.Settings)
+
+	return svc, dockerClient, nil
 }

@@ -16,11 +16,16 @@ type OidcHandler struct {
 	appConfig   *config.Config
 }
 
-func NewOidcHandler(authService *services.AuthService, oidcService *services.OidcService, appConfig *config.Config) *OidcHandler {
-	return &OidcHandler{
-		authService: authService,
-		oidcService: oidcService,
-		appConfig:   appConfig,
+func NewOidcHandler(group *gin.RouterGroup, authService *services.AuthService, oidcService *services.OidcService, appConfig *config.Config) {
+
+	handler := &OidcHandler{authService: authService, oidcService: oidcService, appConfig: appConfig}
+
+	apiGroup := group.Group("/oidc")
+	{
+		apiGroup.POST("/url", handler.GetOidcAuthUrl)
+		apiGroup.POST("/callback", handler.HandleOidcCallback)
+		apiGroup.GET("/config", handler.GetOidcConfig)
+		apiGroup.GET("/status", handler.GetOidcStatus)
 	}
 }
 

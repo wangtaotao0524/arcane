@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -12,9 +13,13 @@ type ConverterHandler struct {
 	converterService *services.ConverterService
 }
 
-func NewConverterHandler(converterService *services.ConverterService) *ConverterHandler {
-	return &ConverterHandler{
-		converterService: converterService,
+func NewConverterHandler(group *gin.RouterGroup, converterService *services.ConverterService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &ConverterHandler{converterService: converterService}
+
+	apiGroup := group.Group("/convert")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.POST("", handler.ConvertDockerRun)
 	}
 }
 

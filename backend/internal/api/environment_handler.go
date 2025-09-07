@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
@@ -26,21 +27,69 @@ type EnvironmentHandler struct {
 	stackService       *services.StackService
 }
 
-func NewEnvironmentHandler(
-	environmentService *services.EnvironmentService,
-	containerService *services.ContainerService,
-	imageService *services.ImageService,
-	networkService *services.NetworkService,
-	volumeService *services.VolumeService,
-	stackService *services.StackService,
-) *EnvironmentHandler {
-	return &EnvironmentHandler{
-		environmentService: environmentService,
-		containerService:   containerService,
-		imageService:       imageService,
-		networkService:     networkService,
-		volumeService:      volumeService,
-		stackService:       stackService,
+func NewEnvironmentHandler(group *gin.RouterGroup, environmentService *services.EnvironmentService, containerService *services.ContainerService, imageService *services.ImageService, networkService *services.NetworkService, volumeService *services.VolumeService, stackService *services.StackService, authMiddleware *middleware.AuthMiddleware) {
+
+	handler := &EnvironmentHandler{environmentService: environmentService, containerService: containerService, imageService: imageService, networkService: networkService, volumeService: volumeService, stackService: stackService}
+
+	apiGroup := group.Group("/environments")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.ListEnvironments)
+		apiGroup.POST("", handler.CreateEnvironment)
+		apiGroup.GET("/:id", handler.GetEnvironment)
+		apiGroup.PUT("/:id", handler.UpdateEnvironment)
+		apiGroup.DELETE("/:id", handler.DeleteEnvironment)
+		apiGroup.POST("/:id/test", handler.TestConnection)
+		apiGroup.POST("/:id/heartbeat", handler.UpdateHeartbeat)
+
+		apiGroup.POST("/:id/containers", handler.CreateContainer)
+		apiGroup.GET("/:id/containers", handler.GetContainers)
+		apiGroup.GET("/:id/containers/:containerId", handler.GetContainer)
+		apiGroup.POST("/:id/containers/:containerId/pull", handler.PullContainerImage)
+		apiGroup.POST("/:id/containers/:containerId/start", handler.StartContainer)
+		apiGroup.POST("/:id/containers/:containerId/stop", handler.StopContainer)
+		apiGroup.POST("/:id/containers/:containerId/restart", handler.RestartContainer)
+		apiGroup.DELETE("/:id/containers/:containerId", handler.RemoveContainer)
+		apiGroup.GET("/:id/containers/:containerId/logs", handler.GetContainerLogs)
+		apiGroup.GET("/:id/containers/:containerId/logs/stream", handler.GetContainerLogsStream)
+		apiGroup.GET("/:id/containers/:containerId/stats", handler.GetContainerStats)
+		apiGroup.GET("/:id/containers/:containerId/stats/stream", handler.GetContainerStatsStream)
+
+		apiGroup.GET("/:id/images", handler.GetImages)
+		apiGroup.GET("/:id/images/:imageId", handler.GetImage)
+		apiGroup.DELETE("/:id/images/:imageId", handler.RemoveImage)
+		apiGroup.POST("/:id/images/pull", handler.PullImage)
+		apiGroup.POST("/:id/images/prune", handler.PruneImages)
+		apiGroup.GET("/:id/images/total-size", handler.GetTotalImageSize)
+
+		apiGroup.GET("/:id/networks", handler.GetNetworks)
+		apiGroup.POST("/:id/networks", handler.CreateNetwork)
+		apiGroup.GET("/:id/networks/:networkId", handler.GetNetwork)
+		apiGroup.DELETE("/:id/networks/:networkId", handler.RemoveNetwork)
+
+		apiGroup.GET("/:id/volumes", handler.GetVolumes)
+		apiGroup.POST("/:id/volumes", handler.CreateVolume)
+		apiGroup.GET("/:id/volumes/:volumeName", handler.GetVolume)
+		apiGroup.DELETE("/:id/volumes/:volumeName", handler.RemoveVolume)
+		apiGroup.GET("/:id/volumes/:volumeName/usage", handler.GetVolumeUsage)
+		apiGroup.POST("/:id/volumes/prune", handler.PruneVolumes)
+
+		apiGroup.GET("/:id/stacks", handler.GetStacks)
+		apiGroup.POST("/:id/stacks", handler.CreateStack)
+		apiGroup.GET("/:id/stacks/:stackId", handler.GetStack)
+		apiGroup.PUT("/:id/stacks/:stackId", handler.UpdateStack)
+		apiGroup.DELETE("/:id/stacks/:stackId", handler.DeleteStack)
+		apiGroup.POST("/:id/stacks/:stackId/start", handler.StartStack)
+		apiGroup.POST("/:id/stacks/:stackId/deploy", handler.DeployStack)
+		apiGroup.POST("/:id/stacks/:stackId/stop", handler.StopStack)
+		apiGroup.POST("/:id/stacks/:stackId/restart", handler.RestartStack)
+		apiGroup.GET("/:id/stacks/:stackId/services", handler.GetStackServices)
+		apiGroup.POST("/:id/stacks/:stackId/pull", handler.PullStackImages)
+		apiGroup.POST("/:id/stacks/:stackId/redeploy", handler.RedeployStack)
+		apiGroup.POST("/:id/stacks/:stackId/down", handler.DownStack)
+		apiGroup.DELETE("/:id/stacks/:stackId/destroy", handler.DestroyStack)
+		apiGroup.GET("/:id/stacks/:stackId/logs/stream", handler.GetStackLogsStream)
+		apiGroup.POST("/:id/stacks/convert", handler.ConvertDockerRun)
 	}
 }
 
@@ -79,7 +128,10 @@ func (h *EnvironmentHandler) handleLocalRequest(c *gin.Context, endpoint string)
 }
 
 func (h *EnvironmentHandler) handleContainerEndpoints(c *gin.Context, endpoint string) bool {
-	containerHandler := NewContainerHandler(h.containerService, h.imageService)
+	containerHandler := &ContainerHandler{
+		containerService: h.containerService,
+		imageService:     h.imageService,
+	}
 
 	switch {
 	case endpoint == "/containers" && c.Request.Method == http.MethodGet:
@@ -123,7 +175,10 @@ func (h *EnvironmentHandler) handleContainerEndpoints(c *gin.Context, endpoint s
 }
 
 func (h *EnvironmentHandler) handleImageEndpoints(c *gin.Context, endpoint string) bool {
-	imageHandler := NewImageHandler(h.imageService, nil)
+	imageHandler := &ImageHandler{
+		imageService:       h.imageService,
+		imageUpdateService: nil,
+	}
 
 	switch {
 	case endpoint == "/images" && c.Request.Method == http.MethodGet:
@@ -149,7 +204,9 @@ func (h *EnvironmentHandler) handleImageEndpoints(c *gin.Context, endpoint strin
 }
 
 func (h *EnvironmentHandler) handleNetworkEndpoints(c *gin.Context, endpoint string) bool {
-	networkHandler := NewNetworkHandler(h.networkService)
+	networkHandler := &NetworkHandler{
+		networkService: h.networkService,
+	}
 
 	switch {
 	case endpoint == "/networks" && c.Request.Method == http.MethodGet:
@@ -169,7 +226,9 @@ func (h *EnvironmentHandler) handleNetworkEndpoints(c *gin.Context, endpoint str
 }
 
 func (h *EnvironmentHandler) handleVolumeEndpoints(c *gin.Context, endpoint string) bool {
-	volumeHandler := NewVolumeHandler(h.volumeService)
+	volumeHandler := &VolumeHandler{
+		volumeService: h.volumeService,
+	}
 
 	switch {
 	case endpoint == "/volumes" && c.Request.Method == http.MethodGet:
@@ -195,7 +254,9 @@ func (h *EnvironmentHandler) handleVolumeEndpoints(c *gin.Context, endpoint stri
 }
 
 func (h *EnvironmentHandler) handleStackEndpoints(c *gin.Context, endpoint string) bool {
-	stackHandler := NewStackHandler(h.stackService)
+	stackHandler := &StackHandler{
+		stackService: h.stackService,
+	}
 
 	switch {
 	case endpoint == "/stacks" && c.Request.Method == http.MethodGet:

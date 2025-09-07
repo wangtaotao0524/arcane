@@ -17,14 +17,30 @@ import (
 )
 
 type StackHandler struct {
-	stackService     *services.StackService
-	converterService *services.ConverterService
+	stackService *services.StackService
 }
 
-func NewStackHandler(stackService *services.StackService) *StackHandler {
-	return &StackHandler{
-		stackService:     stackService,
-		converterService: services.NewConverterService(),
+func NewStackHandler(group *gin.RouterGroup, stackService *services.StackService, authMiddleware *middleware.AuthMiddleware) {
+
+	handler := &StackHandler{stackService: stackService}
+
+	apiGroup := group.Group("/stacks")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.ListStacks)
+		apiGroup.POST("", handler.CreateStack)
+		apiGroup.GET("/:id", handler.GetStack)
+		apiGroup.PUT("/:id", handler.UpdateStack)
+		apiGroup.DELETE("/:id", handler.DeleteStack)
+		apiGroup.POST("/:id/deploy", handler.DeployStack)
+		apiGroup.POST("/:id/stop", handler.StopStack)
+		apiGroup.POST("/:id/restart", handler.RestartStack)
+		apiGroup.GET("/:id/services", handler.GetStackServices)
+		apiGroup.POST("/:id/pull", handler.PullImages)
+		apiGroup.POST("/:id/redeploy", handler.RedeployStack)
+		apiGroup.POST("/:id/down", handler.DownStack)
+		apiGroup.DELETE("/:id/destroy", handler.DestroyStack)
+		apiGroup.GET("/:id/logs/stream", handler.GetStackLogsStream)
 	}
 }
 

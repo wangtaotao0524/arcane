@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
@@ -22,10 +23,19 @@ type SystemHandler struct {
 	systemService *services.SystemService
 }
 
-func NewSystemHandler(dockerService *services.DockerClientService, systemService *services.SystemService) *SystemHandler {
-	return &SystemHandler{
-		dockerService: dockerService,
-		systemService: systemService,
+func NewSystemHandler(group *gin.RouterGroup, dockerService *services.DockerClientService, systemService *services.SystemService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &SystemHandler{dockerService: dockerService, systemService: systemService}
+
+	apiGroup := group.Group("/system")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("/stats", handler.GetStats)
+		apiGroup.GET("/docker/info", handler.GetDockerInfo)
+
+		apiGroup.POST("/prune", handler.PruneAll)
+		apiGroup.POST("/containers/start-all", handler.StartAllContainers)
+		apiGroup.POST("/containers/start-stopped", handler.StartAllStoppedContainers)
+		apiGroup.POST("/containers/stop-all", handler.StopAllContainers)
 	}
 }
 

@@ -36,6 +36,7 @@
 	const effectiveUser = $derived(user ?? storeUser);
 
 	const isCollapsed = $derived(sidebar.state === 'collapsed');
+	const isAdmin = $derived(!!effectiveUser?.roles?.includes('admin'));
 </script>
 
 <Sidebar.Root {collapsible} {...restProps}>
@@ -46,8 +47,10 @@
 	<Sidebar.Content>
 		<SidebarItemGroup label="Management" items={sidebarItems.managementItems} />
 		<SidebarItemGroup label="Customization" items={sidebarItems.customizationItems} />
-		<SidebarItemGroup label="Environments" items={sidebarItems.environmentItems} />
-		<SidebarItemGroup label="Administration" items={sidebarItems.settingsItems} />
+		{#if isAdmin}
+			<SidebarItemGroup label="Environments" items={sidebarItems.environmentItems} />
+			<SidebarItemGroup label="Administration" items={sidebarItems.settingsItems} />
+		{/if}
 	</Sidebar.Content>
 	<Sidebar.Footer>
 		<SidebarUpdatebanner {isCollapsed} {versionInformation} updateAvailable={versionInformation.updateAvailable} />

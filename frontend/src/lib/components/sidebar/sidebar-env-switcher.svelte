@@ -11,6 +11,12 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 
+	type Props = {
+		isAdmin?: boolean;
+	};
+
+	let { isAdmin = false }: Props = $props();
+
 	const sidebar = useSidebar();
 
 	let currentSelectedEnvironment = $state<Environment | null>(null);
@@ -121,12 +127,14 @@
 					{/each}
 				{/if}
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item class="gap-2 p-2" onSelect={() => goto('/environments')}>
-					<div class="flex size-6 items-center justify-center rounded-md border bg-transparent">
-						<PlusIcon class="size-4" />
-					</div>
-					<div class="text-muted-foreground font-medium">Manage Environments</div>
-				</DropdownMenu.Item>
+				{#if isAdmin}
+					<DropdownMenu.Item class="gap-2 p-2" onSelect={() => goto('/environments')}>
+						<div class="flex size-6 items-center justify-center rounded-md border bg-transparent">
+							<PlusIcon class="size-4" />
+						</div>
+						<div class="text-muted-foreground font-medium">Manage Environments</div>
+					</DropdownMenu.Item>
+				{/if}
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	</Sidebar.MenuItem>

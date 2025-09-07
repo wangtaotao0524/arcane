@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
@@ -15,9 +16,18 @@ type UserHandler struct {
 	userService *services.UserService
 }
 
-func NewUserHandler(userService *services.UserService) *UserHandler {
-	return &UserHandler{
-		userService: userService,
+func NewUserHandler(group *gin.RouterGroup, userService *services.UserService, authMiddleware *middleware.AuthMiddleware) {
+
+	handler := &UserHandler{userService: userService}
+
+	apiGroup := group.Group("/users")
+	apiGroup.Use(authMiddleware.WithAdminRequired().Add())
+	{
+		apiGroup.GET("", handler.ListUsers)
+		apiGroup.POST("", handler.CreateUser)
+		apiGroup.GET("/:id", handler.GetUser)
+		apiGroup.PUT("/:id", handler.UpdateUser)
+		apiGroup.DELETE("/:id", handler.DeleteUser)
 	}
 }
 

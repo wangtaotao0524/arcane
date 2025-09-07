@@ -18,10 +18,19 @@ type ImageHandler struct {
 	imageUpdateService *services.ImageUpdateService
 }
 
-func NewImageHandler(imageService *services.ImageService, imageUpdateService *services.ImageUpdateService) *ImageHandler {
-	return &ImageHandler{
-		imageService:       imageService,
-		imageUpdateService: imageUpdateService,
+func NewImageHandler(group *gin.RouterGroup, imageService *services.ImageService, imageUpdateService *services.ImageUpdateService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &ImageHandler{imageService: imageService, imageUpdateService: imageUpdateService}
+
+	apiGroup := group.Group("/images")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.List)
+		apiGroup.GET("/:id", handler.GetByID)
+		apiGroup.DELETE("/:id", handler.Remove)
+		apiGroup.POST("/pull", handler.Pull)
+		apiGroup.POST("/prune", handler.Prune)
+		apiGroup.GET("/:id/history", handler.GetHistory)
+		apiGroup.GET("/total-size", handler.GetTotalSize)
 	}
 }
 

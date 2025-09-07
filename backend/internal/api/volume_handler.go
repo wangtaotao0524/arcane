@@ -7,17 +7,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/middleware"
-	github_com_ofkm_arcane_backend_internal_services "github.com/ofkm/arcane-backend/internal/services"
+	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
 
 type VolumeHandler struct {
-	volumeService *github_com_ofkm_arcane_backend_internal_services.VolumeService
+	volumeService *services.VolumeService
 }
 
-func NewVolumeHandler(volumeService *github_com_ofkm_arcane_backend_internal_services.VolumeService) *VolumeHandler {
-	return &VolumeHandler{
-		volumeService: volumeService,
+func NewVolumeHandler(group *gin.RouterGroup, volumeService *services.VolumeService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &VolumeHandler{volumeService: volumeService}
+
+	apiGroup := group.Group("/volumes")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.List)
+		apiGroup.GET("/:volumeName", handler.GetByName)
+		apiGroup.POST("", handler.Create)
+		apiGroup.DELETE("/:volumeName", handler.Remove)
+		apiGroup.POST("/prune", handler.Prune)
+		apiGroup.GET("/:volumeName/usage", handler.GetUsage)
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/ofkm/arcane-backend/internal/api"
 	"github.com/ofkm/arcane-backend/internal/job"
 )
 
@@ -17,7 +16,7 @@ func initializeScheduler() (*job.Scheduler, error) {
 	return scheduler, nil
 }
 
-func registerJobs(appCtx context.Context, scheduler *job.Scheduler, appServices *api.Services) {
+func registerJobs(appCtx context.Context, scheduler *job.Scheduler, appServices *Services) {
 	if err := job.RegisterAutoUpdateJob(appCtx, scheduler, appServices.Updater, appServices.Settings); err != nil {
 		slog.ErrorContext(appCtx, "Failed to register auto-update job", slog.Any("error", err))
 	}

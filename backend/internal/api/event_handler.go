@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
 )
@@ -15,9 +16,16 @@ type EventHandler struct {
 	eventService *services.EventService
 }
 
-func NewEventHandler(eventService *services.EventService) *EventHandler {
-	return &EventHandler{
-		eventService: eventService,
+func NewEventHandler(group *gin.RouterGroup, eventService *services.EventService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &EventHandler{eventService: eventService}
+
+	apiGroup := group.Group("/events")
+	apiGroup.Use(authMiddleware.WithAdminRequired().Add())
+	{
+		apiGroup.GET("", handler.ListEvents)
+		apiGroup.POST("", handler.CreateEvent)
+		apiGroup.DELETE("/:eventId", handler.DeleteEvent)
+		apiGroup.GET("/environment/:environmentId", handler.GetEventsByEnvironment)
 	}
 }
 

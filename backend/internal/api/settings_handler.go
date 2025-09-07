@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
@@ -12,10 +13,14 @@ type SettingsHandler struct {
 	settingsService *services.SettingsService
 }
 
-func NewSettingsHandler(settingsService *services.SettingsService) *SettingsHandler {
-	return &SettingsHandler{
-		settingsService: settingsService,
-	}
+func NewSettingsHandler(group *gin.RouterGroup, settingsService *services.SettingsService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &SettingsHandler{settingsService: settingsService}
+
+	apiGroup := group.Group("/settings")
+
+	apiGroup.GET("/public", handler.GetPublicSettings)
+	apiGroup.GET("", authMiddleware.WithAdminNotRequired().Add(), handler.GetSettings)
+	apiGroup.PUT("", authMiddleware.WithAdminRequired().Add(), handler.UpdateSettings)
 }
 
 func (h *SettingsHandler) GetSettings(c *gin.Context) {

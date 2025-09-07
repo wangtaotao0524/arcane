@@ -15,9 +15,19 @@ type NetworkHandler struct {
 	networkService *services.NetworkService
 }
 
-func NewNetworkHandler(networkService *services.NetworkService) *NetworkHandler {
-	return &NetworkHandler{
-		networkService: networkService,
+func NewNetworkHandler(group *gin.RouterGroup, networkService *services.NetworkService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &NetworkHandler{networkService: networkService}
+
+	apiGroup := group.Group("/networks")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.List)
+		apiGroup.GET("/:id", handler.GetByID)
+		apiGroup.POST("", handler.Create)
+		apiGroup.DELETE("/:id", handler.Remove)
+		apiGroup.POST("/:id/connect", handler.ConnectContainer)
+		apiGroup.POST("/:id/disconnect", handler.DisconnectContainer)
+		apiGroup.POST("/prune", handler.Prune)
 	}
 }
 

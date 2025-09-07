@@ -20,10 +20,23 @@ type ContainerHandler struct {
 	imageService     *services.ImageService
 }
 
-func NewContainerHandler(containerService *services.ContainerService, imageService *services.ImageService) *ContainerHandler {
-	return &ContainerHandler{
-		containerService: containerService,
-		imageService:     imageService,
+func NewContainerHandler(group *gin.RouterGroup, containerService *services.ContainerService, imageService *services.ImageService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &ContainerHandler{containerService: containerService, imageService: imageService}
+
+	apiGroup := group.Group("/containers")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.List)
+		apiGroup.POST("", handler.Create)
+		apiGroup.GET("/:id", handler.GetByID)
+		apiGroup.GET("/:id/stats", handler.GetStats)
+		apiGroup.GET("/:id/stats/stream", handler.GetStatsStream)
+		apiGroup.POST("/:id/start", handler.Start)
+		apiGroup.POST("/:id/stop", handler.Stop)
+		apiGroup.POST("/:id/restart", handler.Restart)
+		apiGroup.GET("/:id/logs", handler.GetLogs)
+		apiGroup.GET("/:id/logs/stream", handler.GetLogsStream)
+		apiGroup.DELETE("/:id", handler.Delete)
 	}
 }
 

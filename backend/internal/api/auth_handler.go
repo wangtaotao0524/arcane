@@ -17,11 +17,16 @@ type AuthHandler struct {
 	oidcService *services.OidcService
 }
 
-func NewAuthHandler(userService *services.UserService, authService *services.AuthService, oidcService *services.OidcService) *AuthHandler {
-	return &AuthHandler{
-		userService: userService,
-		authService: authService,
-		oidcService: oidcService,
+func NewAuthHandler(group *gin.RouterGroup, userService *services.UserService, authService *services.AuthService, oidcService *services.OidcService, authMiddleware *middleware.AuthMiddleware) {
+	ah := &AuthHandler{userService: userService, authService: authService, oidcService: oidcService}
+
+	authApiGroup := group.Group("/auth")
+	{
+		authApiGroup.POST("/login", ah.Login)
+		authApiGroup.POST("/logout", ah.Logout)
+		authApiGroup.GET("/me", authMiddleware.WithAdminNotRequired().Add(), ah.GetCurrentUser)
+		authApiGroup.POST("/refresh", ah.RefreshToken)
+		authApiGroup.POST("/password", authMiddleware.WithAdminNotRequired().Add(), ah.ChangePassword)
 	}
 }
 

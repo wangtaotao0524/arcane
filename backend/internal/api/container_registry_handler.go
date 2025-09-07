@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 	"github.com/ofkm/arcane-backend/internal/utils"
@@ -17,9 +18,19 @@ type ContainerRegistryHandler struct {
 	registryService *services.ContainerRegistryService
 }
 
-func NewContainerRegistryHandler(registryService *services.ContainerRegistryService) *ContainerRegistryHandler {
-	return &ContainerRegistryHandler{
-		registryService: registryService,
+func NewContainerRegistryHandler(group *gin.RouterGroup, registryService *services.ContainerRegistryService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &ContainerRegistryHandler{registryService: registryService}
+
+	apiGroup := group.Group("/container-registries")
+
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.GET("", handler.GetRegistries)
+		apiGroup.POST("", handler.CreateRegistry)
+		apiGroup.GET("/:id", handler.GetRegistry)
+		apiGroup.PUT("/:id", handler.UpdateRegistry)
+		apiGroup.DELETE("/:id", handler.DeleteRegistry)
+		apiGroup.POST("/:id/test", handler.TestRegistry)
 	}
 }
 

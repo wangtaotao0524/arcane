@@ -11,8 +11,8 @@ import (
 )
 
 func init() {
-	registerPlaywrightRoutes = []func(apiGroup *gin.RouterGroup, services *api.Services){
-		func(apiGroup *gin.RouterGroup, svc *api.Services) {
+	registerPlaywrightRoutes = []func(apiGroup *gin.RouterGroup, services *Services){
+		func(apiGroup *gin.RouterGroup, svc *Services) {
 			playwrightService := services.NewPlaywrightService(svc.Settings)
 			if playwrightService == nil {
 				slog.Warn("Playwright service not available, skipping playwright routes")

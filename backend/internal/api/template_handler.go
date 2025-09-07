@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
@@ -19,9 +20,29 @@ type TemplateHandler struct {
 	templateService *services.TemplateService
 }
 
-func NewTemplateHandler(templateService *services.TemplateService) *TemplateHandler {
-	return &TemplateHandler{
-		templateService: templateService,
+func NewTemplateHandler(group *gin.RouterGroup, templateService *services.TemplateService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &TemplateHandler{templateService: templateService}
+
+	apiGroup := group.Group("/templates")
+
+	apiGroup.GET("/fetch", handler.FetchRegistry)
+
+	apiGroup.GET("", authMiddleware.WithAdminNotRequired().WithSuccessOptional().Add(), handler.GetAllTemplates)
+	apiGroup.GET("/:id", authMiddleware.WithAdminNotRequired().WithSuccessOptional().Add(), handler.GetTemplate)
+	apiGroup.GET("/:id/content", authMiddleware.WithAdminNotRequired().WithSuccessOptional().Add(), handler.GetTemplateContent)
+
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.POST("", handler.CreateTemplate)
+		apiGroup.PUT("/:id", handler.UpdateTemplate)
+		apiGroup.DELETE("/:id", handler.DeleteTemplate)
+		apiGroup.POST("/:id/download", handler.DownloadTemplate)
+		apiGroup.GET("/env/default", handler.GetEnvTemplate)
+		apiGroup.POST("/env/default", handler.SaveEnvTemplate)
+		apiGroup.GET("/registries", handler.GetRegistries)
+		apiGroup.POST("/registries", handler.CreateRegistry)
+		apiGroup.PUT("/registries/:id", handler.UpdateRegistry)
+		apiGroup.DELETE("/registries/:id", handler.DeleteRegistry)
 	}
 }
 

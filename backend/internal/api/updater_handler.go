@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ofkm/arcane-backend/internal/dto"
+	"github.com/ofkm/arcane-backend/internal/middleware"
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
@@ -13,8 +14,16 @@ type UpdaterHandler struct {
 	updaterService *services.UpdaterService
 }
 
-func NewUpdaterHandler(updaterService *services.UpdaterService) *UpdaterHandler {
-	return &UpdaterHandler{updaterService: updaterService}
+func NewUpdaterHandler(group *gin.RouterGroup, updaterService *services.UpdaterService, authMiddleware *middleware.AuthMiddleware) {
+	handler := &UpdaterHandler{updaterService: updaterService}
+
+	apiGroup := group.Group("/updater")
+	apiGroup.Use(authMiddleware.WithAdminNotRequired().Add())
+	{
+		apiGroup.POST("/run", handler.Run)
+		apiGroup.GET("/history", handler.History)
+		apiGroup.GET("/status", handler.Status)
+	}
 }
 
 func (h *UpdaterHandler) Run(c *gin.Context) {

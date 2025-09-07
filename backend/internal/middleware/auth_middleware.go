@@ -9,20 +9,52 @@ import (
 	"github.com/ofkm/arcane-backend/internal/services"
 )
 
-func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
+type AuthOptions struct {
+	AdminRequired   bool
+	SuccessOptional bool
+}
+
+type AuthMiddleware struct {
+	authService *services.AuthService
+	options     AuthOptions
+}
+
+func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
+	return &AuthMiddleware{
+		authService: authService,
+		options: AuthOptions{
+			AdminRequired:   false,
+			SuccessOptional: false,
+		},
+	}
+}
+
+func (m *AuthMiddleware) WithAdminRequired() *AuthMiddleware {
+	clone := *m
+	clone.options.AdminRequired = true
+	return &clone
+}
+
+func (m *AuthMiddleware) WithAdminNotRequired() *AuthMiddleware {
+	clone := *m
+	clone.options.AdminRequired = false
+	return &clone
+}
+
+func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
+	clone := *m
+	clone.options.SuccessOptional = true
+	return &clone
+}
+
+func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		var tokenString string
-		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
-		}
-		if tokenString == "" {
-			tokenCookie, err := c.Cookie("token")
-			if err == nil {
-				tokenString = tokenCookie
+		token := extractBearerOrCookieToken(c)
+		if token == "" {
+			if m.options.SuccessOptional {
+				c.Next()
+				return
 			}
-		}
-		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, models.APIError{
 				Code:    models.APIErrorCodeUnauthorized,
 				Message: "Authentication required",
@@ -30,8 +62,13 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		user, err := authService.VerifyToken(c.Request.Context(), tokenString)
+
+		user, err := m.authService.VerifyToken(c.Request.Context(), token)
 		if err != nil {
+			if m.options.SuccessOptional {
+				c.Next()
+				return
+			}
 			c.JSON(http.StatusUnauthorized, models.APIError{
 				Code:    models.APIErrorCodeUnauthorized,
 				Message: "Invalid or expired token",
@@ -40,13 +77,62 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		// Store both userID and full user for handlers that expect currentUser
+		isAdmin := userHasRole(user, "admin")
+		if m.options.AdminRequired && !isAdmin {
+			if m.options.SuccessOptional {
+				c.Next()
+				return
+			}
+			c.JSON(http.StatusForbidden, models.APIError{
+				Code:    "FORBIDDEN",
+				Message: "You don't have permission to access this resource",
+			})
+			c.Abort()
+			return
+		}
+
 		c.Set("userID", user.ID)
 		c.Set("currentUser", user)
-
+		c.Set("userIsAdmin", isAdmin)
 		c.Next()
 	}
 }
+
+func extractBearerOrCookieToken(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+	if tokenCookie, err := c.Cookie("token"); err == nil && tokenCookie != "" {
+		return tokenCookie
+	}
+	return ""
+}
+
+func userHasRole(user *models.User, role string) bool {
+	for _, r := range user.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// Backward-compatible helpers
+
+// func AuthMiddlewareHandler(authService *services.AuthService) gin.HandlerFunc {
+// 	return NewAuthMiddleware(authService).WithAdminNotRequired().Add()
+// }
+
+// func OptionalAuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
+// 	return NewAuthMiddleware(authService).WithAdminNotRequired().WithSuccessOptional().Add()
+// }
+
+// func AdminOnlyMiddleware(authService *services.AuthService) gin.HandlerFunc {
+// 	return NewAuthMiddleware(authService).WithAdminRequired().Add()
+// }
+
+// Accessors
 
 func GetCurrentUserID(c *gin.Context) (string, bool) {
 	userID, exists := c.Get("userID")
@@ -62,70 +148,8 @@ func GetCurrentUser(c *gin.Context) (*models.User, bool) {
 	if !exists {
 		return nil, false
 	}
-	userModel, ok := user.(*models.User)
-	return userModel, ok
-}
-
-func RoleMiddleware(roles ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user, exists := GetCurrentUser(c)
-		if !exists {
-			c.JSON(http.StatusUnauthorized, models.APIError{
-				Code:    models.APIErrorCodeUnauthorized,
-				Message: "Authentication required",
-			})
-			c.Abort()
-			return
-		}
-		hasRole := false
-		for _, requiredRole := range roles {
-			for _, userRole := range user.Roles {
-				if userRole == requiredRole {
-					hasRole = true
-					break
-				}
-			}
-			if hasRole {
-				break
-			}
-		}
-		if !hasRole {
-			c.JSON(http.StatusForbidden, models.APIError{
-				Code:    "FORBIDDEN",
-				Message: "You don't have permission to access this resource",
-			})
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
-}
-
-func OptionalAuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		var tokenString string
-		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
-		}
-		if tokenString == "" {
-			tokenCookie, err := c.Cookie("token")
-			if err == nil {
-				tokenString = tokenCookie
-			}
-		}
-		if tokenString != "" {
-			user, err := authService.VerifyToken(c.Request.Context(), tokenString)
-			if err == nil {
-				c.Set("currentUser", user)
-			}
-		}
-		c.Next()
-	}
-}
-
-func AdminOnlyMiddleware() gin.HandlerFunc {
-	return RoleMiddleware("admin")
+	u, ok := user.(*models.User)
+	return u, ok
 }
 
 func IsAuthenticated(c *gin.Context) bool {

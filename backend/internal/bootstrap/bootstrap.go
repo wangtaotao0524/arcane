@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"github.com/ofkm/arcane-backend/internal/api"
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/job"
@@ -26,18 +25,16 @@ type App struct {
 	DB        *database.DB
 	Router    *gin.Engine
 	Scheduler *job.Scheduler
-	Services  *api.Services
+	Services  *Services
 	AppCtx    context.Context
 	CancelApp context.CancelFunc
 }
 
 func InitializeApp() (*App, error) {
 	ctx := context.Background()
-
 	loadErr := godotenv.Load()
-
 	cfg := config.Load()
-
+	utils.InitEncryption(cfg)
 	SetupLogger(cfg)
 	ConfigureGormLogger(cfg)
 
@@ -46,8 +43,6 @@ func InitializeApp() (*App, error) {
 	}
 
 	appCtx, cancelApp := context.WithCancel(ctx)
-
-	utils.InitEncryption(cfg)
 
 	db, err := initializeDBAndMigrate(cfg)
 	if err != nil {
