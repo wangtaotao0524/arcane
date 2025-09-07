@@ -109,11 +109,10 @@ func (s *AuthService) GetSessionTimeout(ctx context.Context) (int, error) {
 		return 60, err
 	}
 
-	timeoutSeconds := settings.AuthSessionTimeout.AsInt()
-	if timeoutSeconds <= 0 {
-		timeoutSeconds = 3600 // 1 hour default in seconds
+	minutes := settings.AuthSessionTimeout.AsInt()
+	if minutes <= 0 {
+		minutes = 60
 	}
-	minutes := timeoutSeconds / 60
 
 	if minutes < 15 {
 		minutes = 15
@@ -127,7 +126,7 @@ func (s *AuthService) GetSessionTimeout(ctx context.Context) (int, error) {
 func (s *AuthService) IsLocalAuthEnabled(ctx context.Context) (bool, error) {
 	settings, err := s.settingsService.GetSettings(ctx)
 	if err != nil {
-		return true, err // Default to enabled
+		return true, err
 	}
 	return settings.AuthLocalEnabled.IsTrue(), nil
 }
@@ -541,7 +540,7 @@ func (s *AuthService) generateTokenPair(ctx context.Context, user *models.User) 
 	sessionTimeout, _ := s.GetSessionTimeout(ctx)
 
 	accessTokenExpiry := time.Now().Add(time.Duration(sessionTimeout) * time.Minute)
-	slog.DebugContext(ctx, "accessTokenExpiry", "expiry", accessTokenExpiry)
+	slog.WarnContext(ctx, "accessTokenExpiry", "expiry", accessTokenExpiry)
 
 	userClaims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
