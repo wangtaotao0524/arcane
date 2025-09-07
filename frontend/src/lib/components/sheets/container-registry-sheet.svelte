@@ -53,6 +53,13 @@
 		if (!newOpenState) {
 			registryToEdit = null;
 		}
+
+		if ($inputs.url) $inputs.url.value = '';
+		if ($inputs.username) $inputs.username.value = '';
+		if ($inputs.token) $inputs.token.value = '';
+		if ($inputs.description) $inputs.description.value = '';
+		if ($inputs.insecure) $inputs.insecure.value = false;
+		if ($inputs.enabled) $inputs.enabled.value = true;
 	}
 </script>
 

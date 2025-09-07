@@ -20,55 +20,59 @@
 		| 'rose'
 		| 'orange';
 
+	type Size = 'sm' | 'md' | 'lg';
 	type MinWidth = 'none' | '16' | '20' | '24' | '28';
 
 	let {
 		text,
 		variant = 'gray',
+		size = 'md',
 		minWidth = '20',
 		class: className = '',
 		...restProps
 	} = $props<{
 		text: string;
 		variant?: Variant;
+		size?: Size;
 		minWidth?: MinWidth;
 		class?: string;
 	}>();
 
 	const minWidthClasses: Record<MinWidth, string> = {
 		none: '',
-		'16': 'min-w-16', // 4rem
-		'20': 'min-w-20', // 5rem (default)
-		'24': 'min-w-24', // 6rem
-		'28': 'min-w-28' // 7rem
+		'16': 'min-w-16',
+		'20': 'min-w-20',
+		'24': 'min-w-24',
+		'28': 'min-w-28'
+	};
+
+	const sizeStyles: Record<Size, string> = {
+		sm: 'h-5 px-2 text-[12px] leading-[18px]',
+		md: 'h-6 px-2.5 text-[13px] leading-[20px]',
+		lg: 'h-7 px-3 text-[14px] leading-[22px]'
 	};
 
 	const variantStyles: Record<Variant, string> = {
-		red: 'bg-red-500/25 text-red-800 border border-red-700/30 dark:bg-red-500/30 dark:text-red-200 dark:border-red-300/30',
-		purple:
-			'bg-purple-500/25 text-purple-800 border border-purple-700/30 dark:bg-purple-500/30 dark:text-purple-200 dark:border-purple-300/30',
+		red: 'text-red-900 bg-red-200 ring-red-500 dark:text-red-300 dark:bg-red-400/15 dark:ring-red-300/25',
+		purple: 'text-purple-900 bg-purple-200 ring-purple-500 dark:text-purple-300 dark:bg-purple-400/15 dark:ring-purple-300/25',
 		green:
-			'bg-green-500/30 text-green-800 border border-green-700/30 dark:bg-green-500/35 dark:text-green-200 dark:border-green-300/30',
-		blue: 'bg-blue-500/25 text-blue-800 border border-blue-700/30 dark:bg-blue-500/30 dark:text-blue-200 dark:border-blue-300/30',
-		gray: 'bg-gray-400/25 text-gray-800 border border-gray-700/30 dark:bg-gray-400/30 dark:text-gray-200 dark:border-gray-300/30',
-		amber:
-			'bg-amber-500/30 text-amber-800 border border-amber-700/30 dark:bg-amber-500/35 dark:text-amber-200 dark:border-amber-300/30',
-		pink: 'bg-pink-500/25 text-pink-800 border border-pink-700/30 dark:bg-pink-500/30 dark:text-pink-200 dark:border-pink-300/30',
-		indigo:
-			'bg-indigo-500/25 text-indigo-800 border border-indigo-700/30 dark:bg-indigo-500/30 dark:text-indigo-200 dark:border-indigo-300/30',
-		cyan: 'bg-cyan-500/25 text-cyan-800 border border-cyan-700/30 dark:bg-cyan-500/30 dark:text-cyan-200 dark:border-cyan-300/30',
-		lime: 'bg-lime-500/25 text-lime-800 border border-lime-700/30 dark:bg-lime-500/30 dark:text-lime-200 dark:border-lime-300/30',
+			'text-emerald-900 bg-emerald-200 ring-emerald-500 dark:text-emerald-300 dark:bg-emerald-400/15 dark:ring-emerald-300/25',
+		blue: 'text-blue-900 bg-blue-200 ring-blue-500 dark:text-blue-300 dark:bg-blue-400/15 dark:ring-blue-300/25',
+		gray: 'text-gray-900 bg-gray-200 ring-gray-500 dark:text-gray-300 dark:bg-gray-400/15 dark:ring-gray-300/25',
+		amber: 'text-amber-900 bg-amber-200 ring-amber-500 dark:text-amber-300 dark:bg-amber-400/15 dark:ring-amber-300/25',
+		pink: 'text-pink-900 bg-pink-200 ring-pink-500 dark:text-pink-300 dark:bg-pink-400/15 dark:ring-pink-300/25',
+		indigo: 'text-indigo-900 bg-indigo-200 ring-indigo-500 dark:text-indigo-300 dark:bg-indigo-400/15 dark:ring-indigo-300/25',
+		cyan: 'text-cyan-900 bg-cyan-200 ring-cyan-500 dark:text-cyan-300 dark:bg-cyan-400/15 dark:ring-cyan-300/25',
+		lime: 'text-lime-900 bg-lime-200 ring-lime-500 dark:text-lime-300 dark:bg-lime-400/15 dark:ring-lime-300/25',
 		emerald:
-			'bg-emerald-500/30 text-emerald-800 border border-emerald-700/30 dark:bg-emerald-500/35 dark:text-emerald-200 dark:border-emerald-300/30',
-		teal: 'bg-teal-500/25 text-teal-800 border border-teal-700/30 dark:bg-teal-500/30 dark:text-teal-200 dark:border-teal-300/30',
-		sky: 'bg-sky-500/25 text-sky-800 border border-sky-700/30 dark:bg-sky-500/30 dark:text-sky-200 dark:border-sky-300/30',
-		violet:
-			'bg-violet-500/25 text-violet-800 border border-violet-700/30 dark:bg-violet-500/30 dark:text-violet-200 dark:border-violet-300/30',
+			'text-emerald-900 bg-emerald-200 ring-emerald-500 dark:text-emerald-300 dark:bg-emerald-400/15 dark:ring-emerald-300/25',
+		teal: 'text-teal-900 bg-teal-200 ring-teal-500 dark:text-teal-300 dark:bg-teal-400/15 dark:ring-teal-300/25',
+		sky: 'text-sky-900 bg-sky-200 ring-sky-500 dark:text-sky-300 dark:bg-sky-400/15 dark:ring-sky-300/25',
+		violet: 'text-violet-900 bg-violet-200 ring-violet-500 dark:text-violet-300 dark:bg-violet-400/15 dark:ring-violet-300/25',
 		fuchsia:
-			'bg-fuchsia-500/25 text-fuchsia-800 border border-fuchsia-700/30 dark:bg-fuchsia-500/30 dark:text-fuchsia-200 dark:border-fuchsia-300/30',
-		rose: 'bg-rose-500/25 text-rose-800 border border-rose-700/30 dark:bg-rose-500/30 dark:text-rose-200 dark:border-rose-300/30',
-		orange:
-			'bg-orange-500/25 text-orange-800 border border-orange-700/30 dark:bg-orange-500/30 dark:text-orange-200 dark:border-orange-300/30'
+			'text-fuchsia-900 bg-fuchsia-200 ring-fuchsia-500 dark:text-fuchsia-300 dark:bg-fuchsia-400/15 dark:ring-fuchsia-300/25',
+		rose: 'text-rose-900 bg-rose-200 ring-rose-500 dark:text-rose-300 dark:bg-rose-400/15 dark:ring-rose-300/25',
+		orange: 'text-orange-900 bg-orange-200 ring-orange-500 dark:text-orange-300 dark:bg-orange-400/15 dark:ring-orange-300/25'
 	};
 
 	const resolvedMinWidth = minWidth as MinWidth;
@@ -76,9 +80,15 @@
 
 <span
 	class={cn(
-		'inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-center text-xs font-medium whitespace-nowrap',
-		minWidthClasses[resolvedMinWidth],
+		// base
+		'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-full font-medium',
+		sizeStyles[size as Size],
+		// subtle border and translucency
+		'ring-1 ring-inset transition-colors',
+		// variant styles
 		variantStyles[variant as Variant],
+		// optional fixed width
+		minWidthClasses[resolvedMinWidth],
 		className
 	)}
 	{...restProps}
