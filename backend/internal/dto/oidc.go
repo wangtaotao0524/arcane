@@ -35,10 +35,6 @@ type OidcTokenResponse struct {
 }
 
 type OidcStatusInfo struct {
-	EnvForced             bool `json:"envForced"`
-	EnvConfigured         bool `json:"envConfigured"`
-	DbEnabled             bool `json:"dbEnabled"`
-	DbConfigured          bool `json:"dbConfigured"`
-	EffectivelyEnabled    bool `json:"effectivelyEnabled"`
-	EffectivelyConfigured bool `json:"effectivelyConfigured"`
+	EnvForced     bool `json:"envForced"`
+	EnvConfigured bool `json:"envConfigured"`
 }

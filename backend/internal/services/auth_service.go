@@ -39,15 +39,6 @@ type AuthSettings struct {
 	Oidc             *models.OidcConfig `json:"oidc,omitempty"`
 }
 
-type OidcStatusInfo struct {
-	EnvForced             bool `json:"envForced"`
-	EnvConfigured         bool `json:"envConfigured"`
-	DbEnabled             bool `json:"dbEnabled"`
-	DbConfigured          bool `json:"dbConfigured"`
-	EffectivelyEnabled    bool `json:"effectivelyEnabled"`
-	EffectivelyConfigured bool `json:"effectivelyConfigured"`
-}
-
 type UserClaims struct {
 	jwt.RegisteredClaims
 	UserID      string   `json:"user_id"`
@@ -62,7 +53,6 @@ type AuthService struct {
 	settingsService *SettingsService
 	eventService    *EventService
 	jwtSecret       []byte
-	accessExpiry    time.Duration
 	refreshExpiry   time.Duration
 	config          *config.Config
 }
@@ -73,7 +63,6 @@ func NewAuthService(userService *UserService, settingsService *SettingsService, 
 		settingsService: settingsService,
 		eventService:    eventService,
 		jwtSecret:       utils.CheckOrGenerateJwtSecret(jwtSecret),
-		accessExpiry:    30 * time.Minute,
 		refreshExpiry:   7 * 24 * time.Hour,
 		config:          cfg,
 	}
@@ -104,31 +93,12 @@ func (s *AuthService) getAuthSettings(ctx context.Context) (*AuthSettings, error
 }
 
 func (s *AuthService) GetOidcConfigurationStatus(ctx context.Context) (*dto.OidcStatusInfo, error) {
-	status := &dto.OidcStatusInfo{}
-
-	status.EnvForced = s.config.OidcEnabled
-
+	status := &dto.OidcStatusInfo{
+		EnvForced: s.config.OidcEnabled,
+	}
 	if s.config.OidcEnabled {
 		status.EnvConfigured = s.config.OidcClientID != "" && s.config.OidcIssuerURL != ""
 	}
-
-	effectiveAuthSettings, err := s.getAuthSettings(ctx)
-	if err != nil {
-		return status, fmt.Errorf("failed to get effective auth settings for OIDC status: %w", err)
-	}
-
-	status.DbEnabled = effectiveAuthSettings.OidcEnabled
-	if effectiveAuthSettings.Oidc != nil {
-		status.DbConfigured = effectiveAuthSettings.Oidc.ClientID != "" &&
-			(effectiveAuthSettings.Oidc.IssuerURL != "" ||
-				(effectiveAuthSettings.Oidc.AuthorizationEndpoint != "" &&
-					effectiveAuthSettings.Oidc.TokenEndpoint != "" &&
-					effectiveAuthSettings.Oidc.UserinfoEndpoint != ""))
-	}
-
-	status.EffectivelyEnabled = status.DbEnabled
-	status.EffectivelyConfigured = status.DbConfigured
-
 	return status, nil
 }
 

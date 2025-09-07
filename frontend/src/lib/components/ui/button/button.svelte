@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils.js';
+	import type { WithChildren } from 'bits-ui';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
 
@@ -31,6 +32,18 @@
 
 	export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
 	export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
+
+	export type ButtonPropsWithoutHTML = WithChildren<{
+		ref?: HTMLElement | null;
+		variant?: ButtonVariant;
+		size?: ButtonSize;
+		loading?: boolean;
+		onClickPromise?: (
+			e: MouseEvent & {
+				currentTarget: EventTarget & HTMLButtonElement;
+			}
+		) => Promise<void>;
+	}>;
 
 	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
 		WithElementRef<HTMLAnchorAttributes> & {

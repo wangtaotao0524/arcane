@@ -9,7 +9,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { toast } from 'svelte-sonner';
 	import type { Settings } from '$lib/types/settings.type';
-	import type { OidcStatus } from '$lib/services/api/oidc-api-service';
+	import type { OidcStatusInfo } from '$lib/types/settings.type';
 
 	interface OidcForm {
 		clientId: string;
@@ -29,7 +29,7 @@
 	}: {
 		open: boolean;
 		currentSettings: Settings;
-		oidcStatus: OidcStatus;
+		oidcStatus: OidcStatusInfo;
 		oidcForm: OidcForm;
 		onSave: () => void;
 	} = $props();
@@ -66,9 +66,7 @@
 
 	const statusItems = $derived([
 		{ label: 'Env Forced', value: oidcStatus.envForced, hint: 'Server forces OIDC' },
-		{ label: 'Env Configured', value: oidcStatus.envConfigured, hint: 'Server OIDC vars present' },
-		{ label: 'DB Enabled', value: oidcStatus.dbEnabled, hint: 'App settings enable OIDC' },
-		{ label: 'DB Configured', value: oidcStatus.dbConfigured, hint: 'App OIDC config saved' }
+		{ label: 'Env Configured', value: oidcStatus.envConfigured, hint: 'Server OIDC vars present' }
 	]);
 
 	function chipClass(v: boolean) {

@@ -79,7 +79,8 @@
 
 	function handleOidcSwitchChange(checked: boolean) {
 		oidcEnabled = checked;
-		if (checked && !data.oidcStatus?.envForced && !data.oidcStatus?.effectivelyConfigured) {
+		// If enabling and not forced by env, open the config dialog
+		if (checked && !data.oidcStatus?.envForced) {
 			showOidcConfigDialog = true;
 		}
 	}
@@ -239,27 +240,17 @@
 								{/if}
 							</p>
 
-							{#if data.oidcStatus?.effectivelyEnabled || data.oidcStatus?.envForced}
+							{#if data.oidcStatus?.envForced}
 								<div class="mt-1">
-									{#if data.oidcStatus.envForced && !data.oidcStatus.envConfigured}
+									{#if !data.oidcStatus.envConfigured}
 										<Button variant="link" class="text-destructive h-auto p-0 text-xs hover:underline" onclick={openOidcDialog}>
 											<TriangleAlertIcon class="mr-1 size-3" />
 											Server forces OIDC, but env vars are missing. Configure app settings or fix server env.
 										</Button>
-									{:else if data.oidcStatus.envForced && data.oidcStatus.envConfigured}
+									{:else}
 										<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
 											<InfoIcon class="mr-1 size-3" />
-											OIDC configured & forced by server. View Status.
-										</Button>
-									{:else if !data.oidcStatus.envForced && data.oidcStatus.effectivelyEnabled && data.oidcStatus.dbConfigured}
-										<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
-											<InfoIcon class="mr-1 size-3" />
-											OIDC configured via application settings. Manage.
-										</Button>
-									{:else if !data.oidcStatus.envForced && data.oidcStatus.effectivelyEnabled && !data.oidcStatus.dbConfigured}
-										<Button variant="link" class="text-destructive h-auto p-0 text-xs hover:underline" onclick={openOidcDialog}>
-											<TriangleAlertIcon class="mr-1 size-3" />
-											OIDC enabled, but app settings incomplete. Configure.
+											OIDC configured & forced by server. View status.
 										</Button>
 									{/if}
 								</div>

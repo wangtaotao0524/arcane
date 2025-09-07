@@ -76,8 +76,4 @@ export interface OidcConfig {
 export interface OidcStatusInfo {
 	envForced: boolean;
 	envConfigured: boolean;
-	dbEnabled: boolean;
-	dbConfigured: boolean;
-	effectivelyEnabled: boolean;
-	effectivelyConfigured: boolean;
 }

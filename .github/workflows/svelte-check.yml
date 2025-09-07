@@ -49,7 +49,8 @@ jobs:
       - name: Install dependencies
         run: pnpm --filter arcane-frontend install --frozen-lockfile
 
-      - name: Run Svelte Check
-        uses: ofkm/gha-svelte-check@v1
-        with:
-          working-directory: './frontend'
+      - name: Add svelte-check problem matcher
+        run: echo "::add-matcher::.github/svelte-check-matcher.json"
+
+      - name: Run svelte-check
+        run: pnpm --filter arcane-frontend check

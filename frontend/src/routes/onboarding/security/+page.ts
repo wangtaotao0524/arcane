@@ -7,11 +7,7 @@ export const load: PageLoad = async () => {
 		settingsAPI.getSettings(),
 		settingsAPI.getOidcStatus().catch(() => ({
 			envForced: false,
-			envConfigured: false,
-			dbEnabled: false,
-			dbConfigured: false,
-			effectivelyEnabled: false,
-			effectivelyConfigured: false
+			envConfigured: false
 		}))
 	]);
 

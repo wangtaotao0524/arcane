@@ -12,12 +12,6 @@
 			const redirect = page.url.searchParams.get('redirect') || '/dashboard';
 
 			const status = await oidcAPI.getStatus();
-			if (!status.dbEnabled || !status.dbConfigured) {
-				error = 'OIDC authentication is not properly configured. Please contact your administrator.';
-				setTimeout(() => goto('/auth/login?error=oidc_not_configured'), 3000);
-				isRedirecting = false;
-				return;
-			}
 
 			const authUrl = await oidcAPI.getAuthUrl(redirect);
 			if (!authUrl) {

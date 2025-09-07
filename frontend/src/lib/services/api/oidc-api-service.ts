@@ -1,5 +1,5 @@
 import BaseAPIService from './api-service';
-import type { OidcConfig } from '$lib/types/settings.type';
+import type { OidcConfig, OidcStatusInfo } from '$lib/types/settings.type';
 
 export interface OidcUserInfo {
 	sub: string;
@@ -13,12 +13,10 @@ export interface OidcUserInfo {
 	groups?: string[];
 }
 
-export interface OidcStatus {
-	envForced: boolean;
-	envConfigured: boolean;
-	dbEnabled: boolean;
-	dbConfigured: boolean;
-}
+// export interface OidcStatus {
+// 	envForced: boolean;
+// 	envConfigured: boolean;
+// }
 
 export default class OidcAPIService extends BaseAPIService {
 	async getAuthUrl(redirectUri: string): Promise<string> {
@@ -40,7 +38,7 @@ export default class OidcAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.post('/oidc/callback', { code, state }));
 	}
 
-	async getStatus(): Promise<OidcStatus> {
+	async getStatus(): Promise<OidcStatusInfo> {
 		return this.handleResponse(this.api.get('/oidc/status'));
 	}
 

@@ -22,8 +22,7 @@
 		onCopy,
 		class: className,
 		tabindex = -1,
-		children,
-		...rest
+		children
 	}: CopyButtonProps = $props();
 
 	// this way if the user passes text then the button will be the default size
@@ -35,7 +34,6 @@
 </script>
 
 <Button
-	{...rest}
 	bind:ref
 	{variant}
 	{size}

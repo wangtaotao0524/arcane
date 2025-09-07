@@ -8,7 +8,7 @@
 	import OidcConfigDialog from '$lib/components/dialogs/oidc-config-dialog.svelte';
 	import { toast } from 'svelte-sonner';
 	import type { Settings } from '$lib/types/settings.type';
-	import type { OidcStatus } from '$lib/services/api/oidc-api-service';
+	import type { OidcStatusInfo } from '$lib/types/settings.type';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	let {
@@ -17,7 +17,7 @@
 		callback
 	}: {
 		settings: Settings;
-		oidcStatus: OidcStatus;
+		oidcStatus: OidcStatusInfo;
 		callback: (appConfig: Partial<Settings>) => Promise<void>;
 	} = $props();
 
@@ -88,8 +88,8 @@
 			.then(() => toast.success('Settings Saved Successfully'))
 			.finally(() => (isLoading.saving = false));
 	}
-	const effectivelyEnabled = $derived(oidcStatus.envForced || oidcStatus.dbEnabled);
 
+	// Only depend on envForced; open config when enabling and not forced
 	function handleOidcSwitchChange(checked: boolean) {
 		$formInputs.authOidcEnabled.value = checked;
 
@@ -98,7 +98,7 @@
 			toast.info('Local Authentication enabled to ensure at least one provider is active.');
 		}
 
-		if (checked && !oidcStatus.envForced && !effectivelyEnabled) {
+		if (checked && !oidcStatus.envForced) {
 			showOidcConfigDialog = true;
 		}
 	}
@@ -182,23 +182,22 @@
 							checked={$formInputs.authOidcEnabled.value}
 							onCheckedChange={handleOidcSwitchChange}
 						/>
-						{#if effectivelyEnabled}
+
+						{#if isOidcActive()}
 							<div class="pl-11">
-								{#if oidcStatus.envForced && !oidcStatus.envConfigured}
-									<Button variant="link" class="text-destructive h-auto p-0 text-xs hover:underline" onclick={openOidcDialog}>
-										Server forces OIDC, but env vars missing. Configure or fix server env.
-									</Button>
-								{:else if oidcStatus.envForced && oidcStatus.envConfigured}
+								{#if oidcStatus.envForced}
+									{#if !oidcStatus.envConfigured}
+										<Button variant="link" class="text-destructive h-auto p-0 text-xs hover:underline" onclick={openOidcDialog}>
+											Server forces OIDC, but env vars missing. Configure or fix server env.
+										</Button>
+									{:else}
+										<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
+											OIDC configured & forced by server. View status.
+										</Button>
+									{/if}
+								{:else}
 									<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
-										OIDC configured & forced by server. View status.
-									</Button>
-								{:else if !oidcStatus.envForced && effectivelyEnabled && oidcStatus.dbConfigured}
-									<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
-										OIDC configured via application settings. Manage.
-									</Button>
-								{:else if !oidcStatus.envForced && effectivelyEnabled && !oidcStatus.dbConfigured}
-									<Button variant="link" class="text-destructive h-auto p-0 text-xs hover:underline" onclick={openOidcDialog}>
-										OIDC enabled, but settings incomplete. Configure.
+										Manage OIDC configuration
 									</Button>
 								{/if}
 							</div>
