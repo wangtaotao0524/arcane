@@ -56,10 +56,6 @@ func NewUpdaterService(
 	}
 }
 
-// ApplyPending pulls images and restarts impacted containers/stacks for all image_updates with has_update = true.
-// - For tag updates: repo:latestVersion
-// - For digest updates: keep tag ref (repo:tag), pulling refreshes digest; recreate with same ref.
-
 //nolint:gocognit
 func (s *UpdaterService) ApplyPending(ctx context.Context, dryRun bool) (*dto.UpdaterRunResult, error) {
 	start := time.Now()
@@ -386,6 +382,27 @@ func (s *UpdaterService) stripDigest(ref string) string {
 	return ref
 }
 
+const arcaneUpdaterLabel = "com.ofkm.arcane.updater"
+
+// isUpdateDisabled returns true if the special label is present and evaluates to false.
+// Accepts false/0/no/off (case-insensitive) as "disabled". Default is enabled.
+func (s *UpdaterService) isUpdateDisabled(labels map[string]string) bool {
+	if labels == nil {
+		return false
+	}
+	for k, v := range labels {
+		if strings.EqualFold(k, arcaneUpdaterLabel) {
+			switch strings.TrimSpace(strings.ToLower(v)) {
+			case "false", "0", "no", "off":
+				return true
+			default:
+				return false
+			}
+		}
+	}
+	return false
+}
+
 func (s *UpdaterService) collectUsedImages(ctx context.Context) (map[string]struct{}, error) {
 	out := map[string]struct{}{}
 
@@ -396,8 +413,16 @@ func (s *UpdaterService) collectUsedImages(ctx context.Context) (map[string]stru
 		list, err := dcli.ContainerList(ctx, container.ListOptions{All: false})
 		if err == nil {
 			for _, c := range list {
+				// Skip containers with opt-out label
+				if s.isUpdateDisabled(c.Labels) {
+					continue
+				}
 				inspect, err := dcli.ContainerInspect(ctx, c.ID)
 				if err != nil {
+					continue
+				}
+				// Also honor labels from the full inspect if present
+				if inspect.Config != nil && s.isUpdateDisabled(inspect.Config.Labels) {
 					continue
 				}
 				for _, t := range s.getNormalizedTagsForContainer(ctx, dcli, inspect) {
@@ -414,6 +439,23 @@ func (s *UpdaterService) collectUsedImages(ctx context.Context) (map[string]stru
 			if st.Status != models.StackStatusRunning {
 				continue
 			}
+
+			// If any container in the stack has the opt-out label, skip the entire stack
+			disabledStack := false
+			if dcli != nil {
+				if cs, err := s.getStackContainers(ctx, dcli, st.Name); err == nil {
+					for _, c := range cs {
+						if s.isUpdateDisabled(c.Labels) {
+							disabledStack = true
+							break
+						}
+					}
+				}
+			}
+			if disabledStack {
+				continue
+			}
+
 			srvs, err := s.stackService.GetStackServices(ctx, st.ID)
 			if err != nil {
 				continue
@@ -551,11 +593,21 @@ func (s *UpdaterService) restartContainersUsingOldIDs(ctx context.Context, oldID
 
 	var results []dto.AutoUpdateResourceResult
 	for _, c := range list {
+		// Skip stack-managed containers; stacks handled separately
 		if s.isPartOfStack(c.Labels) {
 			continue
 		}
+		// Skip containers with opt-out label
+		if s.isUpdateDisabled(c.Labels) {
+			continue
+		}
+
 		inspect, err := dcli.ContainerInspect(ctx, c.ID)
 		if err != nil {
+			continue
+		}
+		// Also honor labels from full inspect
+		if inspect.Config != nil && s.isUpdateDisabled(inspect.Config.Labels) {
 			continue
 		}
 
@@ -638,6 +690,33 @@ func (s *UpdaterService) redeployStacksUsingOldIDs(ctx context.Context, oldIDToN
 		containers, lerr := s.getStackContainers(ctx, dcli, st.Name)
 		if lerr != nil {
 			slog.Warn("list stack containers failed", "stack", st.Name, "err", lerr)
+			continue
+		}
+
+		// Skip entire stack if any container declares the opt-out label
+		skip := false
+		for _, c := range containers {
+			if s.isUpdateDisabled(c.Labels) {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			out.Items = append(out.Items, dto.UpdaterItem{
+				ResourceID:   st.ID,
+				ResourceType: "stack",
+				ResourceName: st.Name,
+				Status:       "skipped",
+			})
+			out.Skipped++
+			out.Checked++
+			s.logAutoUpdate(ctx, models.EventSeverityInfo, models.JSON{
+				"phase":     "stack",
+				"stackId":   st.ID,
+				"stackName": st.Name,
+				"status":    "skipped",
+				"reason":    "com.ofkm.arcane.updater=false",
+			})
 			continue
 		}
 
