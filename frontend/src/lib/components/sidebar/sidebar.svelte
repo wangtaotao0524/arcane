@@ -42,7 +42,7 @@
 <Sidebar.Root {collapsible} {...restProps}>
 	<Sidebar.Header>
 		<SidebarLogo {isCollapsed} {versionInformation} />
-		<SidebarEnvSwitcher />
+		<SidebarEnvSwitcher {isAdmin} />
 	</Sidebar.Header>
 	<Sidebar.Content>
 		<SidebarItemGroup label="Management" items={sidebarItems.managementItems} />
