@@ -5,6 +5,7 @@ services:
     ports:
       - '3000:3552'
     environment:
+      - ENVIRONMENT=testing
       - APP_ENV=test
       - ENCRYPTION_KEY=3JDIgolks2tJ9ymm1AdqzlYMWu0DUWyt
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production

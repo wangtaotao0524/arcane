@@ -19,6 +19,7 @@ services:
     ports:
       - '3001:3552'
     environment:
+      - ENVIRONMENT=testing
       - APP_ENV=test
       - DATABASE_URL=postgres://arcane:arcane_test_password@postgres:5432/arcane_test?sslmode=disable
       - ENCRYPTION_KEY=3JDIgolks2tJ9ymm1AdqzlYMWu0DUWyt
