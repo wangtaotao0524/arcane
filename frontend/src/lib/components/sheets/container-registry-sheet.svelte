@@ -31,12 +31,12 @@
 	});
 
 	let formData = $derived({
-		url: registryToEdit?.url || '',
-		username: registryToEdit?.username || '',
+		url: open && registryToEdit ? registryToEdit.url : '',
+		username: open && registryToEdit ? registryToEdit.username : '',
 		token: '',
-		description: registryToEdit?.description || '',
-		insecure: registryToEdit?.insecure ?? false,
-		enabled: registryToEdit?.enabled ?? true
+		description: open && registryToEdit ? registryToEdit.description || '' : '',
+		insecure: open && registryToEdit ? (registryToEdit.insecure ?? false) : false,
+		enabled: open && registryToEdit ? (registryToEdit.enabled ?? true) : true
 	});
 
 	let { inputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, formData));
@@ -44,26 +44,11 @@
 	function handleSubmit() {
 		const data = form.validate();
 		if (!data) return;
-
 		onSubmit({ registry: data, isEditMode });
-	}
-
-	function handleOpenChange(newOpenState: boolean) {
-		open = newOpenState;
-		if (!newOpenState) {
-			registryToEdit = null;
-		}
-
-		if ($inputs.url) $inputs.url.value = '';
-		if ($inputs.username) $inputs.username.value = '';
-		if ($inputs.token) $inputs.token.value = '';
-		if ($inputs.description) $inputs.description.value = '';
-		if ($inputs.insecure) $inputs.insecure.value = false;
-		if ($inputs.enabled) $inputs.enabled.value = true;
 	}
 </script>
 
-<Sheet.Root bind:open onOpenChange={handleOpenChange}>
+<Sheet.Root bind:open>
 	<Sheet.Content class="p-6">
 		<Sheet.Header class="space-y-3 border-b pb-6">
 			<div class="flex items-center gap-3">
