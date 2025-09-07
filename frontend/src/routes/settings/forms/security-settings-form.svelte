@@ -28,7 +28,9 @@
 		clientId: '',
 		clientSecret: '',
 		issuerUrl: '',
-		scopes: 'openid email profile'
+		scopes: 'openid email profile',
+		adminClaim: '',
+		adminValue: ''
 	});
 
 	const formSchema = z
@@ -71,7 +73,9 @@
 				clientId: oidcConfigForm.clientId,
 				clientSecret: oidcConfigForm.clientSecret || '',
 				issuerUrl: oidcConfigForm.issuerUrl,
-				scopes: oidcConfigForm.scopes
+				scopes: oidcConfigForm.scopes,
+				adminClaim: oidcConfigForm.adminClaim || '',
+				adminValue: oidcConfigForm.adminValue || ''
 			});
 		}
 
@@ -114,6 +118,8 @@
 			oidcConfigForm.clientId = cfg.clientId || '';
 			oidcConfigForm.issuerUrl = cfg.issuerUrl || '';
 			oidcConfigForm.scopes = cfg.scopes || 'openid email profile';
+			oidcConfigForm.adminClaim = cfg.adminClaim || '';
+			oidcConfigForm.adminValue = cfg.adminValue || '';
 		}
 		oidcConfigForm.clientSecret = '';
 		showOidcConfigDialog = true;
@@ -134,7 +140,9 @@
 				clientId: oidcConfigForm.clientId,
 				clientSecret: oidcConfigForm.clientSecret || '',
 				issuerUrl: oidcConfigForm.issuerUrl,
-				scopes: oidcConfigForm.scopes
+				scopes: oidcConfigForm.scopes,
+				adminClaim: oidcConfigForm.adminClaim || '',
+				adminValue: oidcConfigForm.adminValue || ''
 			});
 
 			await callback({

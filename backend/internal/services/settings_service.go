@@ -94,6 +94,8 @@ func (s *SettingsService) SyncOidcEnvToDatabase(ctx context.Context) ([]models.S
 		ClientSecret: s.config.OidcClientSecret,
 		IssuerURL:    s.config.OidcIssuerURL,
 		Scopes:       s.config.OidcScopes,
+		AdminClaim:   s.config.OidcAdminClaim,
+		AdminValue:   s.config.OidcAdminValue,
 	}
 
 	oidcConfigBytes, err := json.Marshal(envOidcConfig)
@@ -155,7 +157,6 @@ func (s *SettingsService) UpdateSetting(ctx context.Context, key, value string) 
 
 //nolint:gocognit
 func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.UpdateSettingsDto) ([]models.SettingVariable, error) {
-	// Load current and default settings
 	defaultCfg := s.getDefaultSettings()
 	cfg, err := s.GetSettings(ctx)
 	if err != nil {

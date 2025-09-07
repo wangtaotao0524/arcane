@@ -23,6 +23,8 @@ type Config struct {
 	OidcClientSecret string
 	OidcIssuerURL    string
 	OidcScopes       string
+	OidcAdminClaim   string
+	OidcAdminValue   string
 
 	LogJson  bool
 	LogLevel string
@@ -42,6 +44,8 @@ func Load() *Config {
 		OidcClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OidcIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		OidcScopes:       getEnvOrDefault("OIDC_SCOPES", "openid email profile"),
+		OidcAdminClaim:   getEnvOrDefault("OIDC_ADMIN_CLAIM", ""),
+		OidcAdminValue:   getEnvOrDefault("OIDC_ADMIN_VALUE", ""),
 
 		LogJson:  getBoolEnvOrDefault("LOG_JSON", false),
 		LogLevel: strings.ToLower(getEnvOrDefault("LOG_LEVEL", "info")),

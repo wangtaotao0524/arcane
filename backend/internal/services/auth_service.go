@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -314,12 +315,17 @@ func (s *AuthService) createOidcUser(ctx context.Context, userInfo dto.OidcUserI
 
 	email := userInfo.Email
 
+	roles := models.StringSlice{"user"}
+	if s.isAdminFromOidc(ctx, userInfo, tokenResp) {
+		roles = append(roles, "admin")
+	}
+
 	user := &models.User{
 		BaseModel:     models.BaseModel{ID: uuid.NewString()},
 		Username:      username,
 		DisplayName:   &displayName,
 		Email:         &email,
-		Roles:         models.StringSlice{"user"},
+		Roles:         roles,
 		OidcSubjectId: &userInfo.Subject,
 		LastLogin:     &now,
 	}
@@ -333,12 +339,21 @@ func (s *AuthService) createOidcUser(ctx context.Context, userInfo dto.OidcUserI
 }
 
 func (s *AuthService) updateOidcUser(ctx context.Context, user *models.User, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) error {
-	// Update optional fields when missing
 	if userInfo.Name != "" && user.DisplayName == nil {
 		user.DisplayName = &userInfo.Name
 	}
 	if userInfo.Email != "" && user.Email == nil {
 		user.Email = &userInfo.Email
+	}
+
+	// Sync admin role to current mapping result
+	wantAdmin := s.isAdminFromOidc(ctx, userInfo, tokenResp)
+	hasAdmin := hasRole(user.Roles, "admin")
+	switch {
+	case wantAdmin && !hasAdmin:
+		user.Roles = addRole(user.Roles, "admin")
+	case !wantAdmin && hasAdmin:
+		user.Roles = removeRole(user.Roles, "admin")
 	}
 
 	s.persistOidcTokens(user, tokenResp)
@@ -347,6 +362,190 @@ func (s *AuthService) updateOidcUser(ctx context.Context, user *models.User, use
 	user.LastLogin = &now
 	_, err := s.userService.UpdateUser(ctx, user)
 	return err
+}
+
+func hasRole(roles models.StringSlice, role string) bool {
+	for _, r := range roles {
+		if strings.EqualFold(r, role) {
+			return true
+		}
+	}
+	return false
+}
+
+func addRole(roles models.StringSlice, role string) models.StringSlice {
+	if hasRole(roles, role) {
+		return roles
+	}
+	return append(roles, role)
+}
+
+func removeRole(roles models.StringSlice, role string) models.StringSlice {
+	out := make(models.StringSlice, 0, len(roles))
+	for _, r := range roles {
+		if !strings.EqualFold(r, role) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func (s *AuthService) isAdminFromOidc(ctx context.Context, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) bool {
+	// 1) Configured claim mapping
+	if claimKey, values := s.getAdminClaimConfig(ctx); claimKey != "" {
+		// Check userinfo raw claims
+		if v, ok := getByPath(userInfo.Extra, claimKey); ok {
+			if evalAdminMatch(v, values) {
+				return true
+			}
+		}
+		// Check ID token payload if present
+		if tokenResp != nil && tokenResp.IDToken != "" {
+			if claims := parseJWTClaims(tokenResp.IDToken); claims != nil {
+				if v, ok := getByPath(claims, claimKey); ok && evalAdminMatch(v, values) {
+					return true
+				}
+			}
+		}
+	}
+
+	// 2) Heuristics fallback (common providers)
+	if userInfo.Admin {
+		return true
+	}
+	if sliceContainsFold(userInfo.Roles, "admin") || sliceContainsFold(userInfo.Groups, "admin") {
+		return true
+	}
+	if tokenResp != nil && tokenResp.IDToken != "" {
+		if claims := parseJWTClaims(tokenResp.IDToken); claims != nil {
+			// realm_access.roles, roles, groups, admin:true
+			if v, ok := getByPath(claims, "realm_access.roles"); ok && evalAdminMatch(v, []string{"admin"}) {
+				return true
+			}
+			if v, ok := getByPath(claims, "roles"); ok && evalAdminMatch(v, []string{"admin"}) {
+				return true
+			}
+			if v, ok := getByPath(claims, "groups"); ok && evalAdminMatch(v, []string{"admin"}) {
+				return true
+			}
+			if v, ok := claims["admin"]; ok && evalAdminMatch(v, []string{"true"}) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (s *AuthService) getAdminClaimConfig(ctx context.Context) (claim string, values []string) {
+	as, err := s.getAuthSettings(ctx)
+	if err != nil || as.Oidc == nil {
+		return "", nil
+	}
+	claim = strings.TrimSpace(as.Oidc.AdminClaim)
+	raw := strings.TrimSpace(as.Oidc.AdminValue)
+	if claim == "" {
+		return "", nil
+	}
+	if raw == "" {
+		// Treat truthy/true for boolean claims if no explicit values provided
+		return claim, nil
+	}
+	parts := strings.Split(raw, ",")
+	for _, p := range parts {
+		v := strings.TrimSpace(p)
+		if v != "" {
+			values = append(values, v)
+		}
+	}
+	return claim, values
+}
+
+func parseJWTClaims(idToken string) map[string]any {
+	parts := strings.Split(idToken, ".")
+	if len(parts) < 2 {
+		return nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil
+	}
+	return claims
+}
+
+func getByPath(m map[string]any, path string) (any, bool) {
+	if m == nil {
+		return nil, false
+	}
+	keys := strings.Split(path, ".")
+	var cur any = m
+	for _, k := range keys {
+		obj, ok := cur.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		v, ok := obj[k]
+		if !ok {
+			return nil, false
+		}
+		cur = v
+	}
+	return cur, true
+}
+
+func evalAdminMatch(v any, want []string) bool {
+	// No explicit values => accept truthy bool
+	if len(want) == 0 {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+		// no values for non-bool: do not match
+		return false
+	}
+
+	// Normalize want set (lower-cased)
+	wantSet := map[string]struct{}{}
+	for _, s := range want {
+		wantSet[strings.ToLower(s)] = struct{}{}
+	}
+
+	switch x := v.(type) {
+	case string:
+		_, ok := wantSet[strings.ToLower(x)]
+		return ok
+	case []any:
+		for _, it := range x {
+			if s, ok := it.(string); ok {
+				if _, ok2 := wantSet[strings.ToLower(s)]; ok2 {
+					return true
+				}
+			}
+		}
+		return false
+	case map[string]any:
+		// Unexpected: nested object; no match
+		return false
+	case bool:
+		// Compare against accepted strings like "true"/"1"
+		_, ok := wantSet[strings.ToLower(fmt.Sprintf("%v", x))]
+		return ok
+	default:
+		return false
+	}
+}
+
+func sliceContainsFold(ss []string, want string) bool {
+	want = strings.ToLower(want)
+	for _, s := range ss {
+		if strings.ToLower(s) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *AuthService) persistOidcTokens(user *models.User, tokenResp *dto.OidcTokenResponse) {

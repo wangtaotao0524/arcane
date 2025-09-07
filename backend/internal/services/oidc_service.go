@@ -270,7 +270,6 @@ func (s *OidcService) getUserInfo(ctx context.Context, config *models.OidcConfig
 	if err != nil {
 		return nil, err
 	}
-
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/json")
 
@@ -285,10 +284,16 @@ func (s *OidcService) getUserInfo(ctx context.Context, config *models.OidcConfig
 		return nil, fmt.Errorf("userinfo endpoint returned %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var userInfo dto.OidcUserInfo
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+	var raw map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, err
 	}
+
+	// Map known fields into struct, keep raw claims
+	b, _ := json.Marshal(raw)
+	var userInfo dto.OidcUserInfo
+	_ = json.Unmarshal(b, &userInfo)
+	userInfo.Extra = raw
 
 	if userInfo.Subject == "" {
 		return nil, errors.New("missing required 'sub' field in userinfo response")

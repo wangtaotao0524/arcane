@@ -28,7 +28,9 @@
 		clientId: '',
 		clientSecret: '',
 		issuerUrl: '',
-		scopes: 'openid email profile'
+		scopes: 'openid email profile',
+		adminClaim: '',
+		adminValue: ''
 	});
 
 	let localAuthEnabled = $state(true);
@@ -52,6 +54,8 @@
 				oidcConfigForm.clientId = cfg.clientId || '';
 				oidcConfigForm.issuerUrl = cfg.issuerUrl || '';
 				oidcConfigForm.scopes = cfg.scopes || 'openid email profile';
+				oidcConfigForm.adminClaim = cfg.adminClaim || '';
+				oidcConfigForm.adminValue = cfg.adminValue || '';
 			} catch (e) {
 				console.warn('Failed to parse OIDC config:', e);
 			}
@@ -88,6 +92,8 @@
 					oidcConfigForm.clientId = cfg.clientId || '';
 					oidcConfigForm.issuerUrl = cfg.issuerUrl || '';
 					oidcConfigForm.scopes = cfg.scopes || 'openid email profile';
+					oidcConfigForm.adminClaim = cfg.adminClaim || '';
+					oidcConfigForm.adminValue = cfg.adminValue || '';
 				} catch (e) {
 					console.warn('Failed to parse OIDC config:', e);
 				}
@@ -106,7 +112,9 @@
 				clientId: oidcConfigForm.clientId,
 				clientSecret: oidcConfigForm.clientSecret || '',
 				issuerUrl: oidcConfigForm.issuerUrl,
-				scopes: oidcConfigForm.scopes
+				scopes: oidcConfigForm.scopes,
+				adminClaim: oidcConfigForm.adminClaim || '',
+				adminValue: oidcConfigForm.adminValue || ''
 			});
 
 			// Save security changes (no onboarding step change here; Next handles that)
@@ -138,7 +146,9 @@
 					clientId: oidcConfigForm.clientId,
 					clientSecret: oidcConfigForm.clientSecret || '',
 					issuerUrl: oidcConfigForm.issuerUrl,
-					scopes: oidcConfigForm.scopes
+					scopes: oidcConfigForm.scopes,
+					adminClaim: oidcConfigForm.adminClaim || '',
+					adminValue: oidcConfigForm.adminValue || ''
 				});
 			}
 

@@ -68,6 +68,9 @@ export interface OidcConfig {
 	tokenEndpoint?: string;
 	userinfoEndpoint?: string;
 	jwksUri?: string;
+
+	adminClaim?: string; // e.g., "roles", "groups", "realm_access.roles", "admin"
+	adminValue?: string; // e.g., "admin" (comma-separated accepted values)
 }
 
 export interface OidcStatusInfo {

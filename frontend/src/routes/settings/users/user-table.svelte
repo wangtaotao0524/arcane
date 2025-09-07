@@ -150,10 +150,12 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end">
 			<DropdownMenu.Group>
-				<DropdownMenu.Item onclick={() => onEditUser(item)}>
-					<EditIcon class="size-4" />
-					Edit
-				</DropdownMenu.Item>
+				{#if !item.oidcSubjectId}
+					<DropdownMenu.Item onclick={() => onEditUser(item)}>
+						<EditIcon class="size-4" />
+						Edit
+					</DropdownMenu.Item>
+				{/if}
 				<DropdownMenu.Item variant="destructive" onclick={() => handleDeleteUser(item.id, item.username)}>
 					<Trash2Icon class="size-4" />
 					Delete

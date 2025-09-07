@@ -16,6 +16,8 @@
 		clientSecret: string;
 		issuerUrl: string;
 		scopes: string;
+		adminClaim?: string;
+		adminValue?: string;
 	}
 
 	let {
@@ -41,7 +43,9 @@
 				clientId: '',
 				clientSecret: '',
 				issuerUrl: '',
-				scopes: 'openid email profile'
+				scopes: 'openid email profile',
+				adminClaim: '',
+				adminValue: ''
 			};
 		}
 
@@ -53,7 +57,9 @@
 				clientId: '',
 				clientSecret: '',
 				issuerUrl: '',
-				scopes: 'openid email profile'
+				scopes: 'openid email profile',
+				adminClaim: '',
+				adminValue: ''
 			};
 		}
 	});
@@ -117,7 +123,7 @@
 					{#if isOidcViewMode}
 						<div class="bg-card/50 rounded-lg border p-4">
 							<h3 class="text-base font-semibold">Server Environment Configuration</h3>
-							<p class="text-muted-foreground mt-1 mb-4 text-sm">
+							<p class="text-muted-foreground mb-4 mt-1 text-sm">
 								The following OIDC settings are loaded from the server environment:
 							</p>
 
@@ -139,6 +145,14 @@
 										<span class="font-medium">Scopes</span>
 										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().scopes || 'openid email profile'}</code>
 									</div>
+									<div class="flex items-center justify-between py-2">
+										<span class="font-medium">Admin Claim</span>
+										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().adminClaim || 'Not configured'}</code>
+									</div>
+									<div class="flex items-center justify-between py-2">
+										<span class="font-medium">Admin Value(s)</span>
+										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().adminValue || 'Not configured'}</code>
+									</div>
 								</div>
 							{:else}
 								<div class="py-6 text-center">
@@ -157,7 +171,7 @@
 						<!-- Editable form -->
 						<div class="bg-card/50 rounded-lg border p-4">
 							<h3 class="text-base font-semibold">Basic Configuration</h3>
-							<p class="text-muted-foreground mt-1 mb-4 text-sm">Essential OIDC provider settings</p>
+							<p class="text-muted-foreground mb-4 mt-1 text-sm">Essential OIDC provider settings</p>
 
 							<div class="space-y-4">
 								<div class="space-y-2">
@@ -201,6 +215,37 @@
 										class="font-mono text-sm"
 									/>
 								</div>
+
+								<div class="pt-2">
+									<h4 class="text-sm font-semibold">Admin Role Mapping</h4>
+									<p class="text-muted-foreground mb-3 text-xs">
+										Map an OIDC claim to grant the “admin” role. Examples:
+										<code class="bg-muted rounded px-1 text-[11px]">roles = admin</code>,
+										<code class="bg-muted rounded px-1 text-[11px]">groups = admin</code>, or a boolean
+										<code class="bg-muted rounded px-1 text-[11px]">admin = true</code>.
+									</p>
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div class="space-y-2">
+											<Label for="oidcAdminClaim" class="text-sm font-medium">Claim Path</Label>
+											<Input
+												id="oidcAdminClaim"
+												bind:value={oidcForm.adminClaim}
+												placeholder="e.g., roles, groups, realm_access.roles, admin"
+												class="font-mono text-sm"
+											/>
+										</div>
+										<div class="space-y-2">
+											<Label for="oidcAdminValue" class="text-sm font-medium">Required Value(s)</Label>
+											<Input
+												id="oidcAdminValue"
+												bind:value={oidcForm.adminValue}
+												placeholder="e.g., admin (comma-separated)"
+												class="font-mono text-sm"
+											/>
+											<p class="text-muted-foreground text-[11px]">Leave empty for boolean claims (admin=true).</p>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 
@@ -226,7 +271,7 @@
 						</div>
 						<p class="text-muted-foreground mb-3 text-sm">Configure this redirect URI in your OIDC provider:</p>
 						<div class="flex items-center gap-2">
-							<code class="bg-muted flex-1 rounded p-2 font-mono text-xs break-all">{redirectUri}</code>
+							<code class="bg-muted flex-1 break-all rounded p-2 font-mono text-xs">{redirectUri}</code>
 							<Button size="sm" variant="outline" onclick={() => copyToClipboard(redirectUri)} class="flex-shrink-0">
 								<CopyIcon class="size-3" />
 							</Button>

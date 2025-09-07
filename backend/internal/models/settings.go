@@ -210,4 +210,12 @@ type OidcConfig struct {
 	TokenEndpoint         string `json:"tokenEndpoint,omitempty"`
 	UserinfoEndpoint      string `json:"userinfoEndpoint,omitempty"`
 	JwksURI               string `json:"jwksUri,omitempty"`
+
+	// Admin mapping: evaluate this claim to grant admin.
+	// Examples:
+	// - adminClaim: "admin", adminValue: "true"        (boolean or string "true")
+	// - adminClaim: "roles", adminValue: "admin"       (array membership)
+	// - adminClaim: "realm_access.roles", adminValue: "admin" (Keycloak)
+	AdminClaim string `json:"adminClaim,omitempty"`
+	AdminValue string `json:"adminValue,omitempty"`
 }
