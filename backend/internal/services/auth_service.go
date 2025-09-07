@@ -301,7 +301,13 @@ func (s *AuthService) findOrCreateOidcUser(ctx context.Context, userInfo dto.Oid
 
 func (s *AuthService) createOidcUser(ctx context.Context, userInfo dto.OidcUserInfo, tokenResp *dto.OidcTokenResponse) (*models.User, error) {
 	now := time.Now()
-	username := generateUsernameFromEmail(userInfo.Email, userInfo.Subject)
+
+	var username string
+	if userInfo.PreferredUsername == "" {
+		username = generateUsernameFromEmail(userInfo.Email, userInfo.Subject)
+	} else {
+		username = userInfo.PreferredUsername
+	}
 
 	var displayName string
 	switch {

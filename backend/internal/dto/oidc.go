@@ -1,14 +1,15 @@
 package dto
 
 type OidcUserInfo struct {
-	Subject    string   `json:"sub"`
-	Name       string   `json:"name,omitempty"`
-	Email      string   `json:"email,omitempty"`
-	GivenName  string   `json:"given_name,omitempty"`
-	FamilyName string   `json:"family_name,omitempty"`
-	Admin      bool     `json:"admin,omitempty"`
-	Roles      []string `json:"roles,omitempty"`
-	Groups     []string `json:"groups,omitempty"`
+	Subject           string   `json:"sub"`
+	Name              string   `json:"name,omitempty"`
+	Email             string   `json:"email,omitempty"`
+	PreferredUsername string   `json:"preferred_username,omitempty"`
+	GivenName         string   `json:"given_name,omitempty"`
+	FamilyName        string   `json:"family_name,omitempty"`
+	Admin             bool     `json:"admin,omitempty"`
+	Roles             []string `json:"roles,omitempty"`
+	Groups            []string `json:"groups,omitempty"`
 
 	// Raw extra claims from userinfo (not serialized back out)
 	Extra map[string]any `json:"-"`
