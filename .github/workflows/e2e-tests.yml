@@ -39,6 +39,7 @@ jobs:
           push: false
           load: false
           tags: arcane:playwright-tests
+          file: docker/Dockerfile
           build-args: BUILD_TAGS=playwright
           outputs: type=docker,dest=/tmp/arcane-image.tar
           cache-from: type=gha
