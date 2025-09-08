@@ -33,7 +33,9 @@
 
 	const shortId = $derived(network?.id?.substring(0, 12) || 'N/A');
 	const createdDate = $derived(network?.created ? format(new Date(network.created), 'PP p') : 'N/A');
-	const connectedContainers = $derived(network?.containers ? Object.values(network.containers) : []);
+	const connectedContainers = $derived(
+		network?.containers ? Object.entries(network.containers).map(([id, info]) => ({ id, ...(info as any) })) : []
+	);
 	const inUse = $derived(connectedContainers.length > 0);
 	const isPredefined = $derived(network?.name === 'bridge' || network?.name === 'host' || network?.name === 'none');
 
@@ -164,7 +166,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Name</p>
-								<p class="mt-1 text-base font-semibold break-words">{network.name}</p>
+								<p class="mt-1 break-words text-base font-semibold">{network.name}</p>
 							</div>
 						</div>
 
@@ -337,16 +339,16 @@
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
-							{#each connectedContainers as container (container.Name)}
+							{#each connectedContainers as container (container.id)}
 								<div class="flex flex-col p-3 sm:flex-row sm:items-center">
-									<div class="mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3">
-										<a href="/containers/{container.Name}" class="text-primary flex items-center hover:underline">
+									<div class="mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
+										<a href="/containers/{container.id}" class="text-primary flex items-center hover:underline">
 											<ContainerIcon class="text-muted-foreground mr-1.5 size-3.5" />
 											{container.Name}
 										</a>
 									</div>
 									<div class="w-full pl-0 sm:w-2/3 sm:pl-4">
-										<code class="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs break-all sm:text-sm">
+										<code class="bg-muted text-muted-foreground break-all rounded px-1.5 py-0.5 font-mono text-xs sm:text-sm">
 											{container.IPv4Address || container.IPv6Address || 'N/A'}
 										</code>
 									</div>
@@ -370,10 +372,10 @@
 						<div class="bg-card divide-y rounded-lg border">
 							{#each Object.entries(network.labels) as [key, value] (key)}
 								<div class="flex flex-col p-3 sm:flex-row">
-									<div class="text-muted-foreground mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3">
+									<div class="text-muted-foreground mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
 										{key}
 									</div>
-									<div class="bg-muted/50 w-full rounded p-2 font-mono text-xs break-all sm:w-2/3 sm:text-sm">
+									<div class="bg-muted/50 w-full break-all rounded p-2 font-mono text-xs sm:w-2/3 sm:text-sm">
 										{value}
 									</div>
 								</div>
@@ -396,10 +398,10 @@
 						<div class="bg-card divide-y rounded-lg border">
 							{#each Object.entries(network.options) as [key, value] (key)}
 								<div class="flex flex-col p-3 sm:flex-row">
-									<div class="text-muted-foreground mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3">
+									<div class="text-muted-foreground mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
 										{key}
 									</div>
-									<div class="bg-muted/50 w-full rounded p-2 font-mono text-xs break-all sm:w-2/3 sm:text-sm">
+									<div class="bg-muted/50 w-full break-all rounded p-2 font-mono text-xs sm:w-2/3 sm:text-sm">
 										{value}
 									</div>
 								</div>

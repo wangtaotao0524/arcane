@@ -18,9 +18,11 @@
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { environmentAPI } from '$lib/services/api';
 	import { format } from 'date-fns';
+	import ContainerIcon from '@lucide/svelte/icons/container';
 
 	let { data } = $props();
 	let volume = $state(data.volume);
+	let containersDetailed = $state<{ id: string; name: string }[]>(data.containersDetailed ?? []);
 
 	let isLoading = $state({ remove: false });
 	const createdDate = $derived(volume.createdAt ? format(new Date(volume.createdAt), 'PP p') : 'N/A');
@@ -124,7 +126,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Name</p>
-								<p class="mt-1 text-base font-semibold break-words">{volume.name}</p>
+								<p class="mt-1 break-words text-base font-semibold">{volume.name}</p>
 							</div>
 						</div>
 
@@ -181,7 +183,7 @@
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">Mountpoint</p>
 								<div class="bg-muted/50 mt-2 rounded-lg border p-3">
-									<code class="font-mono text-sm break-all">{volume.mountpoint}</code>
+									<code class="break-all font-mono text-sm">{volume.mountpoint}</code>
 								</div>
 							</div>
 						</div>
@@ -198,14 +200,31 @@
 					<Card.Description>List of containers currently referencing this volume</Card.Description>
 				</Card.Header>
 				<Card.Content class="pt-6">
-					{#if volume.containers && volume.containers.length > 0}
+					{#if containersDetailed.length > 0}
+						<div class="bg-card divide-y rounded-lg border">
+							{#each containersDetailed as c (c.id)}
+								<div class="flex flex-col p-3 sm:flex-row sm:items-center">
+									<div class="mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
+										<a href="/containers/{c.id}" class="text-primary flex items-center hover:underline">
+											<ContainerIcon class="text-muted-foreground mr-1.5 size-3.5" />
+											{c.name}
+										</a>
+									</div>
+									<div class="w-full pl-0 sm:w-2/3 sm:pl-4">
+										<code class="bg-muted text-muted-foreground break-all rounded px-1.5 py-0.5 font-mono text-xs sm:text-sm">
+											{truncateString(c.id, 48)}
+										</code>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{:else if volume.containers && volume.containers.length > 0}
+						<!-- Fallback to IDs if names not resolved -->
 						<div class="divide-y rounded-lg border">
 							{#each volume.containers as id (id)}
 								<div class="flex items-center justify-between gap-3 p-3">
-									<code class="font-mono text-sm break-all">{truncateString(id, 48)}</code>
-									<a href={`/containers/${id}`} class="text-primary text-sm hover:underline" title="View container details">
-										View
-									</a>
+									<code class="break-all font-mono text-sm">{truncateString(id, 48)}</code>
+									<a href={`/containers/${id}`} class="text-primary text-sm hover:underline">View</a>
 								</div>
 							{/each}
 						</div>
@@ -228,10 +247,10 @@
 						<div class="bg-card divide-y rounded-lg border">
 							{#each Object.entries(volume.labels) as [key, value] (key)}
 								<div class="flex flex-col p-3 sm:flex-row">
-									<div class="text-muted-foreground mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3">
+									<div class="text-muted-foreground mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
 										{key}
 									</div>
-									<div class="bg-muted/50 w-full rounded p-2 font-mono text-xs break-all sm:w-2/3 sm:text-sm">
+									<div class="bg-muted/50 w-full break-all rounded p-2 font-mono text-xs sm:w-2/3 sm:text-sm">
 										{value}
 									</div>
 								</div>
@@ -254,10 +273,10 @@
 						<div class="bg-card divide-y rounded-lg border">
 							{#each Object.entries(volume.options) as [key, value] (key)}
 								<div class="flex flex-col p-3 sm:flex-row">
-									<div class="text-muted-foreground mb-2 w-full font-medium break-all sm:mb-0 sm:w-1/3">
+									<div class="text-muted-foreground mb-2 w-full break-all font-medium sm:mb-0 sm:w-1/3">
 										{key}
 									</div>
-									<div class="bg-muted/50 w-full rounded p-2 font-mono text-xs break-all sm:w-2/3 sm:text-sm">
+									<div class="bg-muted/50 w-full break-all rounded p-2 font-mono text-xs sm:w-2/3 sm:text-sm">
 										{value}
 									</div>
 								</div>
@@ -269,7 +288,7 @@
 
 			{#if (!volume.labels || Object.keys(volume.labels).length === 0) && (!volume.options || Object.keys(volume.options).length === 0)}
 				<Card.Root class="bg-muted/10 border shadow-sm">
-					<Card.Content class="pt-6 pb-6 text-center">
+					<Card.Content class="pb-6 pt-6 text-center">
 						<div class="flex flex-col items-center justify-center">
 							<div class="bg-muted/30 mb-4 rounded-full p-3">
 								<TagIcon class="text-muted-foreground size-5 opacity-50" />
