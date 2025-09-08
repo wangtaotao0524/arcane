@@ -118,22 +118,6 @@ func userHasRole(user *models.User, role string) bool {
 	return false
 }
 
-// Backward-compatible helpers
-
-// func AuthMiddlewareHandler(authService *services.AuthService) gin.HandlerFunc {
-// 	return NewAuthMiddleware(authService).WithAdminNotRequired().Add()
-// }
-
-// func OptionalAuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
-// 	return NewAuthMiddleware(authService).WithAdminNotRequired().WithSuccessOptional().Add()
-// }
-
-// func AdminOnlyMiddleware(authService *services.AuthService) gin.HandlerFunc {
-// 	return NewAuthMiddleware(authService).WithAdminRequired().Add()
-// }
-
-// Accessors
-
 func GetCurrentUserID(c *gin.Context) (string, bool) {
 	userID, exists := c.Get("userID")
 	if !exists {

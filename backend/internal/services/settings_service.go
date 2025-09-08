@@ -55,9 +55,9 @@ func (s *SettingsService) getDefaultSettings() *models.Settings {
 		// Docker settings
 		StacksDirectory:    models.SettingVariable{Value: "data/projects"},
 		AutoUpdate:         models.SettingVariable{Value: "true"},
-		AutoUpdateInterval: models.SettingVariable{Value: "3600"},
+		AutoUpdateInterval: models.SettingVariable{Value: "1440"},
 		PollingEnabled:     models.SettingVariable{Value: "true"},
-		PollingInterval:    models.SettingVariable{Value: "300"},
+		PollingInterval:    models.SettingVariable{Value: "60"},
 		PruneMode:          models.SettingVariable{Value: "dangling"},
 		BaseServerURL:      models.SettingVariable{Value: ""},
 		EnableGravatar:     models.SettingVariable{Value: "true"},
@@ -67,7 +67,6 @@ func (s *SettingsService) getDefaultSettings() *models.Settings {
 		AuthOidcEnabled:    models.SettingVariable{Value: "false"},
 		AuthSessionTimeout: models.SettingVariable{Value: "1440"},
 		AuthPasswordPolicy: models.SettingVariable{Value: "strong"},
-		AuthRbacEnabled:    models.SettingVariable{Value: "false"},
 		AuthOidcConfig:     models.SettingVariable{Value: "{}"},
 
 		// Onboarding settings

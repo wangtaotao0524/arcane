@@ -28,4 +28,8 @@ func registerJobs(appCtx context.Context, scheduler *job.Scheduler, appServices 
 	if err := job.RegisterFilesystemWatcherJob(appCtx, scheduler, appServices.Stack, appServices.Settings); err != nil {
 		slog.ErrorContext(appCtx, "Failed to register filesystem watcher job", slog.Any("error", err))
 	}
+
+	if err := job.RegisterImagePollingJob(appCtx, scheduler, appServices.ImageUpdate, appServices.Settings); err != nil {
+		slog.ErrorContext(appCtx, "Failed to register image polling job", slog.Any("error", err))
+	}
 }

@@ -27,7 +27,6 @@ type UpdateSettingsDto struct {
 	AuthOidcEnabled    *string `json:"authOidcEnabled,omitempty"`
 	AuthSessionTimeout *string `json:"authSessionTimeout,omitempty"`
 	AuthPasswordPolicy *string `json:"authPasswordPolicy,omitempty"`
-	AuthRbacEnabled    *string `json:"authRbacEnabled,omitempty"`
 	AuthOidcConfig     *string `json:"authOidcConfig,omitempty"`
 
 	// Onboarding settings

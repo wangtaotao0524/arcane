@@ -58,7 +58,6 @@ type Settings struct {
 	AuthOidcEnabled    SettingVariable `key:"authOidcEnabled,public"`
 	AuthSessionTimeout SettingVariable `key:"authSessionTimeout"`
 	AuthPasswordPolicy SettingVariable `key:"authPasswordPolicy"`
-	AuthRbacEnabled    SettingVariable `key:"authRbacEnabled"`
 	AuthOidcConfig     SettingVariable `key:"authOidcConfig,sensitive"`
 
 	// Onboarding

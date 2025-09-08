@@ -847,7 +847,6 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 		currentVersion = image.Tag
 	}
 
-	// map auth fields to pointers
 	var authMethod *string
 	if result.AuthMethod != "" {
 		authMethod = &result.AuthMethod
@@ -875,7 +874,6 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 		ResponseTimeMs: result.ResponseTimeMs,
 		LastError:      lastError,
 
-		// new auth fields
 		AuthMethod:     authMethod,
 		AuthUsername:   authUsername,
 		AuthRegistry:   authRegistry,
