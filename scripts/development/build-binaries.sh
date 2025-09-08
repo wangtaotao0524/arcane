@@ -9,39 +9,70 @@ VERSION=$(cat ../.version | sed 's/^\s*\|\s*$//g')
 LDFLAGS="-w -s -buildid=${VERSION}"
 
 DOCKER_ONLY=false
+AGENT_BUILD=false
+
 for arg in "${@:-}"; do
-  if [ "$arg" = "--docker" ]; then
-    DOCKER_ONLY=true
-    break
-  fi
+  case "$arg" in
+    --docker) DOCKER_ONLY=true ;;
+    --agent)  AGENT_BUILD=true ;;
+    *) ;;
+  esac
 done
+
+# Decide binary base name and build tags
+BINARY_BASENAME="arcane"
+BUILD_TAGS=""
+if [ "$AGENT_BUILD" = true ]; then
+  BINARY_BASENAME="arcane-agent"
+  BUILD_TAGS="exclude_frontend"
+fi
 
 build_platform() {
   local target="$1" os="$2" arch="$3" arm_version="${4:-}"
 
   local ext=""
-  local output_path=".bin/arcane-${target}${ext}"
+  local output_path=".bin/${BINARY_BASENAME}-${target}${ext}"
 
-  printf "Building %s/%s%s ... " "$os" "$arch" "${arm_version:+ GOARM=$arm_version}"
+  if [ -n "$arm_version" ]; then
+    printf "Building %s (GOOS=%s GOARCH=%s GOARM=%s)%s ... " \
+      "$output_path" "$os" "$arch" "$arm_version" "${BUILD_TAGS:+ tags=$BUILD_TAGS}"
+  else
+    printf "Building %s (GOOS=%s GOARCH=%s)%s ... " \
+      "$output_path" "$os" "$arch" "${BUILD_TAGS:+ tags=$BUILD_TAGS}"
+  fi
+
+  local build_flags=()
+  if [ -n "$BUILD_TAGS" ]; then
+    build_flags=(-tags "$BUILD_TAGS")
+  fi
 
   if [ -n "$arm_version" ]; then
     GOARM="$arm_version" CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
-      go build -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
+      go build "${build_flags[@]}" -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
   else
     CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
-      go build -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
+      go build "${build_flags[@]}" -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
   fi
 
   echo "Done"
 }
 
 if [ "$DOCKER_ONLY" = true ]; then
-  echo "Building for Docker platforms only (linux/amd64, linux/arm64)..."
+  echo "Version: ${VERSION}"
+  if [ "$AGENT_BUILD" = true ]; then
+    echo "Building agent binaries for Docker platforms only (linux/amd64, linux/arm64)..."
+  else
+    echo "Building binaries for Docker platforms only (linux/amd64, linux/arm64)..."
+  fi
   build_platform "linux-amd64" "linux" "amd64"
   build_platform "linux-arm64" "linux" "arm64"
 else
   echo "Version: ${VERSION}"
-  echo "Building for all platforms..."
+  if [ "$AGENT_BUILD" = true ]; then
+    echo "Building agent binaries for all platforms..."
+  else
+    echo "Building binaries for all platforms..."
+  fi
   build_platform "linux-amd64" "linux" "amd64"
   build_platform "linux-386"   "linux" "386"
   build_platform "linux-arm64" "linux" "arm64"

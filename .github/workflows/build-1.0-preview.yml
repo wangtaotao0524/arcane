@@ -1,9 +1,10 @@
-name: Build and Publish 1.0 Preview
+name: Build and Publish 1.0 Preview (Manager + Agent)
 
 on:
   push:
     branches:
       - 1.0.0
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +21,7 @@ jobs:
 
     env:
       DOCKER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/arcane
+      AGENT_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/arcane-headless
 
     steps:
       - name: Checkout code
@@ -27,8 +29,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Lowercase image owner
-        run: echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+      - name: Lowercase image names
+        run: |
+          echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "AGENT_IMAGE_NAME=${AGENT_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -51,8 +55,11 @@ jobs:
         with:
           go-version-file: backend/go.mod
 
-      - name: Build backend binaries
-        run: bash scripts/development/build-binaries.sh
+      - name: Build arcane binaries
+        run: bash scripts/development/build-binaries.sh --docker
+
+      - name: Build agent binaries
+        run: bash scripts/development/build-binaries.sh --docker --agent
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -74,12 +81,11 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
           echo "IMAGE_STABLE=${DOCKER_IMAGE_NAME}:1.0-preview" >> "$GITHUB_ENV"
           echo "IMAGE_SHA=${DOCKER_IMAGE_NAME}:1.0-preview-${SHORT_SHA}" >> "$GITHUB_ENV"
-          # Agent image tags (headless/agent preview)
-          echo "AGENT_IMAGE=ghcr.io/${{ github.repository_owner }}/arcane-headless:1.0-preview" >> "$GITHUB_ENV"
-          echo "AGENT_IMAGE_SHA=ghcr.io/${{ github.repository_owner }}/arcane-headless:1.0-preview-${SHORT_SHA}" >> "$GITHUB_ENV"
+          echo "AGENT_IMAGE_STABLE=${AGENT_IMAGE_NAME}:1.0-preview" >> "$GITHUB_ENV"
+          echo "AGENT_IMAGE_SHA=${AGENT_IMAGE_NAME}:1.0-preview-${SHORT_SHA}" >> "$GITHUB_ENV"
 
-      - name: Build and push Docker image
-        id: build-push
+      - name: Build and push manager image
+        id: build-manager
         uses: docker/build-push-action@v6
         with:
           context: ./
@@ -89,14 +95,35 @@ jobs:
           tags: |
             ${{ env.IMAGE_STABLE }}
             ${{ env.IMAGE_SHA }}
-          cache-from: type=gha,scope=preview
-          cache-to: type=gha,scope=preview,mode=max
+          cache-from: type=gha,scope=preview-manager
+          cache-to: type=gha,scope=preview-manager,mode=max
 
-      - name: Container image attestation
+      - name: Build and push agent image
+        id: build-agent
+        uses: docker/build-push-action@v6
+        with:
+          context: ./
+          file: docker/Dockerfile-agent-static
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.AGENT_IMAGE_STABLE }}
+            ${{ env.AGENT_IMAGE_SHA }}
+          cache-from: type=gha,scope=preview-agent
+          cache-to: type=gha,scope=preview-agent,mode=max
+
+      - name: Attest arcane image
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
-          subject-digest: ${{ steps.build-push.outputs.digest }}
+          subject-digest: ${{ steps.build-manager.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest agent image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: '${{ env.AGENT_IMAGE_NAME }}'
+          subject-digest: ${{ steps.build-agent.outputs.digest }}
           push-to-registry: true
 
       - name: Compute build timestamp (UTC)
@@ -137,25 +164,25 @@ jobs:
 
             Build timestamp (UTC): ${{ env.BUILD_TIMESTAMP }}
 
-            This is an automated build of the 1.0.0 branch.
-
             Docker images:
             - ${{ env.IMAGE_STABLE }}
             - ${{ env.IMAGE_SHA }}
 
             Agent images:
-            - ${{ env.AGENT_IMAGE }}
+            - ${{ env.AGENT_IMAGE_STABLE }}
             - ${{ env.AGENT_IMAGE_SHA }}
 
-            Digest:
-            - ${{ steps.build-push.outputs.digest }}
+            Digests:
+            - Manager: ${{ steps.build-manager.outputs.digest }}
+            - Agent:   ${{ steps.build-agent.outputs.digest }}
 
             Commit: ${{ github.sha }}
             Branch: ${{ github.ref_name }}
 
             Notes:
             - Pre-release builds are for testing only.
-            - Binaries below are Linux builds produced by the CI.
+            - Binaries below are builds produced by CI.
+            - Not all functions may work on all platforms.
           files: |
             backend/.bin/*
         env:
