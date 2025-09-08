@@ -1,30 +1,30 @@
-import type { Environment } from '$lib/stores/environment.store';
+export type EnvironmentStatus = 'online' | 'offline' | 'error';
+
+export interface Environment {
+	id: string;
+	name: string;
+	apiUrl: string;
+	status: EnvironmentStatus;
+	enabled: boolean;
+	lastSeen?: string;
+	createdAt: string;
+	updatedAt?: string;
+	isLocal?: boolean;
+}
 
 export interface CreateEnvironmentDTO {
-	hostname: string;
 	apiUrl: string;
-	description?: string;
+	name: string;
+	bootstrapToken?: string;
 }
 
 export interface UpdateEnvironmentDTO {
-	hostname?: string;
 	apiUrl?: string;
-	description?: string;
+	name?: string;
+	enabled?: boolean;
+	bootstrapToken?: string;
 }
 
 export interface EnvironmentResponse {
 	data: Environment;
-	success: boolean;
-	message?: string;
-}
-
-export interface EnvironmentsListResponse<T = Environment> {
-	data: T[];
-	success: boolean;
-	pagination?: {
-		totalPages: number;
-		totalItems: number;
-		currentPage: number;
-		itemsPerPage: number;
-	};
 }

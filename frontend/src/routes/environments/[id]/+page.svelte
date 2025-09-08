@@ -7,15 +7,11 @@
 	import MonitorIcon from '@lucide/svelte/icons/monitor';
 	import TerminalIcon from '@lucide/svelte/icons/terminal';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
-	import ActivityIcon from '@lucide/svelte/icons/activity';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { format } from 'date-fns';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { environmentManagementAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -23,22 +19,19 @@
 
 	let isRefreshing = $state(false);
 	let isTestingConnection = $state(false);
+	let isPairing = $state(false);
+	let bootstrapToken = $state('');
+
 	let activeSection = $state<string>('overview');
 
 	const sections = [
 		{ id: 'overview', Label: 'Overview', icon: MonitorIcon },
 		{ id: 'connection', Label: 'Connection', icon: GlobeIcon },
-		{ id: 'activity', Label: 'Activity', icon: ActivityIcon }
+		{ id: 'pairing', Label: 'Pair/Rotate', icon: SettingsIcon }
 	];
-
-	onMount(() => {
-		const interval = setInterval(refreshEnvironment, 30000);
-		return () => clearInterval(interval);
-	});
 
 	async function refreshEnvironment() {
 		if (isRefreshing) return;
-
 		try {
 			isRefreshing = true;
 			await invalidateAll();
@@ -52,17 +45,14 @@
 
 	async function testConnection() {
 		if (isTestingConnection) return;
-
 		try {
 			isTestingConnection = true;
 			const result = await environmentManagementAPI.testConnection(environment.id);
-
 			if (result.status === 'online') {
 				toast.success('Connection successful');
 			} else {
 				toast.error(`Connection failed: ${result.message || 'Unknown error'}`);
 			}
-
 			await refreshEnvironment();
 		} catch (error) {
 			toast.error('Failed to test connection');
@@ -72,14 +62,33 @@
 		}
 	}
 
-	const environmentDisplayName = $derived(environment?.hostname || 'Environment Details');
+	async function pairOrRotate() {
+		if (!bootstrapToken) {
+			toast.error('Bootstrap token is required');
+			return;
+		}
+		try {
+			isPairing = true;
+			await environmentManagementAPI.update(environment.id, { bootstrapToken });
+			toast.success('Agent paired successfully');
+			bootstrapToken = '';
+			await refreshEnvironment();
+		} catch (e) {
+			console.error(e);
+			toast.error('Failed to pair/rotate agent token');
+		} finally {
+			isPairing = false;
+		}
+	}
+
+	const environmentDisplayName = $derived(environment.name);
 </script>
 
 <div class="space-y-6 pb-16">
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-4">
 			<Button variant="ghost" size="icon" onclick={() => goto('/environments')}>
-				<ArrowLeftIcon class="h-4 w-4" />
+				<ArrowLeftIcon class="size-4" />
 			</Button>
 			<div>
 				<h1 class="text-3xl font-bold tracking-tight">{environmentDisplayName}</h1>
@@ -89,17 +98,17 @@
 		<div class="flex items-center gap-2">
 			<Button variant="outline" onclick={testConnection} disabled={isTestingConnection}>
 				{#if isTestingConnection}
-					<RefreshCwIcon class="mr-2 h-4 w-4 animate-spin" />
+					<RefreshCwIcon class="mr-2 size-4 animate-spin" />
 				{:else}
-					<TerminalIcon class="mr-2 h-4 w-4" />
+					<TerminalIcon class="mr-2 size-4" />
 				{/if}
 				Test Connection
 			</Button>
 			<Button onclick={refreshEnvironment} disabled={isRefreshing}>
 				{#if isRefreshing}
-					<RefreshCwIcon class="mr-2 h-4 w-4 animate-spin" />
+					<RefreshCwIcon class="mr-2 size-4 animate-spin" />
 				{:else}
-					<RefreshCwIcon class="mr-2 h-4 w-4" />
+					<RefreshCwIcon class="mr-2 size-4" />
 				{/if}
 				Refresh
 			</Button>
@@ -146,8 +155,8 @@
 							<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 								<div class="space-y-4">
 									<div>
-										<Label class="text-muted-foreground text-sm font-medium">Hostname</Label>
-										<div class="mt-1 text-lg font-semibold">{environment.hostname}</div>
+										<Label class="text-muted-foreground text-sm font-medium">Name</Label>
+										<div class="mt-1 text-lg font-semibold">{environmentDisplayName}</div>
 									</div>
 									<div>
 										<Label class="text-muted-foreground text-sm font-medium">Status</Label>
@@ -173,24 +182,8 @@
 										<Label class="text-muted-foreground text-sm font-medium">Environment ID</Label>
 										<div class="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">{environment.id}</div>
 									</div>
-									<div>
-										<Label class="text-muted-foreground text-sm font-medium">Created</Label>
-										<div class="mt-1 text-sm">{format(new Date(environment.createdAt), 'PP p')}</div>
-									</div>
-									{#if environment.updatedAt}
-										<div>
-											<Label class="text-muted-foreground text-sm font-medium">Last Updated</Label>
-											<div class="mt-1 text-sm">{format(new Date(environment.updatedAt), 'PP p')}</div>
-										</div>
-									{/if}
 								</div>
 							</div>
-							{#if environment.description}
-								<div>
-									<Label class="text-muted-foreground text-sm font-medium">Description</Label>
-									<div class="mt-1 text-sm">{environment.description}</div>
-								</div>
-							{/if}
 						</Card.Content>
 					</Card.Root>
 				</div>
@@ -205,20 +198,13 @@
 						</Card.Header>
 						<Card.Content class="space-y-4">
 							<div>
-								<Label class="text-muted-foreground text-sm font-medium">API URL</Label>
-								<div class="bg-muted mt-1 rounded-md px-3 py-2 font-mono text-sm break-all">{environment.apiUrl}</div>
+								<Label class="text-muted-foreground text-sm font-medium">Name</Label>
+								<div class="mt-1 text-sm">{environmentDisplayName}</div>
 							</div>
-							{#if environment.lastSeen}
-								<div>
-									<Label class="text-muted-foreground text-sm font-medium">Last Seen</Label>
-									<div class="mt-1 text-sm">{format(new Date(environment.lastSeen), 'PP p')}</div>
-								</div>
-							{:else}
-								<div>
-									<Label class="text-muted-foreground text-sm font-medium">Last Seen</Label>
-									<div class="text-muted-foreground mt-1 text-sm">Never</div>
-								</div>
-							{/if}
+							<div>
+								<Label class="text-muted-foreground text-sm font-medium">API URL</Label>
+								<div class="bg-muted mt-1 break-all rounded-md px-3 py-2 font-mono text-sm">{environment.apiUrl}</div>
+							</div>
 							<div class="pt-4">
 								<Button onclick={testConnection} disabled={isTestingConnection} class="w-full">
 									{#if isTestingConnection}
@@ -232,45 +218,39 @@
 							</div>
 						</Card.Content>
 					</Card.Root>
-
-					<Card.Root>
-						<Card.Header>
-							<Card.Title class="flex items-center gap-2">
-								<SettingsIcon class="h-5 w-5" />
-								Connection Health
-							</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<div class="space-y-3">
-								<div class="flex items-center justify-between">
-									<span class="text-sm">Connection Status</span>
-									<StatusBadge
-										text={environment.status === 'online' ? 'Connected' : 'Disconnected'}
-										variant={environment.status === 'online' ? 'green' : 'red'}
-									/>
-								</div>
-								<div class="flex items-center justify-between">
-									<span class="text-sm">Environment Enabled</span>
-									<StatusBadge text={environment.enabled ? 'Yes' : 'No'} variant={environment.enabled ? 'green' : 'gray'} />
-								</div>
-							</div>
-						</Card.Content>
-					</Card.Root>
 				</div>
-			{:else if activeSection === 'activity'}
+			{:else if activeSection === 'pairing'}
 				<div class="space-y-6">
 					<Card.Root>
 						<Card.Header>
 							<Card.Title class="flex items-center gap-2">
-								<ActivityIcon class="h-5 w-5" />
-								Activity Log
+								<SettingsIcon class="h-5 w-5" />
+								Pair / Rotate Agent Token
 							</Card.Title>
+							<Card.Description>
+								The token is stored securely on the server and not displayed. Use a Bootstrap Token to pair or rotate.
+							</Card.Description>
 						</Card.Header>
-						<Card.Content>
-							<div class="text-muted-foreground py-8 text-center">
-								<DatabaseIcon class="mx-auto mb-3 h-12 w-12 opacity-50" />
-								<p>Activity logging coming soon</p>
-								<p class="text-sm">Environment activity and logs will be displayed here</p>
+						<Card.Content class="space-y-4">
+							<div>
+								<Label class="text-muted-foreground text-sm font-medium">Bootstrap Token</Label>
+								<input
+									class="bg-background focus:ring-primary mt-1 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
+									type="password"
+									placeholder="Enter AGENT_BOOTSTRAP_TOKEN"
+									bind:value={bootstrapToken}
+								/>
+							</div>
+							<div class="flex gap-2">
+								<Button onclick={pairOrRotate} disabled={isPairing || !bootstrapToken}>
+									{#if isPairing}
+										<RefreshCwIcon class="mr-2 h-4 w-4 animate-spin" />
+									{:else}
+										<SettingsIcon class="mr-2 h-4 w-4" />
+									{/if}
+									Pair / Rotate
+								</Button>
+								<Button variant="outline" onclick={() => (bootstrapToken = '')} disabled={isPairing}>Clear</Button>
 							</div>
 						</Card.Content>
 					</Card.Root>
@@ -280,7 +260,7 @@
 	</div>
 
 	{#if isRefreshing}
-		<div class="fixed right-4 bottom-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg">
+		<div class="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg">
 			<RefreshCwIcon class="h-4 w-4 animate-spin" />
 			<span class="text-sm">Refreshing...</span>
 		</div>

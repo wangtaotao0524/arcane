@@ -9,17 +9,15 @@
 	import MonitorIcon from '@lucide/svelte/icons/monitor';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
 	import { goto } from '$app/navigation';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { toast } from 'svelte-sonner';
-	import { formatDistanceToNow } from 'date-fns';
 	import { environmentManagementAPI } from '$lib/services/api';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
-	import type { Environment } from '$lib/stores/environment.store';
+	import type { Environment } from '$lib/types/environment.type';
 
 	let {
 		environments = $bindable(),
@@ -117,18 +115,13 @@
 		isLoading.testing = false;
 	}
 
-	function formatLastSeen(lastSeen?: string | null) {
-		if (!lastSeen) return 'Never';
-		return `${formatDistanceToNow(new Date(lastSeen))} ago`;
-	}
-
 	const columns = [
 		{ accessorKey: 'id', title: 'ID', hidden: true },
 		{
-			id: 'environment',
-			title: 'Environment',
+			id: 'name',
+			title: 'Friendly Name',
 			sortable: true,
-			accessorFn: (row) => row.hostname,
+			accessorFn: (row) => row.name,
 			cell: EnvironmentCell
 		},
 		{
@@ -147,12 +140,6 @@
 			title: 'Enabled',
 			sortable: true,
 			cell: EnabledCell
-		},
-		{
-			accessorKey: 'lastSeen',
-			title: 'Last Seen',
-			sortable: true,
-			cell: LastSeenCell
 		}
 	] satisfies ColumnSpec<Environment>[];
 </script>
@@ -164,13 +151,13 @@
 				<MonitorIcon class="text-muted-foreground size-4" />
 			</div>
 			<div
-				class="border-background absolute -top-1 -right-1 size-3 rounded-full border-2 {item.status === 'online'
+				class="border-background absolute -right-1 -top-1 size-3 rounded-full border-2 {item.status === 'online'
 					? 'bg-green-500'
 					: 'bg-red-500'}"
 			></div>
 		</div>
 		<div>
-			<div class="font-medium">{item.hostname}</div>
+			<div class="font-medium">{item.name}</div>
 			<div class="text-muted-foreground font-mono text-xs">{item.id}</div>
 		</div>
 	</div>
@@ -186,10 +173,6 @@
 
 {#snippet EnabledCell({ value }: { value: unknown })}
 	<StatusBadge text={Boolean(value) ? 'Enabled' : 'Disabled'} variant={Boolean(value) ? 'green' : 'gray'} />
-{/snippet}
-
-{#snippet LastSeenCell({ value }: { value: unknown })}
-	<span class="text-sm">{formatLastSeen((value as string) ?? '')}</span>
 {/snippet}
 
 {#snippet RowActions({ item }: { item: Environment })}
@@ -214,8 +197,8 @@
 				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item
-					class="text-red-500 focus:text-red-700!"
-					onclick={() => handleDeleteOne(item.id, item.hostname)}
+					variant="destructive"
+					onclick={() => handleDeleteOne(item.id, item.name)}
 					disabled={isLoading.removing}
 				>
 					<Trash2Icon class="size-4" />

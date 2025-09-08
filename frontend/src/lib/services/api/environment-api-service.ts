@@ -3,18 +3,14 @@ import { get } from 'svelte/store';
 import { environmentStore, LOCAL_DOCKER_ENVIRONMENT_ID } from '$lib/stores/environment.store';
 import type { ContainerCreateOptions, NetworkCreateOptions, VolumeCreateOptions, ContainerStats } from 'dockerode';
 import type { Project } from '$lib/types/project.type';
-import type {
-	PaginationRequest,
-	SortRequest,
-	PaginatedApiResponse,
-	SearchPaginationSortRequest,
-	Paginated
-} from '$lib/types/pagination.type';
+import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
 import { browser } from '$app/environment';
 import type { ContainerSummaryDto } from '$lib/types/container.type';
-import type { ImageSummaryDto } from '$lib/types/image.type';
+import type { ImageSummaryDto, ImageUpdateInfoDto } from '$lib/types/image.type';
 import type { NetworkSummaryDto } from '$lib/types/network.type';
 import type { VolumeSummaryDto, VolumeDetailDto, VolumeUsageDto } from '$lib/types/volume.type';
+import type { ImageUpdateSummary, ImageVersions, VersionComparison, CompareVersionRequest } from '$lib/types/image.type';
+import type { AutoUpdateCheck, AutoUpdateResult, AutoUpdateRecord, AutoUpdateStatus } from '$lib/types/auto-update.type';
 
 export class EnvironmentAPIService extends BaseAPIService {
 	private async getCurrentEnvironmentId(): Promise<string> {
@@ -320,6 +316,62 @@ export class EnvironmentAPIService extends BaseAPIService {
 				}
 			})
 		);
+	}
+
+	async checkImageUpdate(imageRef: string): Promise<ImageUpdateInfoDto> {
+		const envId = await this.getCurrentEnvironmentId();
+		const res = await this.api.get(`/environments/${envId}/image-updates/check`, { params: { imageRef } });
+		return this.handleResponse(res.data);
+	}
+
+	async checkImageUpdateByID(imageId: string): Promise<ImageUpdateInfoDto> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.get(`/environments/${envId}/image-updates/check/${imageId}`));
+	}
+
+	async checkMultipleImages(imageRefs: string[]): Promise<Record<string, ImageUpdateInfoDto>> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.post(`/environments/${envId}/image-updates/check-batch`, { imageRefs }));
+	}
+
+	async checkAllImages(limit = 50): Promise<Record<string, ImageUpdateInfoDto>> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.get(`/environments/${envId}/image-updates/check-all`, { params: { limit } }));
+	}
+
+	async getUpdateSummary(): Promise<ImageUpdateSummary> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.get(`/environments/${envId}/image-updates/summary`));
+	}
+
+	async getImageVersions(imageRef: string, limit = 20): Promise<ImageVersions> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(
+			this.api.get(`/environments/${envId}/image-updates/versions`, {
+				params: { imageRef, limit }
+			})
+		);
+	}
+
+	async compareVersions(request: CompareVersionRequest): Promise<VersionComparison> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.post(`/environments/${envId}/image-updates/compare`, request));
+	}
+
+	async runAutoUpdate(options?: AutoUpdateCheck): Promise<AutoUpdateResult> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.post(`/environments/${envId}/updater/run`, options));
+	}
+
+	async getAutoUpdateStatus(): Promise<AutoUpdateStatus> {
+		const envId = await this.getCurrentEnvironmentId();
+		return this.handleResponse(this.api.get(`/environments/${envId}/updater/status`));
+	}
+
+	async getAutoUpdateHistory(limit?: number): Promise<AutoUpdateRecord[]> {
+		const envId = await this.getCurrentEnvironmentId();
+		const params = limit ? { limit } : undefined;
+		return this.handleResponse(this.api.get(`/environments/${envId}/updater/history`, { params }));
 	}
 }
 

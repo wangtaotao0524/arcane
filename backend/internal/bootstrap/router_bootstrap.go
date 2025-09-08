@@ -58,19 +58,27 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 		},
 	}))
 
-	authMiddleware := middleware.NewAuthMiddleware(appServices.Auth)
-	router.Use(middleware.SetupCORS(cfg))
+	authMiddleware := middleware.NewAuthMiddleware(appServices.Auth, cfg)
+	corsMiddleware := middleware.NewCORSMiddleware(cfg).Add()
+	router.Use(corsMiddleware)
 
+	// TODO :- Refactor to a api endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
 	apiGroup := router.Group("/api")
+
+	if cfg.AgentMode {
+		api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Container, appServices.Image, appServices.ImageUpdate, appServices.Updater, appServices.Network, appServices.Volume, appServices.Stack, appServices.Settings, authMiddleware, cfg)
+		return router
+	}
+
 	api.NewAuthHandler(apiGroup, appServices.User, appServices.Auth, appServices.Oidc, authMiddleware)
 	api.NewContainerHandler(apiGroup, appServices.Container, appServices.Image, authMiddleware)
 	api.NewContainerRegistryHandler(apiGroup, appServices.ContainerRegistry, authMiddleware)
 	api.NewConverterHandler(apiGroup, appServices.Converter, authMiddleware)
-	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Container, appServices.Image, appServices.Network, appServices.Volume, appServices.Stack, authMiddleware)
+	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Container, appServices.Image, appServices.ImageUpdate, appServices.Updater, appServices.Network, appServices.Volume, appServices.Stack, appServices.Settings, authMiddleware, cfg)
 	api.NewEventHandler(apiGroup, appServices.Event, authMiddleware)
 	api.NewImageHandler(apiGroup, appServices.Image, appServices.ImageUpdate, authMiddleware)
 	api.NewImageUpdateHandler(apiGroup, appServices.ImageUpdate, authMiddleware)
