@@ -74,6 +74,9 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
           echo "IMAGE_STABLE=${DOCKER_IMAGE_NAME}:1.0-preview" >> "$GITHUB_ENV"
           echo "IMAGE_SHA=${DOCKER_IMAGE_NAME}:1.0-preview-${SHORT_SHA}" >> "$GITHUB_ENV"
+          # Agent image tags (headless/agent preview)
+          echo "AGENT_IMAGE=ghcr.io/${{ github.repository_owner }}/arcane-headless:1.0-preview" >> "$GITHUB_ENV"
+          echo "AGENT_IMAGE_SHA=ghcr.io/${{ github.repository_owner }}/arcane-headless:1.0-preview-${SHORT_SHA}" >> "$GITHUB_ENV"
 
       - name: Build and push Docker image
         id: build-push
@@ -139,6 +142,11 @@ jobs:
             Docker images:
             - ${{ env.IMAGE_STABLE }}
             - ${{ env.IMAGE_SHA }}
+
+            Agent images:
+            - ${{ env.AGENT_IMAGE }}
+            - ${{ env.AGENT_IMAGE_SHA }}
+
             Digest:
             - ${{ steps.build-push.outputs.digest }}
 
