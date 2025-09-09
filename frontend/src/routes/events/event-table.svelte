@@ -18,6 +18,7 @@
 	import type { ColumnSpec } from '$lib/components/arcane-table';
 	import EventDetailsDialog from '$lib/components/dialogs/event-details-dialog.svelte';
 	import InfoIcon from '@lucide/svelte/icons/info';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		events = $bindable(),
@@ -53,20 +54,21 @@
 	}
 
 	async function handleDeleteEvent(eventId: string, title: string) {
+		const safeTitle = title?.trim() || m.common_unknown();
 		openConfirmDialog({
-			title: 'Delete Event',
-			message: `Are you sure you want to delete the event "${title}"? This action cannot be undone.`,
+			title: m.events_delete_title(),
+			message: m.events_delete_confirm_message({ title: safeTitle }),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
 					handleApiResultWithCallbacks({
 						result: await tryCatch(eventAPI.delete(eventId)),
-						message: `Failed to delete event "${title}"`,
+						message: m.events_delete_failed({ title: safeTitle }),
 						setLoadingState: (value) => (isLoading.removing = value),
 						onSuccess: async () => {
-							toast.success(`Event "${title}" deleted successfully.`);
+							toast.success(m.events_delete_success({ title: safeTitle }));
 							events = await eventAPI.listPaginated(
 								requestOptions.pagination,
 								requestOptions.sort,
@@ -88,30 +90,30 @@
 	const columns = [
 		{
 			accessorKey: 'severity',
-			title: 'Severity',
+			title: m.events_col_severity(),
 			sortable: true,
 			cell: SeverityCell
 		},
 		{
 			accessorKey: 'type',
-			title: 'Type',
+			title: m.events_col_type(),
 			sortable: true,
 			cell: TypeCell
 		},
 		{
 			id: 'resource',
-			title: 'Resource',
+			title: m.events_col_resource(),
 			cell: ResourceCell
 		},
 		{
 			accessorKey: 'username',
-			title: 'User',
+			title: m.common_user(),
 			sortable: true,
 			cell: UserCell
 		},
 		{
 			accessorKey: 'timestamp',
-			title: 'Time',
+			title: m.events_col_time(),
 			sortable: true,
 			cell: TimeCell
 		}
@@ -156,7 +158,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -165,7 +167,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => openDetails(item)}>
 					<InfoIcon class="size-4" />
-					View Details
+					{m.common_view_details()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item
 					variant="destructive"
@@ -173,7 +175,7 @@
 					disabled={isLoading.removing}
 				>
 					<Trash2Icon class="size-4" />
-					Delete
+					{m.common_delete()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

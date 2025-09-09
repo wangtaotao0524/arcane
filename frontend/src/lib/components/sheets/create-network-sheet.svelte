@@ -13,6 +13,7 @@
 	import { z } from 'zod/v4';
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
 	import SelectWithLabel from '../form/select-with-label.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	type CreateNetworkFormProps = {
 		open: boolean;
@@ -23,16 +24,16 @@
 	let { open = $bindable(false), onSubmit, isLoading }: CreateNetworkFormProps = $props();
 
 	const drivers = [
-		{ value: 'bridge', label: 'Bridge' },
-		{ value: 'overlay', label: 'Overlay' },
-		{ value: 'macvlan', label: 'Macvlan' },
-		{ value: 'ipvlan', label: 'IPvlan' },
-		{ value: 'none', label: 'None' }
+		{ value: 'bridge', label: m.networks_bridge() },
+		{ value: 'overlay', label: m.networks_overlay() },
+		{ value: 'macvlan', label: m.networks_macvlan() },
+		{ value: 'ipvlan', label: m.networks_ipvlan() },
+		{ value: 'none', label: m.networks_none() }
 	];
 
 	const formSchema = z.object({
-		networkName: z.string().min(1, 'Network name is required'),
-		networkDriver: z.string().min(1, 'Driver is required'),
+		networkName: z.string().min(1, m.network_name_required()),
+		networkDriver: z.string().min(1, m.network_driver_required()),
 		checkDuplicate: z.boolean().default(true),
 		internal: z.boolean().default(false),
 		networkLabels: z.string().optional().default(''),
@@ -157,21 +158,19 @@
 					<NetworkIcon class="text-primary size-5" />
 				</div>
 				<div>
-					<Sheet.Title class="text-xl font-semibold">Create New Network</Sheet.Title>
-					<Sheet.Description class="text-muted-foreground mt-1 text-sm"
-						>Configure and create a new Docker network.</Sheet.Description
-					>
+					<Sheet.Title class="text-xl font-semibold">{m.create_network_title()}</Sheet.Title>
+					<Sheet.Description class="text-muted-foreground mt-1 text-sm">{m.create_network_description()}</Sheet.Description>
 				</div>
 			</div>
 		</Sheet.Header>
 
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
 			<div class="space-y-2">
-				<Label for="network-name" class="text-sm font-medium">Network Name *</Label>
+				<Label for="network-name" class="text-sm font-medium">{m.network_name_label()}</Label>
 				<Input
 					id="network-name"
 					type="text"
-					placeholder="e.g., my-app-network"
+					placeholder={m.network_name_placeholder()}
 					disabled={isLoading}
 					bind:value={$inputs.networkName.value}
 					class={$inputs.networkName.error ? 'border-destructive' : ''}
@@ -179,38 +178,38 @@
 				{#if $inputs.networkName.error}
 					<p class="text-destructive text-xs">{$inputs.networkName.error}</p>
 				{/if}
-				<p class="text-muted-foreground text-xs">Unique name for the network</p>
+				<p class="text-muted-foreground text-xs">{m.network_name_description()}</p>
 			</div>
 
 			<SelectWithLabel
 				id="driver-select"
 				bind:value={$inputs.networkDriver.value}
-				label="Network Driver"
-				description="Choose the network driver type"
+				label={m.network_driver_label()}
+				description={m.network_driver_description()}
 				options={drivers}
-				placeholder="Select a driver"
+				placeholder={m.network_driver_placeholder()}
 			/>
 
 			<div class="space-y-4">
 				<div class="flex items-center space-x-4">
 					<div class="flex items-center space-x-2">
 						<Checkbox id="check-duplicate" bind:checked={$inputs.checkDuplicate.value} disabled={isLoading} />
-						<Label for="check-duplicate" class="text-sm font-normal">Check Duplicate</Label>
+						<Label for="check-duplicate" class="text-sm font-normal">{m.network_check_duplicate_label()}</Label>
 					</div>
 					<div class="flex items-center space-x-2">
 						<Checkbox id="internal" bind:checked={$inputs.internal.value} disabled={isLoading} />
-						<Label for="internal" class="text-sm font-normal">Internal Network</Label>
+						<Label for="internal" class="text-sm font-normal">{m.network_internal_label()}</Label>
 					</div>
 				</div>
 			</div>
 
 			<Accordion.Root type="single" class="w-full">
 				<Accordion.Item value="labels">
-					<Accordion.Trigger class="text-sm font-medium">Labels</Accordion.Trigger>
+					<Accordion.Trigger class="text-sm font-medium">{m.networks_labels()}</Accordion.Trigger>
 					<Accordion.Content class="pt-4">
 						<div class="space-y-4">
 							<div class="space-y-2">
-								<Label class="text-sm font-medium">Key-Value Labels</Label>
+								<Label class="text-sm font-medium">{m.labels_key_value_label()}</Label>
 								{#each labels as label, index (index)}
 									<div class="flex items-center gap-2">
 										<Input type="text" placeholder="Key" bind:value={label.key} disabled={isLoading} class="flex-1" />
@@ -222,20 +221,22 @@
 											onclick={() => removeLabel(index)}
 											disabled={isLoading || labels.length <= 1}
 											class="text-destructive hover:text-destructive"
-											title="Remove Label"
+											title={m.common_remove()}
 										>
 											<XIcon class="size-4" />
 										</Button>
 									</div>
 								{/each}
-								<Button type="button" variant="outline" size="sm" onclick={addLabel} disabled={isLoading}>Add Label</Button>
+								<Button type="button" variant="outline" size="sm" onclick={addLabel} disabled={isLoading}
+									>{m.add_label_button()}</Button
+								>
 							</div>
 
 							<div class="space-y-2">
-								<Label for="network-labels" class="text-sm font-medium">Additional Labels (Text Format)</Label>
+								<Label for="network-labels" class="text-sm font-medium">{m.network_labels_text_label()}</Label>
 								<Textarea
 									id="network-labels"
-									placeholder="com.example.description=Production network&#10;com.example.department=Backend"
+									placeholder={m.network_labels_placeholder()}
 									disabled={isLoading}
 									rows={3}
 									bind:value={$inputs.networkLabels.value}
@@ -244,25 +245,25 @@
 								{#if $inputs.networkLabels.error}
 									<p class="text-destructive text-xs">{$inputs.networkLabels.error}</p>
 								{/if}
-								<p class="text-muted-foreground text-xs">Enter additional labels as key=value pairs, one per line</p>
+								<p class="text-muted-foreground text-xs">{m.network_labels_description()}</p>
 							</div>
 						</div>
 					</Accordion.Content>
 				</Accordion.Item>
 
 				<Accordion.Item value="ipam">
-					<Accordion.Trigger class="text-sm font-medium">IPAM Configuration</Accordion.Trigger>
+					<Accordion.Trigger class="text-sm font-medium">{m.networks_ipam_title()}</Accordion.Trigger>
 					<Accordion.Content class="pt-4">
 						<div class="space-y-4">
 							<div class="flex items-center space-x-2">
 								<Checkbox id="enable-ipam" bind:checked={$inputs.enableIpam.value} disabled={isLoading} />
-								<Label for="enable-ipam" class="text-sm font-medium">Enable IPAM Configuration</Label>
+								<Label for="enable-ipam" class="text-sm font-medium">{m.network_enable_ipam_label()}</Label>
 							</div>
 
 							{#if $inputs.enableIpam.value}
 								<div class="border-muted space-y-4 border-l-2 pl-6">
 									<div class="space-y-2">
-										<Label for="subnet" class="text-sm font-medium">Subnet</Label>
+										<Label for="subnet" class="text-sm font-medium">{m.networks_ipam_subnet_label()}</Label>
 										<Input
 											id="subnet"
 											type="text"
@@ -274,11 +275,11 @@
 										{#if $inputs.subnet.error}
 											<p class="text-destructive text-xs">{$inputs.subnet.error}</p>
 										{/if}
-										<p class="text-muted-foreground text-xs">Network subnet in CIDR notation</p>
+										<p class="text-muted-foreground text-xs">{m.network_subnet_description()}</p>
 									</div>
 
 									<div class="space-y-2">
-										<Label for="gateway" class="text-sm font-medium">Gateway</Label>
+										<Label for="gateway" class="text-sm font-medium">{m.networks_ipam_gateway_label()}</Label>
 										<Input
 											id="gateway"
 											type="text"
@@ -290,7 +291,7 @@
 										{#if $inputs.gateway.error}
 											<p class="text-destructive text-xs">{$inputs.gateway.error}</p>
 										{/if}
-										<p class="text-muted-foreground text-xs">Gateway IP address for the network</p>
+										<p class="text-muted-foreground text-xs">{m.network_gateway_description()}</p>
 									</div>
 								</div>
 							{/if}
@@ -305,15 +306,15 @@
 					class="arcane-button-cancel flex-1"
 					variant="outline"
 					onclick={() => (open = false)}
-					disabled={isLoading}>Cancel</Button
+					disabled={isLoading}>{m.common_cancel()}</Button
 				>
 				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
 					{#if isLoading}
 						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
-						Creating...
+						{m.networks_creating()}
 					{:else}
 						<NetworkIcon class="mr-2 size-4" />
-						Create Network
+						{m.networks_create_button()}
 					{/if}
 				</Button>
 			</Sheet.Footer>

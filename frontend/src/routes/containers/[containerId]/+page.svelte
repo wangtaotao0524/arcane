@@ -25,6 +25,7 @@
 	import { browser } from '$app/environment';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import type { ContainerDetailsDto, NetworkSettingsDto } from '$lib/types/container.type';
+	import { m } from '$lib/paraglide/messages';
 
 	interface NetworkConfig {
 		IPAddress?: string;
@@ -41,7 +42,6 @@
 	}
 
 	let { data } = $props();
-	// Use new DTO types for the page data
 	let container = $derived(data?.container as ContainerDetailsDto);
 	let stats = $derived((data?.stats ?? null) as Docker.ContainerStats | null);
 
@@ -60,7 +60,7 @@
 	let showFloatingHeader = $state(false);
 
 	const cleanContainerName = (name: string | undefined): string => {
-		if (!name) return 'Container Details';
+		if (!name) return m.containers_not_found_title();
 		return name.replace(/^\/+/, '');
 	};
 
@@ -196,12 +196,12 @@
 	const showStats = $derived(!!(container?.state?.running && stats));
 
 	const navigationSections = [
-		{ id: 'overview', label: 'Overview', icon: HardDriveIcon },
-		{ id: 'stats', label: 'Metrics', icon: ActivityIcon },
-		{ id: 'logs', label: 'Logs', icon: FileTextIcon },
-		{ id: 'config', label: 'Configuration', icon: SettingsIcon },
-		{ id: 'network', label: 'Networks', icon: NetworkIcon },
-		{ id: 'storage', label: 'Storage', icon: DatabaseIcon }
+		{ id: 'overview', label: m.containers_nav_overview(), icon: HardDriveIcon },
+		{ id: 'stats', label: m.containers_nav_metrics(), icon: ActivityIcon },
+		{ id: 'logs', label: m.containers_nav_logs(), icon: FileTextIcon },
+		{ id: 'config', label: m.containers_nav_config(), icon: SettingsIcon },
+		{ id: 'network', label: m.containers_nav_networks(), icon: NetworkIcon },
+		{ id: 'storage', label: m.containers_nav_storage(), icon: DatabaseIcon }
 	] as const;
 
 	const visibleNavigationSections = $derived(
@@ -277,7 +277,7 @@
 					<div class="flex items-center gap-3">
 						<Button variant="ghost" size="sm" href="/containers">
 							<ArrowLeftIcon class="mr-2 size-4" />
-							Back
+							{m.common_back()}
 						</Button>
 						<div class="bg-border h-4 w-px"></div>
 						<div class="flex items-center gap-2">
@@ -362,15 +362,15 @@
 						<section id="overview" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 								<HardDriveIcon class="size-5" />
-								Overview
+								{m.containers_details_title()}
 							</h2>
 
 							<div class="mb-6">
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Header class="pb-4">
-										<Card.Title>Container Details</Card.Title>
+										<Card.Title>{m.containers_details_title()}</Card.Title>
 										<Card.Description class="text-muted-foreground text-sm">
-											Identity, runtime, and system metadata
+											{m.containers_details_description()}
 										</Card.Description>
 									</Card.Header>
 
@@ -381,9 +381,9 @@
 													<HardDriveIcon class="size-4 text-blue-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-muted-foreground text-sm">Image</div>
+													<div class="text-muted-foreground text-sm">{m.common_image()}</div>
 													<div class="truncate font-medium" title={container.image}>
-														{container.image || 'N/A'}
+														{container.image || m.common_na()}
 													</div>
 												</div>
 											</div>
@@ -393,7 +393,7 @@
 													<ClockIcon class="size-4 text-green-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-muted-foreground text-sm">Created</div>
+													<div class="text-muted-foreground text-sm">{m.common_created()}</div>
 													<div class="font-medium" title={formatDockerDate(container?.created)}>
 														{formatDockerDate(container?.created)}
 													</div>
@@ -405,7 +405,7 @@
 													<NetworkIcon class="size-4 text-purple-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-muted-foreground text-sm">IP Address</div>
+													<div class="text-muted-foreground text-sm">{m.containers_ip_address()}</div>
 													<div class="font-medium">{primaryIpAddress}</div>
 												</div>
 											</div>
@@ -415,9 +415,9 @@
 													<TerminalIcon class="size-4 text-amber-600" />
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="text-muted-foreground text-sm">Command</div>
+													<div class="text-muted-foreground text-sm">{m.containers_command()}</div>
 													<div class="truncate font-medium" title={container.config?.cmd?.join(' ')}>
-														{container.config?.cmd?.join(' ') || 'N/A'}
+														{container.config?.cmd?.join(' ') || m.common_na()}
 													</div>
 												</div>
 											</div>
@@ -426,11 +426,11 @@
 										<Separator />
 
 										<div class="space-y-3">
-											<h4 class="text-sm font-semibold tracking-tight">System</h4>
+											<h4 class="text-sm font-semibold tracking-tight">{m.containers_system()}</h4>
 
 											<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 												<div class="space-y-1">
-													<div class="text-muted-foreground text-xs">Container ID</div>
+													<div class="text-muted-foreground text-xs">{m.common_id()}</div>
 													<div class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs">
 														{container.id}
 													</div>
@@ -438,7 +438,7 @@
 
 												{#if container.config?.workingDir}
 													<div class="space-y-1">
-														<div class="text-muted-foreground text-xs">Working Directory</div>
+														<div class="text-muted-foreground text-xs">{m.containers_working_directory()}</div>
 														<div class="bg-muted/50 max-w-full truncate rounded px-2 py-1.5 font-mono text-xs">
 															{container.config.workingDir}
 														</div>
@@ -447,7 +447,7 @@
 
 												{#if container.config?.user}
 													<div class="space-y-1">
-														<div class="text-muted-foreground text-xs">User</div>
+														<div class="text-muted-foreground text-xs">{m.common_user()}</div>
 														<div class="bg-muted/50 inline-flex rounded px-2 py-1.5 font-mono text-xs">
 															{container.config.user}
 														</div>
@@ -456,7 +456,7 @@
 
 												{#if container.state?.health}
 													<div class="space-y-1 sm:col-span-2">
-														<div class="text-muted-foreground text-xs">Health</div>
+														<div class="text-muted-foreground text-xs">{m.containers_health_label()}</div>
 														<div class="flex flex-wrap items-center gap-3">
 															<StatusBadge
 																variant={container.state.health.status === 'healthy'
@@ -471,7 +471,7 @@
 																{@const lastCheck = (first?.Start ?? first?.start) as string | undefined}
 																{#if lastCheck}
 																	<span class="text-muted-foreground text-xs">
-																		Last check: {formatDockerDate(lastCheck)}
+																		{m.containers_health_last_check({ time: formatDockerDate(lastCheck) })}
 																	</span>
 																{/if}
 															{/if}
@@ -489,7 +489,7 @@
 							<section id="stats" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 									<ActivityIcon class="size-5" />
-									Resource Metrics
+									{m.containers_resource_metrics()}
 								</h2>
 
 								<Card.Root class="rounded-lg border shadow-sm">
@@ -498,7 +498,7 @@
 											<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 												<div class="space-y-6">
 													<Meter
-														label="CPU Usage"
+														label={m.dashboard_meter_cpu()}
 														valueLabel="{cpuUsagePercent.toFixed(2)}%"
 														value={cpuUsagePercent}
 														max={100}
@@ -507,7 +507,7 @@
 													/>
 
 													<Meter
-														label="Memory Usage"
+														label={m.dashboard_meter_memory()}
 														valueLabel="{memoryUsageFormatted} / {memoryLimitFormatted} ({memoryUsagePercent.toFixed(1)}%)"
 														value={memoryUsagePercent}
 														max={100}
@@ -519,17 +519,18 @@
 												<div class="space-y-6">
 													<div>
 														<h4 class="mb-4 flex items-center gap-2 font-medium">
-															<NetworkIcon class="size-4" /> Network I/O
+															<NetworkIcon class="size-4" />
+															{m.containers_network_io()}
 														</h4>
 														<div class="grid grid-cols-2 gap-4">
 															<div class="bg-muted/30 rounded p-4">
-																<div class="text-muted-foreground text-sm">Received</div>
+																<div class="text-muted-foreground text-sm">{m.containers_network_received()}</div>
 																<div class="mt-1 font-medium">
 																	{bytes.format(stats.networks?.eth0?.rx_bytes || 0)}
 																</div>
 															</div>
 															<div class="bg-muted/30 rounded p-4">
-																<div class="text-muted-foreground text-sm">Transmitted</div>
+																<div class="text-muted-foreground text-sm">{m.containers_network_transmitted()}</div>
 																<div class="mt-1 font-medium">
 																	{bytes.format(stats.networks?.eth0?.tx_bytes || 0)}
 																</div>
@@ -539,10 +540,10 @@
 
 													{#if stats.blkio_stats && stats.blkio_stats.io_service_bytes_recursive && stats.blkio_stats.io_service_bytes_recursive.length > 0}
 														<div>
-															<h4 class="mb-4 font-medium">Block I/O</h4>
+															<h4 class="mb-4 font-medium">{m.containers_block_io()}</h4>
 															<div class="grid grid-cols-2 gap-4">
 																<div class="bg-muted/30 rounded p-4">
-																	<div class="text-muted-foreground text-sm">Read</div>
+																	<div class="text-muted-foreground text-sm">{m.containers_block_io_read()}</div>
 																	<div class="mt-1 font-medium">
 																		{bytes.format(
 																			stats.blkio_stats.io_service_bytes_recursive
@@ -552,7 +553,7 @@
 																	</div>
 																</div>
 																<div class="bg-muted/30 rounded p-4">
-																	<div class="text-muted-foreground text-sm">Write</div>
+																	<div class="text-muted-foreground text-sm">{m.containers_block_io_write()}</div>
 																	<div class="mt-1 font-medium">
 																		{bytes.format(
 																			stats.blkio_stats.io_service_bytes_recursive
@@ -570,15 +571,15 @@
 											{#if stats.pids_stats && stats.pids_stats.current !== undefined}
 												<div class="mt-6 border-t pt-6">
 													<div class="text-sm">
-														<span class="text-muted-foreground">Process count:</span>
+														<span class="text-muted-foreground">{m.containers_process_count()}</span>
 														<span class="ml-2 font-medium">{stats.pids_stats.current}</span>
 													</div>
 												</div>
 											{/if}
 										{:else if !container.state?.running}
-											<div class="text-muted-foreground py-12 text-center">Container is not running. Stats unavailable.</div>
+											<div class="text-muted-foreground py-12 text-center">{m.containers_stats_unavailable()}</div>
 										{:else}
-											<div class="text-muted-foreground py-12 text-center">Loading stats...</div>
+											<div class="text-muted-foreground py-12 text-center">{m.containers_stats_loading()}</div>
 										{/if}
 									</Card.Content>
 								</Card.Root>
@@ -589,24 +590,24 @@
 							<div class="mb-6 flex items-center justify-between">
 								<h2 class="flex items-center gap-2 text-xl font-semibold">
 									<FileTextIcon class="size-5" />
-									Container Logs
+									{m.containers_logs_title()}
 								</h2>
 
 								<div class="flex items-center gap-3">
 									<label class="flex items-center gap-2">
 										<input type="checkbox" bind:checked={autoScrollLogs} class="size-4" />
-										Auto-scroll
+										{m.common_autoscroll()}
 									</label>
-									<Button variant="outline" size="sm" onclick={() => logViewer?.clearLogs()}>Clear</Button>
+									<Button variant="outline" size="sm" onclick={() => logViewer?.clearLogs()}>{m.common_clear()}</Button>
 									{#if isStreaming}
 										<div class="flex items-center gap-2">
 											<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
-											<span class="text-sm font-medium text-green-600">Live</span>
+											<span class="text-sm font-medium text-green-600">{m.common_live()}</span>
 										</div>
-										<Button variant="outline" size="sm" onclick={() => logViewer?.stopLogStream()}>Stop</Button>
+										<Button variant="outline" size="sm" onclick={() => logViewer?.stopLogStream()}>{m.common_stop()}</Button>
 									{:else}
 										<Button variant="outline" size="sm" onclick={() => logViewer?.startLogStream()} disabled={!container?.id}>
-											Start
+											{m.common_start()}
 										</Button>
 									{/if}
 								</div>
@@ -635,21 +636,21 @@
 							<section id="config" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 									<SettingsIcon class="size-5" />
-									Configuration
+									{m.containers_configuration_title()}
 								</h2>
 
 								<Card.Root class="rounded-lg border shadow-sm">
 									<Card.Header class="pb-4">
-										<Card.Title>Environment, Ports & Labels</Card.Title>
+										<Card.Title>{m.containers_env_ports_labels_title()}</Card.Title>
 										<Card.Description class="text-muted-foreground text-sm">
-											Runtime configuration and metadata for this container
+											{m.containers_env_ports_labels_description()}
 										</Card.Description>
 									</Card.Header>
 
 									<Card.Content class="space-y-8">
 										{#if hasEnvVars}
 											<div>
-												<h3 class="mb-3 text-sm font-semibold tracking-tight">Environment Variables</h3>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">{m.containers_env_vars_title()}</h3>
 
 												{#if container.config?.env && container.config.env.length > 0}
 													<ul class="divide-border/60 divide-y">
@@ -676,7 +677,7 @@
 														{/each}
 													</ul>
 												{:else}
-													<div class="text-muted-foreground py-8 text-center">No environment variables</div>
+													<div class="text-muted-foreground py-8 text-center">{m.containers_no_env_vars()}</div>
 												{/if}
 											</div>
 										{/if}
@@ -687,7 +688,7 @@
 
 										{#if hasPorts}
 											<div>
-												<h3 class="mb-3 text-sm font-semibold tracking-tight">Port Mappings</h3>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">{m.containers_port_mappings()}</h3>
 
 												<ul class="divide-border/60 divide-y">
 													{#each container.ports as p, idx (idx)}
@@ -701,7 +702,7 @@
 																		{p.ip || '0.0.0.0'}:{p.publicPort} → {p.privatePort}/{p.type}
 																	</span>
 																{:else}
-																	<span class="text-muted-foreground font-semibold">Not published</span>
+																	<span class="text-muted-foreground font-semibold">{m.containers_not_published()}</span>
 																{/if}
 															</div>
 														</li>
@@ -716,7 +717,7 @@
 
 										{#if hasLabels}
 											<div>
-												<h3 class="mb-3 text-sm font-semibold tracking-tight">Labels</h3>
+												<h3 class="mb-3 text-sm font-semibold tracking-tight">{m.common_labels()}</h3>
 
 												{#if container.labels && Object.keys(container.labels).length > 0}
 													<ul class="divide-border/60 divide-y">
@@ -734,7 +735,7 @@
 														{/each}
 													</ul>
 												{:else}
-													<div class="text-muted-foreground py-8 text-center">No labels defined</div>
+													<div class="text-muted-foreground py-8 text-center">{m.containers_no_labels_defined()}</div>
 												{/if}
 											</div>
 										{/if}
@@ -747,7 +748,7 @@
 							<section id="network" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 									<NetworkIcon class="size-5" />
-									Networks
+									{m.containers_networks_title()}
 								</h2>
 
 								<Card.Root class="rounded-lg border shadow-sm">
@@ -766,28 +767,28 @@
 														<div class="mb-4 font-medium">{networkName}</div>
 														<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 															<div>
-																<div class="text-muted-foreground text-sm">IP Address</div>
-																<div class="font-mono">{rawNetworkConfig.ipAddress || 'N/A'}</div>
+																<div class="text-muted-foreground text-sm">{m.containers_ip_address()}</div>
+																<div class="font-mono">{rawNetworkConfig.ipAddress || m.common_na()}</div>
 															</div>
 															<div>
-																<div class="text-muted-foreground text-sm">Gateway</div>
-																<div class="font-mono">{rawNetworkConfig.gateway || 'N/A'}</div>
+																<div class="text-muted-foreground text-sm">{m.containers_gateway()}</div>
+																<div class="font-mono">{rawNetworkConfig.gateway || m.common_na()}</div>
 															</div>
 															<div>
-																<div class="text-muted-foreground text-sm">MAC Address</div>
-																<div class="font-mono">{rawNetworkConfig.macAddress || 'N/A'}</div>
+																<div class="text-muted-foreground text-sm">{m.containers_mac_address()}</div>
+																<div class="font-mono">{rawNetworkConfig.macAddress || m.common_na()}</div>
 															</div>
 															<div>
-																<div class="text-muted-foreground text-sm">Subnet</div>
+																<div class="text-muted-foreground text-sm">{m.containers_subnet()}</div>
 																<div class="font-mono">
 																	{rawNetworkConfig.ipPrefixLen
 																		? `${rawNetworkConfig.ipAddress}/${rawNetworkConfig.ipPrefixLen}`
-																		: 'N/A'}
+																		: m.common_na()}
 																</div>
 															</div>
 															{#if rawNetworkConfig.aliases && rawNetworkConfig.aliases.length > 0}
 																<div class="col-span-2">
-																	<div class="text-muted-foreground text-sm">Aliases</div>
+																	<div class="text-muted-foreground text-sm">{m.containers_aliases()}</div>
 																	<div class="font-mono">{rawNetworkConfig.aliases.join(', ')}</div>
 																</div>
 															{/if}
@@ -796,7 +797,7 @@
 												{/each}
 											</div>
 										{:else}
-											<div class="text-muted-foreground py-12 text-center">No networks connected</div>
+											<div class="text-muted-foreground py-12 text-center">{m.containers_no_networks_connected()}</div>
 										{/if}
 									</Card.Content>
 								</Card.Root>
@@ -807,7 +808,7 @@
 							<section id="storage" class="scroll-mt-20">
 								<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 									<DatabaseIcon class="size-5" />
-									Storage & Mounts
+									{m.containers_storage_title()}
 								</h2>
 
 								<Card.Root class="rounded-lg border shadow-sm">
@@ -836,28 +837,32 @@
 																<div>
 																	<div class="font-medium">
 																		{mount.type === 'tmpfs'
-																			? 'Temporary filesystem'
+																			? m.containers_mount_type_tmpfs()
 																			: mount.type === 'volume'
-																				? mount.name || 'Docker volume'
-																				: 'Host directory'}
+																				? mount.name || m.containers_mount_type_volume()
+																				: m.containers_mount_type_bind()}
 																	</div>
 																	<div class="text-muted-foreground text-sm">
-																		{mount.type} mount {mount.rw ? '(read-write)' : '(read-only)'}
+																		{mount.type} mount {mount.rw ? `(${m.common_rw()})` : `(${m.common_ro()})`}
 																	</div>
 																</div>
 															</div>
 															<Badge variant={mount.rw ? 'outline' : 'secondary'}>
-																{mount.rw ? 'RW' : 'RO'}
+																{mount.rw ? m.common_rw() : m.common_ro()}
 															</Badge>
 														</div>
 														<div class="space-y-3 p-4">
 															<div class="flex">
-																<span class="text-muted-foreground w-24 font-medium">Container:</span>
+																<span class="text-muted-foreground w-24 font-medium">{m.containers_mount_label_container()}</span>
 																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.destination}</span>
 															</div>
 															<div class="flex">
 																<span class="text-muted-foreground w-24 font-medium">
-																	{mount.type === 'volume' ? 'Volume:' : mount.type === 'bind' ? 'Host:' : 'Source:'}
+																	{mount.type === 'volume'
+																		? m.containers_mount_label_volume()
+																		: mount.type === 'bind'
+																			? m.containers_mount_label_host()
+																			: m.containers_mount_label_source()}
 																</span>
 																<span class="bg-muted/50 flex-1 rounded px-2 py-1 font-mono">{mount.source}</span>
 															</div>
@@ -870,7 +875,7 @@
 												<div class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
 													<DatabaseIcon class="text-muted-foreground size-6" />
 												</div>
-												<div class="text-muted-foreground">No volumes or mounts configured</div>
+												<div class="text-muted-foreground">{m.containers_no_mounts_configured()}</div>
 											</div>
 										{/if}
 									</Card.Content>
@@ -887,18 +892,18 @@
 				<div class="bg-muted/50 mb-6 inline-flex rounded-full p-6">
 					<CircleAlertIcon class="text-muted-foreground size-10" />
 				</div>
-				<h2 class="mb-3 text-2xl font-medium">Container Not Found</h2>
+				<h2 class="mb-3 text-2xl font-medium">{m.containers_not_found_title()}</h2>
 				<p class="text-muted-foreground mb-8 max-w-md text-center">
-					Could not load container data. It may have been removed or the Docker engine is not accessible.
+					{m.containers_not_found_description()}
 				</p>
 				<div class="flex justify-center gap-4">
 					<Button variant="outline" href="/containers">
 						<ArrowLeftIcon class="mr-2 size-4" />
-						Back to Containers
+						{m.common_back_to_containers()}
 					</Button>
 					<Button variant="default" onclick={refreshData}>
 						<RefreshCwIcon class="mr-2 size-4" />
-						Retry
+						{m.common_retry()}
 					</Button>
 				</div>
 			</div>

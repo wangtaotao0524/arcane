@@ -20,6 +20,7 @@
 	import SwitchWithLabel from '$lib/components/form/labeled-switch.svelte';
 
 	import { toast } from 'svelte-sonner';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		open: boolean;
@@ -62,7 +63,7 @@
 	}
 
 	function getRegistryName(t: Template): string {
-		return t.registry?.name ?? (t.isRemote ? 'Remote' : 'Local');
+		return t.registry?.name ?? (t.isRemote ? m.templates_remote() : m.templates_local());
 	}
 
 	function sortTemplates(items: Template[]): Template[] {
@@ -78,8 +79,8 @@
 	type Group = { key: string; name: string; items: Template[] };
 
 	const filters = {
-		'name-asc': 'Name (A-Z)',
-		'name-desc': 'Name (Z-A)'
+		'name-asc': m.templates_sort_name_asc(),
+		'name-desc': m.templates_sort_name_desc()
 	};
 
 	const grouped: Group[] = $derived(
@@ -109,7 +110,7 @@
 		try {
 			const details = await templateAPI.getTemplateContent(template.id);
 			if (!details?.content) {
-				toast.error('Failed to load template content');
+				toast.error(m.templates_load_failed());
 				return;
 			}
 			onSelect({
@@ -118,10 +119,10 @@
 				envContent: details.envContent
 			});
 			open = false;
-			toast.success(`Template "${template.name}" loaded successfully!`);
+			toast.success(m.templates_loaded_success({ name: template.name }));
 		} catch (error) {
 			console.error('Error loading template:', error);
-			toast.error(error instanceof Error ? error.message : 'Failed to load template content');
+			toast.error(error instanceof Error ? error.message : m.templates_load_failed());
 		} finally {
 			loadingStates.delete(template.id);
 			loadingStates = new Map(loadingStates);
@@ -139,14 +140,14 @@
 			const result = await templateAPI.download(templateId);
 
 			if (result) {
-				toast.success(`Template "${template.name}" downloaded successfully!`);
+				toast.success(m.templates_downloaded_success({ name: template.name }));
 				onDownloadSuccess?.();
 			} else {
-				toast.error('Failed to download template');
+				toast.error(m.templates_download_failed());
 			}
 		} catch (error) {
 			console.error('Error downloading template:', error);
-			let errorMessage = 'Failed to download template';
+			let errorMessage = m.templates_download_failed();
 			if (error instanceof Error) errorMessage = error.message;
 			toast.error(errorMessage);
 		} finally {
@@ -161,25 +162,22 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<FileTextIcon class="size-5" />
-				Choose a Template
+				{m.templates_choose_title()}
 			</Dialog.Title>
-			<Dialog.Description>
-				Browse templates from your registries or local downloads. Scroll to see more, select to use immediately, or download for
-				offline use.
-			</Dialog.Description>
+			<Dialog.Description>{m.templates_choose_description()}</Dialog.Description>
 		</Dialog.Header>
 
 		<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<div class="flex items-center gap-3">
 				<SwitchWithLabel
 					id="groupByRegistrySwitch"
-					label="Group by registry"
-					description="Enable Collapsible Sections for each registry"
+					label={m.templates_group_by_registry_label()}
+					description={m.templates_group_by_registry_description()}
 					bind:checked={groupByRegistry}
 				/>
 			</div>
 			<div class="flex items-center gap-3">
-				<Label for="sortBy" class="text-sm font-medium whitespace-nowrap">Sort by</Label>
+				<Label for="sortBy" class="whitespace-nowrap text-sm font-medium">{m.common_sort_by()}</Label>
 				<Select.Root bind:value={sortBy} type="single">
 					<Select.Trigger id="sortBy" class="bg-background h-9 rounded-md border px-2 text-sm">
 						{filters[sortBy]}
@@ -198,11 +196,11 @@
 				{#if (allTemplates?.length ?? 0) === 0}
 					<div class="text-muted-foreground py-10 text-center">
 						<FileTextIcon class="mx-auto mb-4 size-12 opacity-50" />
-						<p class="mb-2">No templates available</p>
+						<p class="mb-2">{m.templates_no_templates()}</p>
 						<p class="text-sm">
-							Add a template registry in
-							<a href="/customize/templates" class="text-primary hover:underline">Template Settings</a>
-							to access community templates.
+							{m.templates_add_registry_prompt_part1()}
+							<a href="/customize/templates" class="text-primary hover:underline">{m.templates_template_settings()}</a>
+							{m.templates_add_registry_prompt_part2()}
 						</p>
 					</div>
 				{:else if groupByRegistry && grouped.length}
@@ -253,7 +251,7 @@
 
 															<div class="flex items-center justify-between gap-2">
 																<div class="text-muted-foreground text-xs">
-																	{template.isRemote ? 'Remote template' : 'Local template'}
+																	{template.isRemote ? m.templates_remote_template_label() : m.templates_local_template_label()}
 																</div>
 																<div class="flex gap-2">
 																	{#if template.isRemote}
@@ -265,10 +263,10 @@
 																		>
 																			{#if loadingStates.get(`download-${template.id}`)}
 																				<LoaderCircleIcon class="mr-1 size-3 animate-spin" />
-																				Downloading...
+																				{m.templates_downloading()}
 																			{:else}
 																				<DownloadIcon class="mr-1 size-3" />
-																				Download
+																				{m.templates_download()}
 																			{/if}
 																		</Button>
 																	{/if}
@@ -279,9 +277,9 @@
 																	>
 																		{#if loadingStates.get(template.id)}
 																			<LoaderCircleIcon class="mr-1 size-3 animate-spin" />
-																			Loading...
+																			{m.templates_loading()}
 																		{:else}
-																			Use Now
+																			{m.templates_use_now()}
 																		{/if}
 																	</Button>
 																</div>
@@ -342,7 +340,7 @@
 
 									<div class="flex items-center justify-between gap-2">
 										<div class="text-muted-foreground text-xs">
-											{template.isRemote ? 'Remote template' : 'Local template'}
+											{template.isRemote ? m.templates_remote_template_label() : m.templates_local_template_label()}
 										</div>
 										<div class="flex gap-2">
 											{#if template.isRemote}
@@ -354,19 +352,19 @@
 												>
 													{#if loadingStates.get(`download-${template.id}`)}
 														<LoaderCircleIcon class="mr-1 size-3 animate-spin" />
-														Downloading...
+														{m.templates_downloading()}
 													{:else}
 														<DownloadIcon class="mr-1 size-3" />
-														Download
+														{m.templates_download()}
 													{/if}
 												</Button>
 											{/if}
 											<Button size="sm" onclick={() => handleSelect(template)} disabled={loadingStates.get(template.id)}>
 												{#if loadingStates.get(template.id)}
 													<LoaderCircleIcon class="mr-1 size-3 animate-spin" />
-													Loading...
+													{m.templates_loading()}
 												{:else}
-													Use Now
+													{m.templates_use_now()}
 												{/if}
 											</Button>
 										</div>
@@ -380,7 +378,7 @@
 		</div>
 
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
+			<Button variant="outline" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

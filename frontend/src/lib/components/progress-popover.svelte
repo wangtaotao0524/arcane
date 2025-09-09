@@ -6,11 +6,12 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import type { Icon as IconType } from '@lucide/svelte';
 	import { type Snippet } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		open = $bindable(false),
-		title = 'Progress',
-		subtitle = 'Working…',
+		title = m.progress_title(),
+		subtitle = m.progress_subtitle(),
 		progress = $bindable(0),
 		statusText = '',
 		error = '',
@@ -48,7 +49,9 @@
 	}
 
 	const percent = $derived(Math.round(progress));
-	const displaySubtitle = $derived(error ? subtitle : progress === 100 ? 'Pull Completed' : subtitle);
+	const displaySubtitle = $derived(
+		error ? (subtitle ?? m.common_unknown()) : progress === 100 ? m.progress_pull_completed() : (subtitle ?? m.common_unknown())
+	);
 </script>
 
 <Popover.Root bind:open onOpenChange={handleOpenChange}>
@@ -68,7 +71,7 @@
 					{/if}
 				</div>
 				<div>
-					<h4 class="text-sm font-semibold">{title}</h4>
+					<h4 class="text-sm font-semibold">{title ?? m.common_unknown()}</h4>
 					<p class="text-muted-foreground text-xs">{displaySubtitle}</p>
 				</div>
 			</div>
@@ -80,19 +83,19 @@
 			{:else}
 				<div class="space-y-2">
 					<div class="flex justify-between text-xs">
-						<span class="text-muted-foreground truncate pr-2">{statusText || 'Preparing...'}</span>
+						<span class="text-muted-foreground truncate pr-2">{statusText || m.progress_preparing()}</span>
 						<span class="text-muted-foreground shrink-0">{percent}%</span>
 					</div>
 					<Progress value={progress} max={100} class="h-2 w-full" />
 					{#if loading}
-						<p class="text-muted-foreground text-xs">This may take a while depending on size and connection.</p>
+						<p class="text-muted-foreground text-xs">{m.progress_in_progress_note()}</p>
 					{/if}
 				</div>
 			{/if}
 
 			{#if !loading && progress === 100 && !error}
 				<div class="rounded-md bg-green-50 p-3 dark:bg-green-950/20">
-					<p class="text-sm text-green-600 dark:text-green-400">✓ Completed successfully!</p>
+					<p class="text-sm text-green-600 dark:text-green-400">{m.progress_completed_success()}</p>
 				</div>
 			{/if}
 		</div>

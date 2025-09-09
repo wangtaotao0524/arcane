@@ -6,12 +6,14 @@ type CreateUserDto struct {
 	DisplayName *string  `json:"displayName,omitempty"`
 	Email       *string  `json:"email,omitempty"`
 	Roles       []string `json:"roles,omitempty"`
+	Locale      *string  `json:"locale,omitempty"`
 }
 
 type UpdateUserDto struct {
 	DisplayName *string  `json:"displayName,omitempty"`
 	Email       *string  `json:"email,omitempty"`
 	Roles       []string `json:"roles,omitempty"`
+	Locale      *string  `json:"locale,omitempty"`
 }
 
 type UserResponseDto struct {
@@ -21,6 +23,7 @@ type UserResponseDto struct {
 	Email         *string  `json:"email,omitempty"`
 	Roles         []string `json:"roles"`
 	OidcSubjectId *string  `json:"oidcSubjectId,omitempty"`
+	Locale        *string  `json:"locale,omitempty"`
 	CreatedAt     string   `json:"createdAt,omitempty"`
 	UpdatedAt     string   `json:"updatedAt,omitempty"`
 }

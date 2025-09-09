@@ -7,6 +7,7 @@
 	import { imageUpdateFilters, usageFilters } from './data.js';
 	import { debounced } from '$lib/utils/utils.js';
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		table,
@@ -31,7 +32,7 @@
 <div class="flex items-center justify-between">
 	<div class="flex flex-1 items-center space-x-2">
 		<Input
-			placeholder="Search..."
+			placeholder={m.common_search()}
 			value={(table.getState().globalFilter as string) ?? ''}
 			oninput={(e) => debouncedSetGlobal(e.currentTarget.value)}
 			onchange={(e) => table.setGlobalFilter(e.currentTarget.value)}
@@ -42,10 +43,10 @@
 		/>
 
 		{#if usageColumn}
-			<DataTableFacetedFilter column={usageColumn} title="Usage" options={usageFilters} />
+			<DataTableFacetedFilter column={usageColumn} title={m.common_usage()} options={usageFilters} />
 		{/if}
 		{#if updatesColumn}
-			<DataTableFacetedFilter column={updatesColumn} title="Updates" options={imageUpdateFilters} />
+			<DataTableFacetedFilter column={updatesColumn} title={m.images_updates()} options={imageUpdateFilters} />
 		{/if}
 
 		{#if isFiltered}
@@ -57,7 +58,7 @@
 				}}
 				class="h-8 px-2 lg:px-3"
 			>
-				Reset
+				{m.common_reset()}
 				<XIcon />
 			</Button>
 		{/if}
@@ -68,7 +69,7 @@
 			<ArcaneButton
 				action="remove"
 				size="sm"
-				customLabel={`Remove Selected (${selectedIds?.length ?? 0})`}
+				customLabel={m.common_remove_selected({ count: selectedIds?.length ?? 0 })}
 				onclick={() => onRemoveSelected?.(selectedIds!)}
 			/>
 		{/if}

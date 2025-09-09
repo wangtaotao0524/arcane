@@ -11,6 +11,7 @@
 	import type { Environment } from '$lib/types/environment.type';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		isAdmin?: boolean;
@@ -56,7 +57,7 @@
 
 <Sidebar.Menu>
 	{#if sidebar.open}
-		<Label class="text-sidebar-foreground/60 mb-2 px-2 text-xs font-medium">Environment</Label>
+		<Label class="text-sidebar-foreground/60 mb-2 px-2 text-xs font-medium">{m.sidebar_environment_label()}</Label>
 	{/if}
 	<Sidebar.MenuItem>
 		<DropdownMenu.Root>
@@ -82,7 +83,7 @@
 									{getEnvLabel(currentSelectedEnvironment)}
 								</span>
 								<span class="truncate text-xs">
-									{currentSelectedEnvironment.isLocal ? 'unix:///var/run/docker.sock' : currentSelectedEnvironment.apiUrl}
+									{currentSelectedEnvironment.isLocal ? m.sidebar_local_docker_socket() : currentSelectedEnvironment.apiUrl}
 								</span>
 							</div>
 						{:else}
@@ -92,8 +93,8 @@
 								<ServerIcon class="size-4" />
 							</div>
 							<div class="grid flex-1 text-left text-sm leading-tight">
-								<span class="truncate font-medium">No Environment</span>
-								<span class="truncate text-xs">Select one</span>
+								<span class="truncate font-medium">{m.sidebar_no_environment()}</span>
+								<span class="truncate text-xs">{m.sidebar_select_one()}</span>
 							</div>
 						{/if}
 						<ChevronsUpDownIcon class="ml-auto" />
@@ -106,13 +107,13 @@
 				side={sidebar.isMobile ? 'bottom' : 'right'}
 				sideOffset={4}
 			>
-				<DropdownMenu.Label class="text-muted-foreground text-xs">Select Environment</DropdownMenu.Label>
+				<DropdownMenu.Label class="text-muted-foreground text-xs">{m.sidebar_select_environment()}</DropdownMenu.Label>
 				{#if availableEnvironments.length === 0}
 					<DropdownMenu.Item disabled class="gap-2 p-2">
 						<div class="flex size-6 items-center justify-center rounded-md border">
 							<ServerIcon class="size-3.5 shrink-0" />
 						</div>
-						<span>No environments available</span>
+						<span>{m.sidebar_no_environments()}</span>
 					</DropdownMenu.Item>
 				{:else}
 					{#each availableEnvironments as env (env.id)}
@@ -127,7 +128,7 @@
 							<div class="flex flex-col">
 								<span>{getEnvLabel(env)}</span>
 								{#if env.isLocal}
-									<span class="text-muted-foreground text-xs">unix:///var/run/docker.sock</span>
+									<span class="text-muted-foreground text-xs">{m.sidebar_local_docker_socket()}</span>
 								{:else}
 									<span class="text-muted-foreground max-w-32 truncate text-xs">{env.apiUrl}</span>
 								{/if}
@@ -141,7 +142,7 @@
 						<div class="flex size-6 items-center justify-center rounded-md border bg-transparent">
 							<PlusIcon class="size-4" />
 						</div>
-						<div class="text-muted-foreground font-medium">Manage Environments</div>
+						<div class="text-muted-foreground font-medium">{m.sidebar_manage_environments()}</div>
 					</DropdownMenu.Item>
 				{/if}
 			</DropdownMenu.Content>

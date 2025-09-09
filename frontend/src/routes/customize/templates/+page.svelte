@@ -18,6 +18,7 @@
 	import { toast } from 'svelte-sonner';
 	import AddTemplateRegistrySheet from '$lib/components/sheets/add-template-registry-sheet.svelte';
 	import StatCard from '$lib/components/stat-card.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -42,7 +43,7 @@
 		try {
 			const registry = registries.find((r) => r.id === id);
 			if (!registry) {
-				toast.error('Registry not found');
+				toast.error(m.templates_registry_not_found());
 				return;
 			}
 
@@ -54,10 +55,10 @@
 			});
 
 			registries = await templateAPI.getRegistries();
-			toast.success('Registry updated successfully');
+			toast.success(m.registries_update_success());
 		} catch (error) {
 			console.error('Error updating registry:', error);
-			toast.error(error instanceof Error ? error.message : 'Failed to update registry');
+			toast.error(error instanceof Error ? error.message : m.registries_save_failed());
 		} finally {
 			isLoading.updating.delete(id);
 		}
@@ -68,13 +69,14 @@
 		isLoading.removing.add(id);
 
 		try {
+			const reg = registries.find((r) => r.id === id);
 			await templateAPI.deleteRegistry(id);
 			registries = registries.filter((r) => r.id !== id);
 			registries = await templateAPI.getRegistries();
-			toast.success('Registry removed successfully');
+			toast.success(reg ? m.registries_delete_success({ url: reg.url }) : m.templates_registry_removed_success());
 		} catch (error) {
 			console.error('Error removing registry:', error);
-			toast.error(error instanceof Error ? error.message : 'Failed to remove registry');
+			toast.error(error instanceof Error ? error.message : m.registries_save_failed());
 		} finally {
 			isLoading.removing.delete(id);
 		}
@@ -83,10 +85,10 @@
 	async function refreshTemplates() {
 		try {
 			templates = await templateAPI.loadAll();
-			toast.success('Templates refreshed successfully');
+			toast.success(m.templates_refreshed());
 		} catch (error) {
 			console.error('Error refreshing templates:', error);
-			toast.error('Failed to refresh templates');
+			toast.error(m.templates_refresh_failed());
 		}
 	}
 
@@ -104,10 +106,10 @@
 			registries = await templateAPI.getRegistries();
 			showAddRegistrySheet = false;
 
-			toast.success('Registry added successfully');
+			toast.success(m.registries_create_success());
 		} catch (error) {
 			console.error('Error adding registry:', error);
-			toast.error(error instanceof Error ? error.message : 'Failed to add registry');
+			toast.error(error instanceof Error ? error.message : m.registries_save_failed());
 		} finally {
 			isLoading.addingRegistry = false;
 		}
@@ -117,36 +119,38 @@
 <div class="space-y-6">
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Template Settings</h1>
+			<h1 class="text-3xl font-bold tracking-tight">{m.templates_title()}</h1>
 			<p class="text-muted-foreground mt-1 text-sm">
-				Manage Docker Compose template sources and registries
-				<a href="https://arcane.ofkm.dev/docs/templates/use-templates" class="text-primary ml-1 hover:underline">→ Learn more</a>
+				{m.templates_subtitle()}
+				<a href="https://arcane.ofkm.dev/docs/templates/use-templates" class="text-primary ml-1 hover:underline"
+					>{m.templates_learn_more()}</a
+				>
 			</p>
 		</div>
 
 		<Button onclick={refreshTemplates} class="h-10" variant="outline">
 			<RefreshCwIcon class="mr-2 size-4" />
-			Refresh Templates
+			{m.templates_refresh()}
 		</Button>
 	</div>
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 		<StatCard
-			title="Local Templates"
+			title={m.templates_local_templates()}
 			value={localTemplateCount}
 			icon={FolderOpenIcon}
 			iconColor="text-blue-500"
 			class="border-l-4 border-l-blue-500"
 		/>
 		<StatCard
-			title="Remote Templates"
+			title={m.templates_remote_templates()}
 			value={remoteTemplateCount}
 			icon={GlobeIcon}
 			iconColor="text-green-500"
 			class="border-l-4 border-l-green-500"
 		/>
 		<StatCard
-			title="Registries"
+			title={m.templates_registries()}
 			value={registries.length}
 			icon={FileTextIcon}
 			iconColor="text-purple-500"
@@ -158,27 +162,24 @@
 
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
-			<h2 class="text-xl font-semibold">Template Registries</h2>
+			<h2 class="text-xl font-semibold">{m.templates_registries_section_title()}</h2>
 			<Button onclick={() => (showAddRegistrySheet = true)}>
 				<PlusIcon class="mr-2 size-4" />
-				Add Registry
+				{m.registries_add_button()}
 			</Button>
 		</div>
 		{#if registries.length == 0}
 			<Alert.Root>
 				<GlobeIcon class="size-4" />
-				<Alert.Title>Remote Registries</Alert.Title>
-				<Alert.Description
-					>Add remote template registries to access community templates. Registries should provide a JSON manifest with template
-					definitions and download URLs.</Alert.Description
-				>
+				<Alert.Title>{m.templates_alert_remote_registries_title()}</Alert.Title>
+				<Alert.Description>{m.templates_alert_remote_registries_description()}</Alert.Description>
 			</Alert.Root>
 
 			<Alert.Root class="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
 				<UsersIcon class="size-4" />
-				<Alert.Title>Community Registry</Alert.Title>
+				<Alert.Title>{m.templates_community_registry_title()}</Alert.Title>
 				<Alert.Description class="space-y-2">
-					<p>Get started quickly with our community registry containing popular templates:</p>
+					<p>{m.templates_community_registry_description()}</p>
 					<div class="flex w-full max-w-[475px] flex-col gap-2">
 						<Snippet text="https://templates.arcane.ofkm.dev/registry.json" />
 					</div>
@@ -194,10 +195,10 @@
 								<div class="mb-1 flex items-center gap-2">
 									<h4 class="font-medium">{registry.name}</h4>
 									<Badge variant={registry.enabled ? 'default' : 'secondary'}>
-										{registry.enabled ? 'Enabled' : 'Disabled'}
+										{registry.enabled ? m.common_enabled() : m.common_disabled()}
 									</Badge>
 								</div>
-								<p class="text-muted-foreground text-sm break-all">{registry.url}</p>
+								<p class="text-muted-foreground break-all text-sm">{registry.url}</p>
 								{#if registry.description}
 									<p class="text-muted-foreground mt-1 text-sm">{registry.description}</p>
 								{/if}
@@ -233,8 +234,8 @@
 		{:else}
 			<div class="text-muted-foreground py-6 text-center">
 				<GlobeIcon class="mx-auto mb-4 size-12 opacity-50" />
-				<p class="mb-2">No registries configured</p>
-				<p class="text-sm">Add a remote template registry to access community templates</p>
+				<p class="mb-2">{m.templates_no_registries_title()}</p>
+				<p class="text-sm">{m.templates_no_registries_description()}</p>
 			</div>
 		{/if}
 	</div>

@@ -13,6 +13,7 @@
 	import { authService } from '$lib/services/api/auth-api-service';
 	import { toast } from 'svelte-sonner';
 	import userStore from '$lib/stores/user-store';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data }: { data: PageData } = $props();
 
@@ -68,32 +69,31 @@
 					<div class="p-6 md:p-8">
 						<div class="flex flex-col gap-6">
 							<div class="flex flex-col items-center text-center">
-								<h1 class="text-2xl font-bold">Welcome back</h1>
-								<p class="text-muted-foreground text-balance">Sign in to manage your containers</p>
+								<h1 class="text-2xl font-bold">{m.auth_welcome_back_title()}</h1>
+								<p class="text-muted-foreground text-balance">{m.auth_login_subtitle()}</p>
 							</div>
 
 							{#if data.error}
 								<Alert.Root variant="destructive">
 									<CircleAlertIcon class="size-4" />
-									<Alert.Title>Login Problem</Alert.Title>
+									<Alert.Title>{m.auth_login_problem_title()}</Alert.Title>
 									<Alert.Description>
 										{#if data.error === 'oidc_invalid_response'}
-											There was an issue with the OIDC login response. Please try again.
+											{m.auth_oidc_invalid_response()}
 										{:else if data.error === 'oidc_misconfigured'}
-											OIDC is not configured correctly on the server. Please contact an administrator.
+											{m.auth_oidc_misconfigured()}
 										{:else if data.error === 'oidc_userinfo_failed'}
-											Could not retrieve your user information from the OIDC provider.
+											{m.auth_oidc_userinfo_failed()}
 										{:else if data.error === 'oidc_missing_sub'}
-											Your OIDC provider did not return a subject identifier.
+											{m.auth_oidc_missing_sub()}
 										{:else if data.error === 'oidc_email_collision'}
-											An account with your email already exists but is linked to a different OIDC identity. Please contact an
-											administrator.
+											{m.auth_oidc_email_collision()}
 										{:else if data.error === 'oidc_token_error'}
-											There was an error obtaining tokens from the OIDC provider.
+											{m.auth_oidc_token_error()}
 										{:else if data.error === 'user_processing_failed'}
-											An error occurred while processing your user account.
+											{m.auth_user_processing_failed()}
 										{:else}
-											An unexpected error occurred. Please try again.
+											{m.auth_unexpected_error()}
 										{/if}
 									</Alert.Description>
 								</Alert.Root>
@@ -102,7 +102,7 @@
 							{#if error}
 								<Alert.Root variant="destructive">
 									<CircleAlertIcon class="size-4" />
-									<Alert.Title>Authentication Failed</Alert.Title>
+									<Alert.Title>{m.auth_failed_title()}</Alert.Title>
 									<Alert.Description>{error}</Alert.Description>
 								</Alert.Root>
 							{/if}
@@ -110,24 +110,22 @@
 							{#if !showLocalLoginForm && !showOidcLoginButton}
 								<Alert.Root variant="destructive">
 									<CircleAlertIcon class="size-4" />
-									<Alert.Title>No Login Methods Configured</Alert.Title>
-									<Alert.Description>
-										There are currently no login methods enabled. Please contact an administrator.
-									</Alert.Description>
+									<Alert.Title>{m.auth_no_login_methods_title()}</Alert.Title>
+									<Alert.Description>{m.auth_no_login_methods_description()}</Alert.Description>
 								</Alert.Root>
 							{/if}
 
 							{#if showOidcLoginButton && !showLocalLoginForm}
 								<Button onclick={handleOidcLogin} class="w-full">
 									<LogInIcon class="mr-2 size-4" />
-									Sign in with OIDC Provider
+									{m.auth_oidc_signin()}
 								</Button>
 							{/if}
 
 							{#if showLocalLoginForm}
 								<form onsubmit={handleLogin} class="contents">
 									<div class="grid gap-3">
-										<Label for="username">Username</Label>
+										<Label for="username">{m.common_username()}</Label>
 										<div class="relative">
 											<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 												<UserIcon class="text-muted-foreground size-4" />
@@ -140,13 +138,13 @@
 												required
 												bind:value={username}
 												class="pl-9"
-												placeholder="Enter your username or email"
+												placeholder={m.auth_username_placeholder()}
 												disabled={loading}
 											/>
 										</div>
 									</div>
 									<div class="grid gap-3">
-										<Label for="password">Password</Label>
+										<Label for="password">{m.common_password()}</Label>
 										<div class="relative">
 											<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 												<LockIcon class="text-muted-foreground size-4" />
@@ -159,7 +157,7 @@
 												required
 												bind:value={password}
 												class="pl-9"
-												placeholder="Enter your password"
+												placeholder={m.auth_password_placeholder()}
 												disabled={loading}
 											/>
 										</div>
@@ -167,10 +165,10 @@
 									<Button type="submit" class="w-full" disabled={loading} aria-busy={loading}>
 										{#if loading}
 											<div class="mr-2 size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
-											Signing in...
+											{m.auth_signing_in()}
 										{:else}
 											<LogInIcon class="mr-2 size-4" />
-											Sign in to Arcane
+											{m.auth_signin_button()}
 										{/if}
 									</Button>
 								</form>
@@ -179,14 +177,14 @@
 									<div
 										class="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t"
 									>
-										<span class="bg-card text-muted-foreground relative z-10 px-2"> Or continue with </span>
+										<span class="bg-card text-muted-foreground relative z-10 px-2"> {m.auth_or_continue()} </span>
 									</div>
 								{/if}
 
 								{#if showOidcLoginButton && showDivider}
 									<Button onclick={handleOidcLogin} variant="outline" class="w-full">
 										<LogInIcon class="mr-2 size-4" />
-										Sign in with OIDC Provider
+										{m.auth_oidc_signin()}
 									</Button>
 								{/if}
 							{/if}
@@ -202,10 +200,10 @@
 						<div class="absolute inset-0 flex items-center justify-center">
 							<div class="space-y-4 p-8 text-center">
 								<div class="mb-8">
-									<img class="mx-auto h-32 w-auto opacity-60" src="/img/arcane.svg" alt="Arcane" />
+									<img class="mx-auto h-32 w-auto opacity-60" src="/img/arcane.svg" alt={m.layout_title()} />
 								</div>
-								<h2 class="text-foreground/80 text-2xl font-bold">Arcane</h2>
-								<p class="text-muted-foreground max-w-xs text-balance">Modern Docker Management, Designed for Everyone.</p>
+								<h2 class="text-foreground/80 text-2xl font-bold">{m.layout_title()}</h2>
+								<p class="text-muted-foreground max-w-xs text-balance">{m.auth_tagline()}</p>
 							</div>
 						</div>
 					</div>
@@ -215,8 +213,8 @@
 	</div>
 </div>
 
-<div class="fixed right-0 bottom-0 left-0 p-4">
-	<div class="text-muted-foreground text-center text-xs text-balance">
+<div class="fixed bottom-0 left-0 right-0 p-4">
+	<div class="text-muted-foreground text-balance text-center text-xs">
 		<div class="flex items-center justify-center gap-4">
 			<a
 				href="https://github.com/ofkm/arcane"
@@ -224,7 +222,7 @@
 				rel="noopener noreferrer"
 				class="hover:text-primary underline underline-offset-4"
 			>
-				View on GitHub
+				{m.common_view_on_github()}
 			</a>
 		</div>
 	</div>

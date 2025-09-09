@@ -12,6 +12,7 @@
 	import { environmentAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
 	import type { ImageUpdateData } from '$lib/types/image.type';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		updateInfo?: ImageUpdateData | undefined;
@@ -42,24 +43,25 @@
 	type AuthBadge = { label: string; classes: string };
 
 	function authBadge(): AuthBadge | null {
-		const m = localUpdateInfo?.authMethod;
-		if (!m) return null;
+		const mth = localUpdateInfo?.authMethod;
+		if (!mth) return null;
 
-		if (m === 'credential') {
+		if (mth === 'credential') {
+			const user = localUpdateInfo?.authUsername;
 			return {
-				label: `Credential${localUpdateInfo?.authUsername ? ` (${localUpdateInfo.authUsername})` : ''}`,
+				label: user ? m.image_update_auth_credential_with_user({ username: user }) : m.image_update_auth_credential(),
 				classes: 'border-amber-200/60 text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30'
 			};
 		}
-		if (m === 'anonymous') {
+		if (mth === 'anonymous') {
 			return {
-				label: 'Anonymous',
+				label: m.image_update_auth_anonymous(),
 				classes: 'border-slate-200/60 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/40'
 			};
 		}
-		if (m === 'none') {
+		if (mth === 'none') {
 			return {
-				label: 'No Auth',
+				label: m.image_update_auth_none(),
 				classes: 'border-gray-200/60 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900/40'
 			};
 		}
@@ -70,7 +72,7 @@
 		if (localUpdateInfo?.currentVersion && localUpdateInfo.currentVersion.trim() !== '') {
 			return localUpdateInfo.currentVersion;
 		}
-		return tag || 'Unknown';
+		return tag || m.common_unknown();
 	}
 
 	function displayLatestVersion(): string | null {
@@ -93,14 +95,14 @@
 			if (result) {
 				if (result.error) {
 					localUpdateInfo = result;
-					toast.error(result.error);
+					toast.error(result.error || m.images_update_check_failed());
 				} else {
 					localUpdateInfo = result;
 					onUpdated?.(result);
-					toast.success('Update check completed');
+					toast.success(m.images_update_check_completed());
 				}
 			} else {
-				toast.error('Update check failed');
+				toast.error(m.images_update_check_failed());
 			}
 		} catch (error) {
 			console.error('Error checking update:', error);
@@ -113,9 +115,9 @@
 				latestDigest: '',
 				checkTime: new Date().toISOString(),
 				responseTimeMs: 0,
-				error: (error as Error)?.message || 'Failed to check for updates'
+				error: (error as Error)?.message || m.images_update_check_failed()
 			};
-			toast.error(localUpdateInfo?.error || 'Failed to check for updates');
+			toast.error(localUpdateInfo?.error || m.images_update_check_failed());
 		} finally {
 			isChecking = false;
 		}
@@ -126,20 +128,21 @@
 		color: string;
 		description: string;
 	} {
-		if (u.error) return { level: 'Error', color: 'text-red-500', description: 'Failed to check updates' };
-		if (!u.hasUpdate) return { level: 'None', color: 'text-green-500', description: 'Image is up to date' };
+		if (u.error) return { level: 'Error', color: 'text-red-500', description: m.image_update_could_not_query_registry() };
+		if (!u.hasUpdate) return { level: 'None', color: 'text-green-500', description: m.image_update_up_to_date_desc() };
 		if (u.updateType === 'digest')
 			return {
-				level: 'Security/Bug Fix',
+				level: m.image_update_digest_title(),
 				color: 'text-blue-500',
-				description: 'Digest update - likely security or bug fixes'
+				description: m.image_update_digest_desc()
 			};
 		if (u.updateType === 'tag') {
-			let description = 'Update available';
-			if (u.latestVersion) description = `Update to ${u.latestVersion} available`;
-			return { level: 'Version Update', color: 'text-yellow-500', description };
+			const desc = u.latestVersion
+				? m.image_update_tag_description_new({ version: u.latestVersion })
+				: m.image_update_tag_description();
+			return { level: m.image_update_version_title(), color: 'text-yellow-500', description: desc };
 		}
-		return { level: 'Unknown', color: 'text-gray-500', description: 'Update type unknown' };
+		return { level: m.common_unknown(), color: 'text-gray-500', description: m.image_update_unknown_type() };
 	}
 </script>
 
@@ -177,16 +180,16 @@
 									<TriangleAlertIcon class="size-5 text-white" />
 								</div>
 								<div class="flex-1">
-									<div class="text-sm font-semibold text-red-900 dark:text-red-100">Update Check Failed</div>
-									<div class="text-xs text-red-700/80 dark:text-red-300/80">Could not query the registry</div>
+									<div class="text-sm font-semibold text-red-900 dark:text-red-100">{m.image_update_check_failed_title()}</div>
+									<div class="text-xs text-red-700/80 dark:text-red-300/80">{m.image_update_could_not_query_registry()}</div>
 									{#if badge}
-										+ <div class="mt-2">
+										<div class="mt-2">
 											<div
 												class={'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
 													badge.classes}
 											>
 												<KeyRoundIcon class="size-3 opacity-80" />
-												<span>Auth: {badge.label}</span>
+												<span>{m.image_update_auth({ label: badge.label })}</span>
 											</div>
 										</div>
 									{/if}
@@ -196,12 +199,12 @@
 						<div class="bg-white/90 p-4 dark:bg-gray-950/90">
 							<div class="space-y-3">
 								<div class="text-xs text-gray-600 dark:text-gray-300">
-									<span class="font-medium">Error:</span>
+									<span class="font-medium">{m.image_update_error_label()}</span>
 									<span class="ml-1 break-words">{localUpdateInfo.error}</span>
 								</div>
 								{#if repo && tag}
 									<div class="text-xs text-gray-500 dark:text-gray-400">
-										Image: <span class="font-mono">{repo}:{tag}</span>
+										{m.image_update_image_label()} <span class="font-mono">{repo}:{tag}</span>
 									</div>
 								{/if}
 							</div>
@@ -217,8 +220,10 @@
 									<CircleCheckIcon class="size-5 text-white" />
 								</div>
 								<div class="flex-1">
-									<div class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Up to Date</div>
-									<div class="text-xs text-emerald-700/80 dark:text-emerald-300/80">No updates available</div>
+									<div class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+										{m.image_update_up_to_date_title()}
+									</div>
+									<div class="text-xs text-emerald-700/80 dark:text-emerald-300/80">{m.image_update_up_to_date_desc()}</div>
 									{#if badge}
 										<div class="mt-2">
 											<div
@@ -226,7 +231,7 @@
 													badge.classes}
 											>
 												<KeyRoundIcon class="size-3 opacity-80" />
-												<span>Auth: {badge.label}</span>
+												<span>{m.image_update_auth({ label: badge.label })}</span>
 											</div>
 										</div>
 									{/if}
@@ -236,12 +241,13 @@
 						<div class="bg-white/90 p-4 dark:bg-gray-950/90">
 							<div class="text-center">
 								<div class="mb-2 text-xs text-gray-600 dark:text-gray-400">
-									Running <span class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs font-medium dark:bg-gray-800"
+									{m.image_update_running_prefix()}
+									<span class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs font-medium dark:bg-gray-800"
 										>{displayCurrentVersion()}</span
 									>
 								</div>
 								<div class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-									This image is running the latest available version.
+									{m.image_update_up_to_date_desc()}
 								</div>
 							</div>
 						</div>
@@ -256,8 +262,8 @@
 									<CircleArrowUpIcon class="size-5 text-white" />
 								</div>
 								<div class="flex-1">
-									<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">Digest Update</div>
-									<div class="text-xs text-blue-700/80 dark:text-blue-300/80">Security or bug fixes available</div>
+									<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">{m.image_update_digest_title()}</div>
+									<div class="text-xs text-blue-700/80 dark:text-blue-300/80">{m.image_update_digest_desc()}</div>
 									{#if badge}
 										<div class="mt-2">
 											<div
@@ -265,7 +271,7 @@
 													badge.classes}
 											>
 												<KeyRoundIcon class="size-3 opacity-80" />
-												<span>Auth: {badge.label}</span>
+												<span>{m.image_update_auth({ label: badge.label })}</span>
 											</div>
 										</div>
 									{/if}
@@ -278,7 +284,7 @@
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
 											<PackageIcon class="size-3" />
-											<span>Current</span>
+											<span>{m.image_update_current_label()}</span>
 										</div>
 										<span class="rounded bg-gray-100 px-1.5 py-0.5 font-mono font-medium dark:bg-gray-800"
 											>{displayCurrentVersion()}</span
@@ -288,7 +294,7 @@
 										<div class="flex items-center justify-between">
 											<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
 												<ArrowRightIcon class="size-3" />
-												<span>Latest Digest</span>
+												<span>{m.image_update_latest_digest_label()}</span>
 											</div>
 											<span
 												class="rounded bg-blue-100 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
@@ -316,8 +322,8 @@
 									<CircleFadingArrowUpIcon class="size-5 text-white" />
 								</div>
 								<div class="flex-1">
-									<div class="text-sm font-semibold text-amber-900 dark:text-amber-100">Version Update</div>
-									<div class="text-xs text-amber-700/80 dark:text-amber-300/80">New version available</div>
+									<div class="text-sm font-semibold text-amber-900 dark:text-amber-100">{m.image_update_version_title()}</div>
+									<div class="text-xs text-amber-700/80 dark:text-amber-300/80">{m.image_update_version_desc()}</div>
 									{#if badge}
 										<div class="mt-2">
 											<div
@@ -325,7 +331,7 @@
 													badge.classes}
 											>
 												<KeyRoundIcon class="size-3 opacity-80" />
-												<span>Auth: {badge.label}</span>
+												<span>{m.image_update_auth({ label: badge.label })}</span>
 											</div>
 										</div>
 									{/if}
@@ -338,7 +344,7 @@
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
 											<PackageIcon class="size-3" />
-											<span>Current</span>
+											<span>{m.image_update_current_label()}</span>
 										</div>
 										<span class="rounded bg-gray-100 px-1.5 py-0.5 font-mono font-medium dark:bg-gray-800"
 											>{displayCurrentVersion()}</span
@@ -348,7 +354,7 @@
 										<div class="flex items-center justify-between">
 											<div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
 												<ArrowRightIcon class="size-3" />
-												<span>Latest</span>
+												<span>{m.image_update_latest_label()}</span>
 											</div>
 											<span
 												class="rounded bg-amber-100 px-1.5 py-0.5 font-mono font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
@@ -376,10 +382,10 @@
 							>
 								{#if isChecking}
 									<LoaderCircleIcon class="size-3 animate-spin" />
-									Checking...
+									{m.images_checking()}
 								{:else}
 									<RefreshCwIcon class="size-3 transition-transform group-hover:rotate-45" />
-									Re-check Updates
+									{m.image_update_recheck_button()}
 								{/if}
 							</button>
 						</div>
@@ -392,7 +398,7 @@
 	<Tooltip.Provider>
 		<Tooltip.Root>
 			<Tooltip.Trigger>
-				<span class="mr-2 inline-flex size-4 items-center justify-center align-middle">
+				<span class="mr-2 inline-flex size-4 items-center justify-center">
 					<LoaderCircleIcon class="size-4 animate-spin text-blue-400" />
 				</span>
 			</Tooltip.Trigger>
@@ -410,8 +416,8 @@
 								<LoaderCircleIcon class="size-5 animate-spin text-white" />
 							</div>
 							<div>
-								<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">Checking Updates</div>
-								<div class="text-xs text-blue-700/80 dark:text-blue-300/80">Querying registry for latest version...</div>
+								<div class="text-sm font-semibold text-blue-900 dark:text-blue-100">{m.image_update_checking_title()}</div>
+								<div class="text-xs text-blue-700/80 dark:text-blue-300/80">{m.image_update_querying_registry()}</div>
 							</div>
 						</div>
 					</div>
@@ -457,12 +463,12 @@
 								<TriangleAlertIcon class="size-5 text-white" />
 							</div>
 							<div>
-								<div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Status Unknown</div>
+								<div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{m.image_update_status_unknown()}</div>
 								<div class="text-xs text-gray-700/80 dark:text-gray-300/80">
 									{#if canCheckUpdate()}
-										Click to check for updates from registry.
+										{m.image_update_click_to_check()}
 									{:else}
-										Unable to check updates for images without proper tags.
+										{m.image_update_unable_check_tags()}
 									{/if}
 								</div>
 							</div>

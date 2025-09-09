@@ -14,6 +14,7 @@ import XIcon from '@lucide/svelte/icons/x';
 import SaveIcon from '@lucide/svelte/icons/save';
 import PlusCircleIcon from '@lucide/svelte/icons/plus-circle';
 import LayoutTemplateIcon from '@lucide/svelte/icons/layout-template';
+import { m } from '$lib/paraglide/messages';
 
 export const arcaneButtonVariants = tv({
 	base:
@@ -77,29 +78,69 @@ export type ActionConfig = {
 };
 
 export const actionConfigs: Record<Action, ActionConfig> = {
-	start: { defaultLabel: 'Start', IconComponent: PlayIcon, tone: 'outline-primary', loadingLabel: 'Starting...' },
-	deploy: { defaultLabel: 'Deploy', IconComponent: PlayIcon, tone: 'outline-primary', loadingLabel: 'Deploying...' },
-	stop: { defaultLabel: 'Stop', IconComponent: CircleStopIcon, tone: 'outline-destructive', loadingLabel: 'Stopping...' },
-	remove: { defaultLabel: 'Remove', IconComponent: Trash2Icon, tone: 'outline-destructive', loadingLabel: 'Removing...' },
-	restart: { defaultLabel: 'Restart', IconComponent: RotateCcwIcon, tone: 'outline-primary', loadingLabel: 'Restarting...' },
-	pull: { defaultLabel: 'Pull', IconComponent: DownloadIcon, tone: 'outline-primary', loadingLabel: 'Pulling...' },
+	start: { defaultLabel: m.common_start(), IconComponent: PlayIcon, tone: 'outline-primary', loadingLabel: m.action_starting() },
+	deploy: {
+		defaultLabel: m.action_deploy(),
+		IconComponent: PlayIcon,
+		tone: 'outline-primary',
+		loadingLabel: m.action_deploying()
+	},
+	stop: {
+		defaultLabel: m.common_stop(),
+		IconComponent: CircleStopIcon,
+		tone: 'outline-destructive',
+		loadingLabel: m.action_stopping()
+	},
+	remove: {
+		defaultLabel: m.common_remove(),
+		IconComponent: Trash2Icon,
+		tone: 'outline-destructive',
+		loadingLabel: m.action_removing()
+	},
+	restart: {
+		defaultLabel: m.common_restart(),
+		IconComponent: RotateCcwIcon,
+		tone: 'outline-primary',
+		loadingLabel: m.action_restarting()
+	},
+	pull: { defaultLabel: m.images_pull(), IconComponent: DownloadIcon, tone: 'outline-primary', loadingLabel: m.images_pulling() },
 	redeploy: {
-		defaultLabel: 'Redeploy',
+		defaultLabel: m.action_redeploy(),
 		IconComponent: RefreshCcwDotIcon,
 		tone: 'outline-primary',
-		loadingLabel: 'Redeploying...'
+		loadingLabel: m.action_redeploying()
 	},
-	inspect: { defaultLabel: 'Inspect', IconComponent: ScanSearchIcon, tone: 'outline-primary', loadingLabel: 'Inspecting...' },
-	edit: { defaultLabel: 'Edit', IconComponent: EditIcon, tone: 'outline-primary', loadingLabel: 'Saving...' },
-	confirm: { defaultLabel: 'Confirm', IconComponent: CheckIcon, tone: 'outline-primary', loadingLabel: 'Confirming...' },
-	save: { defaultLabel: 'Save', IconComponent: SaveIcon, tone: 'outline-primary', loadingLabel: 'Saving...' },
-	create: { defaultLabel: 'Create', IconComponent: PlusCircleIcon, tone: 'outline-primary', loadingLabel: 'Creating...' },
+	inspect: {
+		defaultLabel: m.common_inspect(),
+		IconComponent: ScanSearchIcon,
+		tone: 'outline-primary',
+		loadingLabel: m.action_inspecting()
+	},
+	edit: { defaultLabel: m.common_edit(), IconComponent: EditIcon, tone: 'outline-primary', loadingLabel: m.common_saving() },
+	confirm: {
+		defaultLabel: m.common_confirm(),
+		IconComponent: CheckIcon,
+		tone: 'outline-primary',
+		loadingLabel: m.action_confirming()
+	},
+	save: { defaultLabel: m.common_save(), IconComponent: SaveIcon, tone: 'outline-primary', loadingLabel: m.common_saving() },
+	create: {
+		defaultLabel: m.common_create(),
+		IconComponent: PlusCircleIcon,
+		tone: 'outline-primary',
+		loadingLabel: m.common_creating()
+	},
 	template: {
-		defaultLabel: 'Use Template',
+		defaultLabel: m.action_use_template(),
 		IconComponent: LayoutTemplateIcon,
 		tone: 'outline-primary',
-		loadingLabel: 'Creating...'
+		loadingLabel: m.common_creating()
 	},
-	logs: { defaultLabel: 'Logs', IconComponent: FileTextIcon, tone: 'ghost', loadingLabel: 'Fetching...' },
-	cancel: { defaultLabel: 'Cancel', IconComponent: XIcon, tone: 'ghost', loadingLabel: 'Cancelling...' }
+	logs: {
+		defaultLabel: m.common_logs(),
+		IconComponent: FileTextIcon,
+		tone: 'ghost',
+		loadingLabel: m.action_fetching_logs ? m.action_fetching_logs() : m.common_processing()
+	},
+	cancel: { defaultLabel: m.common_cancel(), IconComponent: XIcon, tone: 'ghost', loadingLabel: m.action_cancelling() }
 };

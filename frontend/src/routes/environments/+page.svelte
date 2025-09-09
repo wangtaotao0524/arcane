@@ -8,6 +8,7 @@
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import { environmentManagementAPI } from '$lib/services/api';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -28,7 +29,7 @@
 			environments = await environmentManagementAPI.getEnvironments(requestOptions);
 		} catch (err) {
 			console.error('Failed to refresh environments:', err);
-			toast.error('Failed to refresh environments');
+			toast.error(m.environments_refresh_failed());
 		} finally {
 			isLoading.refresh = false;
 		}
@@ -38,10 +39,10 @@
 		if (selectedIds.length === 0) return;
 
 		openConfirmDialog({
-			title: `Remove ${selectedIds.length} Environment${selectedIds.length > 1 ? 's' : ''}`,
-			message: 'Are you sure? This action cannot be undone.',
+			title: m.environments_remove_selected_title({ count: selectedIds.length }),
+			message: m.environments_remove_selected_message(),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.deleting = true;
@@ -52,7 +53,7 @@
 						const result = await tryCatch(environmentManagementAPI.delete(id));
 						handleApiResultWithCallbacks({
 							result,
-							message: `Failed to remove environment`,
+							message: m.environments_bulk_remove_failed_many({ count: selectedIds.length }),
 							setLoadingState: () => {},
 							onSuccess: () => (successCount += 1)
 						});
@@ -62,11 +63,19 @@
 					isLoading.deleting = false;
 
 					if (successCount > 0) {
-						toast.success(`Removed ${successCount} environment${successCount > 1 ? 's' : ''}`);
+						const msg =
+							successCount === 1
+								? m.environments_bulk_remove_success_one()
+								: m.environments_bulk_remove_success_many({ count: successCount });
+						toast.success(msg);
 						await refresh();
 					}
 					if (failureCount > 0) {
-						toast.error(`Failed to remove ${failureCount} environment${failureCount > 1 ? 's' : ''}`);
+						const msg =
+							failureCount === 1
+								? m.environments_bulk_remove_failed_one()
+								: m.environments_bulk_remove_failed_many({ count: failureCount });
+						toast.error(msg);
 					}
 
 					selectedIds = [];
@@ -78,7 +87,7 @@
 	async function onEnvironmentCreated() {
 		showEnvironmentSheet = false;
 		environments = await environmentManagementAPI.getEnvironments(requestOptions);
-		toast.success('Environment added successfully');
+		toast.success(m.environments_created_success());
 		refresh();
 	}
 </script>
@@ -90,24 +99,24 @@
 				<ServerIcon class="size-5 text-blue-500" />
 			</div>
 			<div>
-				<h1 class="text-3xl font-bold tracking-tight">Environment Management</h1>
-				<p class="text-muted-foreground mt-1 text-sm">Manage and monitor your Arcane environments</p>
+				<h1 class="text-3xl font-bold tracking-tight">{m.environments_title()}</h1>
+				<p class="text-muted-foreground mt-1 text-sm">{m.environments_subtitle()}</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-2">
 			{#if selectedIds.length > 0}
 				<ArcaneButton
 					action="remove"
-					customLabel="Remove Selected"
+					customLabel={m.environments_remove_selected_button()}
 					onclick={handleBulkDelete}
 					loading={isLoading.deleting}
 					disabled={isLoading.deleting}
 				/>
 			{/if}
-			<ArcaneButton action="create" customLabel="Add Environment" onclick={() => (showEnvironmentSheet = true)} />
+			<ArcaneButton action="create" customLabel={m.environments_add_button()} onclick={() => (showEnvironmentSheet = true)} />
 			<ArcaneButton
 				action="restart"
-				customLabel="Refresh"
+				customLabel={m.common_refresh()}
 				onclick={refresh}
 				loading={isLoading.refresh}
 				disabled={isLoading.refresh}

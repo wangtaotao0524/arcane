@@ -1,9 +1,13 @@
 import type { User } from '$lib/types/user.type';
 import { writable } from 'svelte/store';
+import { setLocale } from '$lib/utils/locale.util';
 
 const userStore = writable<User | null>(null);
 
-const setUser = (user: User) => {
+const setUser = async (user: User) => {
+	if (user.locale) {
+		await setLocale(user.locale, false);
+	}
 	userStore.set(user);
 };
 

@@ -13,6 +13,7 @@
 	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
 	import type { CreateUser } from '$lib/types/user.type';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -61,13 +62,14 @@
 
 		try {
 			if (isEditMode && userId) {
+				const safeUsername = user.username?.trim() || m.common_unknown();
 				const result = await tryCatch(userAPI.update(userId, user));
 				handleApiResultWithCallbacks({
 					result,
-					message: `Failed to update user "${user.username}"`,
+					message: m.users_update_failed({ username: safeUsername }),
 					setLoadingState: (value) => (isLoading[loading] = value),
 					onSuccess: async () => {
-						toast.success(`User "${user.username}" updated successfully.`);
+						toast.success(m.users_update_success({ username: safeUsername }));
 						users = await userAPI.getUsers(requestOptions);
 						isDialogOpen.edit = false;
 						userToEdit = null;
@@ -75,10 +77,12 @@
 				});
 			} else {
 				if (!user.username) {
-					toast.error('Username is required');
+					toast.error(m.common_username_required());
 					isLoading[loading] = false;
 					return;
 				}
+
+				const safeUsername = user.username!.trim() || m.common_unknown();
 
 				const createUser: CreateUser = {
 					username: user.username!,
@@ -91,10 +95,10 @@
 				const result = await tryCatch(userAPI.create(createUser));
 				handleApiResultWithCallbacks({
 					result,
-					message: `Failed to create user "${user.username}"`,
+					message: m.users_create_failed({ username: safeUsername }),
 					setLoadingState: (value) => (isLoading[loading] = value),
 					onSuccess: async () => {
-						toast.success(`User "${user.username}" created successfully.`);
+						toast.success(m.users_create_success({ username: safeUsername }));
 						users = await userAPI.getUsers(requestOptions);
 						isDialogOpen.create = false;
 					}
@@ -109,13 +113,13 @@
 <div class="space-y-6 pb-8">
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Users</h1>
-			<p class="text-muted-foreground mt-1 text-sm">Manage system users and permissions</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.users_title()}</h1>
+			<p class="text-muted-foreground mt-1 text-sm">{m.users_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<ArcaneButton
 				action="create"
-				customLabel="Create User"
+				customLabel={m.users_create_button()}
 				onclick={openCreateDialog}
 				loading={isLoading.creating}
 				disabled={isLoading.creating}
@@ -125,21 +129,21 @@
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 		<StatCard
-			title="Total Users"
+			title={m.users_total()}
 			value={totalUsers}
 			icon={UsersIcon}
 			iconColor="text-blue-500"
 			class="border-l-4 border-l-blue-500"
 		/>
 		<StatCard
-			title="Administrators"
+			title={m.users_administrators()}
 			value={adminUsers}
 			icon={ShieldIcon}
 			iconColor="text-red-500"
 			class="border-l-4 border-l-red-500"
 		/>
 		<StatCard
-			title="Regular Users"
+			title={m.users_regular()}
 			value={regularUsers}
 			icon={UserCheckIcon}
 			iconColor="text-green-500"

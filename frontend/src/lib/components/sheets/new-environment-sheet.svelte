@@ -10,6 +10,7 @@
 	import type { CreateEnvironmentDTO } from '$lib/types/environment.type';
 	import { z } from 'zod/v4';
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
+	import { m } from '$lib/paraglide/messages';
 
 	type NewEnvironmentSheetProps = {
 		open: boolean;
@@ -21,8 +22,8 @@
 	let isSubmitting = $state(false);
 
 	const formSchema = z.object({
-		name: z.string().min(1, 'Name is required').max(25, 'Name too long'),
-		apiUrl: z.url('Must be a valid URL').min(1, 'Server URL is required'),
+		name: z.string().min(1, m.environments_name_required()).max(25, m.environments_name_too_long()),
+		apiUrl: z.url(m.common_invalid_url()).min(1, m.environments_server_url_required()),
 		bootstrapToken: z.string()
 	});
 
@@ -52,21 +53,21 @@
 			try {
 				const result = await environmentManagementAPI.testConnection(created.id);
 				if (result.status === 'online') {
-					toast.success('Environment is online');
+					toast.success(m.environments_test_connection_success());
 				} else {
-					toast.warning('Environment appears offline');
+					toast.warning(m.environments_test_connection_error());
 				}
 			} catch (e) {
 				console.error(e);
-				toast.error('Environment test failed');
+				toast.error(m.environments_test_connection_failed());
 			}
 
-			toast.success('Environment created successfully');
+			toast.success(m.environments_created_success());
 
 			form.reset();
 			onEnvironmentCreated?.();
 		} catch (error) {
-			toast.error('Failed to create environment');
+			toast.error(m.environments_create_failed());
 			console.error(error);
 		} finally {
 			isSubmitting = false;
@@ -82,10 +83,8 @@
 					<ServerIcon class="text-primary size-5" />
 				</div>
 				<div>
-					<Sheet.Title class="text-xl font-semibold">Manage Environments</Sheet.Title>
-					<Sheet.Description class="text-muted-foreground mt-1 text-sm"
-						>Add and manage remote Arcane servers in Agent Mode.</Sheet.Description
-					>
+					<Sheet.Title class="text-xl font-semibold">{m.environments_title()}</Sheet.Title>
+					<Sheet.Description class="text-muted-foreground mt-1 text-sm">{m.environments_manage_description()}</Sheet.Description>
 				</div>
 			</div>
 		</Sheet.Header>
@@ -93,25 +92,25 @@
 		<div class="space-y-6 py-6">
 			<Card.Root>
 				<Card.Header>
-					<Card.Title class="text-lg">Add New Environment</Card.Title>
+					<Card.Title class="text-lg">{m.environments_add_button()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<form onsubmit={preventDefault(handleSubmit)} class="space-y-4">
-						<FormInput label="Name" placeholder="My Lab Server" bind:input={$inputs.name} />
+						<FormInput label={m.common_name()} placeholder={m.environments_name_placeholder()} bind:input={$inputs.name} />
 
 						<FormInput
-							label="Server URL *"
+							label={m.environments_api_url()}
 							type="text"
-							placeholder="http://192.168.1.100:3553"
-							description="Full URL to the Arcane server endpoint"
+							placeholder={m.environments_api_url_placeholder()}
+							description={m.environments_api_url_description()}
 							bind:input={$inputs.apiUrl}
 						/>
 
 						<FormInput
-							label="Bootstrap Token"
+							label={m.environments_bootstrap_label()}
 							type="password"
-							placeholder="AGENT_BOOTSTRAP_TOKEN from the agent"
-							description="If provided, manager will auto‑pair with the agent and store the generated token"
+							placeholder={m.environments_bootstrap_placeholder()}
+							description={m.environments_pair_rotate_description()}
 							bind:input={$inputs.bootstrapToken}
 						/>
 
@@ -119,7 +118,7 @@
 							{#if isSubmitting}
 								<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
 							{/if}
-							Add Environment
+							{m.environments_add_button()}
 						</Button>
 					</form>
 				</Card.Content>

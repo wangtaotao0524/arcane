@@ -1,3 +1,5 @@
+import type { Locale } from '$lib/paraglide/runtime';
+
 export type User = {
 	id: string;
 	username: string;
@@ -9,6 +11,7 @@ export type User = {
 	lastLogin?: string;
 	updatedAt?: string;
 	oidcSubjectId?: string;
+	locale?: Locale;
 };
 
 export interface UserRole {

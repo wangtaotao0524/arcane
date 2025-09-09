@@ -10,6 +10,7 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import { environmentStore, LOCAL_DOCKER_ENVIRONMENT_ID } from '$lib/stores/environment.store';
 	import { get } from 'svelte/store';
+	import { m } from '$lib/paraglide/messages';
 
 	type TargetType = 'container' | 'stack';
 
@@ -115,10 +116,13 @@
 	function confirmAction(action: string) {
 		if (action === 'remove') {
 			openConfirmDialog({
-				title: `Confirm ${type === 'stack' ? 'Destroy' : 'Removal'}`,
-				message: `Are you sure you want to ${type === 'stack' ? 'destroy' : 'remove'} this ${type}? This action is DESTRUCTIVE and cannot be undone.`,
+				title: type === 'stack' ? m.compose_destroy() : m.action_confirm_removal_title(),
+				message:
+					type === 'stack'
+						? m.action_confirm_destroy_message({ type: m.common_project() })
+						: m.action_confirm_removal_message({ type: m.common_container() }),
 				confirm: {
-					label: type === 'stack' ? 'Destroy' : 'Remove',
+					label: type === 'stack' ? m.compose_destroy() : m.common_remove(),
 					destructive: true,
 					action: async (checkboxStates) => {
 						const removeFiles = checkboxStates['removeFiles'] === true;
@@ -131,11 +135,16 @@
 									? environmentAPI.deleteContainer(id)
 									: environmentAPI.destroyProject(id, removeVolumes, removeFiles)
 							),
-							message: `Failed to ${type === 'stack' ? 'Destroy' : 'Remove'} ${type}`,
+							message: m.action_failed_generic({
+								action: type === 'stack' ? m.compose_destroy() : m.common_remove(),
+								type: type
+							}),
 							setLoadingState: (value) => (isLoading.remove = value),
 							onSuccess: async () => {
 								toast.success(
-									`${type.charAt(0).toUpperCase() + type.slice(1)} ${type === 'stack' ? 'Destroyed' : 'Removed'} Successfully`
+									type === 'stack'
+										? m.action_destroyed_success({ type: m.common_stack() })
+										: m.action_removed_success({ type: m.common_container() })
 								);
 								await invalidateAll();
 								goto(`${type === 'stack' ? '/compose' : 'containers'}`);
@@ -144,28 +153,28 @@
 					}
 				},
 				checkboxes: [
-					{ id: 'removeFiles', label: 'Remove project files', initialState: false },
+					{ id: 'removeFiles', label: m.confirm_remove_project_files(), initialState: false },
 					{
 						id: 'removeVolumes',
-						label: 'Remove volumes (Warning: Data will be lost)',
+						label: m.confirm_remove_volumes_warning(),
 						initialState: false
 					}
 				]
 			});
 		} else if (action === 'redeploy') {
 			openConfirmDialog({
-				title: `Confirm Redeploy`,
-				message: `Are you sure you want to redeploy this stack? This will STOP, PULL, and START the Project.`,
+				title: m.action_confirm_redeploy_title(),
+				message: m.action_confirm_redeploy_message(),
 				confirm: {
-					label: 'Redeploy',
+					label: m.action_redeploy(),
 					action: async () => {
 						isLoading.redeploy = true;
 						handleApiResultWithCallbacks({
 							result: await tryCatch(environmentAPI.redeployProject(id)),
-							message: `Failed to Redeploy ${type}`,
+							message: m.action_failed_generic({ action: m.action_redeploy(), type }),
 							setLoadingState: (value) => (isLoading.redeploy = value),
 							onSuccess: async () => {
-								toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Redeployed Successfully`);
+								toast.success(m.action_redeploy_success({ type: type }));
 								await invalidateAll();
 							}
 						});
@@ -179,10 +188,10 @@
 		isLoading.start = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(type === 'container' ? environmentAPI.startContainer(id) : environmentAPI.startProject(id)),
-			message: `Failed to Start ${type}`,
+			message: m.action_failed_generic({ action: m.common_start(), type }),
 			setLoadingState: (value) => (isLoading.start = value),
 			onSuccess: async () => {
-				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Started Successfully`);
+				toast.success(m.action_started_success({ type }));
 				await invalidateAll();
 			}
 		});
@@ -192,10 +201,10 @@
 		isLoading.start = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.startProject(id)),
-			message: `Failed to Start ${type}`,
+			message: m.action_failed_generic({ action: m.common_start(), type }),
 			setLoadingState: (value) => (isLoading.start = value),
 			onSuccess: async () => {
-				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Started Successfully`);
+				toast.success(m.action_started_success({ type }));
 				await invalidateAll();
 			}
 		});
@@ -205,10 +214,10 @@
 		isLoading.stop = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(type === 'container' ? environmentAPI.stopContainer(id) : environmentAPI.stopProject(id)),
-			message: `Failed to Stop ${type}`,
+			message: m.action_failed_generic({ action: m.common_stop(), type }),
 			setLoadingState: (value) => (isLoading.stop = value),
 			onSuccess: async () => {
-				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Stopped Successfully`);
+				toast.success(m.action_stopped_success({ type }));
 				await invalidateAll();
 			}
 		});
@@ -218,10 +227,10 @@
 		isLoading.restart = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(type === 'container' ? environmentAPI.restartContainer(id) : environmentAPI.restartProject(id)),
-			message: `Failed to Restart ${type}`,
+			message: m.action_failed_generic({ action: m.common_restart(), type }),
 			setLoadingState: (value) => (isLoading.restart = value),
 			onSuccess: async () => {
-				toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} Restarted Successfully`);
+				toast.success(m.action_restarted_success({ type }));
 				await invalidateAll();
 			}
 		});
@@ -233,10 +242,10 @@
 			isLoading.pulling = true;
 			handleApiResultWithCallbacks({
 				result: await tryCatch(environmentAPI.pullContainerImage(id)),
-				message: 'Failed to Pull Image(s)',
+				message: m.images_pull_failed(),
 				setLoadingState: (value) => (isLoading.pulling = value),
 				onSuccess: async () => {
-					toast.success('Image(s) Pulled Successfully.');
+					toast.success(m.images_pulled_success());
 					await invalidateAll();
 				}
 			});
@@ -249,7 +258,7 @@
 		resetPullState();
 		isLoading.pulling = true;
 		pullPopoverOpen = true;
-		pullStatusText = 'Initiating pull...';
+		pullStatusText = m.images_pull_initiating();
 
 		let wasSuccessful = false;
 
@@ -263,10 +272,12 @@
 
 			if (!response.ok || !response.body) {
 				const errorData = await response.json().catch(() => ({
-					error: 'Failed to pull images. Server returned an error.'
+					error: m.images_pull_server_error()
 				}));
 				const errorMessage =
-					typeof errorData.error === 'string' ? errorData.error : errorData.message || `HTTP error ${response.status}`;
+					typeof errorData.error === 'string'
+						? errorData.error
+						: errorData.message || `${m.images_pull_server_error()}: HTTP ${response.status}`;
 				throw new Error(errorMessage);
 			}
 
@@ -277,7 +288,7 @@
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) {
-					pullStatusText = 'Processing final layers...';
+					pullStatusText = m.images_pull_processing_final_layers();
 					break;
 				}
 
@@ -292,8 +303,8 @@
 
 						if (data.error) {
 							console.error('Error in stream:', data.error);
-							pullError = typeof data.error === 'string' ? data.error : data.error.message || 'An error occurred during pull.';
-							pullStatusText = `Error: ${pullError}`;
+							pullError = typeof data.error === 'string' ? data.error : data.error.message || m.images_pull_stream_error();
+							pullStatusText = m.images_pull_failed_with_error({ error: pullError });
 							continue;
 						}
 
@@ -335,8 +346,8 @@
 
 			wasSuccessful = true;
 			pullProgress = 100;
-			pullStatusText = 'Images pulled successfully.';
-			toast.success('Images pulled successfully!');
+			pullStatusText = m.images_pulled_success();
+			toast.success(m.images_pulled_success());
 			await invalidateAll();
 
 			setTimeout(() => {
@@ -346,9 +357,9 @@
 			}, 2000);
 		} catch (error: any) {
 			console.error('Pull images error:', error);
-			const message = error.message || 'An unexpected error occurred while pulling images.';
+			const message = error.message || m.images_pull_failed();
 			pullError = message;
-			pullStatusText = `Failed: ${message}`;
+			pullStatusText = m.images_pull_failed_with_error({ error: message });
 			toast.error(message);
 		} finally {
 			if (!wasSuccessful) {
@@ -367,7 +378,7 @@
 		/>
 	{:else}
 		<ArcaneButton
-			customLabel={type === 'stack' ? 'Down' : 'Stop'}
+			customLabel={m.action_down ? m.action_down() : 'Down'}
 			action="stop"
 			onclick={() => handleStop()}
 			loading={isLoading.stop}
@@ -384,7 +395,7 @@
 			<ProgressPopover
 				bind:open={pullPopoverOpen}
 				bind:progress={pullProgress}
-				title="Pulling Images"
+				title={m.progress_pulling_images()}
 				statusText={pullStatusText}
 				error={pullError}
 				loading={isLoading.pulling}
@@ -397,7 +408,7 @@
 		{/if}
 
 		<ArcaneButton
-			customLabel={type === 'stack' ? 'Destroy' : 'Remove'}
+			customLabel={type === 'stack' ? m.compose_destroy() : m.common_remove()}
 			action="remove"
 			onclick={() => confirmAction('remove')}
 			loading={isLoading.remove}

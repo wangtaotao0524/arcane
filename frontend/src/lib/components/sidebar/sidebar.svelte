@@ -14,6 +14,7 @@
 	import SidebarLogo from './sidebar-logo.svelte';
 	import SidebarUpdatebanner from './sidebar-updatebanner.svelte';
 	import userStore from '$lib/stores/user-store';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		ref = $bindable(null),
@@ -45,11 +46,11 @@
 		<SidebarEnvSwitcher {isAdmin} />
 	</Sidebar.Header>
 	<Sidebar.Content>
-		<SidebarItemGroup label="Management" items={sidebarItems.managementItems} />
-		<SidebarItemGroup label="Customization" items={sidebarItems.customizationItems} />
+		<SidebarItemGroup label={m.sidebar_management()} items={sidebarItems.managementItems} />
+		<SidebarItemGroup label={m.sidebar_customization()} items={sidebarItems.customizationItems} />
 		{#if isAdmin}
-			<SidebarItemGroup label="Environments" items={sidebarItems.environmentItems} />
-			<SidebarItemGroup label="Administration" items={sidebarItems.settingsItems} />
+			<SidebarItemGroup label={m.sidebar_environments()} items={sidebarItems.environmentItems} />
+			<SidebarItemGroup label={m.sidebar_administration()} items={sidebarItems.settingsItems} />
 		{/if}
 	</Sidebar.Content>
 	<Sidebar.Footer>

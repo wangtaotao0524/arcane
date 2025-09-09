@@ -20,6 +20,7 @@
 	import type { SystemStats } from '$lib/types/system-stats.type';
 	import DashboardContainerTable from './dash-container-table.svelte';
 	import DashboardImageTable from './dash-image-table.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let containers = $state(data.containers);
@@ -180,10 +181,10 @@
 		isLoading.starting = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(systemAPI.startAllStoppedContainers()),
-			message: 'Failed to Start All Containers',
+			message: m.dashboard_start_all_failed(),
 			setLoadingState: (value) => (isLoading.starting = value),
 			onSuccess: async () => {
-				toast.success('All Containers Started Successfully.');
+				toast.success(m.dashboard_start_all_success());
 				await refreshData();
 			}
 		});
@@ -192,18 +193,18 @@
 	async function handleStopAll() {
 		if (isLoading.stopping || !dashboardStates.dockerInfo || dockerInfo?.containersRunning === 0) return;
 		openConfirmDialog({
-			title: 'Stop All Containers',
-			message: 'Are you sure you want to stop all running containers?',
+			title: m.dashboard_stop_all_title(),
+			message: m.dashboard_stop_all_confirm(),
 			confirm: {
-				label: 'Confirm',
+				label: m.common_confirm(),
 				destructive: false,
 				action: async () => {
 					handleApiResultWithCallbacks({
 						result: await tryCatch(systemAPI.stopAllContainers()),
-						message: 'Failed to Stop All Running Containers',
+						message: m.dashboard_stop_all_failed(),
 						setLoadingState: (value) => (isLoading.stopping = value),
 						onSuccess: async () => {
-							toast.success('All Containers Stopped Successfully.');
+							toast.success(m.dashboard_stop_all_success());
 							await refreshData();
 						}
 					});
@@ -224,14 +225,19 @@
 			dangling: dashboardStates.settings?.dockerPruneMode === 'dangling'
 		};
 
+		const typesString = selectedTypes.map((type) => capitalizeFirstLetter(type)).join(', ');
+
 		handleApiResultWithCallbacks({
 			result: await tryCatch(systemAPI.pruneAll(pruneOptions)),
-			message: `Failed to Prune ${selectedTypes.join(', ')}`,
+			message: m.dashboard_prune_failed({ types: typesString }),
 			setLoadingState: (value) => (isLoading.pruning = value),
 			onSuccess: async () => {
 				dashboardStates.isPruneDialogOpen = false;
-				const formattedTypes = selectedTypes.map((type) => capitalizeFirstLetter(type)).join(', ');
-				toast.success(`${formattedTypes} ${selectedTypes.length > 1 ? 'were' : 'was'} pruned successfully.`);
+				if (selectedTypes.length === 1) {
+					toast.success(m.dashboard_prune_success_one({ types: typesString }));
+				} else {
+					toast.success(m.dashboard_prune_success_many({ types: typesString }));
+				}
 				await refreshData();
 			}
 		});
@@ -241,8 +247,8 @@
 <div class="space-y-8">
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 		<div class="space-y-1">
-			<h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
-			<p class="text-muted-foreground max-w-2xl text-sm">Overview of your Container Environment</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.dashboard_title()}</h1>
+			<p class="text-muted-foreground max-w-2xl text-sm">{m.dashboard_subtitle()}</p>
 		</div>
 		<ArcaneButton
 			action="restart"
@@ -254,7 +260,7 @@
 			{:else}
 				<RefreshCwIcon class="mr-2 size-4" />
 			{/if}
-			Refresh
+			{m.common_refresh()}
 		</ArcaneButton>
 	</div>
 
@@ -271,12 +277,12 @@
 	/>
 
 	<section>
-		<h2 class="mb-4 text-lg font-semibold tracking-tight">System Overview</h2>
+		<h2 class="mb-4 text-lg font-semibold tracking-tight">{m.dashboard_system_overview()}</h2>
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<MeterMetric
-				title="Running Containers"
+				title={m.dashboard_meter_running()}
 				icon={ContainerIcon}
-				description="Active containers"
+				description={m.dashboard_meter_running_desc()}
 				currentValue={isLoading.loadingStats ? undefined : dockerInfo?.containersRunning}
 				formatValue={(v) => v.toString()}
 				maxValue={Math.max(totalContainers, 1)}
@@ -286,9 +292,9 @@
 			/>
 
 			<MeterMetric
-				title="CPU Usage"
+				title={m.dashboard_meter_cpu()}
 				icon={CpuIcon}
-				description="Processor utilization"
+				description={m.dashboard_meter_cpu_desc()}
 				currentValue={isLoading.loadingStats || !hasInitialStatsLoaded ? undefined : currentStats?.cpuUsage}
 				unit="%"
 				maxValue={100}
@@ -297,9 +303,9 @@
 			/>
 
 			<MeterMetric
-				title="Memory Usage"
+				title={m.dashboard_meter_memory()}
 				icon={MemoryStickIcon}
-				description="RAM utilization"
+				description={m.dashboard_meter_memory_desc()}
 				currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
 					? undefined
 					: currentStats?.memoryUsage !== undefined && currentStats?.memoryTotal !== undefined
@@ -313,8 +319,8 @@
 
 			<MeterMetric
 				icon={HardDriveIcon}
-				title="Disk Usage"
-				description="Storage utilization"
+				title={m.dashboard_meter_disk()}
+				description={m.dashboard_meter_disk_desc()}
 				currentValue={isLoading.loadingStats || !hasInitialStatsLoaded
 					? undefined
 					: currentStats?.diskUsage !== undefined && currentStats?.diskTotal !== undefined
@@ -329,7 +335,7 @@
 	</section>
 
 	<DockerDetailsCards
-		title="Docker Details"
+		title={m.dashboard_docker_details_title()}
 		isLoadingDockerInfo={isLoading.loadingDockerInfo}
 		isLoadingStats={isLoading.loadingStats}
 		isLoadingImages={isLoading.loadingImages}

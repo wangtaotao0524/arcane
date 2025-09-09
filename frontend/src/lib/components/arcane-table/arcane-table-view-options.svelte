@@ -3,6 +3,7 @@
 	import type { Table } from '@tanstack/table-core';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { m } from '$lib/paraglide/messages';
 
 	let { table }: { table: Table<TData> } = $props();
 </script>
@@ -16,11 +17,11 @@
 		})}
 	>
 		<Settings2Icon />
-		View
+		{m.common_view()}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content>
 		<DropdownMenu.Group>
-			<DropdownMenu.Label>Toggle columns</DropdownMenu.Label>
+			<DropdownMenu.Label>{m.common_toggle_columns()}</DropdownMenu.Label>
 			<DropdownMenu.Separator />
 			{#each table.getAllColumns().filter((col) => typeof col.accessorFn !== 'undefined' && col.getCanHide()) as column (column)}
 				<DropdownMenu.CheckboxItem

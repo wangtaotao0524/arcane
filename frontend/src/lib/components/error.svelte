@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import CircleXIcon from '@lucide/svelte/icons/circle-x';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		message,
 		status,
-		title = 'Uh‑oh, something went wrong',
+		title = m.error_generic(),
 		showButton = true,
 		actionHref = '/dashboard',
-		actionLabel = 'Go to Dashboard'
+		actionLabel = m.error_go_to_dashboard()
 	}: {
 		message: string;
 		status?: number;

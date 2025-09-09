@@ -31,6 +31,7 @@
 	import { browser } from '$app/environment';
 	import { z } from 'zod/v4';
 	import { createForm } from '$lib/utils/form.utils';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data }: { data: PageData } = $props();
 	let { project, editorState, servicePorts, settings } = $derived(data);
@@ -182,10 +183,10 @@
 	function handleToggleStackAutoScroll() {}
 
 	const navigationSections = [
-		{ id: 'overview', label: 'Overview', icon: FileStackIcon },
-		{ id: 'services', label: 'Services', icon: LayersIcon },
-		{ id: 'config', label: 'Configuration', icon: SettingsIcon },
-		{ id: 'logs', label: 'Logs', icon: TerminalIcon }
+		{ id: 'overview', label: m.compose_nav_overview(), icon: FileStackIcon },
+		{ id: 'services', label: m.compose_nav_services(), icon: LayersIcon },
+		{ id: 'config', label: m.compose_nav_config(), icon: SettingsIcon },
+		{ id: 'logs', label: m.compose_nav_logs(), icon: TerminalIcon }
 	] as const;
 
 	type SectionId = (typeof navigationSections)[number]['id'];
@@ -210,7 +211,7 @@
 					<div class="flex items-center gap-3">
 						<Button variant="ghost" size="sm" href="/compose">
 							<ArrowLeftIcon class="mr-2 size-4" />
-							Back
+							{m.common_back()}
 						</Button>
 						<div class="bg-border h-4 w-px"></div>
 						<div class="flex items-center gap-2">
@@ -241,7 +242,7 @@
 		</div>
 
 		{#if showFloatingHeader}
-			<div class="fixed top-4 left-1/2 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
+			<div class="fixed left-1/2 top-4 z-30 -translate-x-1/2 transition-all duration-300 ease-in-out">
 				<div class="bg-background/90 border-border/50 rounded-lg border px-4 py-3 shadow-xl backdrop-blur-xl">
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
@@ -278,7 +279,7 @@
 			<div class="max-w-full px-4 py-4">
 				<Alert.Root variant="destructive">
 					<CircleAlertIcon class="size-4" />
-					<Alert.Title>Error Loading Stack</Alert.Title>
+					<Alert.Title>{m.compose_error_loading_stack_title()}</Alert.Title>
 					<Alert.Description>{data.error}</Alert.Description>
 				</Alert.Root>
 			</div>
@@ -301,7 +302,7 @@
 								<IconComponent class="size-4" />
 								{#if section.id === 'services' && project.serviceCount}
 									<span
-										class="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-xs"
+										class="bg-primary text-primary-foreground absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-xs"
 									>
 										{project.serviceCount}
 									</span>
@@ -318,14 +319,14 @@
 						<section id="overview" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 								<FileStackIcon class="size-5" />
-								Overview
+								{m.compose_overview_title()}
 							</h2>
 
 							<div class="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
 								<Card.Root class="border">
 									<Card.Content class="flex items-center justify-between p-6">
 										<div>
-											<p class="text-muted-foreground text-sm font-medium">Services</p>
+											<p class="text-muted-foreground text-sm font-medium">{m.compose_services()}</p>
 											<p class="text-2xl font-bold">{project.serviceCount}</p>
 										</div>
 										<div class="bg-primary/10 rounded-full p-3">
@@ -337,7 +338,7 @@
 								<Card.Root class="border">
 									<Card.Content class="flex items-center justify-between p-6">
 										<div>
-											<p class="text-muted-foreground text-sm font-medium">Running</p>
+											<p class="text-muted-foreground text-sm font-medium">{m.compose_running()}</p>
 											<p class="text-2xl font-bold">{project.runningCount}</p>
 										</div>
 										<div class="rounded-full bg-green-500/10 p-3">
@@ -349,7 +350,7 @@
 								<Card.Root class="border">
 									<Card.Content class="flex items-center justify-between p-6">
 										<div>
-											<p class="text-muted-foreground text-sm font-medium">Created</p>
+											<p class="text-muted-foreground text-sm font-medium">{m.common_created()}</p>
 											<p class="text-lg font-medium">
 												{new Date(project.createdAt ?? '').toLocaleDateString()}
 											</p>
@@ -361,10 +362,14 @@
 								</Card.Root>
 
 								{#if servicePorts && Object.keys(servicePorts).length > 0}
-									{@const allUniquePorts = [...new Set(Object.values(servicePorts).flat())]}
+									{@const allUniquePorts = [...new Set((Object.values(servicePorts) as any).flat())] as (
+										| string
+										| number
+										| ProjectPort
+									)[]}
 									<Card.Root class="border">
 										<Card.Header class="pb-4">
-											<Card.Title>Exposed Ports</Card.Title>
+											<Card.Title>{m.compose_exposed_ports()}</Card.Title>
 										</Card.Header>
 										<Card.Content>
 											<div class="flex flex-wrap gap-2">
@@ -384,7 +389,7 @@
 														rel="noopener noreferrer"
 														class="inline-flex items-center rounded-md bg-blue-500/10 px-3 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
 													>
-														Port {port}
+														{m.compose_port_label({ port: String(port) })}
 														<ExternalLinkIcon class="ml-2 size-4" />
 													</a>
 												{/each}
@@ -395,10 +400,14 @@
 							</div>
 
 							{#if servicePorts && Object.keys(servicePorts).length > 0}
-								{@const allUniquePorts = [...new Set(Object.values(servicePorts).flat())]}
+								{@const allUniquePorts = [...new Set((Object.values(servicePorts) as any).flat())] as (
+									| string
+									| number
+									| ProjectPort
+								)[]}
 								<Card.Root class="border">
 									<Card.Header class="pb-4">
-										<Card.Title>Exposed Ports</Card.Title>
+										<Card.Title>{m.compose_exposed_ports()}</Card.Title>
 									</Card.Header>
 									<Card.Content>
 										<div class="flex flex-wrap gap-2">
@@ -418,7 +427,7 @@
 													rel="noopener noreferrer"
 													class="inline-flex items-center rounded-md bg-blue-500/10 px-3 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
 												>
-													Port {port}
+													{m.compose_port_label({ port: String(port) })}
 													<ExternalLinkIcon class="ml-2 size-4" />
 												</a>
 											{/each}
@@ -431,7 +440,7 @@
 						<section id="services" class="scroll-mt-20">
 							<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
 								<LayersIcon class="size-5" />
-								Services ({project.serviceCount})
+								{m.compose_services_header({ count: project.serviceCount })}
 							</h2>
 
 							{#if project.services && project.services.length > 0}
@@ -462,7 +471,8 @@
 															<StatusBadge {variant} text={capitalizeFirstLetter(status)} class="text-xs" />
 															{#if service.ports && service.ports.length > 0}
 																<span class="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs">
-																	{service.ports.length} port{service.ports.length > 1 ? 's' : ''}
+																	{service.ports.length}
+																	{service.ports.length > 1 ? m.compose_ports_label_many() : m.compose_ports_label_one()}
 																</span>
 															{/if}
 														</div>
@@ -479,7 +489,7 @@
 														</p>
 														<div class="mt-1 flex items-center gap-2">
 															<StatusBadge {variant} text={capitalizeFirstLetter(status)} class="text-xs" />
-															<span class="text-muted-foreground text-xs">Not created</span>
+															<span class="text-muted-foreground text-xs">{m.compose_service_not_created()}</span>
 														</div>
 													</div>
 												</div>
@@ -492,7 +502,7 @@
 									<div class="bg-muted/50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
 										<LayersIcon class="text-muted-foreground size-6" />
 									</div>
-									<div class="text-muted-foreground">No services found for this project</div>
+									<div class="text-muted-foreground">{m.compose_no_services_found()}</div>
 								</div>
 							{/if}
 						</section>
@@ -501,7 +511,7 @@
 							<div class="mb-6 flex items-center justify-between">
 								<h2 class="flex items-center gap-2 text-xl font-semibold">
 									<SettingsIcon class="size-5" />
-									Configuration
+									{m.compose_configuration_title()}
 								</h2>
 								{#if hasChanges}
 									<ArcaneButton
@@ -509,15 +519,15 @@
 										loading={isLoading.saving}
 										onclick={handleSaveChanges}
 										disabled={!hasChanges}
-										customLabel="Save Changes"
-										loadingLabel="Saving..."
+										customLabel={m.common_save()}
+										loadingLabel={m.common_saving()}
 										class="bg-green-600 text-white hover:bg-green-700"
 									/>
 								{/if}
 							</div>
 
 							<div class="mb-6 space-y-2">
-								<Label for="name" class="mb-10 text-sm font-medium">Project Name</Label>
+								<Label for="name" class="mb-10 text-sm font-medium">{m.compose_name_label()}</Label>
 								<div class="max-w-md">
 									<Input
 										type="text"
@@ -533,7 +543,7 @@
 									{/if}
 									{#if project?.status === 'running' || project?.status === 'partially running'}
 										<p class="text-muted-foreground mt-2 text-sm">
-											Project name cannot be changed while running. Please stop the project first.
+											{m.compose_name_change_not_allowed()}
 										</p>
 									{/if}
 								</div>
@@ -542,9 +552,13 @@
 							<div class="grid min-w-0 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-3">
 								<div class="min-w-0 overflow-hidden lg:col-span-2">
 									<div class="space-y-4">
-										<h3 class="text-lg">Compose File</h3>
+										<h3 class="text-lg">{m.compose_compose_file_title()}</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
-											<CodeEditor bind:value={$inputs.composeContent.value} language="yaml" placeholder="Enter YAML..." />
+											<CodeEditor
+												bind:value={$inputs.composeContent.value}
+												language="yaml"
+												placeholder={m.compose_compose_placeholder()}
+											/>
 										</div>
 										{#if $inputs.composeContent.error}
 											<p class="text-destructive mt-1 text-xs">{$inputs.composeContent.error}</p>
@@ -554,12 +568,12 @@
 
 								<div class="min-w-0 overflow-hidden lg:col-span-1">
 									<div class="space-y-4">
-										<h3 class="text-lg font-semibold">Environment (.env)</h3>
+										<h3 class="text-lg font-semibold">{m.compose_env_title()}</h3>
 										<div class="h-[590px] w-full min-w-0 overflow-hidden rounded-md">
 											<CodeEditor
 												bind:value={$inputs.envContent.value}
 												language="env"
-												placeholder="Enter environment variables..."
+												placeholder={m.compose_env_placeholder()}
 											/>
 										</div>
 										{#if $inputs.envContent.error}
@@ -575,24 +589,31 @@
 								<div class="mb-6 flex items-center justify-between">
 									<h2 class="flex items-center gap-2 text-xl font-semibold">
 										<TerminalIcon class="size-5" />
-										Project Logs
+										{m.compose_logs_title()}
 									</h2>
 									<div class="flex items-center gap-3">
 										<label class="flex items-center gap-2">
 											<input type="checkbox" bind:checked={autoScrollStackLogs} class="size-4" />
-											Auto-scroll
+											{m.common_autoscroll()}
 										</label>
-										<Button variant="outline" size="sm" onclick={() => stackLogViewer?.clearLogs()}>Clear</Button>
+										<Button variant="outline" size="sm" onclick={() => stackLogViewer?.clearLogs()}>{m.common_clear()}</Button>
 										{#if isStackLogsStreaming}
 											<div class="flex items-center gap-2">
 												<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
-												<span class="text-sm font-medium text-green-600">Live</span>
+												<span class="text-sm font-medium text-green-600">{m.common_live()}</span>
 											</div>
-											<Button variant="outline" size="sm" onclick={() => stackLogViewer?.stopLogStream()}>Stop</Button>
-										{:else}
-											<Button variant="outline" size="sm" onclick={() => stackLogViewer?.startLogStream()} disabled={!project?.id}
-												>Start</Button
+											<Button variant="outline" size="sm" onclick={() => stackLogViewer?.stopLogStream()}
+												>{m.common_stop()}</Button
 											>
+										{:else}
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={() => stackLogViewer?.startLogStream()}
+												disabled={!project?.id}
+											>
+												{m.common_start()}
+											</Button>
 										{/if}
 										<Button
 											variant="outline"
@@ -638,13 +659,13 @@
 				<div class="bg-muted/50 mb-6 inline-flex rounded-full p-6">
 					<FileStackIcon class="text-muted-foreground size-10" />
 				</div>
-				<h2 class="mb-3 text-2xl font-medium">Project Not Found</h2>
+				<h2 class="mb-3 text-2xl font-medium">{m.compose_not_found_title()}</h2>
 				<p class="text-muted-foreground mb-8 max-w-md text-center">
-					Could not load Project data. It may have been removed or the Docker engine is not accessible.
+					{m.compose_not_found_description()}
 				</p>
 				<Button variant="outline" href="/compose">
 					<ArrowLeftIcon class="mr-2 size-4" />
-					Back to Projects
+					{m.compose_back_to_projects()}
 				</Button>
 			</div>
 		</div>

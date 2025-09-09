@@ -9,6 +9,7 @@
 	import type { User } from '$lib/types/user.type';
 	import { z } from 'zod/v4';
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
+	import { m } from '$lib/paraglide/messages';
 
 	type UserFormProps = {
 		open: boolean;
@@ -36,10 +37,10 @@
 	let isOidcUser = $derived(!!userToEdit?.oidcSubjectId);
 
 	const formSchema = z.object({
-		username: z.string().min(1, 'Username is required'),
+		username: z.string().min(1, m.common_username_required()),
 		password: z.string().optional(),
 		displayName: z.string().optional(),
-		email: z.email('Invalid email format').optional().or(z.literal('')),
+		email: z.email(m.common_invalid_email()).optional().or(z.literal('')),
 		isAdmin: z.boolean().default(false)
 	});
 
@@ -99,12 +100,14 @@
 				</div>
 				<div>
 					<Sheet.Title class="text-xl font-semibold">
-						{isEditMode ? 'Edit User' : 'Create New User'}
+						{isEditMode ? m.users_edit_title() : m.users_create_new_title()}
 					</Sheet.Title>
 					<Sheet.Description class="text-muted-foreground mt-1 text-sm">
-						{isEditMode
-							? `Update the details for ${userToEdit?.username || 'this user'}`
-							: 'Add a new user to your system with the required permissions'}
+						{#if isEditMode}
+							{m.users_edit_description({ username: userToEdit?.username ?? m.common_unknown() })}
+						{:else}
+							{m.users_create_description()}
+						{/if}
 					</Sheet.Description>
 				</div>
 			</div>
@@ -112,48 +115,48 @@
 
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-6">
 			<FormInput
-				label="Username *"
+				label={m.common_username()}
 				type="text"
-				description="Unique username for the user"
+				description={m.users_username_description()}
 				disabled={!canEditUsername || isOidcUser}
 				bind:input={$inputs.username}
 			/>
 			<FormInput
-				label={isEditMode ? 'Password' : 'Password *'}
+				label={isEditMode ? m.common_password() : m.users_password_required_label()}
 				type="password"
 				placeholder={isOidcUser
-					? 'Managed by your identity provider'
+					? m.users_password_managed_oidc()
 					: isEditMode
-						? 'Leave empty to keep current password'
-						: 'Enter password'}
+						? m.users_password_leave_empty()
+						: m.users_password_enter()}
 				description={isOidcUser
-					? 'Password is managed by your OIDC provider'
+					? m.users_password_description_oidc()
 					: isEditMode
-						? 'Leave empty to keep current password'
-						: 'Password for the user account'}
+						? m.users_password_description_edit()
+						: m.users_password_description_create()}
 				disabled={isOidcUser}
 				bind:input={$inputs.password}
 			/>
 			<FormInput
-				label="Display Name"
+				label={m.common_display_name()}
 				type="text"
-				placeholder="Full name or display name"
-				description="Optional display name for the user"
+				placeholder={m.users_display_name_placeholder()}
+				description={m.users_display_name_description()}
 				disabled={isOidcUser}
 				bind:input={$inputs.displayName}
 			/>
 			<FormInput
-				label="Email"
+				label={m.common_email()}
 				type="email"
-				placeholder="user@example.com"
-				description="Email address for the user"
+				placeholder={m.users_email_placeholder()}
+				description={m.users_email_description()}
 				disabled={isOidcUser}
 				bind:input={$inputs.email}
 			/>
 			<SwitchWithLabel
 				id="isAdminSwitch"
-				label="Administrator"
-				description="Grant administrator privileges to this user"
+				label={m.common_admin()}
+				description={m.users_administrator_description()}
 				bind:checked={$inputs.isAdmin.value}
 			/>
 
@@ -163,14 +166,14 @@
 					class="arcane-button-cancel flex-1"
 					variant="outline"
 					onclick={() => (open = false)}
-					disabled={isLoading}>Cancel</Button
+					disabled={isLoading}>{m.common_cancel()}</Button
 				>
 				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
 					{#if isLoading}
 						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
 					{/if}
 					<SubmitIcon class="mr-2 size-4" />
-					{isEditMode ? 'Save Changes' : 'Create User'}
+					{isEditMode ? m.users_save_changes() : m.users_create_button()}
 				</Button>
 			</Sheet.Footer>
 		</form>

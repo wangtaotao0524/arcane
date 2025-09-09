@@ -10,6 +10,7 @@
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
 	import { templateAPI } from '$lib/services/api';
 	import * as Alert from '$lib/components/ui/alert/index.js';
+	import { m } from '$lib/paraglide/messages';
 
 	type TemplateRegistryFormProps = {
 		open: boolean;
@@ -20,7 +21,7 @@
 	let { open = $bindable(false), onSubmit, isLoading }: TemplateRegistryFormProps = $props();
 
 	const formSchema = z.object({
-		url: z.url().min(1, 'Registry URL is required'),
+		url: z.url().min(1, m.templates_registry_url_required()),
 		enabled: z.boolean().default(true)
 	});
 
@@ -43,7 +44,7 @@
 			const registryData = await templateAPI.fetchRegistry(data.url);
 
 			if (!registryData.name || !registryData.templates || !Array.isArray(registryData.templates)) {
-				throw new Error('Invalid registry format: missing required fields (name, templates)');
+				throw new Error(m.templates_registry_invalid_format());
 			}
 
 			const registryPayload = {
@@ -54,7 +55,7 @@
 
 			onSubmit(registryPayload);
 		} catch (error) {
-			submitError = error instanceof Error ? error.message : 'Failed to validate registry URL';
+			submitError = error instanceof Error ? error.message : m.templates_registry_validate_failed();
 		}
 	}
 
@@ -74,33 +75,33 @@
 					<GlobeIcon class="text-primary size-5" />
 				</div>
 				<div>
-					<Sheet.Title class="text-xl font-semibold">Add Template Registry</Sheet.Title>
-					<Sheet.Description class="text-muted-foreground mt-1 text-sm"
-						>Add a remote template registry to access community templates.</Sheet.Description
-					>
+					<Sheet.Title class="text-xl font-semibold">{m.templates_add_registry_title()}</Sheet.Title>
+					<Sheet.Description class="text-muted-foreground mt-1 text-sm">
+						{m.templates_add_registry_description()}
+					</Sheet.Description>
 				</div>
 			</div>
 		</Sheet.Header>
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
 			<FormInput
-				label="Registry URL *"
+				label={m.templates_registry_url_label()}
 				type="text"
-				placeholder="https://templates.arcane.ofkm.dev/registry.json"
-				description="URL to the registry JSON manifest"
+				placeholder={m.templates_registry_url_placeholder()}
+				description={m.templates_registry_url_description()}
 				bind:input={$inputs.url}
 			/>
 
 			<SwitchWithLabel
 				id="enabledSwitch"
-				label="Enable Registry"
-				description="Enable this registry to fetch templates"
+				label={m.templates_enable_registry_label()}
+				description={m.templates_enable_registry_description()}
 				bind:checked={$inputs.enabled.value}
 			/>
 
 			{#if submitError}
 				<Alert.Root class="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
 					<AlertCircleIcon class="size-4" />
-					<Alert.Title>Validation Error</Alert.Title>
+					<Alert.Title>{m.templates_registry_validation_error_title()}</Alert.Title>
 					<Alert.Description class="text-sm">{submitError}</Alert.Description>
 				</Alert.Root>
 			{/if}
@@ -113,13 +114,13 @@
 					onclick={() => (open = false)}
 					disabled={isLoading}
 				>
-					Cancel
+					{m.common_cancel()}
 				</Button>
 				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
 					{#if isLoading}
 						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
 					{/if}
-					Add Registry
+					{m.templates_add_registry_button()}
 				</Button>
 			</Sheet.Footer>
 		</form>

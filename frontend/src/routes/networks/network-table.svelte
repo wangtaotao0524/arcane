@@ -19,6 +19,7 @@
 	import NetworkIcon from '@lucide/svelte/icons/network';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		networks = $bindable(),
@@ -35,23 +36,24 @@
 	});
 
 	async function handleDeleteNetwork(id: string, name: string) {
+		const safeName = name?.trim() || m.common_unknown();
 		if (DEFAULT_NETWORK_NAMES.has(name)) {
-			toast.error(`Cannot delete default network: ${name}`);
+			toast.error(m.networks_cannot_delete_default({ name: safeName }));
 			return;
 		}
 		openConfirmDialog({
-			title: 'Delete Network',
-			message: `Are you sure you want to delete network "${name}"? This action cannot be undone.`,
+			title: m.networks_delete_title(),
+			message: m.networks_delete_confirm_message({ name: safeName }),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					handleApiResultWithCallbacks({
 						result: await tryCatch(environmentAPI.deleteNetwork(id)),
-						message: `Failed to Remove Network "${name}"`,
+						message: m.networks_delete_failed({ name: safeName }),
 						setLoadingState: (value) => (isLoading.remove = value),
 						onSuccess: async () => {
-							toast.success(`Network "${name}" Removed Successfully.`);
+							toast.success(m.networks_delete_success({ name: safeName }));
 							networks = await environmentAPI.getNetworks(requestOptions);
 						}
 					});
@@ -65,15 +67,16 @@
 		const defaultNetworks = selectedNetworkList.filter((n) => DEFAULT_NETWORK_NAMES.has(n.name));
 
 		if (defaultNetworks.length > 0) {
-			toast.error(`Cannot delete default networks: ${defaultNetworks.map((n) => n.name).join(', ')}`);
+			const names = defaultNetworks.map((n) => n.name ?? m.common_unknown()).join(', ');
+			toast.error(m.networks_cannot_delete_default_many({ names }));
 			return;
 		}
 
 		openConfirmDialog({
-			title: 'Delete Selected Networks',
-			message: `Are you sure you want to delete ${ids.length} selected network(s)? This action cannot be undone.`,
+			title: m.networks_delete_selected_title({ count: ids.length }),
+			message: m.networks_delete_selected_message({ count: ids.length }),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					isLoading.remove = true;
@@ -87,10 +90,10 @@
 						const result = await tryCatch(environmentAPI.deleteNetwork(networkId));
 						if (result.error) {
 							failureCount++;
-							toast.error(`Failed to delete network "${network.name}": ${result.error.message}`);
+							toast.error(m.networks_delete_failed({ name: network.name ?? m.common_unknown() }));
 						} else {
 							successCount++;
-							toast.success(`Network "${network.name}" deleted successfully.`);
+							toast.success(m.networks_delete_success({ name: network.name ?? m.common_unknown() }));
 						}
 					}
 
@@ -111,24 +114,24 @@
 	const columns = [
 		{
 			accessorKey: 'name',
-			title: 'Name',
+			title: m.common_name(),
 			sortable: true,
 			cell: NameCell
 		},
 		{
 			accessorKey: 'id',
-			title: 'Network ID',
+			title: m.common_id(),
 			cell: IdCell
 		},
 		{
 			accessorKey: 'driver',
-			title: 'Driver',
+			title: m.common_driver(),
 			sortable: true,
 			cell: DriverCell
 		},
 		{
 			accessorKey: 'scope',
-			title: 'Scope',
+			title: m.common_scope(),
 			sortable: true,
 			cell: ScopeCell
 		}
@@ -167,7 +170,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -176,7 +179,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => goto(`/networks/${item.id}`)} disabled={isAnyLoading}>
 					<ScanSearchIcon class="size-4" />
-					Inspect
+					{m.common_inspect()}
 				</DropdownMenu.Item>
 				{#if !DEFAULT_NETWORK_NAMES.has(item.name)}
 					<DropdownMenu.Item
@@ -185,7 +188,7 @@
 						disabled={DEFAULT_NETWORK_NAMES.has(item.name) || isAnyLoading}
 					>
 						<Trash2Icon class="size-4" />
-						Remove
+						{m.common_remove()}
 					</DropdownMenu.Item>
 				{/if}
 			</DropdownMenu.Group>
@@ -210,9 +213,7 @@
 {:else}
 	<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
 		<NetworkIcon class="text-muted-foreground mb-4 size-12 opacity-40" />
-		<p class="text-lg font-medium">No networks found</p>
-		<p class="text-muted-foreground mt-1 text-sm">
-			Create a new network using the "Create Network" button above or use the Docker CLI
-		</p>
+		<p class="text-lg font-medium">{m.networks_empty_title()}</p>
+		<p class="text-muted-foreground mt-1 text-sm">{m.networks_empty_description()}</p>
 	</div>
 {/if}

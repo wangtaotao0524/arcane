@@ -18,6 +18,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { VolumeSummaryDto } from '$lib/types/volume.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		volumes = $bindable(),
@@ -34,20 +35,21 @@
 	});
 
 	async function handleRemoveVolumeConfirm(name: string) {
+		const safeName = name?.trim() || m.common_unknown();
 		openConfirmDialog({
-			title: `Remove Volume`,
-			message: `Are you sure you want to remove the volume "${name}"? This action cannot be undone and will permanently delete all data stored in this volume.`,
+			title: m.volumes_remove_title(),
+			message: m.volumes_remove_confirm_message({ name: safeName }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
 					handleApiResultWithCallbacks({
-						result: await tryCatch(environmentAPI.deleteVolume(name)),
-						message: `Failed to Remove Volume "${name}"`,
+						result: await tryCatch(environmentAPI.deleteVolume(safeName)),
+						message: m.volumes_remove_failed({ name: safeName }),
 						setLoadingState: (value) => (isLoading.removing = value),
 						onSuccess: async () => {
-							toast.success(`Volume "${name}" Removed Successfully.`);
+							toast.success(m.volumes_remove_success({ name: safeName }));
 							volumes = await environmentAPI.getVolumes(requestOptions);
 						}
 					});
@@ -66,11 +68,11 @@
 
 		for (const id of ids) {
 			const name = idToName.get(id);
-			if (!name) continue;
-			const result = await tryCatch(environmentAPI.deleteVolume(name));
+			const safeName = name?.trim() || m.common_unknown();
+			const result = await tryCatch(environmentAPI.deleteVolume(safeName));
 			handleApiResultWithCallbacks({
 				result,
-				message: `Failed to remove volume ${name}`,
+				message: m.volumes_remove_failed({ name: safeName }),
 				setLoadingState: () => {},
 				onSuccess: () => (successCount += 1)
 			});
@@ -79,26 +81,30 @@
 
 		isLoading.removing = false;
 		if (successCount > 0) {
-			toast.success(`Successfully removed ${successCount} volume${successCount > 1 ? 's' : ''}`);
+			const successMsg =
+				successCount === 1 ? m.volumes_bulk_remove_success_one() : m.volumes_bulk_remove_success_many({ count: successCount });
+			toast.success(successMsg);
 			volumes = await environmentAPI.getVolumes(requestOptions);
 		}
 		if (failureCount > 0) {
-			toast.error(`Failed to remove ${failureCount} volume${failureCount > 1 ? 's' : ''}`);
+			const failureMsg =
+				failureCount === 1 ? m.volumes_bulk_remove_failed_one() : m.volumes_bulk_remove_failed_many({ count: failureCount });
+			toast.error(failureMsg);
 		}
 		selectedIds = [];
 	}
 
 	const columns = [
-		{ accessorKey: 'id', title: 'ID', hidden: true },
-		{ accessorKey: 'name', title: 'Name', sortable: true, cell: NameCell },
+		{ accessorKey: 'id', title: m.common_id(), hidden: true },
+		{ accessorKey: 'name', title: m.common_name(), sortable: true, cell: NameCell },
 		{
 			accessorKey: 'inUse',
-			title: 'Status',
+			title: m.common_status(),
 			sortable: true,
 			cell: StatusCell
 		},
-		{ accessorKey: 'driver', title: 'Driver', sortable: true },
-		{ accessorKey: 'createdAt', title: 'Created', sortable: true, cell: CreatedCell }
+		{ accessorKey: 'driver', title: m.common_driver(), sortable: true },
+		{ accessorKey: 'createdAt', title: m.common_created(), sortable: true, cell: CreatedCell }
 	] satisfies ColumnSpec<VolumeSummaryDto>[];
 </script>
 
@@ -110,9 +116,9 @@
 
 {#snippet StatusCell({ item }: { item: VolumeSummaryDto })}
 	{#if item.inUse}
-		<StatusBadge text="In Use" variant="green" />
+		<StatusBadge text={m.common_in_use()} variant="green" />
 	{:else}
-		<StatusBadge text="Unused" variant="amber" />
+		<StatusBadge text={m.common_unused()} variant="amber" />
 	{/if}
 {/snippet}
 
@@ -125,7 +131,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -134,11 +140,11 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => goto(`/volumes/${item.id}`)}>
 					<ScanSearchIcon class="size-4" />
-					Inspect
+					{m.common_inspect()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item variant="destructive" onclick={() => handleRemoveVolumeConfirm(item.name)} disabled={item.inUse}>
 					<Trash2Icon class="size-4" />
-					Remove
+					{m.common_remove()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

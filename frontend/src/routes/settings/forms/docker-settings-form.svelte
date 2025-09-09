@@ -10,6 +10,7 @@
 	import SwitchWithLabel from '$lib/components/form/labeled-switch.svelte';
 	import * as FieldSet from '$lib/components/ui/field-set';
 	import SelectWithLabel from '$lib/components/form/select-with-label.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		callback,
@@ -25,19 +26,18 @@
 	const pruneModeOptions = [
 		{
 			value: 'all',
-			label: 'All',
-			description:
-				'Remove all images not referenced by containers and include named, unused volumes during System Prune (docker image prune -a + volume prune --all behavior).'
+			label: m.docker_prune_all(),
+			description: m.docker_prune_all_description()
 		},
 		{
 			value: 'dangling',
-			label: 'Dangling',
-			description: 'Remove only dangling (untagged) images and anonymous volumes during System Prune.'
+			label: m.docker_prune_dangling(),
+			description: m.docker_prune_dangling_description()
 		}
 	];
 
 	const pruneModeDescription = $derived(
-		pruneModeOptions.find((o) => o.value === pruneMode)?.description ?? 'Choose how unused images and volumes should be pruned.'
+		pruneModeOptions.find((o) => o.value === pruneMode)?.description ?? m.docker_prune_mode_description()
 	);
 
 	const formSchema = z.object({
@@ -56,7 +56,7 @@
 		isLoading = true;
 
 		await callback(data).finally(() => (isLoading = false));
-		toast.success('Settings Updated Succesfully');
+		toast.success(m.general_settings_saved());
 	}
 </script>
 
@@ -64,8 +64,8 @@
 	<div class="mb-4">
 		<Alert.Root variant="warning">
 			<ZapIcon class="size-4" />
-			<Alert.Title>Auto-update Enabled</Alert.Title>
-			<Alert.Description>Automatic container updates are active with polling enabled</Alert.Description>
+			<Alert.Title>{m.docker_auto_update_alert_title()}</Alert.Title>
+			<Alert.Description>{m.docker_auto_update_alert_description()}</Alert.Description>
 		</Alert.Root>
 	</div>
 {/if}
@@ -77,8 +77,8 @@
 				<div class="min-w-0 space-y-4">
 					<SwitchWithLabel
 						id="pollingEnabled"
-						label="Enable Image Polling"
-						description="Periodically check registries for newer image versions"
+						label={m.docker_enable_polling_label()}
+						description={m.docker_enable_polling_description()}
 						bind:checked={$formInputs.pollingEnabled.value}
 					/>
 					{#if $formInputs.pollingEnabled.value}
@@ -87,26 +87,24 @@
 								bind:input={$formInputs.pollingInterval}
 								type="number"
 								id="pollingInterval"
-								label="Polling Interval (minutes)"
-								placeholder="60"
-								description="How often to check for new images (5-1440 minutes)"
+								label={m.docker_polling_interval_label()}
+								placeholder={m.docker_polling_interval_placeholder()}
+								description={m.docker_polling_interval_description()}
 							/>
 							<div>
 								{#if $formInputs.pollingInterval.value < 30}
 									<Alert.Root variant="warning">
 										<ZapIcon class="size-4" />
-										<Alert.Title>Rate Limiting Warning</Alert.Title>
-										<Alert.Description>
-											Polling intervals below 30 minutes may trigger registry rate limits. Prefer longer intervals in production.
-										</Alert.Description>
+										<Alert.Title>{m.docker_rate_limit_warning_title()}</Alert.Title>
+										<Alert.Description>{m.docker_rate_limit_warning_description()}</Alert.Description>
 									</Alert.Root>
 								{/if}
 							</div>
 							<div>
 								<SwitchWithLabel
 									id="autoUpdateSwitch"
-									label="Auto-update Containers"
-									description="Automatically update containers when newer images are found"
+									label={m.docker_auto_update_label()}
+									description={m.docker_auto_update_description()}
 									bind:checked={$formInputs.autoUpdate.value}
 								/>
 							</div>
@@ -115,9 +113,9 @@
 									bind:input={$formInputs.autoUpdateInterval}
 									type="number"
 									id="autoUpdateInterval"
-									label="Auto-update Interval (minutes)"
-									placeholder="60"
-									description="How often to perform automatic updates (5-1440 minutes)"
+									label={m.docker_auto_update_interval_label()}
+									placeholder={m.docker_auto_update_interval_placeholder()}
+									description={m.docker_auto_update_interval_description()}
 								/>
 							{/if}
 						</div>
@@ -128,19 +126,19 @@
 						id="dockerPruneMode"
 						name="pruneMode"
 						bind:value={$formInputs.dockerPruneMode.value}
-						label="Docker Prune Action Behavior"
+						label={m.docker_prune_action_label()}
 						description={pruneModeDescription}
-						placeholder="Docker Prune Mode"
+						placeholder={m.docker_prune_placeholder()}
 						options={pruneModeOptions}
-						groupLabel="Prune Modes"
+						groupLabel={m.docker_prune_group_label()}
 						onValueChange={(v) => (pruneMode = v as 'all' | 'dangling')}
 					/>
 				</div>
 			</FieldSet.Content>
 			<FieldSet.Footer>
 				<div class="flex w-full place-items-center justify-between">
-					<span class="text-muted-foreground text-sm">Save your updated settings.</span>
-					<Button type="submit" disabled={isLoading} size="sm">{isLoading ? 'Saving…' : 'Save'}</Button>
+					<span class="text-muted-foreground text-sm">{m.general_save_instructions()}</span>
+					<Button type="submit" disabled={isLoading} size="sm">{isLoading ? m.common_saving() : m.common_save()}</Button>
 				</div>
 			</FieldSet.Footer>
 		</FieldSet.Root>

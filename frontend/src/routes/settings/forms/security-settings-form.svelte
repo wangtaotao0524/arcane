@@ -10,6 +10,7 @@
 	import type { Settings } from '$lib/types/settings.type';
 	import type { OidcStatusInfo } from '$lib/types/settings.type';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		settings,
@@ -38,10 +39,10 @@
 			authLocalEnabled: z.boolean(),
 			authOidcEnabled: z.boolean(),
 			authSessionTimeout: z
-				.number('Session timeout is required')
-				.int('Must be an integer')
-				.min(15, 'Minimum is 15 minutes')
-				.max(1440, 'Maximum is 1440 minutes'),
+				.number(m.security_session_timeout_required())
+				.int(m.security_session_timeout_integer())
+				.min(15, m.security_session_timeout_min())
+				.max(1440, m.security_session_timeout_max()),
 			authPasswordPolicy: z.enum(['basic', 'standard', 'strong'])
 		})
 		.superRefine((data, ctx) => {
@@ -50,7 +51,7 @@
 			if (!data.authLocalEnabled && !data.authOidcEnabled) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: 'Enable at least one authentication provider.',
+					message: m.security_enable_one_provider(),
 					path: ['authLocalEnabled']
 				});
 			}
@@ -85,7 +86,7 @@
 			authSessionTimeout: data.authSessionTimeout,
 			authPasswordPolicy: data.authPasswordPolicy
 		})
-			.then(() => toast.success('Settings Saved Successfully'))
+			.then(() => toast.success(m.security_settings_saved()))
 			.finally(() => (isLoading.saving = false));
 	}
 
@@ -95,7 +96,7 @@
 
 		if (!checked && !$formInputs.authLocalEnabled.value && !oidcStatus.envForced) {
 			$formInputs.authLocalEnabled.value = true;
-			toast.info('Local Authentication enabled to ensure at least one provider is active.');
+			toast.info(m.security_local_enabled_info());
 		}
 
 		if (checked && !oidcStatus.envForced) {
@@ -106,7 +107,7 @@
 	function handleLocalSwitchChange(checked: boolean) {
 		if (!checked && !isOidcActive()) {
 			$formInputs.authLocalEnabled.value = true;
-			toast.error('At least one authentication provider must be enabled.');
+			toast.error(m.security_enable_one_provider_error());
 			return;
 		}
 		$formInputs.authLocalEnabled.value = checked;
@@ -150,7 +151,7 @@
 				authOidcConfig
 			});
 
-			toast.success('OIDC configuration saved successfully.');
+			toast.success(m.security_oidc_saved());
 			showOidcConfigDialog = false;
 		} finally {
 			isLoading.saving = false;
@@ -163,12 +164,12 @@
 		<FieldSet.Root>
 			<FieldSet.Content class="flex flex-col gap-8">
 				<div class="min-w-0 space-y-4">
-					<h2 class="text-muted-foreground text-sm font-semibold">Authentication</h2>
+					<h2 class="text-muted-foreground text-sm font-semibold">{m.security_authentication_heading()}</h2>
 
 					<SwitchWithLabel
 						id="localAuthSwitch"
-						label="Local Authentication"
-						description="Username and password stored by Arcane. Keep enabled as a fallback."
+						label={m.security_local_auth_label()}
+						description={m.security_local_auth_description()}
 						bind:checked={$formInputs.authLocalEnabled.value}
 						onCheckedChange={handleLocalSwitchChange}
 					/>
@@ -176,8 +177,8 @@
 					<div class="space-y-2">
 						<SwitchWithLabel
 							id="oidcAuthSwitch"
-							label="OIDC Authentication"
-							description={`Use an external OIDC provider${oidcStatus.envForced ? ' (forced by server)' : ''}`}
+							label={m.security_oidc_auth_label()}
+							description={oidcStatus.envForced ? m.security_oidc_auth_description_forced() : m.security_oidc_auth_description()}
 							disabled={oidcStatus.envForced}
 							checked={$formInputs.authOidcEnabled.value}
 							onCheckedChange={handleOidcSwitchChange}
@@ -188,16 +189,16 @@
 								{#if oidcStatus.envForced}
 									{#if !oidcStatus.envConfigured}
 										<Button variant="link" class="text-destructive h-auto p-0 text-xs hover:underline" onclick={openOidcDialog}>
-											Server forces OIDC, but env vars missing. Configure or fix server env.
+											{m.security_server_forces_oidc_missing_env()}
 										</Button>
 									{:else}
 										<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
-											OIDC configured & forced by server. View status.
+											{m.security_oidc_configured_forced_view()}
 										</Button>
 									{/if}
 								{:else}
 									<Button variant="link" class="h-auto p-0 text-xs text-sky-600 hover:underline" onclick={openOidcDialog}>
-										Manage OIDC configuration
+										{m.security_manage_oidc_config()}
 									</Button>
 								{/if}
 							</div>
@@ -206,19 +207,19 @@
 				</div>
 
 				<div class="min-w-0 space-y-4">
-					<h2 class="text-muted-foreground text-sm font-semibold">Session</h2>
+					<h2 class="text-muted-foreground text-sm font-semibold">{m.security_session_heading()}</h2>
 
 					<FormInput
 						type="number"
 						id="sessionTimeout"
-						label="Session Timeout (minutes)"
-						placeholder="60"
+						label={m.security_session_timeout_label()}
+						placeholder={m.security_session_timeout_placeholder()}
 						bind:input={$formInputs.authSessionTimeout}
-						description="Inactive sessions will be logged out automatically (15–1440 minutes)."
+						description={m.security_session_timeout_description()}
 					/>
 
 					<div class="space-y-2">
-						<span class="text-sm font-medium" id="passwordPolicyLabel">Password Policy</span>
+						<span class="text-sm font-medium" id="passwordPolicyLabel">{m.security_password_policy_label()}</span>
 						<Tooltip.Provider>
 							<div class="mt-2 grid grid-cols-3 gap-2" role="group" aria-labelledby="passwordPolicyLabel">
 								<Tooltip.Root>
@@ -229,10 +230,11 @@
 												? 'arcane-button-create w-full'
 												: 'arcane-button-restart w-full'}
 											onclick={() => ($formInputs.authPasswordPolicy.value = 'basic')}
-											type="button">Basic</Button
-										>
+											type="button"
+											>{m.security_password_policy_basic()}
+										</Button>
 									</Tooltip.Trigger>
-									<Tooltip.Content side="top" align="center">Minimum 8 characters.</Tooltip.Content>
+									<Tooltip.Content side="top" align="center">{m.security_password_policy_basic_tooltip()}</Tooltip.Content>
 								</Tooltip.Root>
 
 								<Tooltip.Root>
@@ -243,10 +245,11 @@
 												? 'arcane-button-create w-full'
 												: 'arcane-button-restart w-full'}
 											onclick={() => ($formInputs.authPasswordPolicy.value = 'standard')}
-											type="button">Standard</Button
-										>
+											type="button"
+											>{m.security_password_policy_standard()}
+										</Button>
 									</Tooltip.Trigger>
-									<Tooltip.Content side="top" align="center">10+ chars with upper, lower, and a number.</Tooltip.Content>
+									<Tooltip.Content side="top" align="center">{m.security_password_policy_standard_tooltip()}</Tooltip.Content>
 								</Tooltip.Root>
 
 								<Tooltip.Root>
@@ -257,10 +260,11 @@
 												? 'arcane-button-create w-full'
 												: 'arcane-button-restart w-full'}
 											onclick={() => ($formInputs.authPasswordPolicy.value = 'strong')}
-											type="button">Strong</Button
-										>
+											type="button"
+											>{m.security_password_policy_strong()}
+										</Button>
 									</Tooltip.Trigger>
-									<Tooltip.Content side="top" align="center">12+ chars with upper, lower, number, and symbol.</Tooltip.Content>
+									<Tooltip.Content side="top" align="center">{m.security_password_policy_strong_tooltip()}</Tooltip.Content>
 								</Tooltip.Root>
 							</div>
 						</Tooltip.Provider>
@@ -270,8 +274,10 @@
 
 			<FieldSet.Footer>
 				<div class="flex w-full place-items-center justify-between">
-					<span class="text-muted-foreground text-sm">Save your updated settings.</span>
-					<Button type="submit" disabled={isLoading.saving} size="sm">{isLoading.saving ? 'Saving…' : 'Save'}</Button>
+					<span class="text-muted-foreground text-sm">{m.security_save_instructions()}</span>
+					<Button type="submit" disabled={isLoading.saving} size="sm"
+						>{isLoading.saving ? m.common_saving() : m.common_save()}</Button
+					>
 				</div>
 			</FieldSet.Footer>
 		</FieldSet.Root>

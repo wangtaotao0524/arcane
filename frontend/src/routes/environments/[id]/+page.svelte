@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
@@ -13,8 +12,9 @@
 	import { environmentManagementAPI } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import { m } from '$lib/paraglide/messages';
 
-	let { data }: { data: PageData } = $props();
+	let { data } = $props();
 	let { environment } = $derived(data);
 
 	let isRefreshing = $state(false);
@@ -25,9 +25,9 @@
 	let activeSection = $state<string>('overview');
 
 	const sections = [
-		{ id: 'overview', Label: 'Overview', icon: MonitorIcon },
-		{ id: 'connection', Label: 'Connection', icon: GlobeIcon },
-		{ id: 'pairing', Label: 'Pair/Rotate', icon: SettingsIcon }
+		{ id: 'overview', Label: m.environments_section_overview, icon: MonitorIcon },
+		{ id: 'connection', Label: m.environments_section_connection, icon: GlobeIcon },
+		{ id: 'pairing', Label: m.environments_section_pairing, icon: SettingsIcon }
 	];
 
 	async function refreshEnvironment() {
@@ -81,7 +81,7 @@
 		}
 	}
 
-	const environmentDisplayName = $derived(environment.name);
+	const environmentDisplayName = $derived(() => environment?.name ?? m.common_unknown());
 </script>
 
 <div class="space-y-6 pb-16">
@@ -91,18 +91,19 @@
 				<ArrowLeftIcon class="size-4" />
 			</Button>
 			<div>
-				<h1 class="text-3xl font-bold tracking-tight">{environmentDisplayName}</h1>
-				<p class="text-muted-foreground mt-1 text-sm">Environment details and management</p>
+				<h1 class="text-3xl font-bold tracking-tight">{environmentDisplayName()}</h1>
+				<p class="text-muted-foreground mt-1 text-sm">{m.environments_page_subtitle()}</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button variant="outline" onclick={testConnection} disabled={isTestingConnection}>
 				{#if isTestingConnection}
 					<RefreshCwIcon class="mr-2 size-4 animate-spin" />
+					{m.environments_testing_connection()}
 				{:else}
 					<TerminalIcon class="mr-2 size-4" />
+					{m.environments_test_connection()}
 				{/if}
-				Test Connection
 			</Button>
 			<Button onclick={refreshEnvironment} disabled={isRefreshing}>
 				{#if isRefreshing}
@@ -110,7 +111,7 @@
 				{:else}
 					<RefreshCwIcon class="mr-2 size-4" />
 				{/if}
-				Refresh
+				{m.common_refresh()}
 			</Button>
 		</div>
 	</div>
@@ -119,7 +120,7 @@
 		<div class="lg:col-span-1">
 			<Card.Root>
 				<Card.Header>
-					<Card.Title class="text-lg">Sections</Card.Title>
+					<Card.Title class="text-lg">{m.environments_sections_title()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="p-0">
 					<nav class="space-y-1">
@@ -133,7 +134,7 @@
 									: ''}"
 							>
 								<Icon class="size-4" />
-								{section.Label}
+								{section.Label()}
 							</button>
 						{/each}
 					</nav>
@@ -148,30 +149,30 @@
 						<Card.Header>
 							<Card.Title class="flex items-center gap-2">
 								<MonitorIcon class="size-5" />
-								Environment Overview
+								{m.environments_overview_title()}
 							</Card.Title>
 						</Card.Header>
 						<Card.Content class="space-y-6">
 							<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 								<div class="space-y-4">
 									<div>
-										<Label class="text-muted-foreground text-sm font-medium">Name</Label>
-										<div class="mt-1 text-lg font-semibold">{environmentDisplayName}</div>
+										<Label class="text-muted-foreground text-sm font-medium">{m.common_name()}</Label>
+										<div class="mt-1 text-lg font-semibold">{environmentDisplayName()}</div>
 									</div>
 									<div>
-										<Label class="text-muted-foreground text-sm font-medium">Status</Label>
+										<Label class="text-muted-foreground text-sm font-medium">{m.common_status()}</Label>
 										<div class="mt-1">
 											<StatusBadge
-												text={environment.status === 'online' ? 'Online' : 'Offline'}
+												text={environment.status === 'online' ? m.common_online() : m.common_offline()}
 												variant={environment.status === 'online' ? 'green' : 'red'}
 											/>
 										</div>
 									</div>
 									<div>
-										<Label class="text-muted-foreground text-sm font-medium">Enabled</Label>
+										<Label class="text-muted-foreground text-sm font-medium">{m.common_enabled()}</Label>
 										<div class="mt-1">
 											<StatusBadge
-												text={environment.enabled ? 'Enabled' : 'Disabled'}
+												text={environment.enabled ? m.common_enabled() : m.common_disabled()}
 												variant={environment.enabled ? 'green' : 'gray'}
 											/>
 										</div>
@@ -179,7 +180,7 @@
 								</div>
 								<div class="space-y-4">
 									<div>
-										<Label class="text-muted-foreground text-sm font-medium">Environment ID</Label>
+										<Label class="text-muted-foreground text-sm font-medium">{m.environments_environment_id_label()}</Label>
 										<div class="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">{environment.id}</div>
 									</div>
 								</div>
@@ -193,26 +194,26 @@
 						<Card.Header>
 							<Card.Title class="flex items-center gap-2">
 								<GlobeIcon class="h-5 w-5" />
-								Connection Details
+								{m.environments_connection_title()}
 							</Card.Title>
 						</Card.Header>
 						<Card.Content class="space-y-4">
 							<div>
-								<Label class="text-muted-foreground text-sm font-medium">Name</Label>
-								<div class="mt-1 text-sm">{environmentDisplayName}</div>
+								<Label class="text-muted-foreground text-sm font-medium">{m.common_name()}</Label>
+								<div class="mt-1 text-sm">{environmentDisplayName()}</div>
 							</div>
 							<div>
-								<Label class="text-muted-foreground text-sm font-medium">API URL</Label>
+								<Label class="text-muted-foreground text-sm font-medium">{m.environments_api_url()}</Label>
 								<div class="bg-muted mt-1 break-all rounded-md px-3 py-2 font-mono text-sm">{environment.apiUrl}</div>
 							</div>
 							<div class="pt-4">
 								<Button onclick={testConnection} disabled={isTestingConnection} class="w-full">
 									{#if isTestingConnection}
 										<RefreshCwIcon class="mr-2 h-4 w-4 animate-spin" />
-										Testing Connection...
+										{m.environments_testing_connection()}
 									{:else}
 										<TerminalIcon class="mr-2 h-4 w-4" />
-										Test Connection
+										{m.environments_test_connection()}
 									{/if}
 								</Button>
 							</div>
@@ -225,19 +226,19 @@
 						<Card.Header>
 							<Card.Title class="flex items-center gap-2">
 								<SettingsIcon class="h-5 w-5" />
-								Pair / Rotate Agent Token
+								{m.environments_pair_rotate_title()}
 							</Card.Title>
 							<Card.Description>
-								The token is stored securely on the server and not displayed. Use a Bootstrap Token to pair or rotate.
+								{m.environments_pair_rotate_description()}
 							</Card.Description>
 						</Card.Header>
 						<Card.Content class="space-y-4">
 							<div>
-								<Label class="text-muted-foreground text-sm font-medium">Bootstrap Token</Label>
+								<Label class="text-muted-foreground text-sm font-medium">{m.environments_bootstrap_label()}</Label>
 								<input
 									class="bg-background focus:ring-primary mt-1 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
 									type="password"
-									placeholder="Enter AGENT_BOOTSTRAP_TOKEN"
+									placeholder={m.environments_bootstrap_placeholder()}
 									bind:value={bootstrapToken}
 								/>
 							</div>
@@ -248,9 +249,9 @@
 									{:else}
 										<SettingsIcon class="mr-2 h-4 w-4" />
 									{/if}
-									Pair / Rotate
+									{m.environments_pair_rotate_action()}
 								</Button>
-								<Button variant="outline" onclick={() => (bootstrapToken = '')} disabled={isPairing}>Clear</Button>
+								<Button variant="outline" onclick={() => (bootstrapToken = '')} disabled={isPairing}>{m.common_clear()}</Button>
 							</div>
 						</Card.Content>
 					</Card.Root>
@@ -262,7 +263,7 @@
 	{#if isRefreshing}
 		<div class="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-white shadow-lg">
 			<RefreshCwIcon class="h-4 w-4 animate-spin" />
-			<span class="text-sm">Refreshing...</span>
+			<span class="text-sm">{m.environments_refreshing()}</span>
 		</div>
 	{/if}
 </div>

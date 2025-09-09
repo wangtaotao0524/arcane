@@ -5,6 +5,8 @@
 	import DockerIcon from '$lib/icons/docker-icon.svelte';
 	import type { Component } from 'svelte';
 	import type { IconProps } from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages';
+
 	const DockerIconTyped = DockerIcon as unknown as Component<IconProps, {}, ''>;
 
 	type DockerInfo =
@@ -17,7 +19,7 @@
 		| undefined;
 
 	let {
-		title = 'Docker Details',
+		title = m.dashboard_docker_details_title(),
 		isLoadingDockerInfo = false,
 		isLoadingStats = false,
 		isLoadingImages = false,
@@ -47,38 +49,43 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 		<GradientFrameCard
 			class="w-full"
-			title="Docker Engine"
+			title={m.docker_engine_title()}
 			icon={DockerIconTyped}
 			color="blue"
 			loading={isLoadingDockerInfo}
 			rightBadge={dockerInfo?.version ?? null}
-			subtitle={!isLoadingDockerInfo ? `${dockerInfo?.os || 'Unknown OS'} • ${dockerInfo?.architecture || 'Unknown arch'}` : null}
+			subtitle={!isLoadingDockerInfo
+				? m.docker_engine_subtitle({
+						os: dockerInfo?.os ?? m.common_unknown(),
+						arch: dockerInfo?.architecture ?? m.common_unknown()
+					})
+				: null}
 		/>
 
 		<GradientFrameCard
 			class="w-full"
-			title="Containers"
+			title={m.containers_title()}
 			icon={BoxIcon}
 			color="emerald"
 			loading={isLoadingStats}
-			rightBadge={!isLoadingStats ? `${containersRunning} running` : null}
+			rightBadge={!isLoadingStats ? m.docker_containers_running_badge({ count: containersRunning }) : null}
 		>
 			{#if !isLoadingStats}
 				<div class="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs">
-					<span class="bg-muted rounded-md px-1.5 py-0.5">total {totalContainers}</span>
-					<span class="bg-muted rounded-md px-1.5 py-0.5">stopped {stoppedContainers}</span>
+					<span class="bg-muted rounded-md px-1.5 py-0.5">{m.docker_containers_total_badge({ count: totalContainers })}</span>
+					<span class="bg-muted rounded-md px-1.5 py-0.5">{m.docker_containers_stopped_badge({ count: stoppedContainers })}</span>
 				</div>
 			{/if}
 		</GradientFrameCard>
 
 		<GradientFrameCard
 			class="w-full"
-			title="Images"
+			title={m.images_title()}
 			icon={HardDriveIcon}
 			color="purple"
 			loading={isLoadingImages}
 			rightBadge={!isLoadingImages ? imagesTotal : null}
-			subtitle={!isLoadingImages ? 'Total images discovered' : null}
+			subtitle={!isLoadingImages ? m.docker_images_subtitle() : null}
 		/>
 	</div>
 </section>

@@ -5,6 +5,7 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import type { AppVersionInformation } from '$lib/types/application-configuration';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		isCollapsed,
@@ -34,8 +35,10 @@
 					class="group flex items-center justify-between text-blue-600 transition-colors duration-200 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
 				>
 					<div class="flex flex-col gap-1">
-						<span class="text-sm font-semibold">Update available</span>
-						<span class="text-xs text-blue-500/80">v{versionInformation?.newestVersion}</span>
+						<span class="text-sm font-semibold">{m.sidebar_update_available()}</span>
+						<span class="text-xs text-blue-500/80"
+							>{m.sidebar_version({ version: versionInformation?.newestVersion ?? m.common_unknown() })}</span
+						>
 					</div>
 					<ExternalLink size={16} class="transition-transform duration-200 group-hover:scale-110" />
 				</a>
@@ -61,7 +64,7 @@
 						{/snippet}
 					</Tooltip.Trigger>
 					<Tooltip.Content side="right" align="center" hidden={sidebar.state !== 'collapsed' || sidebar.isMobile}>
-						Update available: v{versionInformation?.newestVersion}
+						{m.sidebar_update_available_tooltip({ version: versionInformation?.newestVersion ?? m.common_unknown() })}
 					</Tooltip.Content>
 				</Tooltip.Root>
 			</div>

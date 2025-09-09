@@ -9,6 +9,7 @@
 	import { z } from 'zod/v4';
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
 	import SelectWithLabel from '../form/select-with-label.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	type CreateVolumeFormProps = {
 		open: boolean;
@@ -19,16 +20,16 @@
 	let { open = $bindable(false), onSubmit, isLoading }: CreateVolumeFormProps = $props();
 
 	const drivers = [
-		{ value: 'local', label: 'Local' },
-		{ value: 'nfs', label: 'NFS' },
-		{ value: 'awsElasticBlockStore', label: 'AWS EBS' },
-		{ value: 'azure_disk', label: 'Azure Disk' },
-		{ value: 'gcePersistentDisk', label: 'GCE Persistent Disk' }
+		{ value: 'local', label: m.volume_driver_local() },
+		{ value: 'nfs', label: m.volume_driver_nfs() },
+		{ value: 'awsElasticBlockStore', label: m.volume_driver_aws_ebs() },
+		{ value: 'azure_disk', label: m.volume_driver_azure_disk() },
+		{ value: 'gcePersistentDisk', label: m.volume_driver_gce_pd() }
 	];
 
 	const formSchema = z.object({
-		volumeName: z.string().min(1, 'Volume name is required'),
-		volumeDriver: z.string().min(1, 'Driver is required'),
+		volumeName: z.string().min(1, m.volume_name_required()),
+		volumeDriver: z.string().min(1, m.volume_driver_required()),
 		volumeOptText: z.string().optional().default(''),
 		volumeLabels: z.string().optional().default('')
 	});
@@ -99,21 +100,19 @@
 					<HardDriveIcon class="text-primary size-5" />
 				</div>
 				<div>
-					<Sheet.Title data-testid="create-volume-header" class="text-xl font-semibold">Create New Volume</Sheet.Title>
-					<Sheet.Description class="text-muted-foreground mt-1 text-sm"
-						>Enter the details for the new Docker volume.</Sheet.Description
-					>
+					<Sheet.Title data-testid="create-volume-header" class="text-xl font-semibold">{m.create_volume_title()}</Sheet.Title>
+					<Sheet.Description class="text-muted-foreground mt-1 text-sm">{m.create_volume_description()}</Sheet.Description>
 				</div>
 			</div>
 		</Sheet.Header>
 
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
 			<FormInput
-				label="Volume Name *"
+				label={m.volume_name_label()}
 				id="volume-name"
 				type="text"
-				placeholder="e.g., my-app-data"
-				description="Unique name for the volume"
+				placeholder={m.volume_name_placeholder()}
+				description={m.volume_name_description()}
 				disabled={isLoading}
 				bind:input={$inputs.volumeName}
 			/>
@@ -121,32 +120,32 @@
 			<SelectWithLabel
 				id="driver-select"
 				bind:value={$inputs.volumeDriver.value}
-				label="Volume Driver"
-				description="Choose the storage driver for your volume"
+				label={m.volume_driver_label()}
+				description={m.volume_driver_description()}
 				options={drivers}
-				placeholder="Select a driver"
+				placeholder={m.volume_driver_placeholder()}
 			/>
 
 			<Accordion.Root type="single" class="w-full">
 				<Accordion.Item value="advanced">
-					<Accordion.Trigger class="text-sm font-medium">Advanced Settings</Accordion.Trigger>
+					<Accordion.Trigger class="text-sm font-medium">{m.volume_advanced_settings()}</Accordion.Trigger>
 					<Accordion.Content class="pt-4">
 						<div class="space-y-4">
 							<FormInput
-								label="Driver Options"
+								label={m.common_driver_options()}
 								type="textarea"
-								placeholder="key=value&#10;key2=value2"
-								description="Enter driver-specific options as key=value pairs, one per line"
+								placeholder={m.volume_driver_options_placeholder()}
+								description={m.volume_driver_options_description()}
 								disabled={isLoading}
 								rows={3}
 								bind:input={$inputs.volumeOptText}
 							/>
 
 							<FormInput
-								label="Labels"
+								label={m.common_labels()}
 								type="textarea"
-								placeholder="com.example.description=Production data&#10;com.example.department=Finance"
-								description="Enter metadata labels as key=value pairs, one per line"
+								placeholder={m.volume_labels_placeholder()}
+								description={m.volumes_labels_description()}
 								disabled={isLoading}
 								rows={3}
 								bind:input={$inputs.volumeLabels}
@@ -162,15 +161,15 @@
 					class="arcane-button-cancel flex-1"
 					variant="outline"
 					onclick={() => (open = false)}
-					disabled={isLoading}>Cancel</Button
+					disabled={isLoading}>{m.common_cancel()}</Button
 				>
 				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
 					{#if isLoading}
 						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
-						Creating...
+						{m.volumes_creating()}
 					{:else}
 						<HardDriveIcon class="mr-2 size-4" />
-						Create Volume
+						{m.volumes_create_button()}
 					{/if}
 				</Button>
 			</Sheet.Footer>

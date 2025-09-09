@@ -21,6 +21,7 @@
 	import type { ImageSummaryDto } from '$lib/types/image.type';
 	import { format } from 'date-fns';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		images = $bindable(),
@@ -43,10 +44,10 @@
 		if (!ids || ids.length === 0) return;
 
 		openConfirmDialog({
-			title: `Remove ${ids.length} Image${ids.length > 1 ? 's' : ''}`,
-			message: `Are you sure you want to remove the selected image${ids.length > 1 ? 's' : ''}? This action cannot be undone.`,
+			title: m.images_remove_selected_title({ count: ids.length }),
+			message: m.images_remove_selected_message({ count: ids.length }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
@@ -57,7 +58,7 @@
 						const result = await tryCatch(environmentAPI.deleteImage(id));
 						handleApiResultWithCallbacks({
 							result,
-							message: `Failed to remove image`,
+							message: m.images_remove_failed(),
 							setLoadingState: () => {},
 							onSuccess: () => {
 								successCount++;
@@ -69,11 +70,14 @@
 					isLoading.removing = false;
 
 					if (successCount > 0) {
-						toast.success(`Successfully removed ${successCount} image${successCount > 1 ? 's' : ''}`);
+						const msg =
+							successCount === 1 ? m.images_remove_success_one() : m.images_remove_success_many({ count: successCount });
+						toast.success(msg);
 						images = await environmentAPI.getImages(requestOptions);
 					}
 					if (failureCount > 0) {
-						toast.error(`Failed to remove ${failureCount} image${failureCount > 1 ? 's' : ''}`);
+						const msg = failureCount === 1 ? m.images_remove_failed_one() : m.images_remove_failed_many({ count: failureCount });
+						toast.error(msg);
 					}
 
 					selectedIds = [];
@@ -84,10 +88,10 @@
 
 	async function deleteImage(id: string) {
 		openConfirmDialog({
-			title: 'Remove Image',
-			message: 'Are you sure you want to remove this image? This action cannot be undone.',
+			title: m.images_remove_title(),
+			message: m.images_remove_message(),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
@@ -95,10 +99,10 @@
 					const result = await tryCatch(environmentAPI.deleteImage(id));
 					handleApiResultWithCallbacks({
 						result,
-						message: 'Failed to remove image',
+						message: m.images_remove_failed(),
 						setLoadingState: () => {},
 						onSuccess: async () => {
-							toast.success('Image removed successfully');
+							toast.success(m.images_remove_success());
 							images = await environmentAPI.getImages(requestOptions);
 						}
 					});
@@ -111,7 +115,7 @@
 
 	async function handleInlineImagePull(imageId: string, repoTag: string) {
 		if (!repoTag || repoTag === '<none>:<none>') {
-			toast.error('Cannot pull image without repository tag');
+			toast.error(m.images_pull_no_tag());
 			return;
 		}
 
@@ -120,10 +124,10 @@
 		const result = await tryCatch(environmentAPI.pullImage(repoTag));
 		handleApiResultWithCallbacks({
 			result,
-			message: 'Failed to Pull Image',
+			message: m.images_pull_failed(),
 			setLoadingState: () => {},
 			onSuccess: async () => {
-				toast.success(`Successfully pulled ${repoTag}`);
+				toast.success(m.images_pull_success({ repoTag }));
 				images = await environmentAPI.getImages(requestOptions);
 			}
 		});
@@ -146,14 +150,14 @@
 	}
 
 	const columns = [
-		{ accessorKey: 'id', title: 'ID', hidden: true },
-		{ accessorKey: 'repoTags', title: 'Repository', sortable: true, cell: RepoCell },
-		{ id: 'imageId', title: 'Image ID', cell: ImageIdCell },
-		{ accessorKey: 'size', title: 'Size', sortable: true, cell: SizeCell },
-		{ accessorKey: 'created', title: 'Created', sortable: true, cell: CreatedCell },
+		{ accessorKey: 'id', title: m.common_id(), hidden: true },
+		{ accessorKey: 'repoTags', title: m.images_repository(), sortable: true, cell: RepoCell },
+		{ id: 'imageId', title: m.images_image_id(), cell: ImageIdCell },
+		{ accessorKey: 'size', title: m.images_size(), sortable: true, cell: SizeCell },
+		{ accessorKey: 'created', title: m.common_created(), sortable: true, cell: CreatedCell },
 		{
 			accessorKey: 'inUse',
-			title: 'Status',
+			title: m.common_status(),
 			sortable: true,
 			cell: StatusCell,
 			filterFn: (row, columnId, filterValue) => {
@@ -166,7 +170,7 @@
 		{
 			id: 'updates',
 			accessorFn: (row) => row.updateInfo?.hasUpdate ?? false,
-			title: 'Updates',
+			title: m.images_updates(),
 			cell: UpdatesCell,
 			filterFn: (row, columnId, filterValue) => {
 				const selected = Array.isArray(filterValue) ? (filterValue as boolean[]) : [];
@@ -183,12 +187,12 @@
 	{#if item.repoTags && item.repoTags.length > 0 && item.repoTags[0] !== '<none>:<none>'}
 		<a class="font-medium hover:underline" href="/images/{item.id}/">{item.repoTags[0]}</a>
 	{:else}
-		<span class="text-muted-foreground italic">Untagged</span>
+		<span class="text-muted-foreground italic">{m.images_untagged()}</span>
 	{/if}
 {/snippet}
 
 {#snippet ImageIdCell({ item }: { item: ImageSummaryDto })}
-	<code class="bg-muted rounded px-2 py-1 text-xs">{item.id?.substring(7, 19) || 'N/A'}</code>
+	<code class="bg-muted rounded px-2 py-1 text-xs">{item.id?.substring(7, 19) || m.common_na()}</code>
 {/snippet}
 
 {#snippet SizeCell({ value }: { value: unknown })}
@@ -201,9 +205,9 @@
 
 {#snippet StatusCell({ item }: { item: ImageSummaryDto })}
 	{#if item.inUse}
-		<StatusBadge text="In Use" variant="green" />
+		<StatusBadge text={m.common_in_use()} variant="green" />
 	{:else}
-		<StatusBadge text="Unused" variant="amber" />
+		<StatusBadge text={m.common_unused()} variant="amber" />
 	{/if}
 {/snippet}
 
@@ -217,7 +221,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -226,7 +230,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => goto(`/images/${item.id}`)}>
 					<ScanSearchIcon class="size-4" />
-					Inspect
+					{m.common_inspect()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item
 					onclick={() => handleInlineImagePull(item.id, item.repoTags?.[0] || '')}
@@ -234,10 +238,10 @@
 				>
 					{#if isPullingInline[item.id]}
 						<LoaderCircleIcon class="size-4 animate-spin" />
-						Pulling...
+						{m.images_pulling()}
 					{:else}
 						<DownloadIcon class="size-4" />
-						Pull
+						{m.images_pull()}
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
@@ -247,25 +251,23 @@
 					{:else}
 						<Trash2Icon class="size-4" />
 					{/if}
-					Remove
+					{m.common_remove()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 {/snippet}
 
-<div>
-	<Card.Root>
-		<Card.Content class="py-5">
-			<ArcaneTable
-				items={images}
-				bind:requestOptions
-				bind:selectedIds
-				onRemoveSelected={(ids) => handleDeleteSelected(ids)}
-				onRefresh={async (options) => (images = await environmentAPI.getImages(options))}
-				{columns}
-				rowActions={RowActions}
-			/>
-		</Card.Content>
-	</Card.Root>
-</div>
+<Card.Root>
+	<Card.Content class="py-5">
+		<ArcaneTable
+			items={images}
+			bind:requestOptions
+			bind:selectedIds
+			onRemoveSelected={(ids) => handleDeleteSelected(ids)}
+			onRefresh={async (options) => (images = await environmentAPI.getImages(options))}
+			{columns}
+			rowActions={RowActions}
+		/>
+	</Card.Content>
+</Card.Root>

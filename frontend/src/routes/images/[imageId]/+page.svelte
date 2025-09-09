@@ -18,6 +18,7 @@
 	import { toast } from 'svelte-sonner';
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { environmentAPI } from '$lib/services/api';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let { image } = $derived(data);
@@ -28,41 +29,37 @@
 		refreshing: false
 	});
 
-	const shortId = $derived(image?.id?.split(':')[1]?.substring(0, 12) || 'N/A');
+	const shortId = $derived(() => image?.id?.split(':')[1]?.substring(0, 12) || m.common_na());
 
 	const createdDate = $derived(() => {
-		if (!image?.created) {
-			return 'N/A';
-		}
+		if (!image?.created) return m.common_na();
 		try {
 			const date = new Date(image.created);
-			if (isNaN(date.getTime())) {
-				return 'N/A';
-			}
+			if (isNaN(date.getTime())) return m.common_na();
 			return format(date, 'PP p');
 		} catch {
-			return 'N/A';
+			return m.common_na();
 		}
 	});
 
-	const imageSize = $derived(bytes.format(image?.size || 0));
-	const architecture = $derived(image?.architecture || 'N/A');
-	const osName = $derived(image?.os || 'N/A');
+	const imageSize = $derived(() => bytes.format(image?.size || 0));
+	const architecture = $derived(() => image?.architecture || m.common_na());
+	const osName = $derived(() => image?.os || m.common_na());
 
 	async function handleImageRemove(id: string) {
 		openConfirmDialog({
-			title: 'Delete Image',
-			message: `Are you sure you want to delete this image? This action cannot be undone.`,
+			title: m.images_remove_title(),
+			message: m.images_remove_message(),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					await handleApiResultWithCallbacks({
 						result: await tryCatch(environmentAPI.deleteImage(id)),
-						message: 'Failed to Remove Image',
+						message: m.images_remove_failed(),
 						setLoadingState: (value) => (isLoading.removing = value),
 						onSuccess: async () => {
-							toast.success('Image Removed Successfully.');
+							toast.success(m.images_remove_success());
 							goto('/images');
 						}
 					});
@@ -78,17 +75,17 @@
 			<Breadcrumb.Root>
 				<Breadcrumb.List>
 					<Breadcrumb.Item>
-						<Breadcrumb.Link href="/images">Images</Breadcrumb.Link>
+						<Breadcrumb.Link href="/images">{m.images_title()}</Breadcrumb.Link>
 					</Breadcrumb.Item>
 					<Breadcrumb.Separator />
 					<Breadcrumb.Item>
-						<Breadcrumb.Page>{shortId}</Breadcrumb.Page>
+						<Breadcrumb.Page>{shortId()}</Breadcrumb.Page>
 					</Breadcrumb.Item>
 				</Breadcrumb.List>
 			</Breadcrumb.Root>
 			<div class="mt-2 flex items-center gap-2">
-				<h1 class="text-2xl font-bold tracking-tight break-all">
-					{image?.repoTags?.[0] || shortId}
+				<h1 class="break-all text-2xl font-bold tracking-tight">
+					{image?.repoTags?.[0] || shortId()}
 				</h1>
 			</div>
 		</div>
@@ -108,7 +105,7 @@
 		<div class="space-y-6">
 			<Card.Root class="border shadow-sm">
 				<Card.Header>
-					<Card.Title>Image Details</Card.Title>
+					<Card.Title>{m.images_details_title()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -118,8 +115,8 @@
 								<HashIcon class="size-5 text-gray-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">ID</p>
-								<p class="mt-1 truncate text-base font-semibold" title={image.id}>{shortId}</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_id()}</p>
+								<p class="mt-1 truncate text-base font-semibold" title={image.id}>{shortId()}</p>
 							</div>
 						</div>
 
@@ -129,8 +126,8 @@
 								<HardDriveIcon class="size-5 text-blue-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Size</p>
-								<p class="mt-1 text-base font-semibold">{imageSize}</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.images_size()}</p>
+								<p class="mt-1 text-base font-semibold">{imageSize()}</p>
 							</div>
 						</div>
 
@@ -140,7 +137,7 @@
 								<ClockIcon class="size-5 text-green-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Created</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_created()}</p>
 								<p class="mt-1 text-base font-semibold">{createdDate()}</p>
 							</div>
 						</div>
@@ -151,8 +148,8 @@
 								<CpuIcon class="size-5 text-orange-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Architecture</p>
-								<p class="mt-1 text-base font-semibold">{architecture}</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.images_architecture()}</p>
+								<p class="mt-1 text-base font-semibold">{architecture()}</p>
 							</div>
 						</div>
 
@@ -162,8 +159,8 @@
 								<LayersIcon class="size-5 text-indigo-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">OS</p>
-								<p class="mt-1 text-base font-semibold">{osName}</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.images_os()}</p>
+								<p class="mt-1 text-base font-semibold">{osName()}</p>
 							</div>
 						</div>
 					</div>
@@ -174,7 +171,9 @@
 			{#if image.repoTags && image.repoTags.length > 0}
 				<Card.Root class="border shadow-sm">
 					<Card.Header>
-						<Card.Title class="flex items-center gap-2"><TagIcon class="text-muted-foreground size-5" /> Tags</Card.Title>
+						<Card.Title class="flex items-center gap-2"
+							><TagIcon class="text-muted-foreground size-5" /> {m.images_tags_title()}</Card.Title
+						>
 					</Card.Header>
 					<Card.Content>
 						<div class="flex flex-wrap gap-2">
@@ -190,15 +189,15 @@
 			{#if image.config?.env && image.config.env.length > 0}
 				<Card.Root class="border shadow-sm">
 					<Card.Header>
-						<Card.Title>Environment Variables</Card.Title>
+						<Card.Title>{m.images_env_vars_title()}</Card.Title>
 					</Card.Header>
 					<Card.Content class="space-y-2">
 						{#each image.config.env as env (env)}
 							{@const [key, ...valueParts] = env.split('=')}
 							{@const value = valueParts.join('=')}
 							<div class="flex flex-col text-sm sm:flex-row sm:items-center">
-								<span class="text-muted-foreground w-full font-medium break-all sm:w-1/4">{key}:</span>
-								<span class="w-full font-mono text-xs break-all sm:w-3/4 sm:text-sm">{value}</span>
+								<span class="text-muted-foreground w-full break-all font-medium sm:w-1/4">{key}:</span>
+								<span class="w-full break-all font-mono text-xs sm:w-3/4 sm:text-sm">{value}</span>
 							</div>
 							{#if env !== image.config.env[image.config.env.length - 1]}
 								<Separator class="my-2" />
@@ -210,8 +209,14 @@
 		</div>
 	{:else}
 		<div class="py-12 text-center">
-			<p class="text-muted-foreground text-lg font-medium">Image not found.</p>
-			<ArcaneButton action="cancel" customLabel="Back to Images" onclick={() => goto('/images')} size="sm" class="mt-4" />
+			<p class="text-muted-foreground text-lg font-medium">{m.images_not_found_title()}</p>
+			<ArcaneButton
+				action="cancel"
+				customLabel={m.common_back_to_images()}
+				onclick={() => goto('/images')}
+				size="sm"
+				class="mt-4"
+			/>
 		</div>
 	{/if}
 </div>

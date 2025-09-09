@@ -39,6 +39,7 @@
 	import { cn } from '$lib/utils';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import { arcaneButtonVariants, actionConfigs } from './variants';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		ref = $bindable(null),
@@ -61,7 +62,7 @@
 
 	let config = $derived(actionConfigs[action]);
 	let displayLabel = $derived(customLabel ?? config.defaultLabel);
-	let displayLoadingLabel = $derived(loadingLabel ?? config.loadingLabel ?? 'Processing...');
+	let displayLoadingLabel = $derived(loadingLabel ?? config.loadingLabel ?? m.common_processing());
 	let isIconOnlyButton = $derived(size === 'icon' || !showLabel);
 
 	let hasChildren = $derived(!!children);
@@ -101,7 +102,7 @@
 					<LoaderCircleIcon class="size-4" />
 				</div>
 			</div>
-			<span class="sr-only">Loading - {displayLoadingLabel}</span>
+			<span class="sr-only">{m.common_loading_label({ label: displayLoadingLabel })}</span>
 			{#if !isIconOnlyButton}
 				<span class="opacity-0">{displayLabel}</span>
 			{/if}

@@ -115,6 +115,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		DisplayName:  req.DisplayName,
 		Email:        req.Email,
 		Roles:        req.Roles,
+		Locale:       req.Locale,
 		BaseModel: models.BaseModel{
 			CreatedAt: time.Now(),
 		},
@@ -204,6 +205,9 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 	if req.Roles != nil {
 		user.Roles = req.Roles
+	}
+	if req.Locale != nil {
+		user.Locale = req.Locale
 	}
 
 	now := time.Now()

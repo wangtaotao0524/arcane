@@ -10,6 +10,7 @@
 	import StatCard from '$lib/components/stat-card.svelte';
 	import ProjectsTable from './compose-table.svelte';
 	import { goto } from '$app/navigation';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -55,21 +56,21 @@
 <div class="space-y-6">
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Compose Projects</h1>
-			<p class="text-muted-foreground mt-1 text-sm">View and Manage Compose Projects</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.compose_title()}</h1>
+			<p class="text-muted-foreground mt-1 text-sm">{m.compose_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<ArcaneButton
 				action="inspect"
-				customLabel="Update Projects"
+				customLabel={m.compose_update_projects()}
 				onclick={handleCheckForUpdates}
 				loading={isLoading.updating}
 				disabled={isLoading.updating}
 			/>
-			<ArcaneButton action="create" customLabel="Create Project" onclick={() => goto(`/compose/new`)} />
+			<ArcaneButton action="create" customLabel={m.compose_create_project()} onclick={() => goto(`/compose/new`)} />
 			<ArcaneButton
 				action="restart"
-				customLabel="Refresh"
+				customLabel={m.common_refresh()}
 				onclick={refreshCompose}
 				loading={isLoading.refreshing}
 				disabled={isLoading.refreshing}
@@ -79,21 +80,21 @@
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 		<StatCard
-			title="Total Projects"
+			title={m.compose_total()}
 			value={totalCompose}
 			icon={FileStackIcon}
 			iconColor="text-amber-500"
 			class="border-l-4 border-l-amber-500"
 		/>
 		<StatCard
-			title="Running"
+			title={m.compose_running()}
 			value={runningCompose}
 			icon={PlayCircleIcon}
 			iconColor="text-green-500"
 			class="border-l-4 border-l-green-500"
 		/>
 		<StatCard
-			title="Stopped"
+			title={m.compose_stopped()}
 			value={stoppedCompose}
 			icon={StopCircleIcon}
 			iconColor="text-red-500"

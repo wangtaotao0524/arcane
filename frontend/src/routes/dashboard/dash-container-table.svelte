@@ -10,6 +10,7 @@
 	import type { ContainerSummaryDto } from '$lib/types/container.type';
 	import { environmentAPI } from '$lib/services/api';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		containers = $bindable(),
@@ -27,10 +28,10 @@
 	});
 
 	const columns = [
-		{ accessorKey: 'names', title: 'Name', cell: NameCell },
-		{ accessorKey: 'image', title: 'Image' },
-		{ accessorKey: 'state', title: 'State', cell: StateCell },
-		{ accessorKey: 'status', title: 'Status' }
+		{ accessorKey: 'names', title: m.common_name(), cell: NameCell },
+		{ accessorKey: 'image', title: m.common_image() },
+		{ accessorKey: 'state', title: m.common_state(), cell: StateCell },
+		{ accessorKey: 'status', title: m.common_status() }
 	] satisfies ColumnSpec<ContainerSummaryDto>[];
 </script>
 
@@ -50,16 +51,16 @@
 {/snippet}
 
 <Card.Root class="relative flex flex-col rounded-lg border shadow-sm">
-	<Card.Header class="px-6 pt-5 pb-3">
+	<Card.Header class="px-6 pb-3 pt-5">
 		<div class="flex items-center justify-between">
 			<div>
 				<Card.Title>
-					<a class="font-medium hover:underline" href="/containers">Containers</a>
+					<a class="font-medium hover:underline" href="/containers">{m.containers_title()}</a>
 				</Card.Title>
-				<Card.Description class="pb-2">Recent containers</Card.Description>
+				<Card.Description class="pb-2">{m.containers_recent()}</Card.Description>
 			</div>
 			<Button variant="ghost" size="sm" href="/containers" disabled={isLoading}>
-				View All
+				{m.common_view_all()}
 				<ArrowRightIcon class="ml-2 size-4" />
 			</Button>
 		</div>
@@ -78,7 +79,7 @@
 			/>
 			{#if containers.data.length > 5}
 				<div class="bg-muted/40 text-muted-foreground border-t px-6 py-2 text-xs">
-					Showing 5 of {containers.pagination.totalItems} containers
+					{m.containers_showing_of_total({ shown: 5, total: containers.pagination.totalItems })}
 				</div>
 			{/if}
 		</div>

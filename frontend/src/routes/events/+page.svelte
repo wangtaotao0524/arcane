@@ -10,6 +10,7 @@
 	import EventTable from './event-table.svelte';
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data }: { data: PageData } = $props();
 
@@ -34,7 +35,7 @@
 			events = await eventAPI.getEvents(requestOptions);
 		} catch (error) {
 			console.error('Failed to refresh events:', error);
-			toast.error('Failed to refresh events');
+			toast.error(m.events_refresh_failed());
 		} finally {
 			isLoading.refreshing = false;
 		}
@@ -44,10 +45,10 @@
 		if (selectedIds.length === 0) return;
 
 		openConfirmDialog({
-			title: `Delete ${selectedIds.length} Event${selectedIds.length > 1 ? 's' : ''}`,
-			message: `Are you sure you want to delete the selected event${selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.`,
+			title: m.events_delete_selected_title({ count: selectedIds.length }),
+			message: m.events_delete_selected_message({ count: selectedIds.length }),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					isLoading.deleting = true;
@@ -58,7 +59,7 @@
 						const result = await tryCatch(eventAPI.delete(eventId));
 						handleApiResultWithCallbacks({
 							result,
-							message: `Failed to delete event ${eventId}`,
+							message: m.events_delete_item_failed({ id: eventId }),
 							setLoadingState: () => {},
 							onSuccess: () => {
 								successCount++;
@@ -71,11 +72,14 @@
 					isLoading.deleting = false;
 
 					if (successCount > 0) {
-						toast.success(`Successfully deleted ${successCount} event${successCount > 1 ? 's' : ''}`);
+						const msg =
+							successCount === 1 ? m.events_delete_success_one() : m.events_delete_success_many({ count: successCount });
+						toast.success(msg);
 						await refreshEvents();
 					}
 					if (failureCount > 0) {
-						toast.error(`Failed to delete ${failureCount} event${failureCount > 1 ? 's' : ''}`);
+						const msg = failureCount === 1 ? m.events_delete_failed_one() : m.events_delete_failed_many({ count: failureCount });
+						toast.error(msg);
 					}
 
 					selectedIds = [];
@@ -88,14 +92,14 @@
 <div class="flex h-full flex-col space-y-6">
 	<div class="flex items-center justify-between">
 		<div class="space-y-1">
-			<h2 class="text-2xl font-semibold tracking-tight">Event Log</h2>
-			<p class="text-muted-foreground text-sm">Monitor events that have taken place in Arcane.</p>
+			<h2 class="text-2xl font-semibold tracking-tight">{m.events_title()}</h2>
+			<p class="text-muted-foreground text-sm">{m.events_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
 			{#if selectedIds.length > 0}
 				<ArcaneButton
 					action="remove"
-					customLabel="Remove Selected"
+					customLabel={m.events_remove_selected()}
 					onclick={handleDeleteSelected}
 					loading={isLoading.deleting}
 					disabled={isLoading.deleting}
@@ -103,7 +107,7 @@
 			{/if}
 			<ArcaneButton
 				action="restart"
-				customLabel="Refresh"
+				customLabel={m.common_refresh()}
 				onclick={refreshEvents}
 				loading={isLoading.refreshing}
 				disabled={isLoading.refreshing}
@@ -112,38 +116,38 @@
 	</div>
 
 	<div class="grid gap-4 md:grid-cols-5">
-		<StatCard title="Total Events" value={totalEvents} icon={ActivityIcon} subtitle="All recorded events" />
+		<StatCard title={m.events_total()} value={totalEvents} icon={ActivityIcon} subtitle={m.events_total_subtitle()} />
 		<StatCard
-			title="Info"
+			title={m.events_info()}
 			value={infoEvents}
 			icon={ActivityIcon}
 			iconColor="text-blue-500"
 			bgColor="bg-blue-500/10"
-			subtitle="Information events"
+			subtitle={m.events_info_subtitle()}
 		/>
 		<StatCard
-			title="Success"
+			title={m.events_success()}
 			value={successEvents}
 			icon={ActivityIcon}
 			iconColor="text-green-500"
 			bgColor="bg-green-500/10"
-			subtitle="Successful operations"
+			subtitle={m.events_success_subtitle()}
 		/>
 		<StatCard
-			title="Warning"
+			title={m.events_warning()}
 			value={warningEvents}
 			icon={ActivityIcon}
 			iconColor="text-yellow-500"
 			bgColor="bg-yellow-500/10"
-			subtitle="Warning events"
+			subtitle={m.events_warning_subtitle()}
 		/>
 		<StatCard
-			title="Error"
+			title={m.events_error()}
 			value={errorEvents}
 			icon={ActivityIcon}
 			iconColor="text-red-500"
 			bgColor="bg-red-500/10"
-			subtitle="Error events"
+			subtitle={m.events_error_subtitle()}
 		/>
 	</div>
 

@@ -3,6 +3,7 @@
 	import CirclePlayIcon from '@lucide/svelte/icons/circle-play';
 	import CircleStopIcon from '@lucide/svelte/icons/circle-stop';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import { m } from '$lib/paraglide/messages';
 
 	type IsLoadingFlags = {
 		starting: boolean;
@@ -36,7 +37,7 @@
 </script>
 
 <section class={className}>
-	<h2 class="mb-3 text-lg font-semibold tracking-tight">Quick Actions</h2>
+	<h2 class="mb-3 text-lg font-semibold tracking-tight">{m.quick_actions_title()}</h2>
 
 	{#if loadingDockerInfo}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -54,7 +55,7 @@
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			<div class="group rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/0 p-[1px]">
 				<button
-					class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-offset-background focus-visible:ring-ring flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+					class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-offset-background focus-visible:ring-ring flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dockerInfo || stoppedContainers === 0 || isLoading.starting || isLoading.stopping || isLoading.pruning}
 					onclick={onStartAll}
 					aria-busy={isLoading.starting}
@@ -72,9 +73,9 @@
 						></div>
 					</div>
 					<div class="flex-1 text-left">
-						<div class="text-sm font-medium">Start All Stopped</div>
+						<div class="text-sm font-medium">{m.quick_actions_start_all()}</div>
 						<div class="text-muted-foreground text-xs">
-							<span class="rounded-full border px-1.5 py-0.5">{stoppedContainers}</span> containers
+							<span class="rounded-full border px-1.5 py-0.5">{m.quick_actions_containers({ count: stoppedContainers })}</span>
 						</div>
 					</div>
 				</button>
@@ -82,7 +83,7 @@
 
 			<div class="group rounded-xl bg-gradient-to-br from-sky-500/20 to-sky-500/0 p-[1px]">
 				<button
-					class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-offset-background focus-visible:ring-ring flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+					class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-offset-background focus-visible:ring-ring flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dockerInfo ||
 						(dockerInfo?.containersRunning ?? 0) === 0 ||
 						isLoading.starting ||
@@ -104,9 +105,9 @@
 						></div>
 					</div>
 					<div class="flex-1 text-left">
-						<div class="text-sm font-medium">Stop All Running</div>
+						<div class="text-sm font-medium">{m.quick_actions_stop_all()}</div>
 						<div class="text-muted-foreground text-xs">
-							<span class="rounded-full border px-1.5 py-0.5">{totalContainers}</span> containers
+							<span class="rounded-full border px-1.5 py-0.5">{m.quick_actions_containers({ count: totalContainers })}</span>
 						</div>
 					</div>
 				</button>
@@ -114,7 +115,7 @@
 
 			<div class="group rounded-xl bg-gradient-to-br from-red-500/20 to-red-500/0 p-[1px]">
 				<button
-					class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-offset-background focus-visible:ring-ring flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+					class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-offset-background focus-visible:ring-ring flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
 					disabled={!dockerInfo || isLoading.starting || isLoading.stopping || isLoading.pruning}
 					onclick={onOpenPruneDialog}
 					aria-busy={isLoading.pruning}
@@ -132,8 +133,8 @@
 						></div>
 					</div>
 					<div class="flex-1 text-left">
-						<div class="text-sm font-medium">Prune System</div>
-						<div class="text-muted-foreground text-xs">Clean unused resources</div>
+						<div class="text-sm font-medium">{m.quick_actions_prune_system()}</div>
+						<div class="text-muted-foreground text-xs">{m.quick_actions_prune_description()}</div>
 					</div>
 				</button>
 			</div>

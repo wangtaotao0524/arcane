@@ -2,6 +2,7 @@
 	import Meter from '$lib/components/ui/meter/meter.svelte';
 	import type { Icon as IconType } from '@lucide/svelte';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		title: string;
@@ -34,8 +35,8 @@
 <div
 	class="bg-card/80 supports-[backdrop-filter]:bg-card/60 ring-border/40 group relative
 	       isolate overflow-hidden rounded-xl border
-	       shadow-sm ring-1 backdrop-blur-sm
-	       transition-all duration-300 ring-inset hover:shadow-md dark:shadow-none"
+	       shadow-sm ring-1 ring-inset
+	       backdrop-blur-sm transition-all duration-300 hover:shadow-md dark:shadow-none"
 >
 	<div class="bg-gradient-to-br from-gray-50 to-slate-50/30 p-4 dark:from-gray-900/20 dark:to-slate-900/10">
 		<div class="flex items-center gap-3">
@@ -65,7 +66,7 @@
 					<div class="bg-muted mx-auto h-8 w-16 animate-pulse rounded"></div>
 				{:else}
 					<div class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-						{currentValue !== undefined ? formatValue(currentValue) : '--'}
+						{currentValue !== undefined ? formatValue(currentValue) : m.common_na()}
 					</div>
 				{/if}
 			</div>
@@ -84,8 +85,8 @@
 				{#if loading}
 					<div class="bg-muted mx-auto h-3 w-20 animate-pulse rounded"></div>
 				{:else}
-					<div class="text-primary dark:text-primary text-center text-xs leading-relaxed font-medium">
-						{footerText ?? `${percentage.toFixed(1)}% of resources being used`}
+					<div class="text-primary dark:text-primary text-center text-xs font-medium leading-relaxed">
+						{footerText ?? m.meter_footer_usage({ percent: percentage.toFixed(1) })}
 					</div>
 				{/if}
 			</div>

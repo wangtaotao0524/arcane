@@ -9,6 +9,7 @@
 	import { toast } from 'svelte-sonner';
 	import { environmentStore, LOCAL_DOCKER_ENVIRONMENT_ID } from '$lib/stores/environment.store';
 	import { get } from 'svelte/store';
+	import { m } from '$lib/paraglide/messages';
 
 	type ImagePullFormProps = {
 		open: boolean;
@@ -18,7 +19,7 @@
 	let { open = $bindable(false), onPullFinished = () => {} }: ImagePullFormProps = $props();
 
 	const formSchema = z.object({
-		imageRef: z.string().min(1, 'Image name is required'),
+		imageRef: z.string().min(1, m.images_image_required()),
 		tag: z.string().optional().default('latest')
 	});
 
@@ -83,7 +84,7 @@
 
 		resetState();
 		isPulling = true;
-		pullStatusText = 'Initiating pull...';
+		pullStatusText = m.images_pull_initiating();
 
 		let imageName = data.imageRef.trim();
 		let imageTag = data.tag?.trim() || 'latest';
@@ -97,7 +98,7 @@
 		}
 
 		const fullImageName = `${imageName}:${imageTag}`;
-		pullStatusText = `Pulling ${fullImageName}...`;
+		pullStatusText = `${m.images_pulling()} ${fullImageName}`;
 
 		try {
 			const response = await fetch(buildApiUrl(fullImageName), {
@@ -110,10 +111,12 @@
 
 			if (!response.ok || !response.body) {
 				const errorData = await response.json().catch(() => ({
-					error: 'Failed to pull image. Server returned an error.'
+					error: m.images_pull_server_error()
 				}));
 				const errorMessage =
-					typeof errorData.error === 'string' ? errorData.error : errorData.message || `HTTP error ${response.status}`;
+					typeof errorData.error === 'string'
+						? errorData.error
+						: errorData.message || `${m.images_pull_server_error()}: HTTP ${response.status}`;
 				throw new Error(errorMessage);
 			}
 
@@ -124,7 +127,7 @@
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) {
-					pullStatusText = 'Processing final layers...';
+					pullStatusText = m.images_pull_processing_final_layers();
 					break;
 				}
 
@@ -139,8 +142,8 @@
 
 						if (data.error) {
 							console.error('Error in stream:', data.error);
-							pullError = typeof data.error === 'string' ? data.error : data.error.message || 'An error occurred during pull.';
-							pullStatusText = `Error: ${pullError}`;
+							pullError = typeof data.error === 'string' ? data.error : data.error.message || m.images_pull_stream_error();
+							pullStatusText = m.images_pull_failed_with_error({ error: pullError });
 							continue;
 						}
 
@@ -180,8 +183,8 @@
 				throw new Error(pullError);
 			}
 
-			pullStatusText = `Image ${fullImageName} pulled successfully.`;
-			toast.success(pullStatusText);
+			pullStatusText = m.images_pull_success({ repoTag: fullImageName });
+			toast.success(m.images_pull_success({ repoTag: fullImageName }));
 			onPullFinished(true, fullImageName);
 
 			// Reset form and close sheet
@@ -190,9 +193,9 @@
 			open = false;
 		} catch (error: any) {
 			console.error('Pull image error:', error);
-			const message = error.message || 'An unexpected error occurred while pulling the image.';
+			const message = error.message || m.images_pull_unexpected_error();
 			pullError = message;
-			pullStatusText = `Failed: ${message}`;
+			pullStatusText = m.images_pull_failed_with_error({ error: message });
 			toast.error(message);
 			onPullFinished(false, fullImageName, message);
 		} finally {
@@ -202,7 +205,7 @@
 
 	function handleOpenChange(newOpenState: boolean) {
 		if (!newOpenState && isPulling) {
-			toast.info('Pull operation is in progress.');
+			toast.info(m.images_pull_in_progress_toast());
 			open = true; // Keep it open
 			return;
 		}
@@ -229,9 +232,9 @@
 					<DownloadIcon class="text-primary size-5" />
 				</div>
 				<div>
-					<Sheet.Title class="text-xl font-semibold">Pull Docker Image</Sheet.Title>
+					<Sheet.Title class="text-xl font-semibold">{m.images_pull_image()}</Sheet.Title>
 					<Sheet.Description class="text-muted-foreground mt-1 text-sm">
-						Enter the image reference you want to pull from a registry.
+						{m.images_pull_description()}
 						{#if pullError}
 							<p class="text-destructive mt-2 text-sm">{pullError}</p>
 						{/if}
@@ -242,18 +245,18 @@
 
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
 			<FormInput
-				label="Image Name *"
+				label={m.images_image_name_label()}
 				type="text"
-				placeholder="nginx, redis, ubuntu, etc."
-				description="Enter the image name from Docker Hub or other registries"
+				placeholder={m.images_image_name_placeholder()}
+				description={m.images_image_name_description()}
 				disabled={isPulling}
 				bind:input={$inputs.imageRef}
 			/>
 			<FormInput
-				label="Tag"
+				label={m.images_tag()}
 				type="text"
-				placeholder="latest"
-				description="Specify a tag version (defaults to 'latest')"
+				placeholder={m.images_tag_latest()}
+				description={m.images_tag_description()}
 				disabled={isPulling}
 				bind:input={$inputs.tag}
 			/>
@@ -262,7 +265,7 @@
 				<div class="mt-4">
 					{#if isPulling}
 						<div class="mb-1 flex justify-between text-xs">
-							<span>{pullStatusText || 'Pulling image...'}</span>
+							<span>{pullStatusText || m.images_pulling()}</span>
 							<span>{Math.round(pullProgress)}%</span>
 						</div>
 						<div class="bg-secondary h-2 w-full overflow-hidden rounded-full">
@@ -272,9 +275,7 @@
 						<p class="mt-1 text-xs text-green-600">{pullStatusText}</p>
 					{/if}
 					{#if isPulling}
-						<p class="text-muted-foreground mt-1 text-xs">
-							This may take a while depending on the image size and your internet connection.
-						</p>
+						<p class="text-muted-foreground mt-1 text-xs">{m.images_pull_wait_message()}</p>
 					{/if}
 				</div>
 			{/if}
@@ -285,15 +286,15 @@
 					class="arcane-button-cancel flex-1"
 					variant="outline"
 					onclick={() => (open = false)}
-					disabled={isPulling}>Cancel</Button
+					disabled={isPulling}>{m.common_cancel()}</Button
 				>
 				<Button type="submit" class="arcane-button-create flex-1" disabled={isPulling}>
 					{#if isPulling}
 						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
-						<span class="opacity-0">Pull Image</span>
+						<span class="opacity-0">{m.images_pull_image()}</span>
 					{:else}
 						<DownloadIcon class="mr-2 size-4" />
-						Pull Image
+						{m.images_pull_image()}
 					{/if}
 				</Button>
 			</Sheet.Footer>

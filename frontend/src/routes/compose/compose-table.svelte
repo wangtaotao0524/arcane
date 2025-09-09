@@ -23,6 +23,7 @@
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { format } from 'date-fns';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		projects = $bindable(),
@@ -53,57 +54,57 @@
 			if (action === 'start') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.startProject(id)),
-					message: 'Failed to Start Project',
+					message: m.compose_start_failed(),
 					setLoadingState: (value) => (isLoading.start = value),
 					onSuccess: async () => {
-						toast.success('Project Started Successfully.');
+						toast.success(m.compose_start_success());
 						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'stop') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.downProject(id)),
-					message: 'Failed to Stop Project',
+					message: m.compose_stop_failed(),
 					setLoadingState: (value) => (isLoading.stop = value),
 					onSuccess: async () => {
-						toast.success('Project Stopped Successfully.');
+						toast.success(m.compose_stop_success());
 						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'restart') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.restartProject(id)),
-					message: 'Failed to Restart Project',
+					message: m.compose_restart_failed(),
 					setLoadingState: (value) => (isLoading.restart = value),
 					onSuccess: async () => {
-						toast.success('Project Restarted Successfully.');
+						toast.success(m.compose_restart_success());
 						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'pull') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.pullProjectImages(id)),
-					message: 'Failed to pull Project',
+					message: m.compose_pull_failed(),
 					setLoadingState: (value) => (isLoading.pull = value),
 					onSuccess: async () => {
-						toast.success('Project Pulled successfully.');
+						toast.success(m.compose_pull_success());
 						projects = await environmentAPI.getProjects(requestOptions);
 					}
 				});
 			} else if (action === 'destroy') {
 				openConfirmDialog({
-					title: `Confirm Removal`,
-					message: `Are you sure you want to remove this Project? This action cannot be undone.`,
+					title: m.compose_confirm_removal_title(),
+					message: m.compose_confirm_removal_message(),
 					confirm: {
-						label: 'Remove',
+						label: m.common_remove(),
 						destructive: true,
 						action: async () => {
 							handleApiResultWithCallbacks({
 								result: await tryCatch(environmentAPI.destroyProject(id)),
-								message: 'Failed to Remove Project',
+								message: m.compose_destroy_failed(),
 								setLoadingState: (value) => (isLoading.destroy = value),
 								onSuccess: async () => {
-									toast.success('Project Removed Successfully');
+									toast.success(m.compose_destroy_success());
 									projects = await environmentAPI.getProjects(requestOptions);
 								}
 							});
@@ -112,17 +113,17 @@
 				});
 			}
 		} catch (error) {
-			toast.error(`Something Went Wrong ${error}`);
+			toast.error(m.action_failed());
 		}
 	}
 
 	const isAnyLoading = $derived(Object.values(isLoading).some((loading) => loading));
 
 	const columns = [
-		{ accessorKey: 'name', title: 'Name', sortable: true, cell: NameCell },
-		{ accessorKey: 'serviceCount', title: 'Services', sortable: true },
-		{ accessorKey: 'status', title: 'Status', sortable: true, cell: StatusCell },
-		{ accessorKey: 'createdAt', title: 'Created', sortable: true, cell: CreatedCell }
+		{ accessorKey: 'name', title: m.common_name(), sortable: true, cell: NameCell },
+		{ accessorKey: 'serviceCount', title: m.compose_services(), sortable: true },
+		{ accessorKey: 'status', title: m.common_status(), sortable: true, cell: StatusCell },
+		{ accessorKey: 'createdAt', title: m.common_created(), sortable: true, cell: CreatedCell }
 	] satisfies ColumnSpec<Project>[];
 </script>
 
@@ -146,7 +147,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -155,7 +156,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => goto(`/compose/${item.id}`)} disabled={isAnyLoading}>
 					<PenIcon class="size-4" />
-					Edit
+					{m.common_edit()}
 				</DropdownMenu.Item>
 
 				{#if item.status !== 'running'}
@@ -165,7 +166,7 @@
 						{:else}
 							<PlayIcon class="size-4" />
 						{/if}
-						Start
+						{m.common_start()}
 					</DropdownMenu.Item>
 				{:else}
 					<DropdownMenu.Item
@@ -177,7 +178,7 @@
 						{:else}
 							<RotateCcwIcon class="size-4" />
 						{/if}
-						Restart
+						{m.common_restart()}
 					</DropdownMenu.Item>
 
 					<DropdownMenu.Item onclick={() => performProjectAction('stop', item.id)} disabled={isLoading.stop || isAnyLoading}>
@@ -186,7 +187,7 @@
 						{:else}
 							<StopCircleIcon class="size-4" />
 						{/if}
-						Stop
+						{m.common_stop()}
 					</DropdownMenu.Item>
 				{/if}
 
@@ -196,7 +197,7 @@
 					{:else}
 						<RotateCcwIcon class="size-4" />
 					{/if}
-					Pull & Redeploy
+					{m.compose_pull_redeploy()}
 				</DropdownMenu.Item>
 
 				<DropdownMenu.Separator />
@@ -211,7 +212,7 @@
 					{:else}
 						<Trash2Icon class="size-4" />
 					{/if}
-					Destroy
+					{m.compose_destroy()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

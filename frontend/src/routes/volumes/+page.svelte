@@ -11,6 +11,7 @@
 	import { environmentAPI } from '$lib/services/api';
 	import StatCard from '$lib/components/stat-card.svelte';
 	import VolumeTable from './volume-table.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -31,12 +32,13 @@
 
 	async function handleCreateVolumeSubmit(options: VolumeCreateOptions) {
 		isLoading.creating = true;
+		const name = options.Name?.trim() || m.common_unknown();
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.createVolume(options)),
-			message: `Failed to Create Volume "${options.Name}"`,
+			message: m.volumes_create_failed({ name }),
 			setLoadingState: (value) => (isLoading.creating = value),
 			onSuccess: async () => {
-				toast.success(`Volume "${options.Name}" Created Successfully.`);
+				toast.success(m.volumes_created_success({ name }));
 				volumes = await environmentAPI.getVolumes(requestOptions);
 				isCreateDialogOpen = false;
 			}
@@ -47,7 +49,7 @@
 		isLoading.refresh = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.getVolumes(requestOptions)),
-			message: 'Failed to Refresh Volumes',
+			message: m.volumes_refresh_failed(),
 			setLoadingState: (value) => (isLoading.refresh = value),
 			async onSuccess(newVolumes) {
 				volumes = newVolumes;
@@ -59,13 +61,13 @@
 <div class="space-y-6">
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Volumes</h1>
-			<p class="text-muted-foreground mt-1 text-sm">Manage your Docker volumes</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.volumes_title()}</h1>
+			<p class="text-muted-foreground mt-1 text-sm">{m.volumes_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<ArcaneButton
 				action="create"
-				customLabel="Create Volume"
+				customLabel={m.volumes_create_button()}
 				onclick={() => (isCreateDialogOpen = true)}
 				loading={isLoading.creating}
 				disabled={isLoading.creating}
@@ -73,7 +75,7 @@
 			<ArcaneButton
 				action="restart"
 				onclick={refreshVolumes}
-				customLabel="Refresh"
+				customLabel={m.common_refresh()}
 				loading={isLoading.refresh}
 				disabled={isLoading.refresh}
 			/>
@@ -82,21 +84,21 @@
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 		<StatCard
-			title="Total Volumes"
+			title={m.volumes_stat_total()}
 			value={totalVolumes}
 			icon={HardDriveIcon}
 			iconColor="text-blue-500"
 			class="border-l-4 border-l-blue-500"
 		/>
 		<StatCard
-			title="Used Volumes"
+			title={m.volumes_stat_used()}
 			value={usedVolumes}
 			icon={ArchiveRestoreIcon}
 			iconColor="text-green-500"
 			class="border-l-4 border-l-green-500"
 		/>
 		<StatCard
-			title="Unused Volumes"
+			title={m.volumes_stat_unused()}
 			value={unusedVolumes}
 			icon={ArchiveXIcon}
 			iconColor="text-red-500"

@@ -324,6 +324,7 @@ func toUserResponseDto(user models.User) dto.UserResponseDto {
 		Email:         user.Email,
 		Roles:         user.Roles,
 		OidcSubjectId: user.OidcSubjectId,
+		Locale:        user.Locale,
 		CreatedAt:     user.CreatedAt.Format("2006-01-02T15:04:05.999999Z"),
 		UpdatedAt:     user.UpdatedAt.Format("2006-01-02T15:04:05.999999Z"),
 	}

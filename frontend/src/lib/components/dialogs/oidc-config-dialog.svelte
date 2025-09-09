@@ -10,6 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import type { Settings } from '$lib/types/settings.type';
 	import type { OidcStatusInfo } from '$lib/types/settings.type';
+	import { m } from '$lib/paraglide/messages';
 
 	interface OidcForm {
 		clientId: string;
@@ -65,8 +66,8 @@
 	});
 
 	const statusItems = $derived([
-		{ label: 'Env Forced', value: oidcStatus.envForced, hint: 'Server forces OIDC' },
-		{ label: 'Env Configured', value: oidcStatus.envConfigured, hint: 'Server OIDC vars present' }
+		{ label: m.oidc_status_env_forced(), value: oidcStatus.envForced, hint: m.oidc_status_env_forced_hint() },
+		{ label: m.oidc_status_env_configured(), value: oidcStatus.envConfigured, hint: m.oidc_status_env_configured_hint() }
 	]);
 
 	function chipClass(v: boolean) {
@@ -78,9 +79,9 @@
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			toast.success('Copied to clipboard');
+			toast.success(m.common_copied());
 		} catch {
-			toast.error('Failed to copy to clipboard');
+			toast.error(m.common_copy_failed());
 		}
 	}
 </script>
@@ -93,23 +94,20 @@
 					<KeyIcon class="size-4" />
 				</span>
 				{#if isOidcViewMode}
-					OIDC Server Configuration Status
+					{m.security_oidc_configured_forced_view()}
 				{:else if oidcStatus.envForced && !oidcStatus.envConfigured}
-					Configure OIDC (Server Override Warning)
+					{m.security_server_forces_oidc_missing_env()}
 				{:else}
-					Configure OIDC Provider
+					{m.security_manage_oidc_config()}
 				{/if}
 			</Dialog.Title>
 			<Dialog.Description class="text-sm leading-relaxed">
 				{#if isOidcViewMode}
-					OIDC authentication is configured and forced ON by server-side environment variables. These settings are read-only.
+					{m.oidc_viewmode_description()}
 				{:else if oidcStatus.envForced && !oidcStatus.envConfigured}
-					OIDC usage is forced ON by the server environment (<code class="bg-muted rounded px-1 py-0.5 text-xs"
-						>OIDC_ENABLED=true</code
-					>), but critical server-side OIDC environment variables appear to be missing or incomplete.
+					{m.security_server_forces_oidc_missing_env()}
 				{:else}
-					Configure the OIDC settings for your application. These settings will be saved to the database and used for OIDC
-					authentication.
+					{m.oidc_configure_description()}
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
@@ -120,127 +118,124 @@
 				<div class="space-y-6">
 					{#if isOidcViewMode}
 						<div class="bg-card/50 rounded-lg border p-4">
-							<h3 class="text-base font-semibold">Server Environment Configuration</h3>
-							<p class="text-muted-foreground mb-4 mt-1 text-sm">
-								The following OIDC settings are loaded from the server environment:
-							</p>
+							<h3 class="text-base font-semibold">{m.oidc_server_env_config_title()}</h3>
+							<p class="text-muted-foreground mb-4 mt-1 text-sm">{m.oidc_server_env_config_description()}</p>
 
 							{#if currentSettings.authOidcEnabled}
 								<div class="divide-border/60 divide-y text-sm">
 									<div class="flex items-center justify-between py-2">
-										<span class="font-medium">Client ID</span>
-										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().clientId || 'Not configured'}</code>
+										<span class="font-medium">{m.oidc_client_id_label()}</span>
+										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().clientId || m.common_unknown()}</code>
 									</div>
 									<div class="flex items-center justify-between py-2">
-										<span class="font-medium">Issuer URL</span>
-										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().issuerUrl || 'Not configured'}</code>
+										<span class="font-medium">{m.oidc_issuer_url_label()}</span>
+										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().issuerUrl || m.common_unknown()}</code>
 									</div>
 									<div class="flex items-center justify-between py-2">
-										<span class="font-medium">Client Secret</span>
-										<span class="text-muted-foreground text-xs italic">(Sensitive - Not Displayed)</span>
+										<span class="font-medium">{m.oidc_client_secret_label()}</span>
+										<span class="text-muted-foreground text-xs italic">{m.oidc_client_secret_hidden()}</span>
 									</div>
 									<div class="flex items-center justify-between py-2">
-										<span class="font-medium">Scopes</span>
 										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().scopes || 'openid email profile'}</code>
+										<span class="font-medium">{m.oidc_scopes_label()}</span>
+
+										<code class="bg-muted rounded px-2 py-1 text-xs"
+											>{parsedOidcConfig().scopes || m.oidc_scopes_placeholder()}</code
+										>
 									</div>
 									<div class="flex items-center justify-between py-2">
-										<span class="font-medium">Admin Claim</span>
-										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().adminClaim || 'Not configured'}</code>
+										<span class="font-medium">{m.oidc_admin_claim_label()}</span>
+
+										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().adminClaim || m.common_unknown()}</code>
 									</div>
 									<div class="flex items-center justify-between py-2">
-										<span class="font-medium">Admin Value(s)</span>
-										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().adminValue || 'Not configured'}</code>
+										<span class="font-medium">{m.oidc_admin_value_label()}</span>
+
+										<code class="bg-muted rounded px-2 py-1 text-xs">{parsedOidcConfig().adminValue || m.common_unknown()}</code>
 									</div>
 								</div>
 							{:else}
 								<div class="py-6 text-center">
 									<TriangleAlertIcon class="text-destructive mx-auto mb-2 size-8" />
-									<p class="text-destructive text-sm font-medium">OIDC configuration details not found in effective settings.</p>
+									<p class="text-destructive text-sm font-medium">{m.oidc_env_config_missing()}</p>
 								</div>
 							{/if}
 
 							<div class="bg-muted/40 mt-4 rounded-md p-3">
-								<p class="text-muted-foreground text-xs">
-									Changes to these settings must be made in your server's environment configuration.
-								</p>
+								<p class="text-muted-foreground text-xs">{m.oidc_env_changes_note()}</p>
 							</div>
 						</div>
 					{:else}
 						<!-- Editable form -->
 						<div class="bg-card/50 rounded-lg border p-4">
-							<h3 class="text-base font-semibold">Basic Configuration</h3>
-							<p class="text-muted-foreground mb-4 mt-1 text-sm">Essential OIDC provider settings</p>
+							<h3 class="text-base font-semibold">{m.oidc_basic_configuration_title()}</h3>
+							<p class="text-muted-foreground mb-4 mt-1 text-sm">{m.oidc_basic_description()}</p>
 
 							<div class="space-y-4">
 								<div class="space-y-2">
-									<Label for="oidcClientId" class="text-sm font-medium">Client ID</Label>
+									<Label for="oidcClientId" class="text-sm font-medium">{m.oidc_client_id_label()}</Label>
 									<Input
 										id="oidcClientId"
 										bind:value={oidcForm.clientId}
-										placeholder="Provided by your OIDC Provider"
+										placeholder={m.oidc_client_id_placeholder()}
 										class="font-mono text-sm"
 									/>
 								</div>
 
 								<div class="space-y-2">
-									<Label for="oidcClientSecret" class="text-sm font-medium">Client Secret</Label>
+									<Label for="oidcClientSecret" class="text-sm font-medium">{m.oidc_client_secret_label()}</Label>
 									<Input
 										id="oidcClientSecret"
 										type="password"
 										bind:value={oidcForm.clientSecret}
-										placeholder="Provided by your OIDC Provider (leave blank to keep existing)"
+										placeholder={m.oidc_client_secret_placeholder()}
 										class="font-mono text-sm"
 									/>
 								</div>
 
 								<div class="space-y-2">
-									<Label for="oidcIssuerUrl" class="text-sm font-medium">Issuer URL</Label>
+									<Label for="oidcIssuerUrl" class="text-sm font-medium">{m.oidc_issuer_url_label()}</Label>
 									<Input
 										id="oidcIssuerUrl"
 										bind:value={oidcForm.issuerUrl}
-										placeholder="https://id.example.com"
+										placeholder={m.oidc_issuer_url_placeholder()}
 										class="font-mono text-sm"
 									/>
-									<p class="text-muted-foreground text-xs">The issuer URL will be used to auto-discover OIDC endpoints.</p>
+									<p class="text-muted-foreground text-xs">{m.oidc_issuer_url_description()}</p>
 								</div>
 
 								<div class="space-y-2">
-									<Label for="oidcScopes" class="text-sm font-medium">Scopes</Label>
+									<Label for="oidcScopes" class="text-sm font-medium">{m.oidc_scopes_label()}</Label>
 									<Input
 										id="oidcScopes"
 										bind:value={oidcForm.scopes}
-										placeholder="openid email profile"
+										placeholder={m.oidc_scopes_placeholder()}
 										class="font-mono text-sm"
 									/>
 								</div>
 
 								<div class="pt-2">
-									<h4 class="text-sm font-semibold">Admin Role Mapping</h4>
-									<p class="text-muted-foreground mb-3 text-xs">
-										Map an OIDC claim to grant the “admin” role. Examples:
-										<code class="bg-muted rounded px-1 text-[11px]">roles = admin</code>,
-										<code class="bg-muted rounded px-1 text-[11px]">groups = admin</code>, or a boolean
-										<code class="bg-muted rounded px-1 text-[11px]">admin = true</code>.
-									</p>
+									<h4 class="text-sm font-semibold">{m.oidc_admin_role_mapping_title()}</h4>
+									<p class="text-muted-foreground mb-3 text-xs">{m.oidc_admin_role_mapping_description()}</p>
 									<div class="grid gap-3 sm:grid-cols-2">
 										<div class="space-y-2">
-											<Label for="oidcAdminClaim" class="text-sm font-medium">Claim Path</Label>
+											<Label for="oidcAdminClaim" class="text-sm font-medium">{m.oidc_admin_claim_label()}</Label>
 											<Input
 												id="oidcAdminClaim"
 												bind:value={oidcForm.adminClaim}
-												placeholder="e.g., roles, groups, realm_access.roles, admin"
+												placeholder={m.oidc_admin_claim_placeholder()}
 												class="font-mono text-sm"
 											/>
 										</div>
 										<div class="space-y-2">
-											<Label for="oidcAdminValue" class="text-sm font-medium">Required Value(s)</Label>
+											<Label for="oidcAdminValue" class="text-sm font-medium">{m.oidc_admin_value_label()}</Label>
 											<Input
 												id="oidcAdminValue"
 												bind:value={oidcForm.adminValue}
-												placeholder="e.g., admin (comma-separated)"
+												placeholder={m.oidc_admin_value_placeholder()}
 												class="font-mono text-sm"
 											/>
-											<p class="text-muted-foreground text-[11px]">Leave empty for boolean claims (admin=true).</p>
+											<p class="text-muted-foreground text-[11px]">{m.oidc_admin_value_help()}</p>
 										</div>
 									</div>
 								</div>
@@ -251,12 +246,9 @@
 							<div class="border-destructive/50 bg-destructive/5 rounded-lg border p-4">
 								<div class="mb-2 flex items-center gap-2">
 									<TriangleAlertIcon class="text-destructive size-4" />
-									<h3 class="text-destructive text-base font-semibold">Server Override Warning</h3>
+									<h3 class="text-destructive text-base font-semibold">{m.oidc_server_override_warning_title()}</h3>
 								</div>
-								<p class="text-destructive/80 text-sm">
-									Server forces OIDC, but environment variables appear incomplete. Prefer fixing server env, or save app-level
-									config below.
-								</p>
+								<p class="text-destructive/80 text-sm">{m.security_server_forces_oidc_missing_env()}</p>
 							</div>
 						{/if}
 					{/if}
@@ -265,12 +257,18 @@
 					<div class="bg-card/50 rounded-lg border p-4">
 						<div class="mb-3 flex items-center gap-2">
 							<InfoIcon class="size-4 text-blue-600" />
-							<h3 class="text-base font-semibold">Redirect URI Configuration</h3>
+							<h3 class="text-base font-semibold">{m.oidc_redirect_uri_title()}</h3>
 						</div>
-						<p class="text-muted-foreground mb-3 text-sm">Configure this redirect URI in your OIDC provider:</p>
+						<p class="text-muted-foreground mb-3 text-sm">{m.oidc_redirect_uri_description()}</p>
 						<div class="flex items-center gap-2">
 							<code class="bg-muted flex-1 break-all rounded p-2 font-mono text-xs">{redirectUri}</code>
-							<Button size="sm" variant="outline" onclick={() => copyToClipboard(redirectUri)} class="flex-shrink-0">
+							<Button
+								size="sm"
+								variant="outline"
+								onclick={() => copyToClipboard(redirectUri)}
+								class="flex-shrink-0"
+								title={m.common_copy()}
+							>
 								<CopyIcon class="size-3" />
 							</Button>
 						</div>
@@ -281,23 +279,25 @@
 				<aside class="hidden lg:block">
 					<div class="sticky top-4 space-y-4">
 						<div class="bg-card/50 rounded-lg border p-4">
-							<h3 class="text-sm font-semibold">Status</h3>
+							<h3 class="text-sm font-semibold">{m.oidc_status_title()}</h3>
 							<ul class="mt-3 space-y-2">
 								{#each statusItems as s (s.label)}
 									<li class="flex items-center justify-between">
 										<span class="text-muted-foreground text-sm">{s.label}</span>
-										<span class={'rounded px-2 py-0.5 text-xs ring-1 ' + chipClass(s.value)}>{s.value ? 'Yes' : 'No'}</span>
+										<span class={'rounded px-2 py-0.5 text-xs ring-1 ' + chipClass(s.value)}
+											>{s.value ? m.common_yes() : m.common_no()}</span
+										>
 									</li>
 								{/each}
 							</ul>
 						</div>
 
 						<div class="bg-card/50 rounded-lg border p-4">
-							<h3 class="text-sm font-semibold">Tips</h3>
+							<h3 class="text-sm font-semibold">{m.oidc_tips_title()}</h3>
 							<ul class="text-muted-foreground mt-3 list-disc space-y-1 pl-5 text-xs">
-								<li>If your server forces OIDC, app settings become read-only.</li>
-								<li>Use issuer discovery; avoid hardcoding endpoints.</li>
-								<li>Keep client secrets out of the UI when possible.</li>
+								<li>{m.oidc_tip_1()}</li>
+								<li>{m.oidc_tip_2()}</li>
+								<li>{m.oidc_tip_3()}</li>
 							</ul>
 						</div>
 					</div>
@@ -306,11 +306,11 @@
 		</div>
 
 		<Dialog.Footer class="flex flex-shrink-0 gap-3 border-t pt-4">
-			<Button variant="outline" onclick={() => (open = false)} class="flex-1 sm:flex-none">Close</Button>
+			<Button variant="outline" onclick={() => (open = false)} class="flex-1 sm:flex-none">{m.common_close()}</Button>
 			{#if !isOidcViewMode}
 				<Button onclick={onSave} class="flex-1 sm:flex-none">
 					<KeyIcon class="mr-2 size-4" />
-					Save OIDC Settings
+					{m.common_save()}
 				</Button>
 			{/if}
 		</Dialog.Footer>

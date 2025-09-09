@@ -12,6 +12,7 @@ type User struct {
 	Roles         StringSlice `json:"roles" gorm:"type:text;not null;default:'[]'"`
 	OidcSubjectId *string     `json:"oidcSubjectId,omitempty" gorm:"column:oidc_subject_id"`
 	LastLogin     *time.Time  `json:"lastLogin,omitempty" gorm:"column:last_login"`
+	Locale        *string     `json:"locale,omitempty" gorm:"column:locale"`
 
 	// OIDC provider tokens
 	OidcAccessToken          *string    `json:"-" gorm:"type:text"`

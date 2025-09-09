@@ -18,6 +18,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
 	import type { Environment } from '$lib/types/environment.type';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		environments = $bindable(),
@@ -35,10 +36,10 @@
 		if (!ids?.length) return;
 
 		openConfirmDialog({
-			title: `Remove ${ids.length} Environment${ids.length > 1 ? 's' : ''}`,
-			message: `Are you sure you want to remove the selected environment${ids.length > 1 ? 's' : ''}? This action cannot be undone.`,
+			title: m.environments_remove_selected_title({ count: ids.length }),
+			message: m.environments_remove_selected_message({ count: ids.length }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
@@ -49,7 +50,7 @@
 						const result = await tryCatch(environmentManagementAPI.delete(id));
 						handleApiResultWithCallbacks({
 							result,
-							message: `Failed to remove environment`,
+							message: m.environments_bulk_remove_failed_many({ count: ids.length }),
 							setLoadingState: () => {},
 							onSuccess: () => {
 								successCount++;
@@ -61,11 +62,19 @@
 					isLoading.removing = false;
 
 					if (successCount > 0) {
-						toast.success(`Removed ${successCount} environment${successCount > 1 ? 's' : ''}`);
+						const msg =
+							successCount === 1
+								? m.environments_bulk_remove_success_one()
+								: m.environments_bulk_remove_success_many({ count: successCount });
+						toast.success(msg);
 						environments = await environmentManagementAPI.getEnvironments(requestOptions);
 					}
 					if (failureCount > 0) {
-						toast.error(`Failed to remove ${failureCount} environment${failureCount > 1 ? 's' : ''}`);
+						const msg =
+							failureCount === 1
+								? m.environments_bulk_remove_failed_one()
+								: m.environments_bulk_remove_failed_many({ count: failureCount });
+						toast.error(msg);
 					}
 
 					selectedIds = [];
@@ -76,20 +85,20 @@
 
 	async function handleDeleteOne(id: string, hostname: string) {
 		openConfirmDialog({
-			title: 'Remove Environment',
-			message: `Are you sure you want to remove "${hostname}"? This action cannot be undone.`,
+			title: m.environments_delete_title(),
+			message: m.environments_delete_message({ name: hostname }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
 					const result = await tryCatch(environmentManagementAPI.delete(id));
 					handleApiResultWithCallbacks({
 						result,
-						message: `Failed to remove environment "${hostname}"`,
+						message: m.environments_delete_failed({ name: hostname }),
 						setLoadingState: () => {},
 						onSuccess: async () => {
-							toast.success(`Removed "${hostname}"`);
+							toast.success(m.environments_delete_success({ name: hostname }));
 							environments = await environmentManagementAPI.getEnvironments(requestOptions);
 						}
 					});
@@ -104,40 +113,40 @@
 		const result = await tryCatch(environmentManagementAPI.testConnection(id));
 		handleApiResultWithCallbacks({
 			result,
-			message: 'Failed to test connection',
+			message: m.environments_test_connection_failed(),
 			setLoadingState: () => {},
 			onSuccess: (resp) => {
 				const status = (resp as { status: string; message?: string }).status;
-				if (status === 'online') toast.success('Connection successful');
-				else toast.error('Connection failed');
+				if (status === 'online') toast.success(m.environments_test_connection_success());
+				else toast.error(m.environments_test_connection_error());
 			}
 		});
 		isLoading.testing = false;
 	}
 
 	const columns = [
-		{ accessorKey: 'id', title: 'ID', hidden: true },
+		{ accessorKey: 'id', title: m.common_id(), hidden: true },
 		{
 			id: 'name',
-			title: 'Friendly Name',
+			title: m.common_name(),
 			sortable: true,
 			accessorFn: (row) => row.name,
 			cell: EnvironmentCell
 		},
 		{
 			accessorKey: 'status',
-			title: 'Status',
+			title: m.common_status(),
 			sortable: true,
 			cell: StatusCell
 		},
 		{
 			accessorKey: 'apiUrl',
-			title: 'API URL',
+			title: m.environments_api_url(),
 			cell: ApiCell
 		},
 		{
 			accessorKey: 'enabled',
-			title: 'Enabled',
+			title: m.common_enabled(),
 			sortable: true,
 			cell: EnabledCell
 		}
@@ -164,7 +173,7 @@
 {/snippet}
 
 {#snippet StatusCell({ value }: { value: unknown })}
-	<StatusBadge text={String(value ?? 'offline')} variant={String(value) === 'online' ? 'green' : 'red'} />
+	<StatusBadge text={String(value ?? m.common_offline())} variant={String(value) === 'online' ? 'green' : 'red'} />
 {/snippet}
 
 {#snippet ApiCell({ value }: { value: unknown })}
@@ -180,7 +189,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -189,11 +198,11 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => handleTest(item.id)} disabled={isLoading.testing}>
 					<TerminalIcon class="size-4" />
-					Test Connection
+					{m.environments_test_connection()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item onclick={() => goto(`/environments/${item.id}`)}>
 					<EyeIcon class="size-4" />
-					View Details
+					{m.common_view_details()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item
@@ -202,7 +211,7 @@
 					disabled={isLoading.removing}
 				>
 					<Trash2Icon class="size-4" />
-					Delete
+					{m.common_delete()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

@@ -24,6 +24,7 @@
 	import { tryCatch } from '$lib/utils/try-catch';
 	import { environmentAPI } from '$lib/services/api';
 	import type { NetworkInspectDto } from '$lib/types/network.type';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data }: { data: PageData } = $props();
 	let { network }: { network: NetworkInspectDto | null | undefined } = $derived(data);
@@ -31,8 +32,8 @@
 
 	let isRemoving = $state(false);
 
-	const shortId = $derived(network?.id?.substring(0, 12) || 'N/A');
-	const createdDate = $derived(network?.created ? format(new Date(network.created), 'PP p') : 'N/A');
+	const shortId = $derived(network?.id?.substring(0, 12) ?? m.common_unknown());
+	const createdDate = $derived(network?.created ? format(new Date(network.created), 'PP p') : m.common_unknown());
 	const connectedContainers = $derived(
 		network?.containers ? Object.entries(network.containers).map(([id, info]) => ({ id, ...(info as any) })) : []
 	);
@@ -41,33 +42,33 @@
 
 	function triggerRemove() {
 		if (isPredefined) {
-			toast.error('Cannot Remove Predefined Networks');
+			toast.error(m.networks_cannot_delete_default({ name: network?.name ?? m.common_unknown() }));
 			console.warn('Cannot remove predefined network');
 			return;
 		}
 
 		if (!network?.id) {
-			toast.error('Network ID is missing');
+			toast.error(m.networks_missing_id ? m.networks_missing_id() : m.error_occurred());
 			return;
 		}
 
 		openConfirmDialog({
-			title: 'Remove Network',
-			message: `Are you sure you want to remove the network "${network?.name || shortId}"? This action cannot be undone.`,
+			title: m.networks_remove_title(),
+			message: m.networks_remove_confirm_message({ name: network?.name ?? shortId }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					handleApiResultWithCallbacks({
 						result: await tryCatch(environmentAPI.deleteNetwork(network.id)),
-						message: 'Failed to remove network',
+						message: m.networks_remove_failed({ name: network?.name ?? shortId }),
 						setLoadingState: (value) => (isRemoving = value),
 						onSuccess: async () => {
-							toast.success(`Network "${network.name || shortId}" removed successfully`);
+							toast.success(m.networks_remove_success({ name: network?.name ?? shortId }));
 							goto('/networks');
 						},
 						onError: (error) => {
-							errorMessage = error?.message || 'An error occurred while removing the network';
+							errorMessage = error?.message ?? m.error_occurred();
 							toast.error(errorMessage);
 						}
 					});
@@ -82,11 +83,11 @@
 		<Breadcrumb.Root>
 			<Breadcrumb.List>
 				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/networks">Networks</Breadcrumb.Link>
+					<Breadcrumb.Link href="/networks">{m.networks_title()}</Breadcrumb.Link>
 				</Breadcrumb.Item>
 				<Breadcrumb.Separator />
 				<Breadcrumb.Item>
-					<Breadcrumb.Page>{network?.name || shortId}</Breadcrumb.Page>
+					<Breadcrumb.Page>{network?.name ?? shortId}</Breadcrumb.Page>
 				</Breadcrumb.Item>
 			</Breadcrumb.List>
 		</Breadcrumb.Root>
@@ -95,33 +96,33 @@
 			<div class="flex flex-col">
 				<div class="flex items-center gap-3">
 					<h1 class="text-2xl font-bold tracking-tight">
-						{network?.name || 'Network Details'}
+						{network?.name ?? m.networks_details_title()}
 					</h1>
 
 					<div class="hidden sm:block">
-						<StatusBadge variant="gray" text={`ID: ${shortId}`} />
+						<StatusBadge variant="gray" text={`${m.networks_id()}: ${shortId}`} />
 					</div>
 				</div>
 
 				<div class="mt-2 flex gap-2">
 					{#if inUse}
-						<StatusBadge variant="green" text={`In Use (${connectedContainers.length})`} />
+						<StatusBadge variant="green" text={m.networks_in_use_count({ count: connectedContainers.length })} />
 					{:else}
-						<StatusBadge variant="amber" text="Unused" />
+						<StatusBadge variant="amber" text={m.common_unused()} />
 					{/if}
 
 					{#if isPredefined}
-						<StatusBadge variant="blue" text="Predefined" />
+						<StatusBadge variant="blue" text={m.networks_predefined()} />
 					{/if}
 
-					<StatusBadge variant="purple" text={network?.driver || 'Unknown'} />
+					<StatusBadge variant="purple" text={network?.driver ?? m.common_unknown()} />
 				</div>
 			</div>
 
 			<div class="self-start">
 				<ArcaneButton
 					action="remove"
-					customLabel="Remove Network"
+					customLabel={m.networks_remove_title()}
 					onclick={triggerRemove}
 					loading={isRemoving}
 					disabled={isRemoving || isPredefined}
@@ -133,7 +134,7 @@
 	{#if errorMessage}
 		<Alert.Root variant="destructive">
 			<CircleAlertIcon class="mr-2 size-4" />
-			<Alert.Title>Action Failed</Alert.Title>
+			<Alert.Title>{m.action_failed()}</Alert.Title>
 			<Alert.Description>{errorMessage}</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -144,9 +145,9 @@
 				<Card.Header class="pb-0">
 					<Card.Title class="flex items-center gap-2 text-lg">
 						<NetworkIcon class="text-primary size-5" />
-						Network Details
+						{m.networks_details_title()}
 					</Card.Title>
-					<Card.Description>Basic information about this Docker network</Card.Description>
+					<Card.Description>{m.networks_details_description()}</Card.Description>
 				</Card.Header>
 				<Card.Content class="pt-6">
 					<div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -155,7 +156,7 @@
 								<HashIcon class="size-5 text-gray-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">ID</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.networks_id()}</p>
 								<p class="mt-1 truncate text-base font-semibold" title={network.id}>{network.id}</p>
 							</div>
 						</div>
@@ -165,7 +166,7 @@
 								<NetworkIcon class="size-5 text-blue-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Name</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.networks_name()}</p>
 								<p class="mt-1 break-words text-base font-semibold">{network.name}</p>
 							</div>
 						</div>
@@ -175,7 +176,7 @@
 								<HardDriveIcon class="size-5 text-orange-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Driver</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.networks_driver()}</p>
 								<p class="mt-1 text-base font-semibold">{network.driver}</p>
 							</div>
 						</div>
@@ -185,7 +186,7 @@
 								<GlobeIcon class="size-5 text-purple-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Scope</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.networks_scope()}</p>
 								<p class="mt-1 text-base font-semibold capitalize">{network.scope}</p>
 							</div>
 						</div>
@@ -195,7 +196,7 @@
 								<ClockIcon class="size-5 text-green-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Created</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.networks_created()}</p>
 								<p class="mt-1 text-base font-semibold">{createdDate}</p>
 							</div>
 						</div>
@@ -205,9 +206,12 @@
 								<LayersIcon class="size-5 text-yellow-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Attachable</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.attachable()}</p>
 								<p class="mt-1 text-base font-semibold">
-									<StatusBadge variant={network.attachable ? 'green' : 'gray'} text={network.attachable ? 'Yes' : 'No'} />
+									<StatusBadge
+										variant={network.attachable ? 'green' : 'gray'}
+										text={network.attachable ? m.common_yes() : m.common_no()}
+									/>
 								</p>
 							</div>
 						</div>
@@ -217,9 +221,12 @@
 								<SettingsIcon class="size-5 text-red-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Internal</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.internal()}</p>
 								<p class="mt-1 text-base font-semibold">
-									<StatusBadge variant={network.internal ? 'blue' : 'gray'} text={network.internal ? 'Yes' : 'No'} />
+									<StatusBadge
+										variant={network.internal ? 'blue' : 'gray'}
+										text={network.internal ? m.common_yes() : m.common_no()}
+									/>
 								</p>
 							</div>
 						</div>
@@ -229,9 +236,12 @@
 								<ListTreeIcon class="size-5 text-indigo-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">IPv6 Enabled</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.ipv6_enabled()}</p>
 								<p class="mt-1 text-base font-semibold">
-									<StatusBadge variant={network.enableIPv6 ? 'indigo' : 'gray'} text={network.enableIPv6 ? 'Yes' : 'No'} />
+									<StatusBadge
+										variant={network.enableIPv6 ? 'indigo' : 'gray'}
+										text={network.enableIPv6 ? m.common_yes() : m.common_no()}
+									/>
 								</p>
 							</div>
 						</div>
@@ -244,9 +254,9 @@
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
 							<SettingsIcon class="text-primary size-5" />
-							IPAM Configuration
+							{m.networks_ipam_title()}
 						</Card.Title>
-						<Card.Description>IP Address Management settings for this network</Card.Description>
+						<Card.Description>{m.networks_ipam_description()}</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						{#each network.ipam.Config as config, i (i)}
@@ -254,7 +264,9 @@
 								<div class="space-y-2">
 									{#if config.Subnet}
 										<div class="flex flex-col sm:flex-row sm:items-center">
-											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24">Subnet:</span>
+											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24"
+												>{m.networks_ipam_subnet_label()}:</span
+											>
 											<code
 												class="bg-muted text-muted-foreground mt-1 rounded px-1.5 py-0.5 font-mono text-xs sm:mt-0 sm:text-sm"
 											>
@@ -265,7 +277,9 @@
 
 									{#if config.Gateway}
 										<div class="flex flex-col sm:flex-row sm:items-center">
-											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24">Gateway:</span>
+											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24"
+												>{m.networks_ipam_gateway_label()}:</span
+											>
 											<code
 												class="bg-muted text-muted-foreground mt-1 rounded px-1.5 py-0.5 font-mono text-xs sm:mt-0 sm:text-sm"
 											>
@@ -276,7 +290,9 @@
 
 									{#if config.IPRange}
 										<div class="flex flex-col sm:flex-row sm:items-center">
-											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24">IP Range:</span>
+											<span class="text-muted-foreground w-full text-sm font-medium sm:w-24"
+												>{m.networks_ipam_iprange_label()}:</span
+											>
 											<code
 												class="bg-muted text-muted-foreground mt-1 rounded px-1.5 py-0.5 font-mono text-xs sm:mt-0 sm:text-sm"
 											>
@@ -287,7 +303,7 @@
 
 									{#if (config.AuxiliaryAddresses && Object.keys(config.AuxiliaryAddresses).length > 0) || (config.AuxAddress && Object.keys(config.AuxAddress).length > 0)}
 										<div class="mt-3">
-											<p class="text-muted-foreground mb-1 text-sm font-medium">Auxiliary Addresses:</p>
+											<p class="text-muted-foreground mb-1 text-sm font-medium">{m.networks_ipam_aux_addresses_label()}:</p>
 											<ul class="ml-4 space-y-1">
 												{#each Object.entries(config.AuxiliaryAddresses ?? config.AuxAddress ?? {}) as [name, addr] (name)}
 													<li class="flex font-mono text-xs">
@@ -304,14 +320,14 @@
 
 						{#if network.ipam.Driver}
 							<div class="mt-4 flex items-center">
-								<span class="text-muted-foreground mr-2 text-sm font-medium">IPAM Driver:</span>
+								<span class="text-muted-foreground mr-2 text-sm font-medium">{m.networks_ipam_driver_label()}:</span>
 								<StatusBadge variant="cyan" text={network.ipam.Driver} />
 							</div>
 						{/if}
 
 						{#if network.ipam.Options && Object.keys(network.ipam.Options).length > 0}
 							<div class="mt-4">
-								<p class="text-muted-foreground mb-2 text-sm font-medium">IPAM Options:</p>
+								<p class="text-muted-foreground mb-2 text-sm font-medium">{m.networks_ipam_options_label()}</p>
 								<div class="bg-muted/50 rounded-lg border p-3">
 									{#each Object.entries(network.ipam.Options) as [key, value] (key)}
 										<div class="mb-1 flex justify-between font-mono text-xs last:mb-0">
@@ -331,11 +347,11 @@
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
 							<ContainerIcon class="text-primary size-5" />
-							Connected Containers
+							{m.networks_connected_containers_title()}
 						</Card.Title>
-						<Card.Description>
-							{connectedContainers.length} container{connectedContainers.length === 1 ? '' : 's'} connected to this network
-						</Card.Description>
+						<Card.Description
+							>{m.networks_connected_containers_description({ count: connectedContainers.length })}</Card.Description
+						>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
@@ -349,7 +365,7 @@
 									</div>
 									<div class="w-full pl-0 sm:w-2/3 sm:pl-4">
 										<code class="bg-muted text-muted-foreground break-all rounded px-1.5 py-0.5 font-mono text-xs sm:text-sm">
-											{container.IPv4Address || container.IPv6Address || 'N/A'}
+											{container.IPv4Address || container.IPv6Address || m.common_unknown()}
 										</code>
 									</div>
 								</div>
@@ -364,9 +380,9 @@
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
 							<TagIcon class="text-primary size-5" />
-							Labels
+							{m.networks_labels_title()}
 						</Card.Title>
-						<Card.Description>User-defined metadata attached to this network</Card.Description>
+						<Card.Description>{m.networks_labels_description()}</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
@@ -390,9 +406,9 @@
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
 							<SettingsIcon class="text-primary size-5" />
-							Options
+							{m.networks_options_title()}
 						</Card.Title>
-						<Card.Description>Network driver-specific options</Card.Description>
+						<Card.Description>{m.networks_options_description()}</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
@@ -416,9 +432,9 @@
 			<div class="bg-muted/30 mb-4 rounded-full p-4">
 				<NetworkIcon class="text-muted-foreground size-10 opacity-70" />
 			</div>
-			<h2 class="mb-2 text-xl font-medium">Network Not Found</h2>
-			<p class="text-muted-foreground mb-6">The requested network could not be found or is no longer available.</p>
-			<ArcaneButton action="cancel" customLabel="Back to Networks" onclick={() => goto('/networks')} size="sm" />
+			<h2 class="mb-2 text-xl font-medium">{m.networks_not_found_title()}</h2>
+			<p class="text-muted-foreground mb-6">{m.networks_not_found_description()}</p>
+			<ArcaneButton action="cancel" customLabel={m.common_back_to_networks()} onclick={() => goto('/networks')} size="sm" />
 		</div>
 	{/if}
 </div>

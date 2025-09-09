@@ -10,6 +10,7 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import type { Component } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		column,
@@ -51,7 +52,7 @@
 					<div class="hidden space-x-1 lg:flex">
 						{#if selectedValues.size > 2}
 							<Badge variant="secondary" class="rounded-sm px-1 font-normal">
-								{selectedValues.size} selected
+								{m.common_selected_count({ count: selectedValues.size })}
 							</Badge>
 						{:else}
 							{#each options.filter((opt) => selectedValues.has(opt.value)) as option (option)}
@@ -69,7 +70,7 @@
 		<Command.Root>
 			<Command.Input placeholder={title} />
 			<Command.List>
-				<Command.Empty>No results found.</Command.Empty>
+				<Command.Empty>{m.common_no_results_found()}</Command.Empty>
 				<Command.Group>
 					{#each options as option (option)}
 						{@const isSelected = selectedValues.has(option.value)}
@@ -110,7 +111,7 @@
 					<Command.Separator />
 					<Command.Group>
 						<Command.Item onSelect={() => column?.setFilterValue(undefined)} class="justify-center text-center">
-							Clear filters
+							{m.common_clear_filters()}
 						</Command.Item>
 					</Command.Group>
 				{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		id,
@@ -9,7 +10,7 @@
 		label,
 		description,
 		disabled = false,
-		placeholder = 'Select an option',
+		placeholder = m.common_select_option(),
 		options = [],
 		groupLabel,
 		onValueChange
@@ -30,7 +31,7 @@
 </script>
 
 <div class="grid gap-2">
-	<Label for={id} class="text-sm leading-none font-medium">
+	<Label for={id} class="text-sm font-medium leading-none">
 		{label}
 	</Label>
 

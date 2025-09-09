@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
+	import { m } from '$lib/paraglide/messages';
 
 	type Variant =
 		| 'red'
@@ -24,7 +25,7 @@
 	type MinWidth = 'none' | '16' | '20' | '24' | '28';
 
 	let {
-		text,
+		text = m.common_unknown(),
 		variant = 'gray',
 		size = 'md',
 		minWidth = '20',

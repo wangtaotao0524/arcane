@@ -13,6 +13,7 @@
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import type { Event } from '$lib/types/event.type';
 	import { toast } from 'svelte-sonner';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		open = $bindable(),
@@ -35,13 +36,10 @@
 		if (!text) return;
 		try {
 			await navigator.clipboard.writeText(text);
-			toggleToast('Copied to clipboard');
+			toast.success(m.common_copied());
 		} catch {
-			toggleToast('Failed to copy', true);
+			toast.error(m.common_copy_failed());
 		}
-	}
-	function toggleToast(msg: string, isErr = false) {
-		isErr ? toast.error(msg) : toast.success(msg);
 	}
 
 	const hasMetadata = $derived(!!event?.metadata && Object.keys(event.metadata ?? {}).length > 0);
@@ -91,8 +89,8 @@
 					{/if}
 				</div>
 				<div class="min-w-0 flex-1">
-					<Dialog.Title class="text-xl font-semibold leading-tight">
-						{event?.title || 'Event Details'}
+					<Dialog.Title class="text-xl font-semibold">
+						{event?.title ?? m.events_details_title()}
 					</Dialog.Title>
 					{#if event?.description}
 						<Dialog.Description class="text-muted-foreground mt-1 text-sm">
@@ -101,16 +99,16 @@
 					{/if}
 					<div class="mt-3 flex flex-wrap items-center gap-2">
 						<Badge class={'border ' + sevBadge(event?.severity)}>
-							{event?.severity ?? 'info'}
+							{event?.severity ?? m.common_unknown()}
 						</Badge>
 						<Badge variant="outline" class="gap-1">
 							<TagIcon class="size-3" />
-							{event?.type ?? '-'}
+							{event?.type ?? m.common_unknown()}
 						</Badge>
 						{#if event?.environmentId}
 							<Badge variant="outline" class="gap-1">
 								<ServerIcon class="size-3" />
-								env: {event.environmentId}
+								{m.events_environment_label()}: {event.environmentId ?? m.common_unknown()}
 							</Badge>
 						{/if}
 						{#if event?.timestamp}
@@ -127,25 +125,15 @@
 		<div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
 			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				<div class="rounded-lg border p-3">
-					<div class="text-muted-foreground text-xs">Resource ID</div>
+					<div class="text-muted-foreground text-xs">{m.events_resource_id_label()}</div>
 					<div class="mt-1 flex items-center justify-between gap-2">
 						<div class="break-all text-sm">{event?.resourceType || '-'}</div>
-						<Button variant="ghost" size="icon" class="size-7" onclick={() => copy(event?.resourceType)} title="Copy resource id">
-							<CopyIcon class="size-4" />
-						</Button>
-					</div>
-				</div>
-
-				<div class="rounded-lg border p-3">
-					<div class="text-muted-foreground text-xs">Resource Name</div>
-					<div class="mt-1 flex items-center justify-between gap-2">
-						<div class="break-all text-sm">{event?.resourceName || '-'}</div>
 						<Button
 							variant="ghost"
 							size="icon"
 							class="size-7"
-							onclick={() => copy(event?.resourceName)}
-							title="Copy resource name"
+							onclick={() => copy(event?.resourceType)}
+							title={m.events_copy_resource_id_title()}
 						>
 							<CopyIcon class="size-4" />
 						</Button>
@@ -153,17 +141,33 @@
 				</div>
 
 				<div class="rounded-lg border p-3">
-					<div class="text-muted-foreground text-xs">User</div>
+					<div class="text-muted-foreground text-xs">{m.events_resource_name_label()}</div>
+					<div class="mt-1 flex items-center justify-between gap-2">
+						<div class="break-all text-sm">{event?.resourceName || '-'}</div>
+						<Button
+							variant="ghost"
+							size="icon"
+							class="size-7"
+							onclick={() => copy(event?.resourceName)}
+							title={m.events_copy_resource_name_title()}
+						>
+							<CopyIcon class="size-4" />
+						</Button>
+					</div>
+				</div>
+
+				<div class="rounded-lg border p-3">
+					<div class="text-muted-foreground text-xs">{m.common_user}</div>
 					<div class="mt-1 flex items-center gap-2 text-sm">
 						<UserIcon class="text-muted-foreground size-4" />
-						{event?.username || '-'}
+						{event?.username ?? m.common_unknown()}
 					</div>
 				</div>
 			</div>
 
 			<div class="rounded-lg border">
 				<div class="flex items-center justify-between border-b px-3 py-2">
-					<h3 class="text-sm font-medium">Metadata</h3>
+					<h3 class="text-sm font-medium">{m.events_metadata_title()}</h3>
 					<Button
 						variant="outline"
 						size="sm"
@@ -172,7 +176,7 @@
 						title="Copy metadata JSON"
 					>
 						<CopyIcon class="mr-2 size-3" />
-						Copy JSON
+						{m.common_copy_json()}
 					</Button>
 				</div>
 				{#if hasMetadata}
@@ -180,16 +184,16 @@
 <code class="font-mono">{metadataPretty()}</code>
 </pre>
 				{:else}
-					<div class="text-muted-foreground p-3 text-xs">No metadata provided.</div>
+					<div class="text-muted-foreground p-3 text-xs">{m.events_no_metadata_provided()}</div>
 				{/if}
 			</div>
 
 			<div class="rounded-lg border">
 				<div class="flex items-center justify-between border-b px-3 py-2">
-					<h3 class="text-sm font-medium">Raw Event</h3>
-					<Button variant="outline" size="sm" onclick={() => copy(jsonPretty())} title="Copy full event JSON">
+					<h3 class="text-sm font-medium">{m.events_raw_event_title()}</h3>
+					<Button variant="outline" size="sm" onclick={() => copy(jsonPretty())} title={m.events_copy_full_event_json_title()}>
 						<CopyIcon class="mr-2 size-3" />
-						Copy JSON
+						{m.common_copy_json()}
 					</Button>
 				</div>
 				<pre class="bg-muted/40 max-h-[40vh] overflow-auto p-3 text-xs leading-relaxed">
@@ -199,7 +203,7 @@
 		</div>
 
 		<Dialog.Footer class="flex flex-shrink-0 items-center justify-end gap-2 border-t p-3">
-			<Button variant="outline" onclick={() => (open = false)}>Close</Button>
+			<Button variant="outline" onclick={() => (open = false)}>{m.common_close()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

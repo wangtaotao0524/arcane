@@ -22,6 +22,7 @@
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import type { ContainerSummaryDto } from '$lib/types/container.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		containers = $bindable(),
@@ -48,69 +49,69 @@
 			if (action === 'start') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.startContainer(id)),
-					message: 'Failed to Start Container',
+					message: m.containers_start_failed(),
 					setLoadingState: (value) => (isLoading.start = value),
 					async onSuccess() {
-						toast.success('Container Started Successfully.');
+						toast.success(m.containers_start_success());
 						containers = await environmentAPI.getContainers(requestOptions);
 					}
 				});
 			} else if (action === 'stop') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.stopContainer(id)),
-					message: 'Failed to Stop Container',
+					message: m.containers_stop_failed(),
 					setLoadingState: (value) => (isLoading.stop = value),
 					async onSuccess() {
-						toast.success('Container Stopped Successfully.');
+						toast.success(m.containers_stop_success());
 						containers = await environmentAPI.getContainers(requestOptions);
 					}
 				});
 			} else if (action === 'restart') {
 				handleApiResultWithCallbacks({
 					result: await tryCatch(environmentAPI.restartContainer(id)),
-					message: 'Failed to Restart Container',
+					message: m.containers_restart_failed(),
 					setLoadingState: (value) => (isLoading.restart = value),
 					async onSuccess() {
-						toast.success('Container Restarted Successfully.');
+						toast.success(m.containers_restart_success());
 						containers = await environmentAPI.getContainers(requestOptions);
 					}
 				});
 			}
 		} catch (error) {
 			console.error('Container action failed:', error);
-			toast.error('An error occurred while performing the action');
+			toast.error(m.containers_action_error());
 			isLoading[action as keyof typeof isLoading] = false;
 		}
 	}
 
 	async function handleRemoveContainer(id: string) {
 		openConfirmDialog({
-			title: 'Confirm Container Removal',
-			message: 'Are you sure you want to remove this container? This action cannot be undone.',
+			title: m.containers_remove_confirm_title(),
+			message: m.containers_remove_confirm_message(),
 			checkboxes: [
 				{
 					id: 'force',
-					label: 'Force remove (kill the container if running)',
+					label: m.containers_remove_force_label(),
 					initialState: false
 				},
 				{
 					id: 'volumes',
-					label: 'Remove container volumes',
+					label: m.containers_remove_volumes_label(),
 					initialState: false
 				}
 			],
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async (checkboxStates) => {
 					const force = !!checkboxStates.force;
 					const volumes = !!checkboxStates.volumes;
 					handleApiResultWithCallbacks({
 						result: await tryCatch(environmentAPI.deleteContainer(id, { force, volumes })),
-						message: 'Failed to Remove Container',
+						message: m.containers_remove_failed(),
 						setLoadingState: (value) => (isLoading.remove = value),
 						async onSuccess() {
-							toast.success('Container Removed Successfully.');
+							toast.success(m.containers_remove_success());
 							containers = await environmentAPI.getContainers(requestOptions);
 						}
 					});
@@ -122,12 +123,12 @@
 	const isAnyLoading = $derived(Object.values(isLoading).some((loading) => loading));
 
 	const columns = [
-		{ accessorKey: 'names', title: 'Name', sortable: true, cell: NameCell },
-		{ accessorKey: 'id', title: 'ID', cell: IdCell },
-		{ accessorKey: 'image', title: 'Image', sortable: true },
-		{ accessorKey: 'state', title: 'State', sortable: true, cell: StateCell },
-		{ accessorKey: 'status', title: 'Status' },
-		{ accessorKey: 'created', title: 'Created', sortable: true, cell: CreatedCell }
+		{ accessorKey: 'names', title: m.common_name(), sortable: true, cell: NameCell },
+		{ accessorKey: 'id', title: m.common_id(), cell: IdCell },
+		{ accessorKey: 'image', title: m.common_image(), sortable: true },
+		{ accessorKey: 'state', title: m.common_state(), sortable: true, cell: StateCell },
+		{ accessorKey: 'status', title: m.common_status() },
+		{ accessorKey: 'created', title: m.common_created(), sortable: true, cell: CreatedCell }
 	] satisfies ColumnSpec<ContainerSummaryDto>[];
 </script>
 
@@ -154,7 +155,7 @@
 
 {#snippet CreatedCell({ item }: { item: ContainerSummaryDto })}
 	<span class="text-sm">
-		{item.created ? format(new Date(item.created * 1000), 'PP p') : ''}
+		{item.created ? format(new Date(item.created * 1000), 'PP p') : m.common_na()}
 	</span>
 {/snippet}
 
@@ -163,7 +164,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -172,7 +173,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => goto(`/containers/${item.id}`)} disabled={isAnyLoading}>
 					<ScanSearchIcon class="size-4" />
-					Inspect
+					{m.common_inspect()}
 				</DropdownMenu.Item>
 
 				{#if item.state !== 'running'}
@@ -182,7 +183,7 @@
 						{:else}
 							<PlayIcon class="size-4" />
 						{/if}
-						Start
+						{m.common_start()}
 					</DropdownMenu.Item>
 				{:else}
 					<DropdownMenu.Item
@@ -194,7 +195,7 @@
 						{:else}
 							<RotateCcwIcon class="size-4" />
 						{/if}
-						Restart
+						{m.common_restart()}
 					</DropdownMenu.Item>
 
 					<DropdownMenu.Item onclick={() => performContainerAction('stop', item.id)} disabled={isLoading.stop || isAnyLoading}>
@@ -203,7 +204,7 @@
 						{:else}
 							<StopCircleIcon class="size-4" />
 						{/if}
-						Stop
+						{m.common_stop()}
 					</DropdownMenu.Item>
 				{/if}
 
@@ -219,7 +220,7 @@
 					{:else}
 						<Trash2Icon class="size-4" />
 					{/if}
-					Remove
+					{m.common_remove()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

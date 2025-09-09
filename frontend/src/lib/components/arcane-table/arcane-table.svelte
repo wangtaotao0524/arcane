@@ -35,6 +35,7 @@
 	import type { Snippet } from 'svelte';
 	import type { ColumnSpec } from './arcane-table.types';
 	import TableCheckbox from './arcane-table-checkbox.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		items,
@@ -132,7 +133,7 @@
 						checked,
 						indeterminate,
 						onCheckedChange: (value) => onToggleAll(!!value, table),
-						'aria-label': 'Select all'
+						'aria-label': m.common_select_all()
 					});
 				},
 				cell: ({ row }) => {
@@ -140,7 +141,7 @@
 					return renderComponent(TableCheckbox, {
 						checked: (selectedIds ?? []).includes(id),
 						onCheckedChange: (value) => onToggleRow(!!value, id),
-						'aria-label': 'Select row'
+						'aria-label': m.common_select_row()
 					});
 				},
 				enableSorting: false,
@@ -288,11 +289,11 @@
 {#snippet Pagination({ table }: { table: TableType<TData> })}
 	<div class="flex items-center justify-between px-2">
 		<div class="text-muted-foreground flex-1 text-sm">
-			Showing {table.getFilteredRowModel().rows.length} of {totalItems} item(s).
+			{m.common_showing_of_total({ shown: table.getFilteredRowModel().rows.length, total: totalItems })}
 		</div>
 		<div class="flex items-center space-x-6 lg:space-x-8">
 			<div class="flex items-center space-x-2">
-				<p class="text-sm font-medium">Rows per page</p>
+				<p class="text-sm font-medium">{m.common_rows_per_page()}</p>
 				<Select.Root
 					allowDeselect={false}
 					type="single"
@@ -312,23 +313,23 @@
 				</Select.Root>
 			</div>
 			<div class="flex w-[100px] items-center justify-center text-sm font-medium">
-				Page {currentPage} of {totalPages}
+				{m.common_page_of({ page: currentPage, total: totalPages })}
 			</div>
 			<div class="flex items-center space-x-2">
 				<Button variant="outline" class="hidden size-8 p-0 lg:flex" onclick={() => setPage(1)} disabled={!canPrev}>
-					<span class="sr-only">Go to first page</span>
+					<span class="sr-only">{m.common_go_first_page()}</span>
 					<ChevronsLeftIcon />
 				</Button>
 				<Button variant="outline" class="size-8 p-0" onclick={() => setPage(currentPage - 1)} disabled={!canPrev}>
-					<span class="sr-only">Go to previous page</span>
+					<span class="sr-only">{m.common_go_prev_page()}</span>
 					<ChevronLeftIcon />
 				</Button>
 				<Button variant="outline" class="size-8 p-0" onclick={() => setPage(currentPage + 1)} disabled={!canNext}>
-					<span class="sr-only">Go to next page</span>
+					<span class="sr-only">{m.common_go_next_page()}</span>
 					<ChevronRightIcon />
 				</Button>
 				<Button variant="outline" class="hidden size-8 p-0 lg:flex" onclick={() => setPage(totalPages)} disabled={!canNext}>
-					<span class="sr-only">Go to last page</span>
+					<span class="sr-only">{m.common_go_last_page()}</span>
 					<ChevronsRightIcon />
 				</Button>
 			</div>
@@ -368,16 +369,16 @@
 				<DropdownMenu.Content align="start">
 					<DropdownMenu.Item onclick={() => column.toggleSorting(false)}>
 						<ArrowUpIcon class="text-muted-foreground/70 mr-2 size-3.5" />
-						Asc
+						{m.common_sort_asc()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => column.toggleSorting(true)}>
 						<ArrowDownIcon class="text-muted-foreground/70 mr-2 size-3.5" />
-						Desc
+						{m.common_sort_desc()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item onclick={() => column.toggleVisibility(false)}>
 						<EyeOffIcon class="text-muted-foreground/70 mr-2 size-3.5" />
-						Hide
+						{m.common_hide()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
@@ -415,7 +416,7 @@
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={columnsDef.length} class="h-24 text-center">No results.</Table.Cell>
+						<Table.Cell colspan={columnsDef.length} class="h-24 text-center">{m.common_no_results_found()}</Table.Cell>
 					</Table.Row>
 				{/each}
 			</Table.Body>

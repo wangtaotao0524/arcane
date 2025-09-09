@@ -10,6 +10,7 @@
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import StatCard from '$lib/components/stat-card.svelte';
 	import NetworkTable from './network-table.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -30,7 +31,7 @@
 		isLoading.refresh = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.getNetworks(requestOptions)),
-			message: 'Failed to Refresh Containers for Updates',
+			message: m.networks_refresh_failed(),
 			setLoadingState: (value) => (isLoading.refresh = value),
 			async onSuccess(newNetworks) {
 				networks = newNetworks;
@@ -40,12 +41,13 @@
 
 	async function handleCreateNetworkSubmit(options: NetworkCreateOptions) {
 		isLoading.create = true;
+		const name = options.Name?.trim() || m.common_unknown();
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.createNetwork(options)),
-			message: `Failed to Create Network "${options.Name}"`,
+			message: m.networks_create_failed({ name }),
 			setLoadingState: (value) => (isLoading.create = value),
 			onSuccess: async () => {
-				toast.success(`Network "${options.Name}" Created Successfully.`);
+				toast.success(m.networks_created_success({ name }));
 				networks = await environmentAPI.getNetworks(requestOptions);
 				isCreateDialogOpen = false;
 			}
@@ -56,15 +58,15 @@
 <div class="space-y-6">
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Networks</h1>
-			<p class="text-muted-foreground mt-1 text-sm">Manage your Docker networks</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.networks_title()}</h1>
+			<p class="text-muted-foreground mt-1 text-sm">{m.networks_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<ArcaneButton action="create" customLabel="Create Network" onclick={() => (isCreateDialogOpen = true)} />
+			<ArcaneButton action="create" customLabel={m.networks_create_button()} onclick={() => (isCreateDialogOpen = true)} />
 			<ArcaneButton
 				action="restart"
 				onclick={refreshNetworks}
-				customLabel="Refresh"
+				customLabel={m.common_refresh()}
 				loading={isLoading.refresh}
 				disabled={isLoading.refresh}
 			/>
@@ -73,14 +75,14 @@
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 		<StatCard
-			title="Total Networks"
+			title={m.networks_total()}
 			value={totalNetworks}
 			icon={NetworkIcon}
 			iconColor="text-blue-500"
 			class="border-l-4 border-l-blue-500"
 		/>
 		<StatCard
-			title="Bridge Networks"
+			title={m.networks_bridge()}
 			value={bridgeNetworks}
 			icon={EthernetPortIcon}
 			iconColor="text-green-500"

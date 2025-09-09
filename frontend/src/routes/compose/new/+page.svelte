@@ -24,6 +24,7 @@
 	import { z } from 'zod/v4';
 	import { arcaneButtonVariants, actionConfigs } from '$lib/components/arcane-button/variants';
 	import PlusCircleIcon from '@lucide/svelte/icons/plus-circle';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -36,9 +37,9 @@
 	const formSchema = z.object({
 		name: z
 			.string()
-			.min(1, 'Project name is required')
-			.regex(/^[a-z0-9-]+$/i, 'Only letters, numbers, and hyphens are allowed'),
-		composeContent: z.string().min(1, 'Compose content is required'),
+			.min(1, m.compose_project_name_required())
+			.regex(/^[a-z0-9-]+$/i, m.compose_project_name_invalid()),
+		composeContent: z.string().min(1, m.compose_compose_content_required()),
 		envContent: z.string().optional().default('')
 	});
 
@@ -64,10 +65,10 @@
 
 		handleApiResultWithCallbacks({
 			result: await tryCatch(environmentAPI.deployProject(name, composeContent, envContent)),
-			message: 'Failed to Create Project',
+			message: m.compose_create_failed(),
 			setLoadingState: (value) => (saving = value),
 			onSuccess: async (project) => {
-				toast.success(`Project "${name}" created successfully.`);
+				toast.success(m.compose_create_success({ name }));
 				goto(`/compose/${project.id}`, { invalidateAll: true });
 			}
 		});
@@ -75,20 +76,20 @@
 
 	async function handleConvertDockerRun() {
 		if (!dockerRunCommand.trim()) {
-			toast.error('Please enter a docker run command');
+			toast.error(m.compose_enter_docker_run_command());
 			return;
 		}
 
 		handleApiResultWithCallbacks({
 			result: await tryCatch(converterAPI.convert(dockerRunCommand)),
-			message: 'Failed to Convert Docker Run Command',
+			message: m.compose_convert_failed(),
 			setLoadingState: (value) => (converting = value),
 			onSuccess: (data) => {
 				$inputs.composeContent.value = data.dockerCompose;
 				$inputs.envContent.value = data.envVars;
 				$inputs.name.value = data.serviceName;
 
-				toast.success('Docker run command converted successfully!');
+				toast.success(m.compose_convert_success());
 				dockerRunCommand = '';
 				showConverterDialog = false;
 			}
@@ -106,14 +107,10 @@
 		if (!$inputs.name.value?.trim()) {
 			$inputs.name.value = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
 		}
-		toast.success(`Template "${template.name}" loaded successfully!`);
+		toast.success(m.compose_template_loaded({ name: template.name }));
 	}
 
-	const exampleCommands = [
-		'docker run -d --name nginx -p 8080:80 -v nginx_data:/usr/share/nginx/html nginx:alpine',
-		'docker run -d --name postgres -e POSTGRES_DB=mydb -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pass -v postgres_data:/var/lib/postgresql/data postgres:15',
-		'docker run -d --name redis -p 6379:6379 --restart unless-stopped redis:alpine'
-	];
+	const exampleCommands = [m.compose_example_command_1(), m.compose_example_command_2(), m.compose_example_command_3()];
 
 	function useExample(command: string) {
 		dockerRunCommand = command;
@@ -142,11 +139,11 @@
 				<div class="flex items-center gap-3">
 					<Button variant="ghost" size="sm" href="/compose" class="gap-2">
 						<ArrowLeftIcon class="size-4" />
-						Back
+						{m.common_back()}
 					</Button>
 					<div class="bg-border h-4 w-px"></div>
 					<div class="flex items-center gap-2">
-						<h1 class="text-lg font-semibold leading-none">Create New Project</h1>
+						<h1 class="text-lg font-semibold leading-none">{m.compose_new_title()}</h1>
 					</div>
 				</div>
 
@@ -154,17 +151,17 @@
 					<Dialog.Root bind:open={showConverterDialog}>
 						<Dialog.Content class="max-h-[80vh] sm:max-w-[800px]">
 							<Dialog.Header>
-								<Dialog.Title>Docker Run to Compose Converter</Dialog.Title>
-								<Dialog.Description>Convert existing docker run commands to Docker Compose format</Dialog.Description>
+								<Dialog.Title>{m.compose_converter_title()}</Dialog.Title>
+								<Dialog.Description>{m.compose_converter_description()}</Dialog.Description>
 							</Dialog.Header>
 
 							<div class="max-h-[60vh] space-y-4 overflow-y-auto">
 								<div class="space-y-2">
-									<Label for="dockerRunCommand">Docker Run Command</Label>
+									<Label for="dockerRunCommand">{m.compose_docker_run_command_label()}</Label>
 									<Textarea
 										id="dockerRunCommand"
 										bind:value={dockerRunCommand}
-										placeholder="docker run -d --name my-app -p 8080:80 nginx:alpine"
+										placeholder={m.compose_docker_run_placeholder()}
 										rows={3}
 										disabled={converting}
 										class="font-mono text-sm"
@@ -172,7 +169,7 @@
 								</div>
 
 								<div class="space-y-2">
-									<Label class="text-muted-foreground text-xs">Example Commands:</Label>
+									<Label class="text-muted-foreground text-xs">{m.compose_example_commands_label()}</Label>
 									<div class="space-y-1">
 										{#each exampleCommands as command}
 											<Button
@@ -194,10 +191,10 @@
 								<Button type="button" disabled={!dockerRunCommand.trim() || converting} onclick={handleConvertDockerRun}>
 									{#if converting}
 										<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
-										Converting...
+										{m.compose_converting()}
 									{:else}
 										<WandIcon class="mr-2 size-4" />
-										Convert to Compose
+										{m.compose_convert_action()}
 									{/if}
 								</Button>
 							</div>
@@ -217,10 +214,10 @@
 							>
 								{#if saving}
 									<LoaderCircleIcon class="size-4 animate-spin" />
-									Creating...
+									{m.compose_creating()}
 								{:else}
 									<PlusCircleIcon class="size-4" />
-									Create Project
+									{m.compose_create_project()}
 								{/if}
 							</DropdownButton.Main>
 
@@ -246,11 +243,11 @@
 								onclick={() => (showTemplateDialog = true)}
 							>
 								<LayoutTemplateIcon class="size-4" />
-								Use Template
+								{m.compose_use_template()}
 							</DropdownButton.Item>
 							<DropdownButton.Item class={dropdownItemClass} onclick={() => (showConverterDialog = true)}>
 								<TerminalIcon class="size-4" />
-								Convert from Docker Run
+								{m.compose_convert_from_docker_run()}
 							</DropdownButton.Item>
 						</DropdownButton.Content>
 					</DropdownButton.DropdownRoot>
@@ -264,7 +261,7 @@
 		<div class="space-y-8">
 			<form class="space-y-6" onsubmit={preventDefault(handleSubmit)}>
 				<div class="mb-6 space-y-2">
-					<Label for="name" class="text-sm font-medium">Project Name</Label>
+					<Label for="name" class="text-sm font-medium">{m.compose_name_label?.() ?? m.common_name()}</Label>
 					<div class="max-w-md">
 						<Input
 							type="text"
@@ -272,14 +269,14 @@
 							name="name"
 							bind:value={$inputs.name.value}
 							required
-							placeholder="e.g., my-web-app"
+							placeholder={m.compose_name_placeholder()}
 							disabled={saving || isLoadingTemplateContent}
 							class={$inputs.name.error ? 'border-destructive' : ''}
 						/>
 						{#if $inputs.name.error}
 							<p class="text-destructive mt-1 text-xs">{$inputs.name.error}</p>
 						{:else}
-							<p class="text-muted-foreground mt-1 text-xs">Use letters, numbers, and hyphens only.</p>
+							<p class="text-muted-foreground mt-1 text-xs">{m.compose_name_hint()}</p>
 						{/if}
 					</div>
 				</div>
@@ -289,14 +286,14 @@
 					<div class="lg:col-span-2">
 						<div class="space-y-4">
 							<div class="flex items-center justify-between">
-								<h3 class="text-lg font-semibold">Docker Compose File</h3>
-								<span class="text-muted-foreground text-xs">YAML</span>
+								<h3 class="text-lg font-semibold">{m.compose_compose_file_title()}</h3>
+								<span class="text-muted-foreground text-xs">{m.compose_yaml_label()}</span>
 							</div>
 							<div class="h-[590px] w-full">
 								<CodeEditor
 									bind:value={$inputs.composeContent.value}
 									language="yaml"
-									placeholder="Enter YAML..."
+									placeholder={m.compose_compose_placeholder()}
 									readOnly={saving || isLoadingTemplateContent}
 								/>
 							</div>
@@ -310,14 +307,14 @@
 					<div class="lg:col-span-1">
 						<div class="space-y-4">
 							<div class="flex items-center justify-between">
-								<h3 class="text-lg font-semibold">Environment (.env)</h3>
-								<span class="text-muted-foreground text-xs">Key=Value</span>
+								<h3 class="text-lg font-semibold">{m.compose_env_title()}</h3>
+								<span class="text-muted-foreground text-xs">{m.compose_env_kv_label()}</span>
 							</div>
 							<div class="h-[590px] w-full">
 								<CodeEditor
 									bind:value={$inputs.envContent.value}
 									language="env"
-									placeholder="Enter environment variables..."
+									placeholder={m.compose_env_placeholder()}
 									readOnly={saving || isLoadingTemplateContent}
 								/>
 							</div>

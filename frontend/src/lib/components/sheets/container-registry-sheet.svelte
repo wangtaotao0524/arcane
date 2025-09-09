@@ -9,6 +9,7 @@
 	import type { ContainerRegistryCreateDto, ContainerRegistryUpdateDto } from '$lib/types/container-registry.type';
 	import { z } from 'zod/v4';
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
+	import { m } from '$lib/paraglide/messages';
 
 	type ContainerRegistryFormProps = {
 		open: boolean;
@@ -22,8 +23,8 @@
 	let isEditMode = $derived(!!registryToEdit);
 
 	const formSchema = z.object({
-		url: z.string().min(1, 'Registry URL is required'),
-		username: z.string().min(1, 'Username is required'),
+		url: z.string().min(1, m.registries_url_required()),
+		username: z.string().min(1, m.common_username_required()),
 		token: z.string().optional(),
 		description: z.string().optional(),
 		insecure: z.boolean().default(false),
@@ -57,46 +58,51 @@
 				</div>
 				<div>
 					<Sheet.Title class="text-xl font-semibold">
-						{isEditMode ? 'Edit' : 'Add'} Container Registry
+						{isEditMode ? m.registries_edit_title() : m.registries_add_button()}
 					</Sheet.Title>
 					<Sheet.Description class="text-muted-foreground mt-1 text-sm">
-						{isEditMode ? 'Update the details for this container registry.' : 'Enter the details for the new container registry.'}
+						{isEditMode ? m.registries_edit_description() : m.registries_add_description()}
 					</Sheet.Description>
 				</div>
 			</div>
 		</Sheet.Header>
 		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
 			<FormInput
-				label="Registry URL *"
+				label={m.registries_url()}
 				type="text"
-				placeholder="e.g., docker.io, ghcr.io, gcr.io, quay.io"
-				description="Leave empty or use 'docker.io' for Docker Hub"
+				placeholder={m.registries_url_placeholder()}
+				description={m.registries_url_description()}
 				bind:input={$inputs.url}
 			/>
-			<FormInput label="Username *" type="text" description="Your registry username" bind:input={$inputs.username} />
 			<FormInput
-				label="Token *"
+				label={m.common_username()}
+				type="text"
+				description={m.common_username_required()}
+				bind:input={$inputs.username}
+			/>
+			<FormInput
+				label={m.registries_token_label()}
 				type="password"
-				placeholder={isEditMode ? 'Leave empty to keep current token' : 'Your registry password or token'}
-				description="Use a Personal Access Token or your password if the registry supports it. "
+				placeholder={isEditMode ? m.registries_token_keep_placeholder() : m.registries_token_placeholder()}
+				description={m.registries_token_description()}
 				bind:input={$inputs.token}
 			/>
 			<FormInput
-				label="Description"
+				label={m.common_description()}
 				type="text"
-				placeholder="Optional description for this registry"
+				placeholder={m.registries_description_placeholder()}
 				bind:input={$inputs.description}
 			/>
 			<SwitchWithLabel
 				id="isEnabledSwitch"
-				label="Enabled"
-				description="Enable this registry for authentication"
+				label={m.common_enabled()}
+				description={m.registries_enabled_description()}
 				bind:checked={$inputs.enabled.value}
 			/>
 			<SwitchWithLabel
 				id="insecureSwitch"
-				label="Allow Insecure Connection"
-				description="Allow HTTP connections"
+				label={m.registries_allow_insecure_label()}
+				description={m.registries_allow_insecure_description()}
 				bind:checked={$inputs.insecure.value}
 			/>
 
@@ -106,13 +112,16 @@
 					class="arcane-button-cancel flex-1"
 					variant="outline"
 					onclick={() => (open = false)}
-					disabled={isLoading}>Cancel</Button
+					disabled={isLoading}
 				>
+					{m.common_cancel()}
+				</Button>
+
 				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
 					{#if isLoading}
 						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
 					{/if}
-					{isEditMode ? 'Save Changes' : 'Add Registry'}
+					{isEditMode ? m.registries_save_changes() : m.registries_add_button()}
 				</Button>
 			</Sheet.Footer>
 		</form>

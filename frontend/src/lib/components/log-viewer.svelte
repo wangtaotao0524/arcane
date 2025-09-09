@@ -3,6 +3,7 @@
 	import { browser, dev } from '$app/environment';
 	import { get } from 'svelte/store';
 	import { environmentStore } from '$lib/stores/environment.store';
+	import { m } from '$lib/paraglide/messages';
 
 	interface LogEntry {
 		timestamp: string;
@@ -45,6 +46,7 @@
 	let isStreaming = $state(false);
 	let error: string | null = $state(null);
 	let eventSource: EventSource | null = null;
+	const humanType = type === 'stack' ? m.common_stack() : m.common_container();
 
 	const DOCKER_TS_ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?\s*/;
 	const DOCKER_TS_SLASH_RE = /^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s*/;
@@ -141,29 +143,29 @@
 			};
 
 			eventSource.onopen = () => {
-				if (dev) console.log(`${type} log stream connected`);
+				if (dev) console.log(m.log_viewer_connected({ type: humanType }));
 				error = null;
 			};
 
 			eventSource.onerror = (event) => {
 				console.error('Log stream error:', event);
-				error = `Connection to ${type} log stream lost`;
+				error = m.log_stream_connection_lost({ type: humanType });
 				isStreaming = false;
 
 				if (eventSource?.readyState === EventSource.CLOSED) {
-					error = `${type} log stream was closed by server`;
+					error = m.log_stream_closed_by_server({ type: humanType });
 				}
 			};
 		} catch (err) {
 			console.error('Failed to start log stream:', err);
-			error = `Failed to connect to ${type} log stream`;
+			error = m.log_stream_failed_connect({ type: humanType });
 			isStreaming = false;
 		}
 	}
 
 	export function stopLogStream() {
 		if (eventSource) {
-			if (dev) console.log(`Stopping ${type} log stream`);
+			if (dev) console.log(m.log_viewer_stopping({ type: humanType }));
 			eventSource.close();
 			eventSource = null;
 		}
@@ -280,11 +282,11 @@
 		{#if logs.length === 0}
 			<div class="p-4 text-center text-gray-500">
 				{#if !containerId}
-					No {type} selected
+					{m.log_viewer_no_selection({ type: humanType })}
 				{:else if !isStreaming}
-					No logs available. Start streaming to see logs.
+					{m.log_viewer_no_logs_available()}
 				{:else}
-					Waiting for logs...
+					{m.log_viewer_waiting_for_logs()}
 				{/if}
 			</div>
 		{:else}
@@ -306,7 +308,7 @@
 						</span>
 					{/if}
 
-					<span class="flex-1 break-words whitespace-pre-wrap text-gray-300">
+					<span class="flex-1 whitespace-pre-wrap break-words text-gray-300">
 						{log.message}
 					</span>
 				</div>

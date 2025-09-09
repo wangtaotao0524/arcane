@@ -11,13 +11,14 @@
 	import type { Extension } from '@codemirror/state';
 	import type { Diagnostic, LintSource } from '@codemirror/lint';
 	import { mode } from 'mode-watcher';
+	import { m } from '$lib/paraglide/messages';
 
 	type CodeLanguage = 'yaml' | 'env';
 
 	let {
 		value = $bindable(''),
 		language = 'yaml' as CodeLanguage,
-		placeholder = 'Enter code...',
+		placeholder = m.editor_placeholder(),
 		readOnly = false,
 		height = '550px',
 		fontSize = '11px',

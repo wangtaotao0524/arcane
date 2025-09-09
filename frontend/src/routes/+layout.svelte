@@ -12,6 +12,7 @@
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
 	import Error from '$lib/components/error.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		data,
@@ -39,11 +40,11 @@
 	}
 </script>
 
-<svelte:head><title>Arcane</title></svelte:head>
+<svelte:head><title>{m.layout_title()}</title></svelte:head>
 
 <div class="bg-background min-h-screen">
 	{#if !settings}
-		<Error message="An Error Occured" showButton={true} />
+		<Error message={m.error_occurred()} showButton={true} />
 	{:else if !isOnboardingPage && !isLoginPage}
 		<Sidebar.Provider>
 			<AppSidebar {versionInformation} {user} />

@@ -19,35 +19,35 @@
 	import { environmentAPI } from '$lib/services/api';
 	import { format } from 'date-fns';
 	import ContainerIcon from '@lucide/svelte/icons/container';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let volume = $state(data.volume);
 	let containersDetailed = $state<{ id: string; name: string }[]>(data.containersDetailed ?? []);
 
 	let isLoading = $state({ remove: false });
-	const createdDate = $derived(volume.createdAt ? format(new Date(volume.createdAt), 'PP p') : 'N/A');
+	const createdDate = $derived(volume.createdAt ? format(new Date(volume.createdAt), 'PP p') : m.common_unknown());
 
 	async function handleRemoveVolumeConfirm(volumeName: string) {
-		let message = 'Are you sure you want to delete this volume? This action cannot be undone.';
-
+		const safeName = volumeName?.trim() || m.common_unknown();
+		let message = m.volumes_remove_confirm_message({ name: safeName });
 		if (volume.inUse) {
-			message +=
-				'\n\n⚠️ Warning: This volume is currently in use by containers. Forcing removal may cause data loss or container issues.';
+			message += `\n\n${m.volumes_remove_in_use_warning()}`;
 		}
 
 		openConfirmDialog({
-			title: 'Delete Volume',
+			title: m.volumes_remove_title(),
 			message,
 			confirm: {
-				label: 'Delete',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					handleApiResultWithCallbacks({
-						result: await tryCatch(environmentAPI.deleteVolume(volumeName)),
-						message: 'Failed to Remove Volume',
+						result: await tryCatch(environmentAPI.deleteVolume(safeName)),
+						message: m.volumes_remove_failed({ name: safeName }),
 						setLoadingState: (value) => (isLoading.remove = value),
 						onSuccess: async () => {
-							toast.success('Volume Removed Successfully.');
+							toast.success(m.volumes_remove_success({ name: safeName }));
 							goto('/volumes');
 						}
 					});
@@ -62,7 +62,7 @@
 		<Breadcrumb.Root>
 			<Breadcrumb.List>
 				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/volumes">Volumes</Breadcrumb.Link>
+					<Breadcrumb.Link href="/volumes">{m.volumes_title()}</Breadcrumb.Link>
 				</Breadcrumb.Item>
 				<Breadcrumb.Separator />
 				<Breadcrumb.Item>
@@ -81,9 +81,9 @@
 
 				<div class="mt-2 flex gap-2">
 					{#if volume.inUse}
-						<StatusBadge variant="green" text="In Use" />
+						<StatusBadge variant="green" text={m.common_in_use()} />
 					{:else}
-						<StatusBadge variant="amber" text="Unused" />
+						<StatusBadge variant="amber" text={m.common_unused()} />
 					{/if}
 
 					{#if volume.driver}
@@ -99,7 +99,7 @@
 			<div class="flex gap-2 self-start">
 				<ArcaneButton
 					action="remove"
-					customLabel="Remove Volume"
+					customLabel={m.volumes_remove_title()}
 					onclick={() => handleRemoveVolumeConfirm(volume.name)}
 					loading={isLoading.remove}
 					disabled={isLoading.remove}
@@ -114,9 +114,9 @@
 				<Card.Header class="pb-0">
 					<Card.Title class="flex items-center gap-2 text-lg">
 						<DatabaseIcon class="text-primary size-5" />
-						Volume Details
+						{m.volumes_details_title()}
 					</Card.Title>
-					<Card.Description>Basic information about this Docker volume</Card.Description>
+					<Card.Description>{m.volumes_details_description()}</Card.Description>
 				</Card.Header>
 				<Card.Content class="pt-6">
 					<div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -125,7 +125,7 @@
 								<DatabaseIcon class="size-5 text-gray-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Name</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_name()}</p>
 								<p class="mt-1 break-words text-base font-semibold">{volume.name}</p>
 							</div>
 						</div>
@@ -135,7 +135,7 @@
 								<HardDriveIcon class="size-5 text-blue-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Driver</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_driver()}</p>
 								<p class="mt-1 text-base font-semibold">{volume.driver}</p>
 							</div>
 						</div>
@@ -145,7 +145,7 @@
 								<ClockIcon class="size-5 text-green-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Created</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_created()}</p>
 								<p class="mt-1 text-base font-semibold">{createdDate}</p>
 							</div>
 						</div>
@@ -155,7 +155,7 @@
 								<GlobeIcon class="size-5 text-purple-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Scope</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_scope()}</p>
 								<p class="mt-1 text-base font-semibold capitalize">{volume.scope}</p>
 							</div>
 						</div>
@@ -165,12 +165,12 @@
 								<InfoIcon class="size-5 text-amber-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Status</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_status()}</p>
 								<p class="mt-1 text-base font-semibold">
 									{#if volume.inUse}
-										<StatusBadge variant="green" text="In Use" />
+										<StatusBadge variant="green" text={m.common_in_use()} />
 									{:else}
-										<StatusBadge variant="amber" text="Unused" />
+										<StatusBadge variant="amber" text={m.common_unused()} />
 									{/if}
 								</p>
 							</div>
@@ -181,7 +181,7 @@
 								<LayersIcon class="size-5 text-teal-500" />
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="text-muted-foreground text-sm font-medium">Mountpoint</p>
+								<p class="text-muted-foreground text-sm font-medium">{m.common_mountpoint()}</p>
 								<div class="bg-muted/50 mt-2 rounded-lg border p-3">
 									<code class="break-all font-mono text-sm">{volume.mountpoint}</code>
 								</div>
@@ -195,9 +195,9 @@
 				<Card.Header class="pb-0">
 					<Card.Title class="flex items-center gap-2 text-lg">
 						<HardDriveIcon class="text-primary size-5" />
-						Containers Using This Volume
+						{m.volumes_containers_using_title()}
 					</Card.Title>
-					<Card.Description>List of containers currently referencing this volume</Card.Description>
+					<Card.Description>{m.volumes_containers_using_description()}</Card.Description>
 				</Card.Header>
 				<Card.Content class="pt-6">
 					{#if containersDetailed.length > 0}
@@ -224,12 +224,12 @@
 							{#each volume.containers as id (id)}
 								<div class="flex items-center justify-between gap-3 p-3">
 									<code class="break-all font-mono text-sm">{truncateString(id, 48)}</code>
-									<a href={`/containers/${id}`} class="text-primary text-sm hover:underline">View</a>
+									<a href={`/containers/${id}`} class="text-primary text-sm hover:underline">{m.common_view()}</a>
 								</div>
 							{/each}
 						</div>
 					{:else}
-						<div class="text-muted-foreground">No containers are currently using this volume.</div>
+						<div class="text-muted-foreground">{m.volumes_no_containers_using()}</div>
 					{/if}
 				</Card.Content>
 			</Card.Root>
@@ -239,9 +239,9 @@
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
 							<TagIcon class="text-primary size-5" />
-							Labels
+							{m.common_labels()}
 						</Card.Title>
-						<Card.Description>User-defined metadata attached to this volume</Card.Description>
+						<Card.Description>{m.volumes_labels_description()}</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
@@ -265,9 +265,9 @@
 					<Card.Header class="pb-0">
 						<Card.Title class="flex items-center gap-2 text-lg">
 							<HardDriveIcon class="text-primary size-5" />
-							Driver Options
+							{m.common_driver_options()}
 						</Card.Title>
-						<Card.Description>Volume driver-specific options</Card.Description>
+						<Card.Description>{m.volumes_driver_options_description()}</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-6">
 						<div class="bg-card divide-y rounded-lg border">
@@ -293,7 +293,7 @@
 							<div class="bg-muted/30 mb-4 rounded-full p-3">
 								<TagIcon class="text-muted-foreground size-5 opacity-50" />
 							</div>
-							<p class="text-muted-foreground">This volume has no additional labels or driver options.</p>
+							<p class="text-muted-foreground">{m.volumes_no_labels_or_options()}</p>
 						</div>
 					</Card.Content>
 				</Card.Root>
@@ -304,10 +304,10 @@
 			<div class="bg-muted/30 mb-4 rounded-full p-4">
 				<DatabaseIcon class="text-muted-foreground size-10 opacity-70" />
 			</div>
-			<h2 class="mb-2 text-xl font-medium">Volume Not Found</h2>
-			<p class="text-muted-foreground mb-6">The requested volume could not be found or is no longer available.</p>
+			<h2 class="mb-2 text-xl font-medium">{m.volumes_not_found_title()}</h2>
+			<p class="text-muted-foreground mb-6">{m.volumes_not_found_description()}</p>
 
-			<ArcaneButton action="cancel" customLabel="Back to Volumes" onclick={() => goto('/volumes')} size="sm" />
+			<ArcaneButton action="cancel" customLabel={m.common_back_to_volumes()} onclick={() => goto('/volumes')} size="sm" />
 		</div>
 	{/if}
 </div>

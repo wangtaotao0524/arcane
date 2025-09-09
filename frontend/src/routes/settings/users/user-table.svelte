@@ -15,6 +15,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		users = $bindable(),
@@ -38,10 +39,10 @@
 		if (selectedIds.length === 0) return;
 
 		openConfirmDialog({
-			title: `Delete ${selectedIds.length} User${selectedIds.length > 1 ? 's' : ''}`,
-			message: `Are you sure you want to delete the selected user${selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.`,
+			title: m.users_delete_selected_title({ count: selectedIds.length }),
+			message: m.users_delete_selected_message({ count: selectedIds.length }),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
@@ -52,7 +53,7 @@
 						const result = await tryCatch(userAPI.delete(userId));
 						handleApiResultWithCallbacks({
 							result,
-							message: `Failed to delete user ${userId}`,
+							message: m.users_delete_selected_item_failed({ id: userId }),
 							setLoadingState: () => {},
 							onSuccess: () => {
 								successCount++;
@@ -67,12 +68,14 @@
 					isLoading.removing = false;
 
 					if (successCount > 0) {
-						toast.success(`Successfully deleted ${successCount} user${successCount > 1 ? 's' : ''}`);
+						const msg = successCount === 1 ? m.users_delete_success_one() : m.users_delete_success_many({ count: successCount });
+						toast.success(msg);
 						await onUsersChanged();
 					}
 
 					if (failureCount > 0) {
-						toast.error(`Failed to delete ${failureCount} user${failureCount > 1 ? 's' : ''}`);
+						const msg = failureCount === 1 ? m.users_delete_failed_one() : m.users_delete_failed_many({ count: failureCount });
+						toast.error(msg);
 					}
 
 					selectedIds = [];
@@ -82,20 +85,21 @@
 	}
 
 	async function handleDeleteUser(userId: string, username: string) {
+		const safeName = username?.trim() || m.common_unknown();
 		openConfirmDialog({
-			title: `Delete User "${username}"`,
-			message: `Are you sure you want to delete the user "${username}"? This action cannot be undone.`,
+			title: m.users_delete_user_title({ username: safeName }),
+			message: m.users_delete_user_message({ username: safeName }),
 			confirm: {
-				label: 'Delete',
+				label: m.common_delete(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
 					handleApiResultWithCallbacks({
 						result: await tryCatch(userAPI.delete(userId)),
-						message: `Failed to delete user "${username}"`,
+						message: m.users_delete_user_failed({ username: safeName }),
 						setLoadingState: (value) => (isLoading.removing = value),
 						onSuccess: async () => {
-							toast.success(`User "${username}" deleted successfully.`);
+							toast.success(m.users_delete_user_success({ username: safeName }));
 							await onUsersChanged();
 						}
 					});
@@ -110,15 +114,15 @@
 	}
 
 	function getRoleText(roles: string[]) {
-		if (roles?.includes('admin')) return 'Admin';
-		return 'User';
+		if (roles?.includes('admin')) return m.common_admin();
+		return m.common_user();
 	}
 
 	const columns = [
-		{ accessorKey: 'username', title: 'Username', sortable: true, cell: UsernameCell },
-		{ accessorKey: 'displayName', title: 'Display Name', sortable: true, cell: DisplayNameCell },
-		{ accessorKey: 'email', title: 'Email', sortable: true, cell: EmailCell },
-		{ accessorKey: 'roles', title: 'Role', sortable: true, cell: RoleCell }
+		{ accessorKey: 'username', title: m.common_username(), sortable: true, cell: UsernameCell },
+		{ accessorKey: 'displayName', title: m.common_display_name(), sortable: true, cell: DisplayNameCell },
+		{ accessorKey: 'email', title: m.common_email(), sortable: true, cell: EmailCell },
+		{ accessorKey: 'roles', title: m.common_role(), sortable: true, cell: RoleCell }
 	] satisfies ColumnSpec<User>[];
 </script>
 
@@ -143,7 +147,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -153,12 +157,12 @@
 				{#if !item.oidcSubjectId}
 					<DropdownMenu.Item onclick={() => onEditUser(item)}>
 						<EditIcon class="size-4" />
-						Edit
+						{m.common_edit()}
 					</DropdownMenu.Item>
 				{/if}
 				<DropdownMenu.Item variant="destructive" onclick={() => handleDeleteUser(item.id, item.username)}>
 					<Trash2Icon class="size-4" />
-					Delete
+					{m.common_delete()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

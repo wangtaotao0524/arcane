@@ -15,6 +15,7 @@
 	import type { ContainerRegistry } from '$lib/types/container-registry.type';
 	import type { ColumnSpec } from '$lib/components/arcane-table';
 	import { format } from 'date-fns';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		registries = $bindable(),
@@ -34,10 +35,10 @@
 	});
 
 	function getRegistryDisplayName(url: string) {
-		if (!url || url === 'docker.io') return 'Docker Hub';
-		if (url.includes('ghcr.io')) return 'GitHub Container Registry';
-		if (url.includes('gcr.io')) return 'Google Container Registry';
-		if (url.includes('quay.io')) return 'Quay.io Registry';
+		if (!url || url === 'docker.io') return m.registry_docker_hub();
+		if (url.includes('ghcr.io')) return m.registry_github_container_registry();
+		if (url.includes('gcr.io')) return m.registry_google_container_registry();
+		if (url.includes('quay.io')) return m.registry_quay_io();
 		return url;
 	}
 
@@ -45,10 +46,10 @@
 		if (!ids?.length) return;
 
 		openConfirmDialog({
-			title: `Remove ${ids.length} Registr${ids.length === 1 ? 'y' : 'ies'}`,
-			message: `Are you sure you want to remove the selected registr${ids.length === 1 ? 'y' : 'ies'}? This action cannot be undone.`,
+			title: m.registries_remove_selected_title({ count: ids.length }),
+			message: m.registries_remove_selected_message({ count: ids.length }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
@@ -60,17 +61,17 @@
 						const result = await tryCatch(containerRegistryAPI.deleteRegistry(id));
 						if (result.error) {
 							failureCount++;
-							toast.error(`Failed to delete registry "${reg?.url ?? id}"`);
+							toast.error(m.registries_delete_failed({ url: reg?.url ?? m.common_unknown() }));
 						} else {
 							successCount++;
 						}
 					}
 
 					if (successCount > 0) {
-						toast.success(`Removed ${successCount} registr${successCount === 1 ? 'y' : 'ies'}`);
+						toast.success(m.registries_bulk_remove_success({ count: successCount }));
 						registries = await containerRegistryAPI.getRegistries(requestOptions);
 					}
-					if (failureCount > 0) toast.error(`Failed to remove ${failureCount}`);
+					if (failureCount > 0) toast.error(m.registries_bulk_remove_failed({ count: failureCount }));
 
 					selectedIds = [];
 					isLoading.removing = false;
@@ -80,11 +81,12 @@
 	}
 
 	async function handleDeleteOne(id: string, url: string) {
+		const safeUrl = url ?? m.common_unknown();
 		openConfirmDialog({
-			title: 'Remove Registry',
-			message: `Are you sure you want to remove the registry "${url}"? This action cannot be undone.`,
+			title: m.registries_remove_title(),
+			message: m.registries_remove_message({ url: safeUrl }),
 			confirm: {
-				label: 'Remove',
+				label: m.common_remove(),
 				destructive: true,
 				action: async () => {
 					isLoading.removing = true;
@@ -92,10 +94,10 @@
 					const result = await tryCatch(containerRegistryAPI.deleteRegistry(id));
 					handleApiResultWithCallbacks({
 						result,
-						message: `Failed to remove registry "${url}"`,
+						message: m.registries_delete_failed({ url: safeUrl }),
 						setLoadingState: () => {},
 						onSuccess: async () => {
-							toast.success(`Registry "${url}" removed successfully.`);
+							toast.success(m.registries_delete_success({ url: safeUrl }));
 							registries = await containerRegistryAPI.getRegistries(requestOptions);
 						}
 					});
@@ -108,48 +110,49 @@
 
 	async function handleTest(id: string, url: string) {
 		isLoading.testing = true;
+		const safeUrl = url ?? m.common_unknown();
 		const result = await tryCatch(containerRegistryAPI.testRegistry(id));
 		handleApiResultWithCallbacks({
 			result,
-			message: `Failed to test registry "${url}"`,
+			message: m.registries_test_failed({ url: safeUrl }),
 			setLoadingState: () => {},
 			onSuccess: (resp) => {
-				const msg = (resp as any)?.message || 'Connection successful';
-				toast.success(`Registry test passed: ${msg}`);
+				const msg = (resp as any)?.message ?? m.common_unknown();
+				toast.success(m.registries_test_success({ url: safeUrl, message: msg }));
 			}
 		});
 		isLoading.testing = false;
 	}
 
 	const columns = [
-		{ accessorKey: 'id', title: 'ID', hidden: true },
+		{ accessorKey: 'id', title: m.common_id(), hidden: true },
 		{
 			accessorKey: 'url',
-			title: 'Registry URL',
+			title: m.registries_url(),
 			sortable: true,
 			cell: UrlCell
 		},
 		{
 			accessorKey: 'username',
-			title: 'Username',
+			title: m.common_username(),
 			sortable: true,
 			cell: UsernameCell
 		},
 		{
 			accessorKey: 'description',
-			title: 'Description',
+			title: m.common_description(),
 			sortable: true,
 			cell: DescriptionCell
 		},
 		{
 			accessorKey: 'enabled',
-			title: 'Status',
+			title: m.common_status(),
 			sortable: true,
 			cell: StatusCell
 		},
 		{
 			accessorKey: 'createdAt',
-			title: 'Created',
+			title: m.common_created(),
 			sortable: true,
 			cell: CreatedCell
 		}
@@ -164,11 +167,11 @@
 {/snippet}
 
 {#snippet UsernameCell({ value }: { value: unknown })}
-	<span class="font-mono text-sm">{(value as string) || '-'}</span>
+	<span class="font-mono text-sm">{String(value ?? m.common_na())}</span>
 {/snippet}
 
 {#snippet DescriptionCell({ value }: { value: unknown })}
-	<span class="text-muted-foreground text-sm">{(value as string) || 'No description provided'}</span>
+	<span class="text-muted-foreground text-sm">{String(value ?? m.common_no_description())}</span>
 {/snippet}
 
 {#snippet StatusCell({ value }: { value: unknown })}
@@ -178,12 +181,12 @@
 			? 'bg-green-100 text-green-800'
 			: 'bg-gray-100 text-gray-800'}"
 	>
-		{enabled ? 'Enabled' : 'Disabled'}
+		{enabled ? m.common_enabled() : m.common_disabled()}
 	</span>
 {/snippet}
 
 {#snippet CreatedCell({ value }: { value: unknown })}
-	<span class="text-sm">{value ? format(new Date(String(value)), 'PP p') : 'N/A'}</span>
+	<span class="text-sm">{value ? format(new Date(String(value)), 'PP p') : m.common_na()}</span>
 {/snippet}
 
 {#snippet RowActions({ item }: { item: ContainerRegistry })}
@@ -191,7 +194,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
-					<span class="sr-only">Open menu</span>
+					<span class="sr-only">{m.common_open_menu()}</span>
 					<EllipsisIcon />
 				</Button>
 			{/snippet}
@@ -200,19 +203,19 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => handleTest(item.id, item.url)} disabled={isLoading.testing}>
 					<TestTubeIcon class="size-4" />
-					Test Connection
+					{m.registries_test_connection()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item onclick={() => onEditRegistry(item)}>
 					<PencilIcon class="size-4" />
-					Edit
+					{m.common_edit()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item
-					class="text-red-500 focus:text-red-700!"
+					class="focus:text-red-700! text-red-500"
 					onclick={() => handleDeleteOne(item.id, item.url)}
 					disabled={isLoading.removing}
 				>
 					<Trash2Icon class="size-4" />
-					Remove
+					{m.common_remove()}
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

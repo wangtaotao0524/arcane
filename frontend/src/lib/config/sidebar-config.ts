@@ -13,6 +13,7 @@ import ShieldIcon from '@lucide/svelte/icons/shield';
 import ComputerIcon from '@lucide/svelte/icons/computer';
 import LockKeyholeIcon from '@lucide/svelte/icons/lock-keyhole';
 import AlarmClockIcon from '@lucide/svelte/icons/alarm-clock';
+import { m } from '$lib/paraglide/messages';
 
 export type SidebarItem = {
 	title: string;
@@ -23,47 +24,47 @@ export type SidebarItem = {
 
 export const sidebarItems: Record<string, SidebarItem[]> = {
 	managementItems: [
-		{ title: 'Dashboard', url: '/dashboard', icon: HouseIcon },
-		{ title: 'Containers', url: '/containers', icon: ContainerIcon },
-		{ title: 'Projects', url: '/compose', icon: FileStackIcon },
-		{ title: 'Images', url: '/images', icon: ImageIcon },
-		{ title: 'Networks', url: '/networks', icon: NetworkIcon },
-		{ title: 'Volumes', url: '/volumes', icon: HardDriveIcon }
+		{ title: m.dashboard_title(), url: '/dashboard', icon: HouseIcon },
+		{ title: m.containers_title(), url: '/containers', icon: ContainerIcon },
+		{ title: m.compose_title(), url: '/compose', icon: FileStackIcon },
+		{ title: m.images_title(), url: '/images', icon: ImageIcon },
+		{ title: m.networks_title(), url: '/networks', icon: NetworkIcon },
+		{ title: m.volumes_title(), url: '/volumes', icon: HardDriveIcon }
 	],
 	customizationItems: [
 		{
-			title: 'Templates',
+			title: m.templates_title(),
 			url: '/customize/templates',
 			icon: LayoutTemplateIcon
 		},
 		{
-			title: 'Container Registries',
+			title: m.registries_title(),
 			url: '/customize/registries',
 			icon: LockKeyholeIcon
 		}
 	],
 	environmentItems: [
 		{
-			title: 'Environments',
+			title: m.environments_title(),
 			url: '/environments',
 			icon: ComputerIcon
 		}
 	],
 	settingsItems: [
 		{
-			title: 'Events',
+			title: m.events_title(),
 			url: '/events',
 			icon: AlarmClockIcon
 		},
 		{
-			title: 'Settings',
+			title: m.sidebar_settings(),
 			url: '/settings',
 			icon: SettingsIcon,
 			items: [
-				{ title: 'General', url: '/settings/general', icon: SettingsIcon },
-				{ title: 'Docker', url: '/settings/docker', icon: DatabaseIcon },
-				{ title: 'Users', url: '/settings/users', icon: UserIcon },
-				{ title: 'Security', url: '/settings/security', icon: ShieldIcon }
+				{ title: m.general_title(), url: '/settings/general', icon: SettingsIcon },
+				{ title: m.docker_title(), url: '/settings/docker', icon: DatabaseIcon },
+				{ title: m.users_title(), url: '/settings/users', icon: UserIcon },
+				{ title: m.security_title(), url: '/settings/security', icon: ShieldIcon }
 			]
 		}
 	]

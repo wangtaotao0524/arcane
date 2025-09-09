@@ -6,6 +6,7 @@
 	import { toast } from 'svelte-sonner';
 	import userStore from '$lib/stores/user-store';
 	import type { User } from '$lib/types/user.type';
+	import { m } from '$lib/paraglide/messages';
 
 	let isProcessing = $state(true);
 	let error = $state('');
@@ -21,11 +22,11 @@
 			localStorage.removeItem('oidc_redirect');
 
 			if (errorParam) {
-				let userMessage = 'Authentication was cancelled or failed.';
+				let userMessage = m.auth_oidc_provider_error();
 				if (errorParam === 'access_denied') {
-					userMessage = 'Access was denied. You may have cancelled the login or lack permission.';
+					userMessage = m.auth_oidc_access_denied();
 				} else if (errorParam === 'invalid_request') {
-					userMessage = 'Invalid authentication request. Please try again.';
+					userMessage = m.auth_oidc_invalid_request();
 				}
 
 				error = errorDescription || userMessage;
@@ -35,7 +36,7 @@
 			}
 
 			if (!code || !stateFromUrl) {
-				error = 'Invalid authentication response. Missing required parameters.';
+				error = m.auth_oidc_invalid_response();
 				setTimeout(() => goto('/auth/login?error=oidc_invalid_response'), 3000);
 				isProcessing = false;
 				return;
@@ -44,11 +45,11 @@
 			const authResult = await oidcAPI.handleCallback(code, stateFromUrl);
 
 			if (!authResult.success) {
-				let userMessage = 'Authentication failed. Please try again.';
+				let userMessage = m.auth_oidc_auth_failed();
 				if (authResult.error?.includes('state')) {
-					userMessage = 'Security validation failed. Please try logging in again.';
+					userMessage = m.auth_oidc_state_mismatch();
 				} else if (authResult.error?.includes('expired')) {
-					userMessage = 'Authentication session expired. Please try again.';
+					userMessage = m.auth_oidc_session_expired();
 				}
 
 				error = userMessage;
@@ -68,26 +69,26 @@
 						authResult.user.given_name ||
 						authResult.user.preferred_username ||
 						authResult.user.email ||
-						'User',
+						m.common_unknown(),
 					roles: authResult.user.groups || ['user'],
 					createdAt: new Date().toISOString()
 				};
 
 				userStore.setUser(user);
 				await invalidateAll();
-				toast.success(`Welcome Back, ${user.displayName}`);
+				toast.success(m.auth_welcome_back_toast({ name: user.displayName ?? m.common_unknown() }));
 				goto(redirectTo, { replaceState: true });
 			} else {
-				error = 'Authentication succeeded but user information is missing.';
+				error = m.auth_oidc_user_info_missing();
 				setTimeout(() => goto('/auth/login?error=oidc_user_info_missing'), 3000);
 				isProcessing = false;
 			}
 		} catch (err: any) {
 			console.error('OIDC callback error:', err);
 
-			let userMessage = 'An error occurred during authentication. Please try again.';
+			let userMessage = m.auth_oidc_callback_error();
 			if (err.message?.includes('network') || err.message?.includes('timeout')) {
-				userMessage = 'Network error during authentication. Please check your connection and try again.';
+				userMessage = m.auth_oidc_network_error();
 			}
 
 			error = userMessage;
@@ -97,15 +98,15 @@
 	});
 </script>
 
-<svelte:head><title>Arcane</title></svelte:head>
+<svelte:head><title>{m.layout_title()}</title></svelte:head>
 
 <div class="bg-background flex min-h-screen items-center justify-center">
 	<div class="w-full max-w-md space-y-8">
 		<div class="text-center">
 			{#if isProcessing}
 				<div class="border-primary mx-auto h-12 w-12 animate-spin rounded-full border-b-2"></div>
-				<h2 class="mt-6 text-2xl font-bold">Processing Login...</h2>
-				<p class="text-muted-foreground mt-2 text-sm">Please wait while we complete your authentication.</p>
+				<h2 class="mt-6 text-2xl font-bold">{m.auth_processing_login()}</h2>
+				<p class="text-muted-foreground mt-2 text-sm">{m.auth_processing_login_description()}</p>
 			{:else if error}
 				<div class="text-destructive">
 					<svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,9 +117,9 @@
 							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.341 16.5c-.77.833.192 2.5 1.732 2.5z"
 						/>
 					</svg>
-					<h2 class="mt-6 text-2xl font-bold">Authentication Error</h2>
+					<h2 class="mt-6 text-2xl font-bold">{m.auth_authentication_error_title()}</h2>
 					<p class="mt-2 text-sm">{error}</p>
-					<p class="text-muted-foreground mt-4 text-xs">Redirecting you back to login...</p>
+					<p class="text-muted-foreground mt-4 text-xs">{m.auth_redirecting_to_login()}</p>
 				</div>
 			{/if}
 		</div>

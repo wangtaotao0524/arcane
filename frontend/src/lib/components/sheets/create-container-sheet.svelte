@@ -15,6 +15,7 @@
 	import { z } from 'zod/v4';
 	import { createForm, preventDefault } from '$lib/utils/form.utils';
 	import SelectWithLabel from '../form/select-with-label.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	type CreateContainerFormProps = {
 		open: boolean;
@@ -35,15 +36,15 @@
 	}: CreateContainerFormProps = $props();
 
 	const restartPolicies = [
-		{ value: 'no', label: 'No' },
-		{ value: 'always', label: 'Always' },
-		{ value: 'unless-stopped', label: 'Unless Stopped' },
-		{ value: 'on-failure', label: 'On Failure' }
+		{ value: 'no', label: m.restart_policy_no() },
+		{ value: 'always', label: m.restart_policy_always() },
+		{ value: 'unless-stopped', label: m.restart_policy_unless_stopped() },
+		{ value: 'on-failure', label: m.restart_policy_on_failure() }
 	];
 
 	const formSchema = z.object({
-		containerName: z.string().min(1, 'Container name is required'),
-		image: z.string().min(1, 'Image is required'),
+		containerName: z.string().min(1, m.container_name_required()),
+		image: z.string().min(1, m.container_image_required()),
 		command: z.string().optional().default(''),
 		workingDir: z.string().optional().default(''),
 		user: z.string().optional().default(''),
@@ -288,10 +289,8 @@
 						<ContainerIcon class="text-primary size-5" />
 					</div>
 					<div>
-						<Sheet.Title class="text-xl font-semibold">Create New Container</Sheet.Title>
-						<Sheet.Description class="text-muted-foreground mt-1 text-sm"
-							>Configure and create a new Docker container.</Sheet.Description
-						>
+						<Sheet.Title class="text-xl font-semibold">{m.create_container_title()}</Sheet.Title>
+						<Sheet.Description class="text-muted-foreground mt-1 text-sm">{m.create_container_description()}</Sheet.Description>
 					</div>
 				</div>
 			</div>
@@ -300,12 +299,12 @@
 			<div class="flex-1">
 				<Tabs.Root value="basic" class="flex h-full flex-col">
 					<Tabs.List class="bg-muted/30 grid w-full shrink-0 grid-cols-6 border-b">
-						<Tabs.Trigger value="basic" class="py-3">Basic</Tabs.Trigger>
-						<Tabs.Trigger value="environment" class="py-3">Environment</Tabs.Trigger>
-						<Tabs.Trigger value="ports" class="py-3">Ports</Tabs.Trigger>
-						<Tabs.Trigger value="volumes" class="py-3">Volumes</Tabs.Trigger>
-						<Tabs.Trigger value="network" class="py-3">Network & Security</Tabs.Trigger>
-						<Tabs.Trigger value="advanced" class="py-3">Advanced</Tabs.Trigger>
+						<Tabs.Trigger value="basic" class="py-3">{m.tabs_basic()}</Tabs.Trigger>
+						<Tabs.Trigger value="environment" class="py-3">{m.tabs_environment()}</Tabs.Trigger>
+						<Tabs.Trigger value="ports" class="py-3">{m.tabs_ports()}</Tabs.Trigger>
+						<Tabs.Trigger value="volumes" class="py-3">{m.tabs_volumes()}</Tabs.Trigger>
+						<Tabs.Trigger value="network" class="py-3">{m.tabs_network_security()}</Tabs.Trigger>
+						<Tabs.Trigger value="advanced" class="py-3">{m.tabs_advanced()}</Tabs.Trigger>
 					</Tabs.List>
 
 					<div class="flex-1 overflow-y-auto">
@@ -315,11 +314,11 @@
 								<Tabs.Content value="basic" class="mt-0 space-y-8 p-6">
 									<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 										<div class="space-y-3">
-											<Label for="container-name" class="text-sm font-medium">Container Name *</Label>
+											<Label for="container-name" class="text-sm font-medium">{m.container_name_label()}</Label>
 											<Input
 												id="container-name"
 												type="text"
-												placeholder="e.g., my-app-container"
+												placeholder={m.container_name_placeholder()}
 												disabled={isLoading}
 												bind:value={$inputs.containerName.value}
 												class={$inputs.containerName.error ? 'border-destructive' : ''}
@@ -327,15 +326,15 @@
 											{#if $inputs.containerName.error}
 												<p class="text-destructive mt-1 text-xs">{$inputs.containerName.error}</p>
 											{/if}
-											<p class="text-muted-foreground text-xs">Unique name for the container</p>
+											<p class="text-muted-foreground text-xs">{m.container_name_description()}</p>
 										</div>
 
 										<div class="space-y-3">
-											<Label for="image" class="text-sm font-medium">Image *</Label>
+											<Label for="image" class="text-sm font-medium">{m.container_image_label()}</Label>
 											<Input
 												id="image"
 												type="text"
-												placeholder="e.g., nginx:latest"
+												placeholder={m.container_image_placeholder()}
 												disabled={isLoading}
 												bind:value={$inputs.image.value}
 												class={$inputs.image.error ? 'border-destructive' : ''}
@@ -343,16 +342,16 @@
 											{#if $inputs.image.error}
 												<p class="text-destructive mt-1 text-xs">{$inputs.image.error}</p>
 											{/if}
-											<p class="text-muted-foreground text-xs">Docker image to use for the container</p>
+											<p class="text-muted-foreground text-xs">{m.container_image_description()}</p>
 										</div>
 									</div>
 
 									<div class="space-y-3">
 										<FormInput
-											label="Command"
+											label={m.container_command_label()}
 											type="text"
-											placeholder="e.g., /bin/bash -c 'echo hello'"
-											description="Command to run in the container"
+											placeholder={m.container_command_placeholder()}
+											description={m.container_command_description()}
 											disabled={isLoading}
 											bind:input={$inputs.command}
 										/>
@@ -361,10 +360,10 @@
 									<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 										<div class="space-y-3">
 											<FormInput
-												label="Working Directory"
+												label={m.container_working_directory_label()}
 												type="text"
-												placeholder="/app"
-												description="Working directory inside the container"
+												placeholder={m.container_working_directory_placeholder()}
+												description={m.container_working_directory_description()}
 												disabled={isLoading}
 												bind:input={$inputs.workingDir}
 											/>
@@ -372,10 +371,10 @@
 
 										<div class="space-y-3">
 											<FormInput
-												label="User"
+												label={m.container_user_label()}
 												type="text"
-												placeholder="1000:1000"
-												description="User to run the container as"
+												placeholder={m.container_user_placeholder()}
+												description={m.container_user_description()}
 												disabled={isLoading}
 												bind:input={$inputs.user}
 											/>
@@ -383,9 +382,9 @@
 
 										<div class="space-y-3">
 											<FormInput
-												label="Hostname"
+												label={m.container_hostname_label()}
 												type="text"
-												placeholder="my-container"
+												placeholder={m.container_hostname_placeholder()}
 												disabled={isLoading}
 												bind:input={$inputs.hostname}
 											/>
@@ -393,9 +392,9 @@
 
 										<div class="space-y-3">
 											<FormInput
-												label="Domain Name"
+												label={m.container_domain_label()}
 												type="text"
-												placeholder="example.com"
+												placeholder={m.container_domain_placeholder()}
 												disabled={isLoading}
 												bind:input={$inputs.domainname}
 											/>
@@ -403,31 +402,31 @@
 									</div>
 
 									<div class="space-y-4 rounded-lg border p-6">
-										<h4 class="text-sm font-semibold">I/O Settings</h4>
+										<h4 class="text-sm font-semibold">{m.io_settings_title()}</h4>
 										<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 											<div class="flex items-center space-x-2">
 												<Checkbox id="attach-stdout" bind:checked={$inputs.attachStdout.value} disabled={isLoading} />
-												<Label for="attach-stdout" class="text-sm font-normal">Attach Stdout</Label>
+												<Label for="attach-stdout" class="text-sm font-normal">{m.io_attach_stdout()}</Label>
 											</div>
 											<div class="flex items-center space-x-2">
 												<Checkbox id="attach-stderr" bind:checked={$inputs.attachStderr.value} disabled={isLoading} />
-												<Label for="attach-stderr" class="text-sm font-normal">Attach Stderr</Label>
+												<Label for="attach-stderr" class="text-sm font-normal">{m.io_attach_stderr()}</Label>
 											</div>
 											<div class="flex items-center space-x-2">
 												<Checkbox id="attach-stdin" bind:checked={$inputs.attachStdin.value} disabled={isLoading} />
-												<Label for="attach-stdin" class="text-sm font-normal">Attach Stdin</Label>
+												<Label for="attach-stdin" class="text-sm font-normal">{m.io_attach_stdin()}</Label>
 											</div>
 											<div class="flex items-center space-x-2">
 												<Checkbox id="tty" bind:checked={$inputs.tty.value} disabled={isLoading} />
-												<Label for="tty" class="text-sm font-normal">Allocate TTY</Label>
+												<Label for="tty" class="text-sm font-normal">{m.io_allocate_tty()}</Label>
 											</div>
 											<div class="flex items-center space-x-2">
 												<Checkbox id="open-stdin" bind:checked={$inputs.openStdin.value} disabled={isLoading} />
-												<Label for="open-stdin" class="text-sm font-normal">Open Stdin</Label>
+												<Label for="open-stdin" class="text-sm font-normal">{m.io_open_stdin()}</Label>
 											</div>
 											<div class="flex items-center space-x-2">
 												<Checkbox id="stdin-once" bind:checked={$inputs.stdinOnce.value} disabled={isLoading} />
-												<Label for="stdin-once" class="text-sm font-normal">Stdin Once</Label>
+												<Label for="stdin-once" class="text-sm font-normal">{m.io_stdin_once()}</Label>
 											</div>
 										</div>
 									</div>
@@ -438,7 +437,7 @@
 									<div class="grid grid-cols-1 gap-8 xl:grid-cols-2">
 										<div class="space-y-6">
 											<div>
-												<h3 class="mb-4 text-lg font-semibold">Dynamic Environment Variables</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.env_dynamic_title()}</h3>
 												<div class="space-y-3">
 													{#each envVars as env, index (index)}
 														<div class="flex items-center gap-3">
@@ -466,7 +465,7 @@
 														class="w-full"
 													>
 														<PlusIcon class="mr-2 size-4" />
-														Add Environment Variable
+														{m.add_env_var_button()}
 													</Button>
 												</div>
 											</div>
@@ -474,10 +473,10 @@
 
 										<div class="space-y-6">
 											<div>
-												<h3 class="mb-4 text-lg font-semibold">Text Format Environment Variables</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.env_text_format_title()}</h3>
 												<div class="space-y-3">
 													<Textarea
-														placeholder="NODE_ENV=production&#10;PORT=3000&#10;DEBUG=true"
+														placeholder={m.env_text_placeholder()}
 														disabled={isLoading}
 														rows={12}
 														bind:value={$inputs.environmentVars.value}
@@ -486,9 +485,7 @@
 													{#if $inputs.environmentVars.error}
 														<p class="text-destructive text-xs">{$inputs.environmentVars.error}</p>
 													{/if}
-													<p class="text-muted-foreground text-xs">
-														Enter environment variables as KEY=value pairs, one per line
-													</p>
+													<p class="text-muted-foreground text-xs">{m.env_text_description()}</p>
 												</div>
 											</div>
 										</div>
@@ -500,12 +497,12 @@
 									<div class="grid grid-cols-1 gap-8 xl:grid-cols-2">
 										<div class="space-y-6">
 											<div>
-												<h3 class="mb-4 text-lg font-semibold">Port Mappings</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.port_mappings_title()}</h3>
 												<div class="space-y-3">
 													{#each portMappings as mapping, index (index)}
 														<div class="flex items-center gap-3">
 															<div class="flex flex-1 items-center gap-2">
-																<div class="text-muted-foreground min-w-12 text-sm whitespace-nowrap">Host:</div>
+																<div class="text-muted-foreground min-w-12 whitespace-nowrap text-sm">{m.port_label_host()}</div>
 																<Input
 																	type="text"
 																	placeholder="8080"
@@ -516,7 +513,9 @@
 															</div>
 															<span class="text-muted-foreground">→</span>
 															<div class="flex flex-1 items-center gap-2">
-																<div class="text-muted-foreground min-w-20 text-sm whitespace-nowrap">Container:</div>
+																<div class="text-muted-foreground min-w-20 whitespace-nowrap text-sm">
+																	{m.port_label_container()}
+																</div>
 																<Input
 																	type="text"
 																	placeholder="80"
@@ -554,7 +553,7 @@
 														class="w-full"
 													>
 														<PlusIcon class="mr-2 size-4" />
-														Add Port Mapping
+														{m.add_port_mapping_button()}
 													</Button>
 												</div>
 											</div>
@@ -562,20 +561,20 @@
 
 										<div class="space-y-6">
 											<div>
-												<h3 class="mb-4 text-lg font-semibold">Port Configuration</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.port_configuration_title()}</h3>
 												<div class="space-y-4">
 													<FormInput
-														label="Exposed Ports"
+														label={m.exposed_ports_label()}
 														type="text"
-														placeholder="80,443,8080/tcp"
-														description="Comma-separated list of ports to expose"
+														placeholder={m.exposed_ports_placeholder()}
+														description={m.exposed_ports_description()}
 														disabled={isLoading}
 														bind:input={$inputs.exposedPorts}
 													/>
 
 													<div class="flex items-center space-x-2 pt-2">
 														<Checkbox id="publish-all" bind:checked={$inputs.publishAllPorts.value} disabled={isLoading} />
-														<Label for="publish-all" class="text-sm font-normal">Publish All Ports</Label>
+														<Label for="publish-all" class="text-sm font-normal">{m.publish_all_ports_label()}</Label>
 													</div>
 												</div>
 											</div>
@@ -588,7 +587,7 @@
 									<div class="grid grid-cols-1 gap-8 xl:grid-cols-2">
 										<div class="space-y-6">
 											<div>
-												<h3 class="mb-4 text-lg font-semibold">Volume Mounts</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.volume_mounts_title()}</h3>
 												<div class="space-y-3">
 													{#each volumeMounts as mount, index (index)}
 														<div class="space-y-2">
@@ -621,7 +620,7 @@
 															</div>
 															<div class="flex items-center space-x-2 pl-3">
 																<Checkbox bind:checked={mount.readonly} disabled={isLoading} />
-																<Label class="text-sm font-normal">Read Only</Label>
+																<Label class="text-sm font-normal">{m.read_only_label()}</Label>
 															</div>
 														</div>
 													{/each}
@@ -634,7 +633,7 @@
 														class="w-full"
 													>
 														<PlusIcon class="mr-2 size-4" />
-														Add Volume Mount
+														{m.add_volume_mount_button()}
 													</Button>
 												</div>
 											</div>
@@ -642,10 +641,10 @@
 
 										<div class="space-y-6">
 											<div>
-												<h3 class="mb-4 text-lg font-semibold">Text Format Volume Binds</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.volumes_text_title()}</h3>
 												<div class="space-y-3">
 													<Textarea
-														placeholder="/host/path:/container/path&#10;/host/path2:/container/path2:ro&#10;myvolume:/app/data"
+														placeholder={m.volumes_text_placeholder()}
 														disabled={isLoading}
 														rows={12}
 														bind:value={$inputs.volumes.value}
@@ -654,9 +653,7 @@
 													{#if $inputs.volumes.error}
 														<p class="text-destructive text-xs">{$inputs.volumes.error}</p>
 													{/if}
-													<p class="text-muted-foreground text-xs">
-														Enter volume binds as source:destination[:options], one per line
-													</p>
+													<p class="text-muted-foreground text-xs">{m.volumes_text_description()}</p>
 												</div>
 											</div>
 										</div>
@@ -668,11 +665,11 @@
 									<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 										<div class="space-y-6">
 											<div class="rounded-lg border p-6">
-												<h3 class="mb-4 text-lg font-semibold">Network Settings</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.network_settings_title()}</h3>
 												<div class="space-y-4">
 													<div class="flex items-center space-x-3">
 														<Checkbox id="network-disabled" bind:checked={$inputs.networkDisabled.value} disabled={isLoading} />
-														<Label for="network-disabled" class="text-sm font-normal">Disable Network</Label>
+														<Label for="network-disabled" class="text-sm font-normal">{m.disable_network_label()}</Label>
 													</div>
 													<div class="flex items-center space-x-3">
 														<Checkbox
@@ -680,7 +677,7 @@
 															bind:checked={$inputs.publishAllPorts.value}
 															disabled={isLoading}
 														/>
-														<Label for="publish-all-ports-net" class="text-sm font-normal">Publish All Ports</Label>
+														<Label for="publish-all-ports-net" class="text-sm font-normal">{m.publish_all_ports_label()}</Label>
 													</div>
 												</div>
 											</div>
@@ -688,19 +685,19 @@
 
 										<div class="space-y-6">
 											<div class="rounded-lg border p-6">
-												<h3 class="mb-4 text-lg font-semibold">Security Settings</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.security_settings_title()}</h3>
 												<div class="space-y-4">
 													<div class="flex items-center space-x-3">
 														<Checkbox id="privileged" bind:checked={$inputs.privileged.value} disabled={isLoading} />
-														<Label for="privileged" class="text-sm font-normal">Privileged</Label>
+														<Label for="privileged" class="text-sm font-normal">{m.privileged_label()}</Label>
 													</div>
 													<div class="flex items-center space-x-3">
 														<Checkbox id="readonly-rootfs" bind:checked={$inputs.readonlyRootfs.value} disabled={isLoading} />
-														<Label for="readonly-rootfs" class="text-sm font-normal">Read-only Root Filesystem</Label>
+														<Label for="readonly-rootfs" class="text-sm font-normal">{m.readonly_rootfs_label()}</Label>
 													</div>
 													<div class="flex items-center space-x-3">
 														<Checkbox id="auto-remove" bind:checked={$inputs.autoRemove.value} disabled={isLoading} />
-														<Label for="auto-remove" class="text-sm font-normal">Auto Remove</Label>
+														<Label for="auto-remove" class="text-sm font-normal">{m.auto_remove_label()}</Label>
 													</div>
 												</div>
 											</div>
@@ -713,29 +710,29 @@
 									<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 										<div class="space-y-6">
 											<div class="rounded-lg border p-6">
-												<h3 class="mb-4 text-lg font-semibold">Restart Policy</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.restart_policy_title()}</h3>
 												<div class="space-y-4">
 													<SelectWithLabel
 														id="restart-policy"
 														bind:value={$inputs.restartPolicy.value}
-														label="Restart Policy"
-														description="Container restart behavior"
+														label={m.restart_policy_label()}
+														description={m.restart_policy_description()}
 														options={restartPolicies}
 														placeholder="Select restart policy"
 													/>
 
 													{#if $inputs.restartPolicy.value === 'on-failure'}
 														<div class="space-y-3">
-															<Label for="max-retries" class="text-sm font-medium">Maximum Retry Count</Label>
+															<Label for="max-retries" class="text-sm font-medium">{m.max_retry_label()}</Label>
 															<Input
 																id="max-retries"
 																type="number"
 																min="0"
-																placeholder="5"
+																placeholder={m.max_retry_placeholder()}
 																disabled={isLoading}
 																bind:value={$inputs.restartMaxRetries.value}
 															/>
-															<p class="text-muted-foreground text-xs">Maximum number of restart attempts</p>
+															<p class="text-muted-foreground text-xs">{m.max_retry_description()}</p>
 														</div>
 													{/if}
 												</div>
@@ -744,7 +741,7 @@
 
 										<div class="space-y-6">
 											<div class="rounded-lg border p-6">
-												<h3 class="mb-4 text-lg font-semibold">Labels</h3>
+												<h3 class="mb-4 text-lg font-semibold">{m.common_labels()}</h3>
 												<div class="space-y-3">
 													<Textarea
 														placeholder="com.example.description=My application&#10;com.example.version=1.0.0&#10;com.example.maintainer=admin@example.com"
@@ -756,7 +753,7 @@
 													{#if $inputs.labels.error}
 														<p class="text-destructive text-xs">{$inputs.labels.error}</p>
 													{/if}
-													<p class="text-muted-foreground text-xs">Enter metadata labels as key=value pairs, one per line</p>
+													<p class="text-muted-foreground text-xs">{m.containers_labels_description()}</p>
 												</div>
 											</div>
 										</div>
@@ -767,14 +764,16 @@
 							<!-- Footer -->
 							<div class="bg-background shrink-0 border-t p-6">
 								<div class="flex flex-row justify-end gap-3">
-									<Button type="button" variant="outline" onclick={() => (open = false)} disabled={isLoading}>Cancel</Button>
+									<Button type="button" variant="outline" onclick={() => (open = false)} disabled={isLoading}
+										>{m.common_cancel()}</Button
+									>
 									<Button type="submit" disabled={isLoading}>
 										{#if isLoading}
 											<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
-											Creating...
+											{m.containers_creating()}
 										{:else}
 											<ContainerIcon class="mr-2 size-4" />
-											Create Container
+											{m.containers_create_button()}
 										{/if}
 									</Button>
 								</div>
