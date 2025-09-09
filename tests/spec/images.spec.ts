@@ -64,7 +64,7 @@ test.describe('Images Page', () => {
     await page.goto('/images');
     await page.waitForLoadState('networkidle');
     await page.locator('button:has-text("Pull Image")').first().click();
-    await expect(page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Pull Docker Image")')).toBeVisible();
+    await expect(page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Pull Image")')).toBeVisible();
   });
 
   test('should open the Prune Unused Images dialog', async ({ page }) => {
@@ -143,7 +143,7 @@ test.describe('Images Page', () => {
     await page.waitForLoadState('networkidle');
 
     await page.locator('button:has-text("Pull Image")').first().click();
-    await expect(page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Pull Docker Image")')).toBeVisible();
+    await expect(page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Pull Image")')).toBeVisible();
 
     const imageNameFull = 'ghcr.io/linuxserver/nginx:latest';
     const imageName = 'ghcr.io/linuxserver/nginx';
