@@ -37,7 +37,8 @@
 	const currentLocale = getLocale();
 	const locales: Record<string, string> = {
 		en: 'English',
-		es: 'Español'
+		es: 'Español',
+		nl: 'Nederlands'
 	};
 
 	async function updateLocale(locale: Locale) {
