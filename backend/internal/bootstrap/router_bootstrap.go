@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"log/slog"
-	"net/http"
 	"path"
 	"strings"
 
@@ -34,8 +33,8 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 		"GET /img",
 		"GET /fonts",
 		"GET /api/system/stats",
-		"GET /health",
-		"HEAD /health",
+		"GET /api/health",
+		"HEAD /api/health",
 	}
 
 	router.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{
@@ -62,11 +61,6 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 	corsMiddleware := middleware.NewCORSMiddleware(cfg).Add()
 	router.Use(corsMiddleware)
 
-	// TODO :- Refactor to a api endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "UP"})
-	})
-
 	apiGroup := router.Group("/api")
 
 	if cfg.AgentMode {
@@ -74,6 +68,7 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 		return router
 	}
 
+	api.NewHealthHandler(apiGroup)
 	api.NewAuthHandler(apiGroup, appServices.User, appServices.Auth, appServices.Oidc, authMiddleware)
 	api.NewContainerHandler(apiGroup, appServices.Container, appServices.Image, authMiddleware)
 	api.NewContainerRegistryHandler(apiGroup, appServices.ContainerRegistry, authMiddleware)
