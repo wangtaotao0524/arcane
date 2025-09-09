@@ -17,6 +17,7 @@ jobs:
 
     env:
       DOCKER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/arcane
+      AGENT_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/arcane-headless
 
     steps:
       - name: Checkout
@@ -43,8 +44,11 @@ jobs:
         with:
           go-version-file: backend/go.mod
 
-      - name: Build backend binaries
-        run: bash ./script/development/build-binaries.sh
+      - name: Build manager binaries
+        run: bash scripts/development/build-binaries.sh
+
+      - name: Build agent binaries
+        run: bash scripts/development/build-binaries.sh --agent
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -52,8 +56,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Lowercase image name (owner)
-        run: echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+      - name: Lowercase image names
+        run: |
+          echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "AGENT_IMAGE_NAME=${AGENT_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -62,8 +68,8 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
+      - name: Docker metadata (manager)
+        id: meta-manager
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.DOCKER_IMAGE_NAME }}
@@ -72,31 +78,59 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},prefix=v
             type=semver,pattern={{major}},prefix=v
 
-      - name: Build and push image
-        id: container-build-push
+      - name: Docker metadata (agent)
+        id: meta-agent
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.AGENT_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
+            type=semver,pattern={{major}},prefix=v
+
+      - name: Build and push manager image
+        id: build-manager
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=release
-          cache-to: type=gha,scope=release,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
+          tags: ${{ steps.meta-manager.outputs.tags }}
+          labels: ${{ steps.meta-manager.outputs.labels }}
+          cache-from: type=gha,scope=release-manager
+          cache-to: type=gha,scope=release-manager,mode=max
+
+      - name: Build and push agent image
+        id: build-agent
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile-agent
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-agent.outputs.tags }}
+          labels: ${{ steps.meta-agent.outputs.labels }}
+          cache-from: type=gha,scope=release-agent
+          cache-to: type=gha,scope=release-agent,mode=max
 
       - name: Binary attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'backend/.bin/*'
 
-      - name: Container image attestation
+      - name: Container image attestation (manager)
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
-          subject-digest: ${{ steps.container-build-push.outputs.digest }}
+          subject-digest: ${{ steps.build-manager.outputs.digest }}
+          push-to-registry: true
+
+      - name: Container image attestation (agent)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: '${{ env.AGENT_IMAGE_NAME }}'
+          subject-digest: ${{ steps.build-agent.outputs.digest }}
           push-to-registry: true
 
       - name: Create GitHub Release
