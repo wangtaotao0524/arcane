@@ -1,63 +1,85 @@
 # Contributing to Arcane
 
-Thank you for your interest in contributing to Arcane! We welcome contributions from the community to help make Arcane better. Whether it's reporting a bug, suggesting a feature, or writing code, your help is appreciated.
+Thanks for helping make Arcane better! Contributions of all kinds are welcome.
 
 ## Ways to Contribute
 
-- **Reporting Bugs:** If you encounter a bug, please help us by submitting a detailed bug report. Use the [**Bug Report**](https://github.com/ofkm/arcane/issues/new?template=bug.yml) template on GitHub.
-- **Suggesting Features:** Have an idea for a new feature or an enhancement? We'd love to hear it! Use the [**Feature Request**](https://github.com/ofkm/arcane/issues/new?template=feature.yml) template on GitHub.
-- **Code Contributions:** If you'd like to contribute code, please follow the process outlined below.
-- **Documentation:** Improvements to the documentation are always welcome.
+- Reporting bugs: use the GitHub templates — Bug Report and Feature Request.
+- Suggesting features or improvements.
+- Code contributions (frontend or backend).
 
-## Code Contribution Process
+## Quick Start
 
-1.  **Fork the Repository:** Start by forking the main Arcane repository on GitHub.
-2.  **Clone Your Fork:** Clone your forked repository to your local machine:
-    ```bash
-    git clone https://github.com/<your-username>/arcane.git
-    cd arcane
-    ```
-3.  **Create a Branch:** Create a new branch for your feature or bug fix. Use a descriptive name:
-    ```bash
-    git branch -m feature/my-new-feature
-    # or
-    git branch -m fix/issue-123
-    ```
-4.  **Set Up Development Environment:** Follow the instructions in the [**Building from Source**](./building.md) guide to install dependencies and ensure you can run the development server.
-    ```bash
-    npm install
-    npm run dev
-    ```
-5.  **Make Changes:** Implement your feature or bug fix. Write clear, concise code.
-6.  **Lint and Format:** Ensure your code adheres to the project's style guidelines by running the linters and formatters:
-    ```bash
-    npm run lint
-    npm run format
-    ```
-    Fix any issues reported.
-7.  **Commit Changes:** Commit your changes with a clear and descriptive commit message. Consider using [Conventional Commits](https://www.conventionalcommits.org/) if applicable.
-    ```bash
-    git add .
-    git commit -m "feat: Add feature X"
-    # or
-    git commit -m "fix: Resolve issue Y"
-    ```
-8.  **Keep Your Branch Updated:** Periodically update your branch with the latest changes from the upstream repository:
-    ```bash
-    git fetch upstream
-    git rebase upstream/main
-    ```
-9.  **Push Your Branch:** Push your changes to your forked repository:
-    ```bash
-    git push origin feature/my-new-feature
-    ```
-10. **Open a Pull Request:** Go to the original Arcane repository on GitHub and open a Pull Request (PR) from your branch to the main branch of the upstream repository.
-    - Provide a clear title and description for your PR.
-    - Reference any related issues (e.g., "Closes #123").
-    - Be prepared to discuss your changes and make adjustments based on feedback.
+Prereqs:
+
+- Go 1.25 and Docker
+- Node 24 and pnpm 10.15
+
+1. Fork and clone:
+
+   ```bash
+   git clone https://github.com/<your-username>/arcane.git
+   cd arcane
+   ```
+
+2. Create a branch:
+
+   ```bash
+   git switch -c feat/my-new-feature
+   # or
+   git switch -c fix/issue-123
+   ```
+
+3. Frontend (SvelteKit):
+
+   ```bash
+   cd frontend
+   pnpm install
+   pnpm dev
+   ```
+
+4. Backend (Go + Gin):
+
+   ```bash
+   go install github.com/air-verse/air@latest
+   cd backend
+   air
+   ```
 
 ## Code Style
 
-Arcane uses [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/) to enforce code style and consistency. Please run `npm run lint` and `npm run format` before committing your changes. Configuration files (`.eslint.config.js`, `.prettierrc`) are included in the repository.
+- Conventional Commits for messages:
 
-Thank you again for contributing to Arcane!
+  ```bash
+  git add .
+  git commit -m "feat: add X"
+  # or
+  git commit -m "fix: resolve Y"
+  ```
+
+- Frontend lint/format:
+
+  ```bash
+  cd frontend
+  pnpm check
+  pnpm format
+  ```
+
+- Backend basics:
+
+  ```bash
+  cd backend
+  go fmt ./...
+  go vet ./...
+  ```
+
+## Pull Requests
+
+- Keep changes focused and small when possible.
+- Include context in the PR description and link issues (e.g., “Closes #123”).
+- Be ready to iterate based on review feedback.
+
+## Issues & Feedback
+
+- Bug Report: https://github.com/ofkm/arcane/issues/new?template=bug.yml
+- Feature Request: https://github.com/ofkm/arcane/issues/new?template=feature.yml

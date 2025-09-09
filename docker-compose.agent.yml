@@ -1,22 +1,16 @@
 services:
   arcane-agent:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile-agent
-      target: agent
-      args:
-        BUILD_TAGS: exclude_frontend
-    image: arcane-agent:dev
+    image: ghcr.io/ofkm/arcane-headless:1.0-preview
     container_name: arcane-agent
     ports:
       - '3553:3553'
     environment:
       - AGENT_MODE=true
-      - AGENT_BOOTSTRAP_TOKEN=this-is-my-test-bs-token
+      - AGENT_BOOTSTRAP_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxx
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - agent-data:/app/data
     restart: unless-stopped
 
 volumes:
-  agent-data: {}
+  agent-data:

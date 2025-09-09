@@ -5,17 +5,23 @@
   <img src=".github/assets/arcane.svg" alt="Arcane Logo" width="300" height="300"/>
 </p>
 
-Arcane is a modern, web-based interface for managing your Docker environment, built with SvelteKit. It offers a clean, intuitive overview and powerful management tools for your containers, images, volumes, and networks—all in one place.
+Arcane is a modern easy to use way to manage your docker containers, images, volumes, and networks — all in one place.
 
 ---
 
-<img width="1685" alt="image" src="https://github.com/user-attachments/assets/9d081a4f-4f4f-4d96-b196-d25faf788285" />
+<img width="1685" alt="image" src=".github/assets/arcane-ss.jpeg" />
 
 ---
 
 ## Documentation
 
 For setup instructions, configuration details, and development guides, visit the **[official documentation site](https://arcane.ofkm.dev)**.
+
+---
+
+## Translating
+
+Help translate Arcane on Crowdin: https://crowdin.com/project/arcane-docker-management
 
 ---
 
