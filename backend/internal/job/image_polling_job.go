@@ -45,7 +45,7 @@ func RegisterImagePollingJob(ctx context.Context, scheduler *Scheduler, imageUpd
 
 	return scheduler.RegisterJob(
 		ctx,
-		"ArcaneImagePolling",
+		"image-polling",
 		jobDefinition,
 		job.Execute,
 		false,

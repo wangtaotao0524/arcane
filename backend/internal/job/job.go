@@ -50,33 +50,20 @@ func (s *Scheduler) RegisterJob(
 		gocron.WithContext(ctx),
 		gocron.WithEventListeners(
 			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
-				slog.InfoContext(ctx, "Job starting",
-					slog.String("name", name),
-					slog.String("id", jobID.String()),
-				)
+				slog.InfoContext(ctx, "Job starting", slog.String("name", name), slog.String("id", jobID.String()))
 			}),
 			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) {
-				slog.InfoContext(ctx, "Job finished successfully",
-					slog.String("name", name),
-					slog.String("id", jobID.String()),
-				)
+				slog.InfoContext(ctx, "Job finished successfully", slog.String("name", name), slog.String("id", jobID.String()))
 			}),
 			gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) {
-				slog.ErrorContext(ctx, "Job failed",
-					slog.String("name", name),
-					slog.String("id", jobID.String()),
-					slog.Any("error", err),
-				)
+				slog.ErrorContext(ctx, "Job failed", slog.String("name", name), slog.String("id", jobID.String()), slog.Any("error", err))
 			}),
 		),
 	}
 
 	task := gocron.NewTask(func() {
 		if err := taskFunc(ctx); err != nil {
-			slog.ErrorContext(ctx, "Error executing task function",
-				slog.String("name", name),
-				slog.Any("error", err),
-			)
+			slog.ErrorContext(ctx, "Error executing task function", slog.String("name", name), slog.Any("error", err))
 		}
 	})
 

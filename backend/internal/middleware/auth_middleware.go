@@ -12,6 +12,12 @@ import (
 	"github.com/ofkm/arcane-backend/internal/utils/cookie"
 )
 
+const (
+	headerAgentBootstrap = "X-Arcane-Agent-Bootstrap"
+	headerAgentToken     = "X-Arcane-Agent-Token"
+	agentPairingPrefix   = "/api/environments/0/agent/pair"
+)
+
 type AuthOptions struct {
 	AdminRequired   bool
 	SuccessOptional bool
@@ -50,85 +56,92 @@ func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m.cfg != nil && m.cfg.AgentMode {
-			// Allow OPTIONS preflight to pass through in agent mode
-			if c.Request.Method == http.MethodOptions {
-				c.Next()
-				return
-			}
-
-			// Allow pairing with bootstrap token
-			if strings.HasPrefix(c.Request.URL.Path, "/api/environments/0/agent/pair") &&
-				m.cfg.AgentBootstrapToken != "" &&
-				c.GetHeader("X-Arcane-Agent-Bootstrap") == m.cfg.AgentBootstrapToken {
-				slog.Info("Agent auth: bootstrap pairing accepted", "path", c.Request.URL.Path, "method", c.Request.Method)
-				agentSudo(c)
-				return
-			}
-
-			if tok := c.GetHeader("X-Arcane-Agent-Token"); tok != "" && m.cfg.AgentToken != "" && tok == m.cfg.AgentToken {
-				slog.Info("Agent auth: agent token accepted", "path", c.Request.URL.Path, "method", c.Request.Method)
-				agentSudo(c)
-				return
-			}
-
-			slog.Warn("Agent auth forbidden",
-				"path", c.Request.URL.Path,
-				"method", c.Request.Method,
-				"has_agent_token_hdr", c.GetHeader("X-Arcane-Agent-Token") != "",
-				"agent_token_config_set", m.cfg.AgentToken != "",
-				"has_bearer", c.GetHeader("Authorization") != "")
-
-			c.JSON(http.StatusForbidden, models.APIError{
-				Code:    "FORBIDDEN",
-				Message: "Invalid or missing agent token",
-			})
-			c.Abort()
+			m.agentAuth(c)
 			return
 		}
-
-		// Manager (normal) JWT mode
-		token := extractBearerOrCookieToken(c)
-		if token == "" {
-			if m.options.SuccessOptional {
-				c.Next()
-				return
-			}
-			c.JSON(http.StatusUnauthorized, models.APIError{
-				Code:    models.APIErrorCodeUnauthorized,
-				Message: "Authentication required",
-			})
-			c.Abort()
-			return
-		}
-
-		user, err := m.authService.VerifyToken(c.Request.Context(), token)
-		if err != nil {
-			if m.options.SuccessOptional {
-				c.Next()
-				return
-			}
-			c.JSON(http.StatusUnauthorized, models.APIError{
-				Code:    models.APIErrorCodeUnauthorized,
-				Message: "Invalid or expired token",
-			})
-			c.Abort()
-			return
-		}
-
-		isAdmin := userHasRole(user, "admin")
-		if m.options.AdminRequired && !isAdmin {
-			c.JSON(http.StatusForbidden, models.APIError{
-				Code:    "FORBIDDEN",
-				Message: "You don't have permission to access this resource",
-			})
-			c.Abort()
-			return
-		}
-		c.Set("userID", user.ID)
-		c.Set("currentUser", user)
-		c.Set("userIsAdmin", isAdmin)
-		c.Next()
+		m.managerAuth(c)
 	}
+}
+
+func (m *AuthMiddleware) agentAuth(c *gin.Context) {
+	if isPreflight(c) {
+		c.Next()
+		return
+	}
+
+	if strings.HasPrefix(c.Request.URL.Path, agentPairingPrefix) &&
+		m.cfg.AgentBootstrapToken != "" &&
+		c.GetHeader(headerAgentBootstrap) == m.cfg.AgentBootstrapToken {
+		slog.Info("Agent auth: bootstrap pairing accepted", "path", c.Request.URL.Path, "method", c.Request.Method)
+		agentSudo(c)
+		return
+	}
+
+	if tok := c.GetHeader(headerAgentToken); tok != "" && m.cfg.AgentToken != "" && tok == m.cfg.AgentToken {
+		agentSudo(c)
+		return
+	}
+
+	slog.Warn("Agent auth forbidden",
+		"path", c.Request.URL.Path,
+		"method", c.Request.Method,
+		"has_agent_token_hdr", c.GetHeader(headerAgentToken) != "",
+		"agent_token_config_set", m.cfg.AgentToken != "",
+	)
+	c.JSON(http.StatusForbidden, models.APIError{
+		Code:    "FORBIDDEN",
+		Message: "Invalid or missing agent token",
+	})
+	c.Abort()
+}
+
+func (m *AuthMiddleware) managerAuth(c *gin.Context) {
+	token := extractBearerOrCookieToken(c)
+	if token == "" {
+		if m.options.SuccessOptional {
+			c.Next()
+			return
+		}
+		c.JSON(http.StatusUnauthorized, models.APIError{
+			Code:    models.APIErrorCodeUnauthorized,
+			Message: "Authentication required",
+		})
+		c.Abort()
+		return
+	}
+
+	user, err := m.authService.VerifyToken(c.Request.Context(), token)
+	if err != nil {
+		if m.options.SuccessOptional {
+			c.Next()
+			return
+		}
+		c.JSON(http.StatusUnauthorized, models.APIError{
+			Code:    models.APIErrorCodeUnauthorized,
+			Message: "Invalid or expired token",
+		})
+		c.Abort()
+		return
+	}
+
+	isAdmin := userHasRole(user, "admin")
+	if m.options.AdminRequired && !isAdmin {
+		c.JSON(http.StatusForbidden, models.APIError{
+			Code:    "FORBIDDEN",
+			Message: "You don't have permission to access this resource",
+		})
+		c.Abort()
+		return
+	}
+
+	c.Set("userID", user.ID)
+	c.Set("currentUser", user)
+	c.Set("userIsAdmin", isAdmin)
+	c.Next()
+}
+
+func isPreflight(c *gin.Context) bool {
+	return c.Request.Method == http.MethodOptions
 }
 
 func agentSudo(c *gin.Context) {
