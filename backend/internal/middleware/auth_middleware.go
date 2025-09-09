@@ -9,6 +9,7 @@ import (
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/models"
 	"github.com/ofkm/arcane-backend/internal/services"
+	"github.com/ofkm/arcane-backend/internal/utils/cookie"
 )
 
 type AuthOptions struct {
@@ -64,7 +65,6 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 				return
 			}
 
-			// Require X-Arcane-Agent-Token
 			if tok := c.GetHeader("X-Arcane-Agent-Token"); tok != "" && m.cfg.AgentToken != "" && tok == m.cfg.AgentToken {
 				slog.Info("Agent auth: agent token accepted", "path", c.Request.URL.Path, "method", c.Request.Method)
 				agentSudo(c)
@@ -149,7 +149,7 @@ func extractBearerOrCookieToken(c *gin.Context) string {
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		return strings.TrimPrefix(authHeader, "Bearer ")
 	}
-	if tokenCookie, err := c.Cookie("token"); err == nil && tokenCookie != "" {
+	if tokenCookie, err := c.Cookie(cookie.TokenCookieName); err == nil && tokenCookie != "" {
 		return tokenCookie
 	}
 	return ""

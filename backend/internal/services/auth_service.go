@@ -18,13 +18,12 @@ import (
 )
 
 var (
-	ErrInvalidCredentials     = errors.New("invalid credentials")
-	ErrUserNotFound           = errors.New("user not found")
-	ErrInvalidToken           = errors.New("invalid token")
-	ErrExpiredToken           = errors.New("token expired")
-	ErrLocalAuthDisabled      = errors.New("local authentication is disabled")
-	ErrOidcAuthDisabled       = errors.New("OIDC authentication is disabled")
-	ErrPasswordChangeRequired = errors.New("password change required")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserNotFound       = errors.New("user not found")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrExpiredToken       = errors.New("token expired")
+	ErrLocalAuthDisabled  = errors.New("local authentication is disabled")
+	ErrOidcAuthDisabled   = errors.New("OIDC authentication is disabled")
 )
 
 type TokenPair struct {
@@ -180,10 +179,6 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 		} else {
 			fmt.Printf("Successfully upgraded password hash for user %s from bcrypt to Argon2\n", user.Username)
 		}
-	}
-
-	if user.RequirePasswordChange {
-		return user, nil, ErrPasswordChangeRequired
 	}
 
 	now := time.Now()
@@ -531,7 +526,6 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPasswor
 	}
 
 	user.PasswordHash = hashedPassword
-	user.RequirePasswordChange = false
 	_, err = s.userService.UpdateUser(ctx, user)
 	return err
 }

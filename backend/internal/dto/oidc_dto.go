@@ -38,3 +38,7 @@ type OidcStatusInfo struct {
 	EnvForced     bool `json:"envForced"`
 	EnvConfigured bool `json:"envConfigured"`
 }
+
+type OidcAuthUrlRequest struct {
+	RedirectUri string `json:"redirectUri"`
+}

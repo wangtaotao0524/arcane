@@ -7,7 +7,6 @@ export type User = {
 	roles: string[];
 	createdAt: string;
 	lastLogin?: string;
-	requirePasswordChange?: boolean;
 	updatedAt?: string;
 	oidcSubjectId?: string;
 };

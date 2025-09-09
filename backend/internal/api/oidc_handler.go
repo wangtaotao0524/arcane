@@ -8,6 +8,7 @@ import (
 	"github.com/ofkm/arcane-backend/internal/config"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/services"
+	"github.com/ofkm/arcane-backend/internal/utils/cookie"
 )
 
 type OidcHandler struct {
@@ -29,20 +30,6 @@ func NewOidcHandler(group *gin.RouterGroup, authService *services.AuthService, o
 	}
 }
 
-type OidcAuthUrlRequest struct {
-	RedirectUri string `json:"redirectUri"`
-}
-
-type OidcAuthUrlResponse struct {
-	AuthUrl string `json:"authUrl"`
-	State   string `json:"state"`
-}
-
-type OidcCallbackRequest struct {
-	Code  string `json:"code" binding:"required"`
-	State string `json:"state" binding:"required"`
-}
-
 func (h *OidcHandler) GetOidcStatus(c *gin.Context) {
 	status, err := h.authService.GetOidcConfigurationStatus(c.Request.Context())
 	if err != nil {
@@ -56,7 +43,7 @@ func (h *OidcHandler) GetOidcStatus(c *gin.Context) {
 }
 
 func (h *OidcHandler) GetOidcAuthUrl(c *gin.Context) {
-	var req OidcAuthUrlRequest
+	var req dto.OidcAuthUrlRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request format"})
@@ -79,15 +66,7 @@ func (h *OidcHandler) GetOidcAuthUrl(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-		"oidc_state",
-		stateCookieValue,
-		600, // 10 minutes
-		"/",
-		"",
-		c.Request.TLS != nil,
-		true,
-	)
+	cookie.CreateOidcStateCookie(c, stateCookieValue, 600)
 
 	c.JSON(http.StatusOK, gin.H{
 		"authUrl": authUrl,
@@ -105,13 +84,12 @@ func (h *OidcHandler) HandleOidcCallback(c *gin.Context) {
 		return
 	}
 
-	encodedStateFromCookie, err := c.Cookie("oidc_state")
+	encodedStateFromCookie, err := cookie.GetOidcStateCookie(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Missing or invalid OIDC state cookie"})
 		return
 	}
-
-	c.SetCookie("oidc_state", "", -1, "/", "", c.Request.TLS != nil, true)
+	cookie.ClearOidcStateCookie(c)
 
 	userInfo, tokenResp, err := h.oidcService.HandleCallback(c.Request.Context(), req.Code, req.State, encodedStateFromCookie)
 	if err != nil {
@@ -127,11 +105,7 @@ func (h *OidcHandler) HandleOidcCallback(c *gin.Context) {
 
 	c.SetSameSite(http.SameSiteLaxMode)
 	maxAge := int(time.Until(tokenPair.ExpiresAt).Seconds())
-	if maxAge < 0 {
-		maxAge = 0
-	}
-	secure := c.Request.TLS != nil
-	c.SetCookie("token", tokenPair.AccessToken, maxAge, "/", "", secure, true)
+	cookie.CreateTokenCookie(c, maxAge, tokenPair.AccessToken)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
