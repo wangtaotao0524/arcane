@@ -1,4 +1,4 @@
-name: Build Next Image
+name: Build Next Image (Manager)
 
 on:
   push:
