@@ -3,7 +3,7 @@ ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
 FROM node:24 AS frontend-builder
-RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 WORKDIR /build
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json ./frontend/package.json
