@@ -63,10 +63,6 @@ type Settings struct {
 	// Onboarding
 	OnboardingCompleted SettingVariable `key:"onboardingCompleted,public"`
 	OnboardingSteps     SettingVariable `key:"onboardingSteps"`
-
-	// Registries
-	RegistryCredentials SettingVariable `key:"registryCredentials,sensitive"`
-	TemplateRegistries  SettingVariable `key:"templateRegistries"`
 }
 
 func (SettingVariable) TableName() string {

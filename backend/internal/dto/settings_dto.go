@@ -32,8 +32,4 @@ type UpdateSettingsDto struct {
 	// Onboarding settings
 	OnboardingCompleted *string `json:"onboardingCompleted,omitempty"`
 	OnboardingSteps     *string `json:"onboardingSteps,omitempty"`
-
-	// Registry settings
-	RegistryCredentials *string `json:"registryCredentials,omitempty"`
-	TemplateRegistries  *string `json:"templateRegistries,omitempty"`
 }

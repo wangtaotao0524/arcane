@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	TokenCookieName     = "__Host-token"
+	TokenCookieName     = "__Host-token" // #nosec G101: cookie name label, not a credential
 	OidcStateCookieName = "oidc_state"
 )
 

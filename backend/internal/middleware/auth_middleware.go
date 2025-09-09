@@ -14,7 +14,7 @@ import (
 
 const (
 	headerAgentBootstrap = "X-Arcane-Agent-Bootstrap"
-	headerAgentToken     = "X-Arcane-Agent-Token"
+	headerAgentToken     = "X-Arcane-Agent-Token" // #nosec G101: header name, not a credential
 	agentPairingPrefix   = "/api/environments/0/agent/pair"
 )
 

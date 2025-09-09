@@ -75,10 +75,6 @@ func (s *SettingsService) getDefaultSettings() *models.Settings {
 		// Onboarding settings
 		OnboardingCompleted: models.SettingVariable{Value: "false"},
 		OnboardingSteps:     models.SettingVariable{Value: "[]"},
-
-		// Registry settings
-		RegistryCredentials: models.SettingVariable{Value: "[]"},
-		TemplateRegistries:  models.SettingVariable{Value: "[]"},
 	}
 }
 
