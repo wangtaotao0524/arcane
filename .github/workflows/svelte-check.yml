@@ -52,5 +52,8 @@ jobs:
       - name: Add svelte-check problem matcher
         run: echo "::add-matcher::.github/svelte-check-matcher.json"
 
+      - name: Build frontend
+        run: pnpm --filter arcane-frontend build
+
       - name: Run svelte-check
         run: pnpm --filter arcane-frontend check
