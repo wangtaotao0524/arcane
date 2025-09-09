@@ -20,133 +20,132 @@ import (
 var encryptionKey []byte
 
 func InitEncryption(cfg *config.Config) {
-	keyString := strings.TrimSpace(cfg.EncryptionKey)
-
-	// If an explicit key was provided, try to accept it (raw/base64/hex)
-	if keyString != "" {
-		clean := strings.TrimSpace(keyString)
-
-		if len(clean) == 32 {
-			encryptionKey = []byte(clean)
-		} else {
-			if b, err := base64.StdEncoding.DecodeString(clean); err == nil && len(b) == 32 {
-				encryptionKey = b
-			} else if b, err := base64.RawStdEncoding.DecodeString(clean); err == nil && len(b) == 32 {
-				encryptionKey = b
-			} else if b, err := hex.DecodeString(clean); err == nil && len(b) == 32 {
-				encryptionKey = b
-			} else {
-				panic(fmt.Sprintf("ENCRYPTION_KEY must be 32 bytes (raw/base64/hex). Provided=%d chars", len(clean)))
-			}
+	if keyStr := strings.TrimSpace(cfg.EncryptionKey); keyStr != "" {
+		key, err := parseExplicitKey(keyStr)
+		if err != nil {
+			panic(err.Error())
 		}
-
+		encryptionKey = key
 		if cfg.Environment != "production" {
 			slog.Info("Encryption initialized from explicit ENCRYPTION_KEY", "env", cfg.Environment, "key_length_bytes", len(encryptionKey))
 		}
 		return
 	}
 
-	// No explicit key provided
 	if cfg.AgentMode {
-		// For agent mode, persist a unique per-node key to local secure storage so each agent has its own key.
-		// Prefer user config dir but fall back to current working dir.
-		var dir string
-		if d, err := os.UserConfigDir(); err == nil && d != "" {
-			dir = filepath.Join(d, "arcane")
-		} else {
-			wd, err := os.Getwd()
-			if err != nil {
-				slog.Warn("Failed to get working directory for agent key storage; using temp dir", "err", err)
-				dir = os.TempDir()
-			} else {
-				dir = filepath.Join(wd, ".arcane")
-			}
-		}
-
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			// If we can't create the directory, log and continue using in-memory generated key
-			slog.Warn("Failed to create directory for agent encryption key; key may not persist", "dir", dir, "err", err)
-		}
-
-		keyPath := filepath.Join(dir, "agent_encryption_key")
-
-		// Try to read existing key
-		if data, err := os.ReadFile(keyPath); err == nil {
-			s := strings.TrimSpace(string(data))
-			if b, err := hex.DecodeString(s); err == nil && len(b) == 32 {
-				encryptionKey = b
-				slog.Info("Loaded agent encryption key from disk", "path", keyPath)
-				return
-			}
-			slog.Warn("Existing agent key found but invalid; will generate a new key", "path", keyPath, "err", err)
-			// fallthrough to generate new key and attempt to overwrite
-		} else if !os.IsNotExist(err) {
-			// if read failed for other reasons, log and continue to generate a new key (may not persist)
-			slog.Warn("Failed to read agent encryption key; will generate a new key", "path", keyPath, "err", err)
-		}
-
-		// Generate a new random 32-byte key
-		newKey := make([]byte, 32)
-		if _, err := crand.Read(newKey); err != nil {
-			// If we cannot get secure randomness, fallback to deterministic derivation as last resort
-			slog.Warn("crypto/rand failed; falling back to deterministic key derivation (not ideal)", "err", err)
-			sum := sha256.Sum256([]byte("arcane-agent-key"))
-			encryptionKey = sum[:]
-			return
-		}
-		encryptionKey = newKey
-
-		// Attempt atomic write: write to temp file in same dir then rename
-		tmpFile, err := os.CreateTemp(dir, "agent_key_")
+		key, err := loadOrCreateAgentKey()
 		if err != nil {
-			slog.Warn("Failed to create temp file to persist agent key; key will not persist", "path", keyPath, "err", err)
-			return
+			slog.Warn("Agent encryption key load/create returned an error; using in-memory key (may not persist)", "err", err)
 		}
-		tmpPath := tmpFile.Name()
-		hexEncoded := hex.EncodeToString(encryptionKey)
-		if _, err := tmpFile.WriteString(hexEncoded + "\n"); err != nil {
-			slog.Warn("Failed to write agent key to temp file; key will not persist", "tmp", tmpPath, "err", err)
-			tmpFile.Close()
-			_ = os.Remove(tmpPath)
-			return
-		}
-		if err := tmpFile.Sync(); err != nil {
-			slog.Warn("Failed to sync agent key temp file; key may not be persisted", "tmp", tmpPath, "err", err)
-			// continue with close/rename attempts
-		}
-		if err := tmpFile.Close(); err != nil {
-			slog.Warn("Failed to close agent key temp file; key may not persist", "tmp", tmpPath, "err", err)
-			_ = os.Remove(tmpPath)
-			return
-		}
-
-		// Ensure file mode 0600 after rename
-		if err := os.Rename(tmpPath, keyPath); err != nil {
-			slog.Warn("Failed to rename agent key temp file into place; key will not persist", "tmp", tmpPath, "dest", keyPath, "err", err)
-			_ = os.Remove(tmpPath)
-			return
-		}
-		if err := os.Chmod(keyPath, 0600); err != nil {
-			slog.Warn("Failed to set permissions on agent key file; permissions may be too permissive", "path", keyPath, "err", err)
-		}
-		slog.Info("Generated and persisted new agent encryption key", "path", keyPath)
+		encryptionKey = key
 		return
 	}
 
-	// Non-agent mode and no explicit key provided
 	if cfg.Environment == "production" {
-		// In production non-agent mode a key is required
 		panic("ENCRYPTION_KEY is required in production environment")
 	}
 
-	// Development fallback: derive deterministic key to avoid forcing env setup
-	{
-		slog.Warn("No ENCRYPTION_KEY provided; deriving development key")
-		sum := sha256.Sum256([]byte("arcane-dev-key"))
-		encryptionKey = sum[:]
-		slog.Info("Encryption initialized (derived development key)", "env", cfg.Environment, "key_length_bytes", len(encryptionKey))
-		return
+	encryptionKey = deriveDevKey()
+	slog.Info("Encryption initialized (derived development key)", "env", cfg.Environment, "key_length_bytes", len(encryptionKey))
+}
+
+func parseExplicitKey(in string) ([]byte, error) {
+	clean := strings.TrimSpace(in)
+	if len(clean) == 32 {
+		return []byte(clean), nil
 	}
+	if b, err := base64.StdEncoding.DecodeString(clean); err == nil && len(b) == 32 {
+		return b, nil
+	}
+	if b, err := base64.RawStdEncoding.DecodeString(clean); err == nil && len(b) == 32 {
+		return b, nil
+	}
+	if b, err := hex.DecodeString(clean); err == nil && len(b) == 32 {
+		return b, nil
+	}
+	return nil, fmt.Errorf("ENCRYPTION_KEY must be 32 bytes (raw/base64/hex). Provided=%d chars", len(clean))
+}
+
+func loadOrCreateAgentKey() ([]byte, error) {
+	dir := agentKeyDir()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		slog.Warn("Failed to create directory for agent encryption key; key may not persist", "dir", dir, "err", err)
+	}
+
+	keyPath := filepath.Join(dir, "agent_encryption_key")
+
+	if data, err := os.ReadFile(keyPath); err == nil {
+		if b, err := hex.DecodeString(strings.TrimSpace(string(data))); err == nil && len(b) == 32 {
+			slog.Info("Loaded agent encryption key from disk", "path", keyPath)
+			return b, nil
+		}
+		slog.Warn("Existing agent key invalid; will generate a new key", "path", keyPath)
+	} else if !os.IsNotExist(err) {
+		slog.Warn("Failed to read agent encryption key; will generate a new key", "path", keyPath, "err", err)
+	}
+
+	key := make([]byte, 32)
+	if _, err := crand.Read(key); err != nil {
+		slog.Warn("crypto/rand failed; falling back to deterministic key derivation (not ideal)", "err", err)
+		sum := sha256.Sum256([]byte("arcane-agent-key"))
+		key = sum[:]
+		return key, nil
+	}
+
+	if err := atomicWriteHexFile(keyPath, key, 0o600); err != nil {
+		slog.Warn("Failed to persist agent encryption key; using in-memory key (will regenerate next start)", "path", keyPath, "err", err)
+		return key, err
+	}
+
+	slog.Info("Generated and persisted new agent encryption key", "path", keyPath)
+	return key, nil
+}
+
+func agentKeyDir() string {
+	if d, err := os.UserConfigDir(); err == nil && d != "" {
+		return filepath.Join(d, "arcane")
+	}
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		return filepath.Join(wd, ".arcane")
+	}
+	return os.TempDir()
+}
+
+func atomicWriteHexFile(path string, key []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, "agent_key_")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := tmp.WriteString(hex.EncodeToString(key) + "\n"); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		// proceed, but return error if rename fails later
+		slog.Warn("Failed to sync agent key temp file; key may not be fully persisted", "tmp", tmpPath, "err", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	if err := os.Chmod(path, mode); err != nil {
+		// Non-fatal; permissions might be too permissive
+		slog.Warn("Failed to set permissions on agent key file", "path", path, "err", err)
+	}
+	return nil
+}
+
+func deriveDevKey() []byte {
+	sum := sha256.Sum256([]byte("arcane-dev-key"))
+	return sum[:]
 }
 
 func Encrypt(plaintext string) (string, error) {
