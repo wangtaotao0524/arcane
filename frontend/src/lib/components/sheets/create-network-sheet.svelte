@@ -1,0 +1,323 @@
+<script lang="ts">
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Accordion from '$lib/components/ui/accordion/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import XIcon from '@lucide/svelte/icons/x';
+	import type { NetworkCreateOptions } from 'dockerode';
+	import { z } from 'zod/v4';
+	import { createForm, preventDefault } from '$lib/utils/form.utils';
+	import SelectWithLabel from '../form/select-with-label.svelte';
+	import { m } from '$lib/paraglide/messages';
+
+	type CreateNetworkFormProps = {
+		open: boolean;
+		onSubmit: (data: NetworkCreateOptions) => void;
+		isLoading: boolean;
+	};
+
+	let { open = $bindable(false), onSubmit, isLoading }: CreateNetworkFormProps = $props();
+
+	const drivers = [
+		{ value: 'bridge', label: m.networks_bridge() },
+		{ value: 'overlay', label: m.networks_overlay() },
+		{ value: 'macvlan', label: m.networks_macvlan() },
+		{ value: 'ipvlan', label: m.networks_ipvlan() },
+		{ value: 'none', label: m.networks_none() }
+	];
+
+	const formSchema = z.object({
+		networkName: z.string().min(1, m.network_name_required()),
+		networkDriver: z.string().min(1, m.network_driver_required()),
+		checkDuplicate: z.boolean().default(true),
+		internal: z.boolean().default(false),
+		networkLabels: z.string().optional().default(''),
+		enableIpam: z.boolean().default(false),
+		subnet: z.string().optional().default(''),
+		gateway: z.string().optional().default('')
+	});
+
+	let formData = $derived({
+		networkName: '',
+		networkDriver: 'bridge',
+		checkDuplicate: true,
+		internal: false,
+		networkLabels: '',
+		enableIpam: false,
+		subnet: '',
+		gateway: ''
+	});
+
+	let { inputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, formData));
+
+	// Dynamic labels state for the key-value pairs
+	let labels = $state<{ key: string; value: string }[]>([{ key: '', value: '' }]);
+
+	function parseKeyValuePairs(text: string): Record<string, string> {
+		if (!text?.trim()) return {};
+
+		const result: Record<string, string> = {};
+		const lines = text.split('\n');
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (!trimmed || !trimmed.includes('=')) continue;
+
+			const [key, ...valueParts] = trimmed.split('=');
+			const value = valueParts.join('=');
+
+			if (key.trim()) {
+				result[key.trim()] = value.trim();
+			}
+		}
+
+		return result;
+	}
+
+	function addLabel() {
+		labels = [...labels, { key: '', value: '' }];
+	}
+
+	function removeLabel(index: number) {
+		labels = labels.filter((_, i) => i !== index);
+	}
+
+	function handleSubmit() {
+		const data = form.validate();
+		if (!data) return;
+
+		// Combine textarea labels with dynamic labels
+		const textareaLabels = parseKeyValuePairs(data.networkLabels || '');
+		const dynamicLabels: Record<string, string> = {};
+
+		labels.forEach((label) => {
+			if (label.key.trim()) {
+				dynamicLabels[label.key.trim()] = label.value.trim();
+			}
+		});
+
+		const finalLabels = { ...textareaLabels, ...dynamicLabels };
+
+		const options: NetworkCreateOptions = {
+			Name: data.networkName.trim(),
+			Driver: data.networkDriver,
+			CheckDuplicate: data.checkDuplicate,
+			Internal: data.internal,
+			Labels: Object.keys(finalLabels).length > 0 ? finalLabels : undefined
+		};
+
+		// Add IPAM configuration if enabled
+		if (data.enableIpam && (data.subnet?.trim() || data.gateway?.trim())) {
+			const ipamConfig: { Subnet?: string; Gateway?: string } = {};
+
+			if (data.subnet?.trim()) {
+				ipamConfig.Subnet = data.subnet.trim();
+			}
+			if (data.gateway?.trim()) {
+				ipamConfig.Gateway = data.gateway.trim();
+			}
+
+			if (Object.keys(ipamConfig).length > 0) {
+				options.IPAM = {
+					Driver: 'default',
+					Config: [ipamConfig]
+				};
+			}
+		}
+
+		onSubmit(options);
+	}
+
+	function handleOpenChange(newOpenState: boolean) {
+		open = newOpenState;
+		if (!newOpenState) {
+			// Reset form data
+			$inputs.networkName.value = '';
+			$inputs.networkDriver.value = 'bridge';
+			$inputs.checkDuplicate.value = true;
+			$inputs.internal.value = false;
+			$inputs.networkLabels.value = '';
+			$inputs.enableIpam.value = false;
+			$inputs.subnet.value = '';
+			$inputs.gateway.value = '';
+			labels = [{ key: '', value: '' }];
+		}
+	}
+</script>
+
+<Sheet.Root bind:open onOpenChange={handleOpenChange}>
+	<Sheet.Content class="p-6">
+		<Sheet.Header data-testid="create-network-dialog-header" class="space-y-3 border-b pb-6">
+			<div class="flex items-center gap-3">
+				<div class="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+					<NetworkIcon class="text-primary size-5" />
+				</div>
+				<div>
+					<Sheet.Title class="text-xl font-semibold">{m.create_network_title()}</Sheet.Title>
+					<Sheet.Description class="text-muted-foreground mt-1 text-sm">{m.create_network_description()}</Sheet.Description>
+				</div>
+			</div>
+		</Sheet.Header>
+
+		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
+			<div class="space-y-2">
+				<Label for="network-name" class="text-sm font-medium">{m.network_name_label()}</Label>
+				<Input
+					id="network-name"
+					type="text"
+					placeholder={m.network_name_placeholder()}
+					disabled={isLoading}
+					bind:value={$inputs.networkName.value}
+					class={$inputs.networkName.error ? 'border-destructive' : ''}
+				/>
+				{#if $inputs.networkName.error}
+					<p class="text-destructive text-xs">{$inputs.networkName.error}</p>
+				{/if}
+				<p class="text-muted-foreground text-xs">{m.network_name_description()}</p>
+			</div>
+
+			<SelectWithLabel
+				id="driver-select"
+				bind:value={$inputs.networkDriver.value}
+				label={m.network_driver_label()}
+				description={m.network_driver_description()}
+				options={drivers}
+				placeholder={m.network_driver_placeholder()}
+			/>
+
+			<div class="space-y-4">
+				<div class="flex items-center space-x-4">
+					<div class="flex items-center space-x-2">
+						<Checkbox id="check-duplicate" bind:checked={$inputs.checkDuplicate.value} disabled={isLoading} />
+						<Label for="check-duplicate" class="text-sm font-normal">{m.network_check_duplicate_label()}</Label>
+					</div>
+					<div class="flex items-center space-x-2">
+						<Checkbox id="internal" bind:checked={$inputs.internal.value} disabled={isLoading} />
+						<Label for="internal" class="text-sm font-normal">{m.network_internal_label()}</Label>
+					</div>
+				</div>
+			</div>
+
+			<Accordion.Root type="single" class="w-full">
+				<Accordion.Item value="labels">
+					<Accordion.Trigger class="text-sm font-medium">{m.networks_labels()}</Accordion.Trigger>
+					<Accordion.Content class="pt-4">
+						<div class="space-y-4">
+							<div class="space-y-2">
+								<Label class="text-sm font-medium">{m.labels_key_value_label()}</Label>
+								{#each labels as label, index (index)}
+									<div class="flex items-center gap-2">
+										<Input type="text" placeholder="Key" bind:value={label.key} disabled={isLoading} class="flex-1" />
+										<Input type="text" placeholder="Value" bind:value={label.value} disabled={isLoading} class="flex-1" />
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											onclick={() => removeLabel(index)}
+											disabled={isLoading || labels.length <= 1}
+											class="text-destructive hover:text-destructive"
+											title={m.common_remove()}
+										>
+											<XIcon class="size-4" />
+										</Button>
+									</div>
+								{/each}
+								<Button type="button" variant="outline" size="sm" onclick={addLabel} disabled={isLoading}
+									>{m.add_label_button()}</Button
+								>
+							</div>
+
+							<div class="space-y-2">
+								<Label for="network-labels" class="text-sm font-medium">{m.network_labels_text_label()}</Label>
+								<Textarea
+									id="network-labels"
+									placeholder={m.network_labels_placeholder()}
+									disabled={isLoading}
+									rows={3}
+									bind:value={$inputs.networkLabels.value}
+									class={$inputs.networkLabels.error ? 'border-destructive' : ''}
+								/>
+								{#if $inputs.networkLabels.error}
+									<p class="text-destructive text-xs">{$inputs.networkLabels.error}</p>
+								{/if}
+								<p class="text-muted-foreground text-xs">{m.network_labels_description()}</p>
+							</div>
+						</div>
+					</Accordion.Content>
+				</Accordion.Item>
+
+				<Accordion.Item value="ipam">
+					<Accordion.Trigger class="text-sm font-medium">{m.networks_ipam_title()}</Accordion.Trigger>
+					<Accordion.Content class="pt-4">
+						<div class="space-y-4">
+							<div class="flex items-center space-x-2">
+								<Checkbox id="enable-ipam" bind:checked={$inputs.enableIpam.value} disabled={isLoading} />
+								<Label for="enable-ipam" class="text-sm font-medium">{m.network_enable_ipam_label()}</Label>
+							</div>
+
+							{#if $inputs.enableIpam.value}
+								<div class="border-muted space-y-4 border-l-2 pl-6">
+									<div class="space-y-2">
+										<Label for="subnet" class="text-sm font-medium">{m.networks_ipam_subnet_label()}</Label>
+										<Input
+											id="subnet"
+											type="text"
+											placeholder="e.g., 172.20.0.0/16"
+											disabled={isLoading}
+											bind:value={$inputs.subnet.value}
+											class={$inputs.subnet.error ? 'border-destructive' : ''}
+										/>
+										{#if $inputs.subnet.error}
+											<p class="text-destructive text-xs">{$inputs.subnet.error}</p>
+										{/if}
+										<p class="text-muted-foreground text-xs">{m.network_subnet_description()}</p>
+									</div>
+
+									<div class="space-y-2">
+										<Label for="gateway" class="text-sm font-medium">{m.networks_ipam_gateway_label()}</Label>
+										<Input
+											id="gateway"
+											type="text"
+											placeholder="e.g., 172.20.0.1"
+											disabled={isLoading}
+											bind:value={$inputs.gateway.value}
+											class={$inputs.gateway.error ? 'border-destructive' : ''}
+										/>
+										{#if $inputs.gateway.error}
+											<p class="text-destructive text-xs">{$inputs.gateway.error}</p>
+										{/if}
+										<p class="text-muted-foreground text-xs">{m.network_gateway_description()}</p>
+									</div>
+								</div>
+							{/if}
+						</div>
+					</Accordion.Content>
+				</Accordion.Item>
+			</Accordion.Root>
+
+			<Sheet.Footer class="flex flex-row gap-2">
+				<Button
+					type="button"
+					class="arcane-button-cancel flex-1"
+					variant="outline"
+					onclick={() => (open = false)}
+					disabled={isLoading}>{m.common_cancel()}</Button
+				>
+				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
+					{#if isLoading}
+						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
+						{m.networks_creating()}
+					{:else}
+						<NetworkIcon class="mr-2 size-4" />
+						{m.networks_create_button()}
+					{/if}
+				</Button>
+			</Sheet.Footer>
+		</form>
+	</Sheet.Content>
+</Sheet.Root>

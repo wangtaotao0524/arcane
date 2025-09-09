@@ -1,0 +1,112 @@
+<script lang="ts">
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';
+	import ArchiveXIcon from '@lucide/svelte/icons/archive-x';
+	import { toast } from 'svelte-sonner';
+	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
+	import { tryCatch } from '$lib/utils/try-catch';
+	import CreateVolumeSheet from '$lib/components/sheets/create-volume-sheet.svelte';
+	import type { VolumeCreateOptions } from 'dockerode';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
+	import { environmentAPI } from '$lib/services/api';
+	import StatCard from '$lib/components/stat-card.svelte';
+	import VolumeTable from './volume-table.svelte';
+	import { m } from '$lib/paraglide/messages';
+
+	let { data } = $props();
+
+	let volumes = $state(data.volumes);
+	let requestOptions = $state(data.volumeRequestOptions);
+	let selectedIds = $state<string[]>([]);
+	let isCreateDialogOpen = $state(false);
+
+	let isLoading = $state({
+		creating: false,
+		refresh: false,
+		removingSelected: false
+	});
+
+	const totalVolumes = $derived(volumes.data.length);
+	const usedVolumes = $derived(volumes.data.filter((v) => v.inUse).length);
+	const unusedVolumes = $derived(volumes.data.filter((v) => !v.inUse).length);
+
+	async function handleCreateVolumeSubmit(options: VolumeCreateOptions) {
+		isLoading.creating = true;
+		const name = options.Name?.trim() || m.common_unknown();
+		handleApiResultWithCallbacks({
+			result: await tryCatch(environmentAPI.createVolume(options)),
+			message: m.volumes_create_failed({ name }),
+			setLoadingState: (value) => (isLoading.creating = value),
+			onSuccess: async () => {
+				toast.success(m.volumes_created_success({ name }));
+				volumes = await environmentAPI.getVolumes(requestOptions);
+				isCreateDialogOpen = false;
+			}
+		});
+	}
+
+	async function refreshVolumes() {
+		isLoading.refresh = true;
+		handleApiResultWithCallbacks({
+			result: await tryCatch(environmentAPI.getVolumes(requestOptions)),
+			message: m.volumes_refresh_failed(),
+			setLoadingState: (value) => (isLoading.refresh = value),
+			async onSuccess(newVolumes) {
+				volumes = newVolumes;
+			}
+		});
+	}
+</script>
+
+<div class="space-y-6">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+		<div>
+			<h1 class="text-3xl font-bold tracking-tight">{m.volumes_title()}</h1>
+			<p class="text-muted-foreground mt-1 text-sm">{m.volumes_subtitle()}</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<ArcaneButton
+				action="create"
+				customLabel={m.volumes_create_button()}
+				onclick={() => (isCreateDialogOpen = true)}
+				loading={isLoading.creating}
+				disabled={isLoading.creating}
+			/>
+			<ArcaneButton
+				action="restart"
+				onclick={refreshVolumes}
+				customLabel={m.common_refresh()}
+				loading={isLoading.refresh}
+				disabled={isLoading.refresh}
+			/>
+		</div>
+	</div>
+
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+		<StatCard
+			title={m.volumes_stat_total()}
+			value={totalVolumes}
+			icon={HardDriveIcon}
+			iconColor="text-blue-500"
+			class="border-l-4 border-l-blue-500"
+		/>
+		<StatCard
+			title={m.volumes_stat_used()}
+			value={usedVolumes}
+			icon={ArchiveRestoreIcon}
+			iconColor="text-green-500"
+			class="border-l-4 border-l-green-500"
+		/>
+		<StatCard
+			title={m.volumes_stat_unused()}
+			value={unusedVolumes}
+			icon={ArchiveXIcon}
+			iconColor="text-red-500"
+			class="border-l-4 border-l-red-500"
+		/>
+	</div>
+
+	<VolumeTable bind:volumes bind:selectedIds bind:requestOptions />
+
+	<CreateVolumeSheet bind:open={isCreateDialogOpen} isLoading={isLoading.creating} onSubmit={handleCreateVolumeSubmit} />
+</div>

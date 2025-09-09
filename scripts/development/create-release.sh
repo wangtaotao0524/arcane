@@ -1,6 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Check if the script is being run from the root of the project
-if [ ! -f .version ] || [ ! -f package.json ] || [ ! -f CHANGELOG.md ]; then
+if [ ! -f .version ] || [ ! -f frontend/package.json ] || [ ! -f CHANGELOG.md ]; then
     echo "Error: This script must be run from the root of the project."
+    exit 1
+fi
+
+# Check if conventional-changelog is installed, if not install it
+if ! command -v conventional-changelog &>/dev/null; then
+    echo "conventional-changelog not found, installing..."
+    npm install -g conventional-changelog-cli
+    if ! command -v conventional-changelog &>/dev/null; then
+        echo "Error: Failed to install conventional-changelog-cli."
+        exit 1
+    fi
+fi
+
+# Check if GitHub CLI is installed
+if ! command -v gh &>/dev/null; then
+    echo "Error: GitHub CLI (gh) is not installed. Please install it and authenticate using 'gh auth login'."
+    exit 1
+fi
+
+# Check if we're on the main branch
+if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
+    echo "Error: This script must be run on the main branch."
     exit 1
 fi
 
@@ -26,17 +51,29 @@ increment_version() {
     echo "${parts[0]}.${parts[1]}.${parts[2]}"
 }
 
+# Parse command line arguments
+FORCE_MAJOR=false
+for arg in "$@"; do
+    case $arg in
+    --major)
+        FORCE_MAJOR=true
+        shift
+        ;;
+    *)
+        ;;
+    esac
+done
+
 # Determine the release type
-if [ "$1" == "major" ]; then
+if [ "$FORCE_MAJOR" == true ]; then
     RELEASE_TYPE="major"
 else
-    # Get the latest tag
-    LATEST_TAG=$(git describe --tags --abbrev=0)
-
-    # Check for "feat" or "fix" in the commit messages since the latest tag
-    if git log "$LATEST_TAG"..HEAD --oneline | grep -E "feat(\(.*\))?:" | grep -q .; then
+    LATEST_TAG=$(git describe --tags --abbrev=0 || echo "")
+    if [ -z "$LATEST_TAG" ]; then
         RELEASE_TYPE="minor"
-    elif git log "$LATEST_TAG"..HEAD --oneline | grep -E "fix(\(.*\))?:" | grep -q .; then
+    elif git log "$LATEST_TAG"..HEAD --oneline | grep -q "feat"; then
+        RELEASE_TYPE="minor"
+    elif git log "$LATEST_TAG"..HEAD --oneline | grep -q "fix"; then
         RELEASE_TYPE="patch"
     else
         echo "No 'fix' or 'feat' commits found since the latest release. No new release will be created."
@@ -47,13 +84,13 @@ fi
 # Increment the version based on the release type
 if [ "$RELEASE_TYPE" == "major" ]; then
     echo "Performing major release..."
-    NEW_VERSION=$(increment_version $VERSION major)
+    NEW_VERSION=$(increment_version "$VERSION" major)
 elif [ "$RELEASE_TYPE" == "minor" ]; then
     echo "Performing minor release..."
-    NEW_VERSION=$(increment_version $VERSION minor)
+    NEW_VERSION=$(increment_version "$VERSION" minor)
 elif [ "$RELEASE_TYPE" == "patch" ]; then
     echo "Performing patch release..."
-    NEW_VERSION=$(increment_version $VERSION patch)
+    NEW_VERSION=$(increment_version "$VERSION" patch)
 else
     echo "Invalid release type. Please enter either 'major', 'minor', or 'patch'."
     exit 1
@@ -67,12 +104,12 @@ if [[ "$CONFIRM" != "y" ]]; then
 fi
 
 # Update the .version file with the new version
-echo $NEW_VERSION >.version
+echo "$NEW_VERSION" > .version
 git add .version
 
-# Update version in package.json
-jq --arg new_version "$NEW_VERSION" '.version = $new_version' package.json >package_tmp.json && mv package_tmp.json package.json
-git add package.json
+# Update version in frontend/package.json
+jq --arg new_version "$NEW_VERSION" '.version = $new_version' frontend/package.json > frontend/package_tmp.json && mv frontend/package_tmp.json frontend/package.json
+git add frontend/package.json
 
 # Create/Update .revision file with the latest commit short hash
 echo "Creating/Updating .revision file..."
@@ -80,20 +117,18 @@ LATEST_REVISION=$(git rev-parse --short HEAD)
 echo "$LATEST_REVISION" > .revision
 git add .revision
 
-# Update default ARG VERSION in Dockerfile
-echo "Updating Dockerfile ARG VERSION..."
-sed -i.bak "s/^ARG VERSION=.*$/ARG VERSION=\"$NEW_VERSION\"/" Dockerfile && rm Dockerfile.bak
-git add Dockerfile 
-
-# Update default ARG REVISION in Dockerfile
-echo "Updating Dockerfile ARG REVISION..."
-sed -i.bak "s/^ARG REVISION=.*$/ARG REVISION=\"$LATEST_REVISION\"/" Dockerfile && rm Dockerfile.bak
-git add Dockerfile
-
-# Check if conventional-changelog is installed, if not install it
-if ! command -v conventional-changelog &>/dev/null; then
-    echo "conventional-changelog not found, installing..."
-    npm install -g conventional-changelog-cli
+# Update default ARG VERSION/REVISION in Dockerfiles (if present)
+if [ -f docker/Dockerfile ]; then
+  echo "Updating docker/Dockerfile ARGs..."
+  sed -i.bak "s/^ARG VERSION=.*$/ARG VERSION=\"$NEW_VERSION\"/" docker/Dockerfile && rm docker/Dockerfile.bak
+  sed -i.bak "s/^ARG REVISION=.*$/ARG REVISION=\"$LATEST_REVISION\"/" docker/Dockerfile && rm docker/Dockerfile.bak
+  git add docker/Dockerfile
+fi
+if [ -f docker/Dockerfile-agent ]; then
+  echo "Updating docker/Dockerfile-agent ARGs..."
+  sed -i.bak "s/^ARG VERSION=.*$/ARG VERSION=\"$NEW_VERSION\"/" docker/Dockerfile-agent && rm docker/Dockerfile-agent.bak
+  sed -i.bak "s/^ARG REVISION=.*$/ARG REVISION=\"$LATEST_REVISION\"/" docker/Dockerfile-agent && rm docker/Dockerfile-agent.bak
+  git add docker/Dockerfile-agent
 fi
 
 # Generate changelog
@@ -111,12 +146,6 @@ git tag "v$NEW_VERSION"
 git push
 git push --tags
 
-# Check if GitHub CLI is installed
-if ! command -v gh &>/dev/null; then
-    echo "GitHub CLI (gh) is not installed. Please install it and authenticate using 'gh auth login'."
-    exit 1
-fi
-
 # Extract the changelog content for the latest release
 echo "Extracting changelog content for version $NEW_VERSION..."
 CHANGELOG=$(awk '/^## / {if (NR > 1) exit} NR > 1 {print}' CHANGELOG.md | awk 'NR > 2 || NF {print}')
@@ -126,12 +155,12 @@ if [ -z "$CHANGELOG" ]; then
     exit 1
 fi
 
-# Create the release on GitHub
-echo "Creating GitHub release..."
-gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$CHANGELOG"
+# Create the draft release on GitHub
+echo "Creating GitHub draft release..."
+gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$CHANGELOG" --draft
 
 if [ $? -eq 0 ]; then
-    echo "GitHub release created successfully."
+    echo "GitHub draft release created successfully."
 else
     echo "Error: Failed to create GitHub release."
     exit 1

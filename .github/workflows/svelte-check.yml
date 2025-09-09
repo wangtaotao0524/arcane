@@ -4,21 +4,21 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
-      - '.github/workflows/type-check.yml'
+      - 'frontend/src/**'
+      - '.github/workflows/svelte-check.yml'
       - '.github/svelte-check-matcher.json'
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'tsconfig.json'
       - 'svelte.config.js'
   pull_request:
     branches: [main]
     paths:
-      - 'src/**'
-      - '.github/workflows/type-check.yml'
+      - 'frontend/src/**'
+      - '.github/workflows/svelte-check.yml'
       - '.github/svelte-check-matcher.json'
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'tsconfig.json'
       - 'svelte.config.js'
   workflow_dispatch:
@@ -36,20 +36,24 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          node-version: 24
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm --filter arcane-frontend install --frozen-lockfile
 
       - name: Add svelte-check problem matcher
         run: echo "::add-matcher::.github/svelte-check-matcher.json"
 
-      - name: Run svelte-check via npm script
-        run: npm run check
+      - name: Build frontend
+        run: pnpm --filter arcane-frontend build
+
+      - name: Run svelte-check
+        run: pnpm --filter arcane-frontend check

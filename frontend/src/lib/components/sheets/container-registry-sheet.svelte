@@ -1,0 +1,129 @@
+<script lang="ts">
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import FormInput from '$lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '$lib/components/form/labeled-switch.svelte';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import PackagePlusIcon from '@lucide/svelte/icons/package-plus';
+	import type { ContainerRegistry } from '$lib/types/container-registry.type';
+	import type { ContainerRegistryCreateDto, ContainerRegistryUpdateDto } from '$lib/types/container-registry.type';
+	import { z } from 'zod/v4';
+	import { createForm, preventDefault } from '$lib/utils/form.utils';
+	import { m } from '$lib/paraglide/messages';
+
+	type ContainerRegistryFormProps = {
+		open: boolean;
+		registryToEdit: ContainerRegistry | null;
+		onSubmit: (detail: { registry: ContainerRegistryCreateDto | ContainerRegistryUpdateDto; isEditMode: boolean }) => void;
+		isLoading: boolean;
+	};
+
+	let { open = $bindable(false), registryToEdit = $bindable(), onSubmit, isLoading }: ContainerRegistryFormProps = $props();
+
+	let isEditMode = $derived(!!registryToEdit);
+
+	const formSchema = z.object({
+		url: z.string().min(1, m.registries_url_required()),
+		username: z.string().min(1, m.common_username_required()),
+		token: z.string().optional(),
+		description: z.string().optional(),
+		insecure: z.boolean().default(false),
+		enabled: z.boolean().default(true)
+	});
+
+	let formData = $derived({
+		url: open && registryToEdit ? registryToEdit.url : '',
+		username: open && registryToEdit ? registryToEdit.username : '',
+		token: '',
+		description: open && registryToEdit ? registryToEdit.description || '' : '',
+		insecure: open && registryToEdit ? (registryToEdit.insecure ?? false) : false,
+		enabled: open && registryToEdit ? (registryToEdit.enabled ?? true) : true
+	});
+
+	let { inputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, formData));
+
+	function handleSubmit() {
+		const data = form.validate();
+		if (!data) return;
+		onSubmit({ registry: data, isEditMode });
+	}
+</script>
+
+<Sheet.Root bind:open>
+	<Sheet.Content class="p-6">
+		<Sheet.Header class="space-y-3 border-b pb-6">
+			<div class="flex items-center gap-3">
+				<div class="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+					<PackagePlusIcon class="text-primary size-5" />
+				</div>
+				<div>
+					<Sheet.Title class="text-xl font-semibold">
+						{isEditMode ? m.registries_edit_title() : m.registries_add_button()}
+					</Sheet.Title>
+					<Sheet.Description class="text-muted-foreground mt-1 text-sm">
+						{isEditMode ? m.registries_edit_description() : m.registries_add_description()}
+					</Sheet.Description>
+				</div>
+			</div>
+		</Sheet.Header>
+		<form onsubmit={preventDefault(handleSubmit)} class="grid gap-4 py-4">
+			<FormInput
+				label={m.registries_url()}
+				type="text"
+				placeholder={m.registries_url_placeholder()}
+				description={m.registries_url_description()}
+				bind:input={$inputs.url}
+			/>
+			<FormInput
+				label={m.common_username()}
+				type="text"
+				description={m.common_username_required()}
+				bind:input={$inputs.username}
+			/>
+			<FormInput
+				label={m.registries_token_label()}
+				type="password"
+				placeholder={isEditMode ? m.registries_token_keep_placeholder() : m.registries_token_placeholder()}
+				description={m.registries_token_description()}
+				bind:input={$inputs.token}
+			/>
+			<FormInput
+				label={m.common_description()}
+				type="text"
+				placeholder={m.registries_description_placeholder()}
+				bind:input={$inputs.description}
+			/>
+			<SwitchWithLabel
+				id="isEnabledSwitch"
+				label={m.common_enabled()}
+				description={m.registries_enabled_description()}
+				bind:checked={$inputs.enabled.value}
+			/>
+			<SwitchWithLabel
+				id="insecureSwitch"
+				label={m.registries_allow_insecure_label()}
+				description={m.registries_allow_insecure_description()}
+				bind:checked={$inputs.insecure.value}
+			/>
+
+			<Sheet.Footer class="flex flex-row gap-2">
+				<Button
+					type="button"
+					class="arcane-button-cancel flex-1"
+					variant="outline"
+					onclick={() => (open = false)}
+					disabled={isLoading}
+				>
+					{m.common_cancel()}
+				</Button>
+
+				<Button type="submit" class="arcane-button-create flex-1" disabled={isLoading}>
+					{#if isLoading}
+						<LoaderCircleIcon class="mr-2 size-4 animate-spin" />
+					{/if}
+					{isEditMode ? m.registries_save_changes() : m.registries_add_button()}
+				</Button>
+			</Sheet.Footer>
+		</form>
+	</Sheet.Content>
+</Sheet.Root>

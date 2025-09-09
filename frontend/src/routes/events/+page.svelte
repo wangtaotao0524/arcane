@@ -1,0 +1,157 @@
+<script lang="ts">
+	import ActivityIcon from '@lucide/svelte/icons/activity';
+	import { toast } from 'svelte-sonner';
+	import { tryCatch } from '$lib/utils/try-catch';
+	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
+	import type { PageData } from './$types';
+	import StatCard from '$lib/components/stat-card.svelte';
+	import type { Event } from '$lib/types/event.type';
+	import { eventAPI } from '$lib/services/api';
+	import EventTable from './event-table.svelte';
+	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import { m } from '$lib/paraglide/messages';
+
+	let { data }: { data: PageData } = $props();
+
+	let events = $state(data.events);
+	let selectedIds = $state<string[]>([]);
+	let requestOptions = $state(data.eventRequestOptions);
+
+	let isLoading = $state({
+		refreshing: false,
+		deleting: false
+	});
+
+	const infoEvents = $derived(events?.data?.filter((e: Event) => e.severity === 'info').length || 0);
+	const warningEvents = $derived(events?.data?.filter((e: Event) => e.severity === 'warning').length || 0);
+	const errorEvents = $derived(events?.data?.filter((e: Event) => e.severity === 'error').length || 0);
+	const successEvents = $derived(events?.data?.filter((e: Event) => e.severity === 'success').length || 0);
+	const totalEvents = $derived(events?.pagination?.totalItems || 0);
+
+	async function refreshEvents() {
+		isLoading.refreshing = true;
+		try {
+			events = await eventAPI.getEvents(requestOptions);
+		} catch (error) {
+			console.error('Failed to refresh events:', error);
+			toast.error(m.events_refresh_failed());
+		} finally {
+			isLoading.refreshing = false;
+		}
+	}
+
+	async function handleDeleteSelected() {
+		if (selectedIds.length === 0) return;
+
+		openConfirmDialog({
+			title: m.events_delete_selected_title({ count: selectedIds.length }),
+			message: m.events_delete_selected_message({ count: selectedIds.length }),
+			confirm: {
+				label: m.common_delete(),
+				destructive: true,
+				action: async () => {
+					isLoading.deleting = true;
+					let successCount = 0;
+					let failureCount = 0;
+
+					for (const eventId of selectedIds) {
+						const result = await tryCatch(eventAPI.delete(eventId));
+						handleApiResultWithCallbacks({
+							result,
+							message: m.events_delete_item_failed({ id: eventId }),
+							setLoadingState: () => {},
+							onSuccess: () => {
+								successCount++;
+							}
+						});
+
+						if (result.error) failureCount++;
+					}
+
+					isLoading.deleting = false;
+
+					if (successCount > 0) {
+						const msg =
+							successCount === 1 ? m.events_delete_success_one() : m.events_delete_success_many({ count: successCount });
+						toast.success(msg);
+						await refreshEvents();
+					}
+					if (failureCount > 0) {
+						const msg = failureCount === 1 ? m.events_delete_failed_one() : m.events_delete_failed_many({ count: failureCount });
+						toast.error(msg);
+					}
+
+					selectedIds = [];
+				}
+			}
+		});
+	}
+</script>
+
+<div class="flex h-full flex-col space-y-6">
+	<div class="flex items-center justify-between">
+		<div class="space-y-1">
+			<h2 class="text-2xl font-semibold tracking-tight">{m.events_title()}</h2>
+			<p class="text-muted-foreground text-sm">{m.events_subtitle()}</p>
+		</div>
+		<div class="flex items-center gap-2">
+			{#if selectedIds.length > 0}
+				<ArcaneButton
+					action="remove"
+					customLabel={m.events_remove_selected()}
+					onclick={handleDeleteSelected}
+					loading={isLoading.deleting}
+					disabled={isLoading.deleting}
+				/>
+			{/if}
+			<ArcaneButton
+				action="restart"
+				customLabel={m.common_refresh()}
+				onclick={refreshEvents}
+				loading={isLoading.refreshing}
+				disabled={isLoading.refreshing}
+			/>
+		</div>
+	</div>
+
+	<div class="grid gap-4 md:grid-cols-5">
+		<StatCard title={m.events_total()} value={totalEvents} icon={ActivityIcon} subtitle={m.events_total_subtitle()} />
+		<StatCard
+			title={m.events_info()}
+			value={infoEvents}
+			icon={ActivityIcon}
+			iconColor="text-blue-500"
+			bgColor="bg-blue-500/10"
+			subtitle={m.events_info_subtitle()}
+		/>
+		<StatCard
+			title={m.events_success()}
+			value={successEvents}
+			icon={ActivityIcon}
+			iconColor="text-green-500"
+			bgColor="bg-green-500/10"
+			subtitle={m.events_success_subtitle()}
+		/>
+		<StatCard
+			title={m.events_warning()}
+			value={warningEvents}
+			icon={ActivityIcon}
+			iconColor="text-yellow-500"
+			bgColor="bg-yellow-500/10"
+			subtitle={m.events_warning_subtitle()}
+		/>
+		<StatCard
+			title={m.events_error()}
+			value={errorEvents}
+			icon={ActivityIcon}
+			iconColor="text-red-500"
+			bgColor="bg-red-500/10"
+			subtitle={m.events_error_subtitle()}
+		/>
+	</div>
+
+	<div class="flex-1 overflow-hidden">
+		<EventTable bind:events bind:selectedIds bind:requestOptions />
+	</div>
+</div>

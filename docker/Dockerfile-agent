@@ -1,0 +1,52 @@
+# Build agent binary
+FROM golang:1.25-alpine AS agent-builder
+ARG BUILD_TAGS="exclude_frontend"
+WORKDIR /build
+
+RUN apk add --no-cache git ca-certificates tzdata curl
+
+COPY ./backend/go.mod ./backend/go.sum ./
+RUN go mod download
+
+COPY ./backend ./backend
+
+WORKDIR /build/backend
+RUN CGO_ENABLED=0 \
+    GOOS=linux \
+    go build \
+    -tags "${BUILD_TAGS}" \
+    -ldflags='-w -s' \
+    -trimpath \
+    -o /out/arcane-agent \
+    ./cmd/main.go
+
+ARG COMPOSE_VERSION=2.39.2
+ARG TARGETARCH
+COPY ../scripts/development/download-compose.sh /tmp/download-compose.sh
+RUN set -eux; chmod +x /tmp/download-compose.sh; \
+    /tmp/download-compose.sh "${COMPOSE_VERSION}" "/out/docker-compose" "${TARGETARCH}"
+
+FROM alpine:3 AS agent
+RUN apk upgrade && apk --no-cache add ca-certificates tzdata curl su-exec
+
+WORKDIR /app
+RUN mkdir -p /app/data && chmod 755 /app/data
+
+COPY --from=agent-builder /out/arcane-agent /usr/local/bin/arcane-agent
+COPY --from=agent-builder /out/docker-compose /usr/local/bin/docker-compose
+
+COPY --chmod=755 ../scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+ARG VERSION="0.15.1"
+ARG REVISION="c052902"
+
+ENV GIN_MODE=release \
+    PORT=3553 \
+    AGENT_MODE=true \
+    ENVIRONMENT=production
+
+EXPOSE 3553
+VOLUME ["/app/data"]
+
+CMD ["/usr/local/bin/arcane-agent"]
