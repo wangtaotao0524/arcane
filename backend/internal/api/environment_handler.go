@@ -469,9 +469,6 @@ func (h *EnvironmentHandler) handleStackEndpoints(c *gin.Context, endpoint strin
 	case strings.HasPrefix(endpoint, "/stacks/") && c.Request.Method == http.MethodPut:
 		stackHandler.UpdateStack(c)
 		return true
-	case strings.HasPrefix(endpoint, "/stacks/") && c.Request.Method == http.MethodDelete:
-		stackHandler.DeleteStack(c)
-		return true
 	}
 	return false
 }

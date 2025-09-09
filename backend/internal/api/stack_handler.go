@@ -31,7 +31,6 @@ func NewStackHandler(group *gin.RouterGroup, stackService *services.StackService
 		apiGroup.POST("", handler.CreateStack)
 		apiGroup.GET("/:id", handler.GetStack)
 		apiGroup.PUT("/:id", handler.UpdateStack)
-		apiGroup.DELETE("/:id", handler.DeleteStack)
 		apiGroup.POST("/:id/deploy", handler.DeployStack)
 		apiGroup.POST("/:id/stop", handler.StopStack)
 		apiGroup.POST("/:id/restart", handler.RestartStack)
@@ -286,32 +285,6 @@ func (h *StackHandler) UpdateStack(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    resp,
-	})
-}
-
-func (h *StackHandler) DeleteStack(c *gin.Context) {
-	stackID := c.Param("stackId")
-	if stackID == "" {
-		stackID = c.Param("id")
-	}
-
-	currentUser, exists := middleware.GetCurrentUser(c)
-	if !exists || currentUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "User not authenticated"})
-		return
-	}
-	err := h.stackService.DeleteStack(c.Request.Context(), stackID, *currentUser)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to delete stack",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    gin.H{"message": "Stack deleted successfully"},
 	})
 }
 

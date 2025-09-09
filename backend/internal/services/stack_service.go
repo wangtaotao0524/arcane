@@ -778,40 +778,6 @@ func (s *StackService) GetStackContent(ctx context.Context, stackID string) (com
 	return composeContent, envContent, nil
 }
 
-func (s *StackService) DeleteStack(ctx context.Context, stackID string, user models.User) error {
-	stack, err := s.GetStackByID(ctx, stackID)
-	if err != nil {
-		return err
-	}
-
-	if stack.Status == models.StackStatusRunning {
-		if err := s.DownStack(ctx, stackID, systemUser); err != nil {
-			fmt.Printf("Warning: failed to stop stack before deletion: %v\n", err)
-		}
-	}
-
-	if err := s.db.WithContext(ctx).Delete(stack).Error; err != nil {
-		return fmt.Errorf("failed to delete stack from database: %w", err)
-	}
-
-	if err := os.RemoveAll(stack.Path); err != nil {
-		fmt.Printf("Warning: failed to remove stack directory %s: %v\n", stack.Path, err)
-	}
-
-	// Log stack deletion event
-	metadata := models.JSON{
-		"action":    "delete",
-		"stackId":   stackID,
-		"stackName": stack.Name,
-		"path":      stack.Path,
-	}
-	if logErr := s.eventService.LogStackEvent(ctx, models.EventTypeStackDelete, stackID, stack.Name, user.ID, user.Username, "0", metadata); logErr != nil {
-		fmt.Printf("Could not log stack deletion action: %s\n", logErr)
-	}
-
-	return nil
-}
-
 func (s *StackService) DestroyStack(ctx context.Context, stackID string, removeFiles, removeVolumes bool, user models.User) error {
 	stack, err := s.GetStackByID(ctx, stackID)
 	if err != nil {
@@ -834,14 +800,14 @@ func (s *StackService) DestroyStack(ctx context.Context, stackID string, removeF
 		}
 	}
 
-	if err := s.db.WithContext(ctx).Delete(stack).Error; err != nil {
-		return fmt.Errorf("failed to delete stack from database: %w", err)
-	}
-
 	if removeFiles {
 		if err := os.RemoveAll(stack.Path); err != nil {
 			return fmt.Errorf("failed to remove stack files: %w", err)
 		}
+	}
+
+	if err := s.db.WithContext(ctx).Delete(stack).Error; err != nil {
+		return fmt.Errorf("failed to delete stack from database: %w", err)
 	}
 
 	// Log stack destroy event

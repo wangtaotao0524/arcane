@@ -255,11 +255,6 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.put(`/environments/${envId}/stacks/${projectName}`, payload));
 	}
 
-	async deleteProject(projectName: string): Promise<void> {
-		const envId = await this.getCurrentEnvironmentId();
-		await this.handleResponse(this.api.delete(`/environments/${envId}/stacks/${projectName}`));
-	}
-
 	async startProject(projectId: string): Promise<Project> {
 		const envId = await this.getCurrentEnvironmentId();
 		return this.handleResponse(this.api.post(`/environments/${envId}/stacks/${projectId}/start`));

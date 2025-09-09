@@ -95,12 +95,27 @@
 				openConfirmDialog({
 					title: m.compose_confirm_removal_title(),
 					message: m.compose_confirm_removal_message(),
+					checkboxes: [
+						{
+							id: 'volumes',
+							label: m.confirm_remove_volumes_warning(),
+							initialState: false
+						},
+						{
+							id: 'files',
+							label: m.confirm_remove_project_files(),
+							initialState: false
+						}
+					],
 					confirm: {
-						label: m.common_remove(),
+						label: m.compose_destroy(),
 						destructive: true,
-						action: async () => {
+						action: async (result: any) => {
+							const removeVolumes = !!(result?.checkboxes?.volumes ?? result?.volumes);
+							const removeFiles = !!(result?.checkboxes?.files ?? result?.files);
+
 							handleApiResultWithCallbacks({
-								result: await tryCatch(environmentAPI.destroyProject(id)),
+								result: await tryCatch(environmentAPI.destroyProject(id, removeVolumes, removeFiles)),
 								message: m.compose_destroy_failed(),
 								setLoadingState: (value) => (isLoading.destroy = value),
 								onSuccess: async () => {
