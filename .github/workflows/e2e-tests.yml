@@ -4,13 +4,11 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
       - '**.md'
       - '.github/**'
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
       - '**.md'
       - '.github/**'
 
@@ -22,6 +20,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ github.event_name != 'pull_request' || github.head_ref != 'l10n_crowdin' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -53,6 +52,7 @@ jobs:
           retention-days: 1
 
   test:
+    if: ${{ github.event_name != 'pull_request' || github.head_ref != 'l10n_crowdin' }}
     permissions:
       contents: read
       actions: write
