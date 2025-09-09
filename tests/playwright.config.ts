@@ -1,6 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const authFile = '.auth/login.json';
 const baseURL = process.env.BASE_URL || 'http://localhost:3000';
 const composeFile = process.env.COMPOSE_FILE || 'setup/compose.yaml';
 
@@ -25,7 +24,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], storageState: authFile },
+      use: { ...devices['Desktop Chrome'], storageState: '.auth/login.json' },
       dependencies: ['setup'],
       testMatch: /spec\/.*\.spec\.ts/,
     },

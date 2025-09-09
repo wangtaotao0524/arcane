@@ -1,18 +1,15 @@
-import { test as setup, expect } from '@playwright/test';
+import { test as setup } from '@playwright/test';
 import { skipOnboarding } from '../utils/onboarding.util';
+import authUtil from '../utils//auth.util';
 
 const authFile = '.auth/login.json';
 
 setup('authenticate', async ({ page }) => {
   await skipOnboarding();
 
-  await page.goto('/auth/login');
-  await page.getByLabel('Username').fill('arcane');
-  await page.getByLabel('Password').fill('arcane-admin');
-  await page.getByRole('button', { name: 'Sign in to Arcane', exact: true }).click();
+  await authUtil.login(page);
 
-  await expect(page).toHaveURL('/dashboard');
+  await page.waitForURL('/dashboard');
 
   await page.context().storageState({ path: authFile });
-  console.log(`Authentication state saved to ${authFile}`);
 });

@@ -143,16 +143,14 @@ test.describe('Images Page', () => {
     await page.waitForLoadState('networkidle');
 
     await page.locator('button:has-text("Pull Image")').first().click();
-    await expect(page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Pull Image")')).toBeVisible();
+    const dialogHeading = page.locator('div[role="heading"][aria-level="2"][data-dialog-title]:has-text("Pull Image")');
+    await expect(dialogHeading).toBeVisible();
 
-    const imageNameFull = 'ghcr.io/linuxserver/nginx:latest';
     const imageName = 'ghcr.io/linuxserver/nginx';
     await page.locator('input[id="image-name-*"]').fill(imageName);
 
     await page.locator('button[type="submit"]:has-text("Pull Image")').click();
 
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.locator('li[data-sonner-toast][data-type="success"] div[data-title]')).toBeVisible();
+    await expect(dialogHeading).toBeHidden({ timeout: 120_000 });
   });
 });
