@@ -15,11 +15,11 @@ func CreateTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
 	if maxAgeInSeconds < 0 {
 		maxAgeInSeconds = 0
 	}
-	c.SetCookie(TokenCookieName, token, maxAgeInSeconds, "/", "", true, true)
+	c.SetCookie(TokenCookieName, token, maxAgeInSeconds, "/", "", c.Request.TLS != nil, true)
 }
 
 func ClearTokenCookie(c *gin.Context) {
-	c.SetCookie(TokenCookieName, "", -1, "/", "", true, true)
+	c.SetCookie(TokenCookieName, "", -1, "/", "", c.Request.TLS != nil, true)
 }
 
 func CreateOidcStateCookie(c *gin.Context, value string, maxAgeInSeconds int) {
@@ -27,7 +27,7 @@ func CreateOidcStateCookie(c *gin.Context, value string, maxAgeInSeconds int) {
 	if maxAgeInSeconds < 0 {
 		maxAgeInSeconds = 0
 	}
-	c.SetCookie(OidcStateCookieName, value, maxAgeInSeconds, "/", "", true, true)
+	c.SetCookie(OidcStateCookieName, value, maxAgeInSeconds, "/", "", c.Request.TLS != nil, true)
 }
 
 func GetOidcStateCookie(c *gin.Context) (string, error) {
@@ -35,5 +35,5 @@ func GetOidcStateCookie(c *gin.Context) (string, error) {
 }
 
 func ClearOidcStateCookie(c *gin.Context) {
-	c.SetCookie(OidcStateCookieName, "", -1, "/", "", true, true)
+	c.SetCookie(OidcStateCookieName, "", -1, "/", "", c.Request.TLS != nil, true)
 }
