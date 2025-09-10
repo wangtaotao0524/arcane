@@ -226,17 +226,17 @@ func (s *ImageService) getPullOptionsWithAuth(ctx context.Context, imageRef stri
 
 func (s *ImageService) extractRegistryHost(imageRef string) string {
 	// strip digest if present
-	if i := strings.Index(imageRef, "@"); i != -1 {
+	if i := strings.IndexByte(imageRef, '@'); i != -1 {
 		imageRef = imageRef[:i]
 	}
-	// if no slash, it's a Docker Hub shorthand
-	if !strings.Contains(imageRef, "/") {
+
+	// split on first slash; if no slash, it's a Docker Hub shorthand
+	hostCandidate, _, found := strings.Cut(imageRef, "/")
+	if !found {
 		return "docker.io"
 	}
-	// first segment before first "/" is either a registry host[:port] or a namespace
-	firstSlash := strings.Index(imageRef, "/")
-	hostCandidate := imageRef[:firstSlash]
 
+	// first segment is either a registry host[:port] or a namespace
 	// if it doesn't look like a host (no dot/colon), default to docker.io
 	if !strings.Contains(hostCandidate, ".") && !strings.Contains(hostCandidate, ":") {
 		return "docker.io"
