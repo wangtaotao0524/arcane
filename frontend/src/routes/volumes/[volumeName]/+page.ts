@@ -1,22 +1,27 @@
 import type { PageLoad } from './$types';
 import { environmentAPI } from '$lib/services/api';
 import { error } from '@sveltejs/kit';
+import type { VolumeUsageDto } from '$lib/types/volume.type';
 
 export const load: PageLoad = async ({ params }) => {
 	const { volumeName } = params;
 
 	try {
 		const volumeBase = await environmentAPI.getVolume(volumeName);
-		const volumeUsage = await environmentAPI.getVolumeUsage(volumeName);
+		const usageRes = await environmentAPI.getVolumeUsage(volumeName);
+
+		const usage: VolumeUsageDto = (
+			usageRes && typeof usageRes === 'object' && 'data' in usageRes ? (usageRes as any).data : usageRes
+		) as VolumeUsageDto;
 
 		const volume = {
 			...volumeBase,
-			inUse: volumeUsage,
-			containers: volumeUsage.containers
+			inUse: Boolean(usage?.inUse),
+			containers: Array.isArray(usage?.containers) ? usage.containers : []
 		};
 
 		let containersDetailed: { id: string; name: string }[] = [];
-		if (Array.isArray(volume?.containers) && volume.containers.length > 0) {
+		if (volume.containers.length > 0) {
 			containersDetailed = await Promise.all(
 				volume.containers.map(async (id: string) => {
 					try {
@@ -40,9 +45,7 @@ export const load: PageLoad = async ({ params }) => {
 		};
 	} catch (err: any) {
 		console.error('Failed to load volume:', err);
-		if (err.status === 404) {
-			throw err;
-		}
+		if (err.status === 404) throw err;
 		throw error(500, err.message || 'Failed to load volume details');
 	}
 };
