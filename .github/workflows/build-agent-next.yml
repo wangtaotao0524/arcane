@@ -3,6 +3,12 @@ name: Build Next Image (Agent)
 on:
   push:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'frontend/package.json'
   workflow_dispatch:
 
 concurrency:
