@@ -86,7 +86,7 @@
 <div class={`overflow-hidden rounded-md border ${className}`}>
 	<CodeMirror
 		bind:value
-		on:ready={(view) => handleReady(view.detail)}
+		onready={(view) => handleReady(view)}
 		{extensions}
 		{styles}
 		{placeholder}
