@@ -195,12 +195,17 @@ func (s *StackService) DownStack(ctx context.Context, stackID string, user model
 		return fmt.Errorf("stack directory does not exist: %s", stack.Path)
 	}
 
+	composeFileName := s.findComposeFileName(stack.Path)
+	if composeFileName == "" {
+		return fmt.Errorf("no compose file found in stack directory: %s", stack.Path)
+	}
+
 	// Update status to stopping first
 	if err := s.UpdateStackStatus(ctx, stackID, models.StackStatusStopping); err != nil {
 		return fmt.Errorf("failed to update stack status to stopping: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "docker-compose", "down")
+	cmd := exec.CommandContext(ctx, "docker-compose", "-f", composeFileName, "down")
 	cmd.Dir = stack.Path
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("COMPOSE_PROJECT_NAME=%s", stack.Name),
@@ -208,6 +213,9 @@ func (s *StackService) DownStack(ctx context.Context, stackID string, user model
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if updateErr := s.UpdateStackStatus(ctx, stackID, models.StackStatusDeploying); updateErr != nil {
+			return fmt.Errorf("failed to down project: %w, also failed to update status: %w", err, updateErr)
+		}
 		return fmt.Errorf("failed to bring down stack: %w\nOutput: %s", err, string(output))
 	}
 
