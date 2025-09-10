@@ -1,3 +1,12 @@
+## [](https://github.com/ofkm/arcane/compare/v1.0.0...v) (2025-09-10)
+
+### Bug Fixes
+
+* allow both http and https cookie names ([b3b9f71](https://github.com/ofkm/arcane/commit/b3b9f7159ed51e388dbd208b070f35ded6ec48df))
+* onboarding flow not using correct values ([c75839c](https://github.com/ofkm/arcane/commit/c75839c7d9910a71da971b87b9745af24fc8adb5))
+* onboarding not showing on fresh installs ([51fa03a](https://github.com/ofkm/arcane/commit/51fa03ac6e61e5820963208c5e16977ccbfb9bd5))
+* register project handler to fix projects not pulling ([038ebf6](https://github.com/ofkm/arcane/commit/038ebf61e9e8bff6ec899e9591e9c6fdb4c3db86))
+* use non secure cookie if running on http ([fb2e6d9](https://github.com/ofkm/arcane/commit/fb2e6d9fd61918b615fabc45f42400ca10e6660c))
 ## [](https://github.com/ofkm/arcane/compare/v0.15.1...v) (2025-09-09)
 
 ### ⚠ BREAKING CHANGES

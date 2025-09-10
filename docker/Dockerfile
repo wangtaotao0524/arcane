@@ -58,8 +58,8 @@ COPY --chmod=755 ../scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 EXPOSE 3552
 VOLUME ["/app/data"]
 
-ARG VERSION="1.0.0"
-ARG REVISION="5e9528b0"
+ARG VERSION="1.0.1"
+ARG REVISION="b3b9f715"
 LABEL org.opencontainers.image.authors="OFKM Technologies"
 LABEL org.opencontainers.image.url="https://github.com/ofkm/arcane"
 LABEL org.opencontainers.image.documentation="https://github.com/ofkm/arcane/blob/main/README.md"
