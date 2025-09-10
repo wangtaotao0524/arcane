@@ -47,7 +47,7 @@
 	"volumes_labels_description": "User-defined metadata attached to this volume",
 	"volumes_driver_options_description": "Volume driver-specific options",
 	"volumes_no_labels_or_options": "This volume has no additional labels or driver options.",
-	"volumes_not_found_title": "Volume Not Found",
+	"volumes_not_found_title": "未找到存储卷",
 	"volumes_not_found_description": "The requested volume could not be found or is no longer available.",
 	"common_back_to_volumes": "Back to Volumes",
 	"users_title": "Users",
