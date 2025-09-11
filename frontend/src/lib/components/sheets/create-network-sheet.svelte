@@ -24,7 +24,7 @@
 	let { open = $bindable(false), onSubmit, isLoading }: CreateNetworkFormProps = $props();
 
 	const drivers = [
-		{ value: 'bridge', label: m.networks_bridge() },
+		{ value: 'bridge', label: m.bridge() },
 		{ value: 'overlay', label: m.networks_overlay() },
 		{ value: 'macvlan', label: m.networks_macvlan() },
 		{ value: 'ipvlan', label: m.networks_ipvlan() },
