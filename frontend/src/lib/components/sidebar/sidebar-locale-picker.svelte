@@ -13,7 +13,9 @@
 
 	const locales: Record<string, string> = {
 		en: 'English',
+		eo: 'Esperanto',
 		es: 'Español',
+		fr: 'French',
 		nl: 'Nederlands',
 		zh: 'Chinese'
 	};
