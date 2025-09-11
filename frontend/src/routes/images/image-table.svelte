@@ -152,7 +152,6 @@
 	const columns = [
 		{ accessorKey: 'id', title: m.common_id(), hidden: true },
 		{ accessorKey: 'repoTags', title: m.images_repository(), sortable: true, cell: RepoCell },
-		{ id: 'imageId', title: m.images_image_id(), cell: ImageIdCell },
 		{ accessorKey: 'size', title: m.images_size(), sortable: true, cell: SizeCell },
 		{ accessorKey: 'created', title: m.common_created(), sortable: true, cell: CreatedCell },
 		{
@@ -189,10 +188,6 @@
 	{:else}
 		<span class="text-muted-foreground italic">{m.images_untagged()}</span>
 	{/if}
-{/snippet}
-
-{#snippet ImageIdCell({ item }: { item: ImageSummaryDto })}
-	<code class="bg-muted rounded px-2 py-1 text-xs">{item.id?.substring(7, 19) || m.common_na()}</code>
 {/snippet}
 
 {#snippet SizeCell({ value }: { value: unknown })}
