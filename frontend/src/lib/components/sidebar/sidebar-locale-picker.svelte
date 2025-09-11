@@ -15,7 +15,7 @@
 		en: 'English',
 		eo: 'Esperanto',
 		es: 'Español',
-		fr: 'French',
+		fr: 'Français',
 		nl: 'Nederlands',
 		zh: 'Chinese'
 	};
