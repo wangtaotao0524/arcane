@@ -122,9 +122,7 @@
 			<h1 class="text-3xl font-bold tracking-tight">{m.templates_title()}</h1>
 			<p class="text-muted-foreground mt-1 text-sm">
 				{m.templates_subtitle()}
-				<a href="https://arcane.ofkm.dev/docs/templates/use-templates" class="text-primary ml-1 hover:underline"
-					>{m.templates_learn_more()}</a
-				>
+				<a href="https://arcane.ofkm.dev/docs/templates" class="text-primary ml-1 hover:underline">{m.templates_learn_more()}</a>
 			</p>
 		</div>
 
