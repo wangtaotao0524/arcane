@@ -114,8 +114,8 @@ export class EnvironmentAPIService extends BaseAPIService {
 
 	async pruneImages(dangling?: boolean): Promise<any> {
 		const envId = await this.getCurrentEnvironmentId();
-		const params = dangling !== undefined ? { dangling: String(!!dangling) } : undefined;
-		return this.handleResponse(this.api.post(`/environments/${envId}/images/prune`, { params }));
+		const body = dangling !== undefined ? { dangling: !!dangling } : {};
+		return this.handleResponse(this.api.post(`/environments/${envId}/images/prune`, body));
 	}
 
 	async inspectImage(imageId: string): Promise<any> {

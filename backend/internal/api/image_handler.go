@@ -144,6 +144,23 @@ func (h *ImageHandler) Pull(c *gin.Context) {
 func (h *ImageHandler) Prune(c *gin.Context) {
 	dangling := c.Query("dangling") == "true"
 
+	var req struct {
+		Dangling *bool               `json:"dangling"`
+		Filters  map[string][]string `json:"filters"`
+	}
+	if err := c.ShouldBindJSON(&req); err == nil {
+		if req.Dangling != nil {
+			dangling = *req.Dangling
+		} else if vals, ok := req.Filters["dangling"]; ok {
+			for _, v := range vals {
+				if v == "true" || v == "1" {
+					dangling = true
+					break
+				}
+			}
+		}
+	}
+
 	report, err := h.imageService.PruneImages(c.Request.Context(), dangling)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -154,11 +171,7 @@ func (h *ImageHandler) Prune(c *gin.Context) {
 	}
 
 	out := dto.NewImagePruneReportDto(*report)
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    out,
-	})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": out})
 }
 
 func (h *ImageHandler) GetImageUsageCounts(c *gin.Context) {
