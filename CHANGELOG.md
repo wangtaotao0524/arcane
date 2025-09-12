@@ -1,3 +1,16 @@
+## [](https://github.com/ofkm/arcane/compare/v1.0.1...v) (2025-09-12)
+
+### Bug Fixes
+
+* dashboard meters not using consistant styling in light/dark mode ([21a93f5](https://github.com/ofkm/arcane/commit/21a93f528ff53fc830d0504f7994ff932503d3c6))
+* image pruning not respecting selected prune mode ([e8b9207](https://github.com/ofkm/arcane/commit/e8b9207fafeea1526513d6f51abed1751c6a3d88))
+* remove extra image id cell in image table ([d288295](https://github.com/ofkm/arcane/commit/d288295360eda0286237b8586d257aae691a59d9))
+* show correct counts for stat cards ([#437](https://github.com/ofkm/arcane/issues/437)) ([eb2ed73](https://github.com/ofkm/arcane/commit/eb2ed7319a93c0c7113540913c8b6a9426afc86d))
+* streamline image reference handling by stripping digests and ensuring tags ([c2a3b7d](https://github.com/ofkm/arcane/commit/c2a3b7d566b0590bc2b7e6cd9af5d79a5d20192b))
+* update layout of sidebar and fix the missing label for language selector ([2150088](https://github.com/ofkm/arcane/commit/215008860f781ca79c203b295ce04b674222d941))
+* update learn more link for templates page ([60e3d9b](https://github.com/ofkm/arcane/commit/60e3d9bba72533963599517e2cbf48941443c080))
+* volume usage displays incorrectly ([eb92b4f](https://github.com/ofkm/arcane/commit/eb92b4f3d0862cfa3848adadf7dc393fa9c99746))
+* volume usage filters not filtering volumes ([2d8437d](https://github.com/ofkm/arcane/commit/2d8437dc41b772074fcc8a34b8e471a77baa497d))
 ## [1.0.1](https://github.com/ofkm/arcane/compare/v1.0.0...v1.0.1) (2025-09-10)
 
 ### Bug Fixes
