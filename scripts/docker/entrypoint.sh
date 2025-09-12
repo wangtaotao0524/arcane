@@ -1,6 +1,4 @@
 #!/bin/sh
-
-# Exit immediately if a command exits with a non-zero status.
 set -e
 
 # If we aren't running as root, just exec the CMD
@@ -10,13 +8,13 @@ fi
 
 echo "Entrypoint: Setting up user and permissions..."
 
-# Default values
 PUID=${PUID:-2000}
 PGID=${PGID:-2000}
 DOCKER_GID=${DOCKER_GID:-998}
 APP_USER="arcane"
 APP_GROUP="arcane"
 DATA_DIR="/app/data"
+PROJECTS_DIR="${PROJECTS_DIR:-$DATA_DIR/projects}"
 
 echo "Entrypoint: Using PUID=${PUID}, PGID=${PGID}, DOCKER_GID=${DOCKER_GID}"
 
@@ -51,20 +49,16 @@ fi
 if [ -S /var/run/docker.sock ]; then
     SOCKET_GID=$(stat -c '%g' /var/run/docker.sock)
     echo "Entrypoint: Docker socket found with GID ${SOCKET_GID}"
-    
-    # Special handling for GID 0 (root group)
     if [ "$SOCKET_GID" = "0" ]; then
         echo "Entrypoint: Docker socket owned by root group (GID 0), adding ${APP_USER} to root group..."
         addgroup "$APP_USER" root
         echo "Entrypoint: Docker socket configured (using root group)"
     else
-        # Create or update docker group to match socket GID
         if getent group docker >/dev/null 2>&1; then
             CURRENT_DOCKER_GID=$(getent group docker | cut -d: -f3)
             if [ "$CURRENT_DOCKER_GID" != "$SOCKET_GID" ]; then
                 echo "Entrypoint: Updating docker group GID from ${CURRENT_DOCKER_GID} to ${SOCKET_GID}..."
                 groupmod -g "$SOCKET_GID" docker 2>/dev/null || {
-                    # If groupmod fails, recreate the group
                     delgroup docker 2>/dev/null || true
                     addgroup -g "$SOCKET_GID" docker
                 }
@@ -73,20 +67,14 @@ if [ -S /var/run/docker.sock ]; then
             echo "Entrypoint: Creating docker group with GID ${SOCKET_GID}..."
             addgroup -g "$SOCKET_GID" docker
         fi
-        
-        # Add arcane user to docker group
         if ! id -nG "$APP_USER" | grep -qw "docker"; then
             echo "Entrypoint: Adding ${APP_USER} to docker group..."
             addgroup "$APP_USER" docker
         fi
-        
         echo "Entrypoint: Docker socket configured (GID: ${SOCKET_GID})"
     fi
 else
     echo "WARNING: Docker socket not found at /var/run/docker.sock"
-    echo "Make sure to mount the Docker socket: -v /var/run/docker.sock:/var/run/docker.sock"
-    
-    # Still create docker group with default GID for consistency
     if ! getent group docker >/dev/null 2>&1; then
         echo "Entrypoint: Creating docker group with default GID ${DOCKER_GID}..."
         addgroup -g "$DOCKER_GID" docker
@@ -94,13 +82,71 @@ else
     fi
 fi
 
-# Set up data directory
+is_mountpoint() {
+    local p="$1"
+    if command -v mountpoint >/dev/null 2>&1; then
+        mountpoint -q -- "$p"
+        return $?
+    fi
+
+    local dev_self dev_parent
+    dev_self=$(stat -c '%d' -- "$p" 2>/dev/null || echo "")
+    dev_parent=$(stat -c '%d' -- "$(dirname -- "$p")" 2>/dev/null || echo "")
+    [ -n "$dev_self" ] && [ -n "$dev_parent" ] && [ "$dev_self" != "$dev_parent" ]
+}
+
 echo "Entrypoint: Setting up data directory..."
 mkdir -p "$DATA_DIR"
-chown -R "${PUID}:${PGID}" "$DATA_DIR"
+
+# If projects dir exists and is a separate mount, do not chown it recursively.
+SKIP_PROJECTS_CHOWN=false
+if [ -d "$PROJECTS_DIR" ] && is_mountpoint "$PROJECTS_DIR"; then
+    echo "Entrypoint: Detected bind-mounted projects at $PROJECTS_DIR; skipping recursive chown"
+    SKIP_PROJECTS_CHOWN=true
+fi
+
+# Chown everything under /app/data except projects if skipped
+if [ "$SKIP_PROJECTS_CHOWN" = "true" ]; then
+    for entry in "$DATA_DIR"/*; do
+        [ -e "$entry" ] || continue
+        [ "$entry" = "$PROJECTS_DIR" ] && continue
+        chown -R "${PUID}:${PGID}" "$entry" || true
+    done
+else
+    chown -R "${PUID}:${PGID}" "$DATA_DIR" || true
+fi
+
+# Grant access to bind-mounted projects without changing host ownership:
+# Map the container user into the host GID owning the projects dir.
+if [ -d "$PROJECTS_DIR" ]; then
+    PRJ_UID=$(stat -c '%u' "$PROJECTS_DIR" 2>/dev/null || echo "")
+    PRJ_GID=$(stat -c '%g' "$PROJECTS_DIR" 2>/dev/null || echo "")
+    if [ -n "$PRJ_GID" ]; then
+        if getent group "$PRJ_GID" >/dev/null 2>&1; then
+            HOST_GROUP=$(getent group "$PRJ_GID" | cut -d: -f1)
+        else
+            HOST_GROUP="hostgid_${PRJ_GID}"
+            echo "Entrypoint: Creating group ${HOST_GROUP} with GID ${PRJ_GID} for projects access"
+            addgroup -g "$PRJ_GID" "$HOST_GROUP"
+        fi
+        if ! id -nG "$APP_USER" | grep -qw "$HOST_GROUP"; then
+            echo "Entrypoint: Adding ${APP_USER} to ${HOST_GROUP} (GID ${PRJ_GID})"
+            addgroup "$APP_USER" "$HOST_GROUP"
+        fi
+
+        # Check writability; if still not writable, warn but do not chown host files.
+        if ! su-exec "$APP_USER" sh -c "test -w '$PROJECTS_DIR'"; then
+            echo "WARNING: Projects directory ($PROJECTS_DIR) is not writable by ${APP_USER} even after group mapping."
+            echo "WARNING: Host permissions may be too restrictive (e.g., 700). Not modifying host ownership."
+        fi
+    fi
+fi
 
 # Ensure app directory ownership
 chown "${PUID}:${PGID}" /app
+
+# Favor group-writable files created by the app
+umask 002
 
 echo "Entrypoint: Setup complete. Starting as ${APP_USER} (UID: ${PUID}, GID: ${PGID})"
 exec su-exec "$APP_USER" "$@"
