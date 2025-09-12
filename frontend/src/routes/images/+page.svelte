@@ -48,8 +48,7 @@
 	async function handleTriggerBulkUpdateCheck() {
 		isLoading.checking = true;
 		try {
-			const imageRefs = images.data.map((img) => img.repoTags?.[0] || `image:${img.id}`);
-			await environmentAPI.checkMultipleImages(imageRefs);
+			await environmentAPI.checkAllImages();
 			toast.success(m.images_update_check_completed());
 			images = await environmentAPI.getImages(requestOptions);
 		} catch (error) {

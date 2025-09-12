@@ -117,17 +117,7 @@ func (h *ImageUpdateHandler) CheckMultipleImages(c *gin.Context) {
 }
 
 func (h *ImageUpdateHandler) CheckAllImages(c *gin.Context) {
-	limitStr := c.DefaultQuery("limit", "50")
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid limit parameter",
-		})
-		return
-	}
-
-	results, err := h.imageUpdateService.CheckAllImages(c.Request.Context(), limit)
+	results, err := h.imageUpdateService.CheckAllImages(c.Request.Context(), 0)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

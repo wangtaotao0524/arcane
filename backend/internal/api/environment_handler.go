@@ -123,7 +123,6 @@ func NewEnvironmentHandler(
 
 		apiGroup.GET("/:id/image-updates/check", handler.CheckImageUpdate)
 		apiGroup.GET("/:id/image-updates/check/:imageId", handler.CheckImageUpdateByID)
-		apiGroup.POST("/:id/image-updates/check-batch", handler.CheckMultipleImages)
 		apiGroup.GET("/:id/image-updates/check-all", handler.CheckAllImages)
 		apiGroup.GET("/:id/image-updates/summary", handler.GetUpdateSummary)
 		apiGroup.GET("/:id/image-updates/versions", handler.GetImageVersions)
@@ -246,9 +245,6 @@ func (h *EnvironmentHandler) handleImageUpdateEndpoints(c *gin.Context, endpoint
 	case strings.HasPrefix(endpoint, "/image-updates/check/") && c.Request.Method == http.MethodGet:
 		imageUpdateHandler.CheckImageUpdateByID(c)
 		return true
-	case endpoint == "/image-updates/check-batch" && c.Request.Method == http.MethodPost:
-		imageUpdateHandler.CheckMultipleImages(c)
-		return true
 	case endpoint == "/image-updates/check-all" && c.Request.Method == http.MethodGet:
 		imageUpdateHandler.CheckAllImages(c)
 		return true
@@ -272,10 +268,6 @@ func (h *EnvironmentHandler) CheckImageUpdate(c *gin.Context) {
 func (h *EnvironmentHandler) CheckImageUpdateByID(c *gin.Context) {
 	imageID := c.Param("imageId")
 	h.routeRequest(c, "/image-updates/check/"+imageID)
-}
-
-func (h *EnvironmentHandler) CheckMultipleImages(c *gin.Context) {
-	h.routeRequest(c, "/image-updates/check-batch")
 }
 
 func (h *EnvironmentHandler) CheckAllImages(c *gin.Context) {

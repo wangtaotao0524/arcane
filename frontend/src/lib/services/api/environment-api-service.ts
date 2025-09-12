@@ -327,14 +327,9 @@ export class EnvironmentAPIService extends BaseAPIService {
 		return this.handleResponse(this.api.get(`/environments/${envId}/image-updates/check/${imageId}`));
 	}
 
-	async checkMultipleImages(imageRefs: string[]): Promise<Record<string, ImageUpdateInfoDto>> {
+	async checkAllImages(): Promise<Record<string, ImageUpdateInfoDto>> {
 		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.post(`/environments/${envId}/image-updates/check-batch`, { imageRefs }));
-	}
-
-	async checkAllImages(limit = 50): Promise<Record<string, ImageUpdateInfoDto>> {
-		const envId = await this.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.get(`/environments/${envId}/image-updates/check-all`, { params: { limit } }));
+		return this.handleResponse(this.api.get(`/environments/${envId}/image-updates/check-all`));
 	}
 
 	async getUpdateSummary(): Promise<ImageUpdateSummary> {
