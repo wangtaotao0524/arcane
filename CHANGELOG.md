@@ -1,4 +1,4 @@
-## [](https://github.com/ofkm/arcane/compare/v1.0.1...v) (2025-09-12)
+## [1.0.2](https://github.com/ofkm/arcane/compare/v1.0.1...v1.0.2) (2025-09-12)
 
 ### Bug Fixes
 

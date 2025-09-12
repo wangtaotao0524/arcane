@@ -143,6 +143,9 @@ jobs:
     needs: [binaries, manager-image, agent-image]
     permissions:
       contents: write
+      id-token: write
+      packages: write
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
