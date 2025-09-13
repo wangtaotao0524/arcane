@@ -6,6 +6,11 @@ export class AppVersionService {
 	private lastFetchTime: number = 0;
 	private readonly cacheExpiry = 1000 * 60 * 60 * 3; // 3 hours
 
+	private getReleaseUrl(version?: string): string {
+		if (!version) return 'https://github.com/ofkm/arcane/releases/latest';
+		return `https://github.com/ofkm/arcane/releases/tag/v${version}`;
+	}
+
 	getCurrentVersion(): string {
 		return currentVersion;
 	}
@@ -39,12 +44,16 @@ export class AppVersionService {
 				this.cachedVersionInfo = {
 					currentVersion: this.getCurrentVersion(),
 					newestVersion,
-					updateAvailable: !isUpToDate
+					updateAvailable: !isUpToDate,
+					releaseUrl: this.getReleaseUrl(newestVersion)
 				};
 				this.lastFetchTime = Date.now();
 			} catch (error) {
 				console.error('Error fetching version information:', error);
-				return { currentVersion: this.getCurrentVersion() };
+				return {
+					currentVersion: this.getCurrentVersion(),
+					releaseUrl: this.getReleaseUrl()
+				};
 			}
 		}
 

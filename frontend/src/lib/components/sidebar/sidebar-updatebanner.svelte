@@ -6,6 +6,7 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import type { AppVersionInformation } from '$lib/types/application-configuration';
 	import { m } from '$lib/paraglide/messages';
+	import { Button } from '$lib/components/ui/button/index.js';
 
 	let {
 		isCollapsed,
@@ -16,6 +17,8 @@
 		versionInformation?: AppVersionInformation;
 		updateAvailable?: boolean;
 	} = $props();
+
+	console.log(versionInformation);
 
 	const sidebar = useSidebar();
 </script>
@@ -28,7 +31,8 @@
 			<div
 				class="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-3 transition-all hover:scale-[1.02] hover:from-blue-500/15 hover:to-blue-600/10 hover:shadow-md"
 			>
-				<a
+				<Button
+					variant="link"
 					href={versionInformation?.releaseUrl}
 					target="_blank"
 					rel="noopener noreferrer"
@@ -41,7 +45,7 @@
 						>
 					</div>
 					<ExternalLink size={16} class="transition-transform duration-200 group-hover:scale-110" />
-				</a>
+				</Button>
 			</div>
 		{:else}
 			<div class="flex justify-center">
