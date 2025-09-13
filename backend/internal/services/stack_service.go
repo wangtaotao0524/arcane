@@ -519,6 +519,32 @@ func (s *StackService) ListStacksPaginated(ctx context.Context, req utils.Sorted
 	var stacks []models.Stack
 	query := s.db.WithContext(ctx).Model(&models.Stack{})
 
+	if term := strings.TrimSpace(req.Search); term != "" {
+		like := "%" + strings.ToLower(term) + "%"
+		query = query.Where(`
+			LOWER(name) LIKE ? OR
+			LOWER(path) LIKE ? OR
+			LOWER(status) LIKE ? OR
+			LOWER(COALESCE(dir_name, '')) LIKE ?
+		`, like, like, like, like)
+	}
+
+	switch strings.ToLower(strings.TrimSpace(req.Sort.Column)) {
+	case "created", "createdat":
+		req.Sort.Column = "created_at"
+	case "updated", "updatedat":
+		req.Sort.Column = "updated_at"
+	case "servicecount":
+		req.Sort.Column = "service_count"
+	case "runningcount":
+		req.Sort.Column = "running_count"
+	case "dirname", "dir_name":
+		req.Sort.Column = "dir_name"
+	case "name", "status", "path":
+	default:
+		// no-op
+	}
+
 	pagination, err := utils.PaginateAndSort(req, query, &stacks)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, fmt.Errorf("failed to paginate stacks: %w", err)
