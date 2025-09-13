@@ -23,14 +23,14 @@ func NewAutoUpdateJob(updaterService *services.UpdaterService, settingsService *
 
 func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, updaterService *services.UpdaterService, settingsService *services.SettingsService) error {
 	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdate", false)
-	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 300)
+	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 1440)
 
 	if !autoUpdateEnabled {
 		slog.InfoContext(ctx, "auto-update disabled; job not registered")
 		return nil
 	}
 
-	interval := time.Duration(autoUpdateInterval) * time.Second
+	interval := time.Duration(autoUpdateInterval) * time.Minute
 	if interval < 5*time.Minute {
 		slog.WarnContext(ctx, "auto-update interval too low; using default",
 			"requested_seconds", autoUpdateInterval,
