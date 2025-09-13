@@ -27,7 +27,7 @@
 		totalContainers,
 		stoppedContainers,
 		containersRunning,
-		imagesTotal,
+		imagesTotal = $bindable(),
 		class: className
 	}: {
 		title?: string;

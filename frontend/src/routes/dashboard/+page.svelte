@@ -1,17 +1,14 @@
 <script lang="ts">
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
 	import CpuIcon from '@lucide/svelte/icons/cpu';
 	import ContainerIcon from '@lucide/svelte/icons/container';
-	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
-	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { capitalizeFirstLetter } from '$lib/utils/string.utils';
 	import { toast } from 'svelte-sonner';
 	import PruneConfirmationDialog from '$lib/components/dialogs/prune-confirmation-dialog.svelte';
 	import { handleApiResultWithCallbacks } from '$lib/utils/api.util';
 	import { tryCatch } from '$lib/utils/try-catch';
-	import { systemAPI, settingsAPI } from '$lib/services/api';
+	import { systemAPI, settingsAPI, environmentAPI } from '$lib/services/api';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import { onMount } from 'svelte';
 	import MeterMetric from '$lib/components/meter-metric.svelte';
@@ -131,6 +128,8 @@
 		}
 	}
 
+	let imageRequestOptions = $state(data.imageRequestOptions);
+
 	async function refreshData() {
 		if (isLoading.refreshing) return;
 		isLoading.refreshing = true;
@@ -138,18 +137,32 @@
 		isLoading.loadingDockerInfo = true;
 		isLoading.loadingImages = true;
 
-		const [dockerInfoResult, settingsResult] = await Promise.allSettled([
+		const [dockerInfoResult, settingsResult, imagesResult, statusCountsResult] = await Promise.allSettled([
 			tryCatch(systemAPI.getDockerInfo()),
-			tryCatch(settingsAPI.getSettings())
+			tryCatch(settingsAPI.getSettings()),
+			tryCatch(environmentAPI.getImages(imageRequestOptions)),
+			tryCatch(environmentAPI.getContainerStatusCounts())
 		]);
 
 		if (dockerInfoResult.status === 'fulfilled' && !dockerInfoResult.value.error) {
 			dashboardStates.dockerInfo = dockerInfoResult.value.data;
+			dockerInfo = dockerInfoResult.value.data; // keep meters/cards in sync
 		}
 		isLoading.loadingDockerInfo = false;
 
 		if (settingsResult.status === 'fulfilled' && !settingsResult.value.error) {
 			dashboardStates.settings = settingsResult.value.data;
+		}
+
+		if (imagesResult.status === 'fulfilled') {
+			if (!imagesResult.value.error) {
+				images = imagesResult.value.data;
+			}
+		}
+		isLoading.loadingImages = false;
+
+		if (statusCountsResult.status === 'fulfilled' && !statusCountsResult.value.error) {
+			containerStatusCounts = statusCountsResult.value.data;
 		}
 
 		await fetchLiveSystemStats();
@@ -252,32 +265,24 @@
 			<h1 class="text-3xl font-bold tracking-tight">{m.dashboard_title()}</h1>
 			<p class="text-muted-foreground max-w-2xl text-sm">{m.dashboard_subtitle()}</p>
 		</div>
-		<ArcaneButton
-			action="restart"
-			onclick={refreshData}
-			disabled={isLoading.refreshing || isLoading.starting || isLoading.stopping || isLoading.pruning}
-		>
-			{#if isLoading.refreshing}
-				<LoaderCircleIcon class="mr-2 size-4 motion-safe:animate-spin" />
-			{:else}
-				<RefreshCwIcon class="mr-2 size-4" />
-			{/if}
-			{m.common_refresh()}
-		</ArcaneButton>
-	</div>
 
-	<QuickActions
-		class="block"
-		dockerInfo={dashboardStates.dockerInfo}
-		{stoppedContainers}
-		{runningContainers}
-		{totalContainers}
-		loadingDockerInfo={isLoading.loadingDockerInfo}
-		isLoading={{ starting: isLoading.starting, stopping: isLoading.stopping, pruning: isLoading.pruning }}
-		onStartAll={handleStartAll}
-		onStopAll={handleStopAll}
-		onOpenPruneDialog={() => (dashboardStates.isPruneDialogOpen = true)}
-	/>
+		<div class="flex flex-wrap items-center justify-end gap-2">
+			<QuickActions
+				class="flex flex-wrap items-center gap-2"
+				compact
+				dockerInfo={dashboardStates.dockerInfo}
+				{stoppedContainers}
+				{runningContainers}
+				loadingDockerInfo={isLoading.loadingDockerInfo}
+				isLoading={{ starting: isLoading.starting, stopping: isLoading.stopping, pruning: isLoading.pruning }}
+				onStartAll={handleStartAll}
+				onStopAll={handleStopAll}
+				onOpenPruneDialog={() => (dashboardStates.isPruneDialogOpen = true)}
+				onRefresh={refreshData}
+				refreshing={isLoading.refreshing}
+			/>
+		</div>
+	</div>
 
 	<section>
 		<h2 class="mb-4 text-lg font-semibold tracking-tight">{m.dashboard_system_overview()}</h2>
@@ -346,7 +351,7 @@
 		totalContainers={containers.pagination.totalItems}
 		{stoppedContainers}
 		containersRunning={dockerInfo?.containersRunning ?? 0}
-		imagesTotal={images.pagination.totalItems}
+		bind:imagesTotal={images.pagination.totalItems}
 	/>
 
 	<section>
