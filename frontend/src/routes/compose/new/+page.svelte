@@ -38,7 +38,7 @@
 		name: z
 			.string()
 			.min(1, m.compose_project_name_required())
-			.regex(/^[a-z0-9-]+$/i, m.compose_project_name_invalid()),
+			.regex(/^[a-z0-9-_]+$/i, m.compose_project_name_invalid()),
 		composeContent: z.string().min(1, m.compose_compose_content_required()),
 		envContent: z.string().optional().default('')
 	});
@@ -105,7 +105,7 @@
 		}
 
 		if (!$inputs.name.value?.trim()) {
-			$inputs.name.value = template.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+			$inputs.name.value = template.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
 		}
 		toast.success(m.compose_template_loaded({ name: template.name }));
 	}

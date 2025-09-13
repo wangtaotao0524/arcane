@@ -56,7 +56,7 @@
 		name: z
 			.string()
 			.min(1, 'Project name is required')
-			.regex(/^[a-z0-9-]+$/i, 'Only letters, numbers, and hyphens are allowed'),
+			.regex(/^[a-z0-9-_]+$/i, 'Only letters, numbers, hyphens, and underscores are allowed'),
 		composeContent: z.string().min(1, 'Compose content is required'),
 		envContent: z.string().optional().default('')
 	});
