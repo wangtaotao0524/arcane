@@ -60,16 +60,6 @@
 	}
 </script>
 
-{#if settings.autoUpdate && settings.pollingEnabled}
-	<div class="mb-4">
-		<Alert.Root variant="warning">
-			<ZapIcon class="size-4" />
-			<Alert.Title>{m.docker_auto_update_alert_title()}</Alert.Title>
-			<Alert.Description>{m.docker_auto_update_alert_description()}</Alert.Description>
-		</Alert.Root>
-	</div>
-{/if}
-
 <form onsubmit={preventDefault(onSubmit)} class="space-y-6">
 	<div class="w-full p-6">
 		<FieldSet.Root>
