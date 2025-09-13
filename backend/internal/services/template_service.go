@@ -14,9 +14,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/ofkm/arcane-backend/internal/database"
 	"github.com/ofkm/arcane-backend/internal/dto"
 	"github.com/ofkm/arcane-backend/internal/models"
+	appfs "github.com/ofkm/arcane-backend/internal/utils/fs"
 	"gorm.io/gorm"
 )
 
@@ -113,15 +115,22 @@ func (s *TemplateService) ensureRemoteTemplatesLoaded(ctx context.Context) error
 }
 
 func (s *TemplateService) GetAllTemplates(ctx context.Context) ([]models.ComposeTemplate, error) {
-	var templates []models.ComposeTemplate
+	if err := s.syncFilesystemTemplatesInternal(ctx); err != nil {
+		fmt.Printf("Warning: failed to sync filesystem templates: %v\n", err)
+	}
 
-	err := s.db.WithContext(ctx).Preload("Registry").Find(&templates).Error
-	if err != nil {
+	var templates []models.ComposeTemplate
+	if err := s.db.WithContext(ctx).Preload("Registry").Find(&templates).Error; err != nil {
 		return nil, fmt.Errorf("failed to get local templates: %w", err)
 	}
 
-	err = s.ensureRemoteTemplatesLoaded(ctx)
-	if err != nil {
+	// Trim heavy fields in list responses
+	for i := range templates {
+		templates[i].Content = ""
+		templates[i].EnvContent = nil
+	}
+
+	if err := s.ensureRemoteTemplatesLoaded(ctx); err != nil {
 		fmt.Printf("Warning: failed to load remote templates for GetAllTemplates: %v\n", err)
 	} else {
 		rc := s.getRemoteCache()
@@ -134,27 +143,25 @@ func (s *TemplateService) GetAllTemplates(ctx context.Context) ([]models.Compose
 }
 
 func (s *TemplateService) GetTemplate(ctx context.Context, id string) (*models.ComposeTemplate, error) {
-	var template models.ComposeTemplate
-
-	// Local DB by ID (keeps DB concerns in models)
-	err := s.db.WithContext(ctx).Preload("Registry").Where("id = ?", id).First(&template).Error
-	if err == nil {
-		return &template, nil
+	if err := s.syncFilesystemTemplatesInternal(ctx); err != nil {
+		fmt.Printf("Warning: failed to sync filesystem templates: %v\n", err)
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+
+	var template models.ComposeTemplate
+	if err := s.db.WithContext(ctx).Preload("Registry").Where("id = ?", id).First(&template).Error; err == nil {
+		return &template, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("failed to query local template: %w", err)
 	}
 
-	// Remote cache by public ID
 	if err := s.ensureRemoteTemplatesLoaded(ctx); err != nil {
 		return nil, fmt.Errorf("template not found (failed to load remote templates): %w", err)
 	}
 	rc := s.getRemoteCache()
 	for _, remoteTemplate := range rc.templates {
-		// Compare against public ID (supports both new composite IDs and legacy slug IDs if present)
 		if remoteTemplate.ID == id {
-			foundTemplate := remoteTemplate
-			return &foundTemplate, nil
+			t := remoteTemplate
+			return &t, nil
 		}
 	}
 
@@ -162,19 +169,14 @@ func (s *TemplateService) GetTemplate(ctx context.Context, id string) (*models.C
 }
 
 func (s *TemplateService) CreateTemplate(ctx context.Context, template *models.ComposeTemplate) error {
-	// Ensure ID is set if not provided (for custom templates)
 	if template.ID == "" {
-		template.ID = s.generateTemplateID(template.Name)
+		template.ID = uuid.NewString()
 	}
-
 	template.IsCustom = true
 	template.IsRemote = false
-
-	err := s.db.WithContext(ctx).Create(template).Error
-	if err != nil {
+	if err := s.db.WithContext(ctx).Create(template).Error; err != nil {
 		return fmt.Errorf("failed to create template: %w", err)
 	}
-
 	return nil
 }
 
@@ -226,7 +228,6 @@ func (s *TemplateService) DeleteTemplate(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to delete template: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		// This case should ideally not be reached if First() succeeded, but as a safeguard
 		return fmt.Errorf("template not found after finding it")
 	}
 	return nil
@@ -265,6 +266,7 @@ func (s *TemplateService) GetRegistries(ctx context.Context) ([]models.TemplateR
 }
 
 func (s *TemplateService) CreateRegistry(ctx context.Context, registry *models.TemplateRegistry) error {
+	// Hydrate metadata if needed
 	if registry.Name == "" || registry.Description == "" {
 		if registry.URL == "" {
 			return fmt.Errorf("registry URL is required")
@@ -279,6 +281,10 @@ func (s *TemplateService) CreateRegistry(ctx context.Context, registry *models.T
 		} else if registry.Name == "" || registry.Description == "" {
 			return fmt.Errorf("failed to fetch registry manifest: %w", err)
 		}
+	}
+
+	if registry.ID == "" {
+		registry.ID = uuid.NewString()
 	}
 
 	if err := s.db.WithContext(ctx).Create(registry).Error; err != nil {
@@ -454,21 +460,6 @@ func (s *TemplateService) convertRemoteToLocal(remote dto.RemoteTemplate, regist
 	}
 }
 
-func (s *TemplateService) generateTemplateID(name string) string {
-	id := strings.ToLower(name)
-	id = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(id, "-")
-	id = strings.Trim(id, "-")
-
-	if id == "" {
-		id = "template"
-	}
-
-	// Ensure uniqueness for local templates if needed, e.g., append a short hash or timestamp
-	// For now, relying on DB primary key constraint for uniqueness on save.
-
-	return id
-}
-
 func (s *TemplateService) getDefaultEnvTemplate() string {
 	return `# Environment Variables
 # These variables will be available to your stack services
@@ -526,11 +517,73 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 		return nil, fmt.Errorf("template is not remote")
 	}
 
-	// Check if a local version with the same remote ID already exists
-	// This prevents duplicate downloads of the same remote template
-	existingLocalTemplate, err := s.GetTemplate(ctx, s.generateTemplateID(remoteTemplate.Name))
-	if err == nil && !existingLocalTemplate.IsRemote {
-		return existingLocalTemplate, fmt.Errorf("template '%s' is already downloaded", remoteTemplate.Name)
+	// Determine safe folder name from template name or public ID
+	base := s.slugify(remoteTemplate.Name)
+	if base == "" {
+		parts := strings.Split(remoteTemplate.ID, ":")
+		if len(parts) > 0 {
+			base = s.slugify(parts[len(parts)-1])
+		}
+		if base == "" {
+			base = "template-" + uuid.NewString()
+		}
+	}
+
+	// Ensure directory: data/templates/<base>
+	tplDir := filepath.Join("data", "templates", base)
+	if err := os.MkdirAll(tplDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create template directory: %w", err)
+	}
+	composePath := filepath.Join(tplDir, "compose.yaml")
+	envPath := filepath.Join(tplDir, ".env.example")
+	srcDesc := fmt.Sprintf("Imported from data/templates/%s/compose.yaml", base)
+
+	var existing models.ComposeTemplate
+	if err := s.db.WithContext(ctx).
+		Where("is_remote = ? AND registry_id IS NULL AND (description = ? OR name = ?)", false, srcDesc, base).
+		First(&existing).Error; err == nil {
+		composeContent, envContent, err := s.FetchTemplateContent(ctx, remoteTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch template content for existing local template: %w", err)
+		}
+
+		// Write compose file and handle errors
+		if err := os.WriteFile(composePath, []byte(composeContent), 0600); err != nil {
+			return nil, fmt.Errorf("failed to write compose file: %w", err)
+		}
+
+		// Write env file if present and handle errors
+		hasEnv := strings.TrimSpace(envContent) != ""
+		if hasEnv {
+			if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
+				return nil, fmt.Errorf("failed to write env file: %w", err)
+			}
+		}
+
+		// Only set fields after successful writes
+		existing.Content = composeContent
+		if hasEnv {
+			existing.EnvContent = &envContent
+		}
+
+		if remoteTemplate.Metadata != nil {
+			existing.Metadata = &models.ComposeTemplateMetadata{
+				Version:          remoteTemplate.Metadata.Version,
+				Author:           remoteTemplate.Metadata.Author,
+				Tags:             remoteTemplate.Metadata.Tags,
+				RemoteURL:        remoteTemplate.Metadata.RemoteURL,
+				EnvURL:           remoteTemplate.Metadata.EnvURL,
+				DocumentationURL: remoteTemplate.Metadata.DocumentationURL,
+				IconURL:          remoteTemplate.Metadata.IconURL,
+			}
+		}
+
+		if err := s.db.WithContext(ctx).Save(&existing).Error; err != nil {
+			return nil, fmt.Errorf("failed to update existing local template: %w", err)
+		}
+		return &existing, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check existing template: %w", err)
 	}
 
 	composeContent, envContent, err := s.FetchTemplateContent(ctx, remoteTemplate)
@@ -538,18 +591,27 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 		return nil, fmt.Errorf("failed to fetch template content for download: %w", err)
 	}
 
+	if err := os.WriteFile(composePath, []byte(composeContent), 0600); err != nil {
+		return nil, fmt.Errorf("failed to write compose file: %w", err)
+	}
+	var envPtr *string
+	if strings.TrimSpace(envContent) != "" {
+		if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
+			return nil, fmt.Errorf("failed to write env file: %w", err)
+		}
+		envPtr = &envContent
+	}
+
 	localTemplate := &models.ComposeTemplate{
-		Name:        remoteTemplate.Name,
-		Description: fmt.Sprintf("%s (Downloaded from %s)", remoteTemplate.Description, remoteTemplate.Registry.Name),
+		BaseModel:   models.BaseModel{ID: uuid.NewString()},
+		Name:        base,
+		Description: srcDesc,
 		Content:     composeContent,
+		EnvContent:  envPtr,
 		IsCustom:    true,
 		IsRemote:    false,
 		RegistryID:  nil,
 		Registry:    nil,
-	}
-
-	if envContent != "" {
-		localTemplate.EnvContent = &envContent
 	}
 
 	if remoteTemplate.Metadata != nil {
@@ -557,23 +619,125 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 			Version:          remoteTemplate.Metadata.Version,
 			Author:           remoteTemplate.Metadata.Author,
 			Tags:             remoteTemplate.Metadata.Tags,
+			RemoteURL:        remoteTemplate.Metadata.RemoteURL,
+			EnvURL:           remoteTemplate.Metadata.EnvURL,
 			DocumentationURL: remoteTemplate.Metadata.DocumentationURL,
 			IconURL:          remoteTemplate.Metadata.IconURL,
 		}
 	}
 
-	err = s.db.WithContext(ctx).Create(localTemplate).Error
-	if err != nil {
+	if err := s.db.WithContext(ctx).Create(localTemplate).Error; err != nil {
 		return nil, fmt.Errorf("failed to save local template: %w", err)
 	}
-
-	// After successful download and save, remove the remote template from the cache
-	// This is optional but can help keep the list clean if you only want to see local after download
-	// s.removeRemoteTemplateFromCache(remoteTemplate.ID) // Need to implement this helper if desired
 
 	return localTemplate, nil
 }
 
+// slugify produces a filesystem-safe name.
+func (s *TemplateService) slugify(in string) string {
+	in = strings.TrimSpace(strings.ToLower(in))
+	if in == "" {
+		return ""
+	}
+	in = strings.ReplaceAll(in, " ", "-")
+	re := regexp.MustCompile(`[^a-z0-9\-_]+`)
+	in = re.ReplaceAllString(in, "-")
+	in = regexp.MustCompile(`-+`).ReplaceAllString(in, "-")
+	return strings.Trim(in, "-")
+}
+
 func (s *TemplateService) invalidateRemoteCache() {
 	s.setRemoteCache(remoteCache{})
+}
+
+func (s *TemplateService) SyncLocalTemplatesFromFilesystem(ctx context.Context) error {
+	return s.syncFilesystemTemplatesInternal(ctx)
+}
+
+// upsertFilesystemTemplate centralizes insert/update logic for filesystem templates.
+func (s *TemplateService) upsertFilesystemTemplate(ctx context.Context, name, desc, compose string, envPtr *string) error {
+	var existing models.ComposeTemplate
+	q := s.db.WithContext(ctx).
+		Where("is_remote = ? AND registry_id IS NULL AND description = ?", false, desc).
+		First(&existing)
+
+	if q.Error == nil {
+		existing.Name = name
+		existing.Content = compose
+		existing.EnvContent = envPtr
+		existing.IsCustom = true
+		existing.IsRemote = false
+		if err := s.db.WithContext(ctx).Save(&existing).Error; err != nil {
+			return fmt.Errorf("update template %s: %w", existing.ID, err)
+		}
+		return nil
+	}
+	if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("query existing template: %w", q.Error)
+	}
+
+	tpl := &models.ComposeTemplate{
+		BaseModel:   models.BaseModel{ID: uuid.NewString()},
+		Name:        name,
+		Description: desc,
+		Content:     compose,
+		EnvContent:  envPtr,
+		IsCustom:    true,
+		IsRemote:    false,
+		RegistryID:  nil,
+		Registry:    nil,
+		Metadata:    nil,
+	}
+	if err := s.db.WithContext(ctx).Create(tpl).Error; err != nil {
+		return fmt.Errorf("insert template %s: %w", name, err)
+	}
+	return nil
+}
+
+func (s *TemplateService) processFolderEntry(ctx context.Context, baseDir, folder string) error {
+	compose, envPtr, desc, found, err := appfs.ReadFolderComposeTemplate(baseDir, folder)
+	if err != nil || !found {
+		return err
+	}
+	return s.upsertFilesystemTemplate(ctx, folder, desc, compose, envPtr)
+}
+
+func (s *TemplateService) processRootFile(ctx context.Context, baseDir, file string) error {
+	base, compose, envPtr, desc, err := appfs.ReadRootComposeTemplate(baseDir, file)
+	if err != nil {
+		return err
+	}
+	return s.upsertFilesystemTemplate(ctx, base, desc, compose, envPtr)
+}
+
+func (s *TemplateService) syncFilesystemTemplatesInternal(ctx context.Context) error {
+	dir, err := appfs.GetTemplatesDirectory(ctx)
+	if err != nil {
+		return fmt.Errorf("ensure templates dir: %w", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read dir %s: %w", dir, err)
+	}
+
+	for _, ent := range entries {
+		if ent.IsDir() {
+			if err := s.processFolderEntry(ctx, dir, ent.Name()); err != nil {
+				fmt.Printf("Warning: failed to read folder template %s: %v\n", ent.Name(), err)
+			}
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(ent.Name()))
+		if ext != ".yml" && ext != ".yaml" {
+			continue
+		}
+		if err := s.processRootFile(ctx, dir, ent.Name()); err != nil {
+			fmt.Printf("Warning: failed to read file template %s: %v\n", ent.Name(), err)
+		}
+	}
+	return nil
 }
