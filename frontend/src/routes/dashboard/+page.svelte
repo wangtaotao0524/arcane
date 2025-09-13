@@ -26,6 +26,7 @@
 	let containers = $state(data.containers);
 	let images = $state(data.images);
 	let dockerInfo = $state(data.dockerInfo);
+	let containerStatusCounts = $state(data.containerStatusCounts);
 
 	let dashboardStates = $state({
 		dockerInfo: data.dockerInfo,
@@ -57,8 +58,9 @@
 		containers: [] as Array<{ date: Date; value: number }>
 	});
 
-	const stoppedContainers = $derived(containers.data.filter((s) => s.state != 'running').length);
-	const totalContainers = $derived(containers.pagination.totalItems);
+	const stoppedContainers = $derived(containerStatusCounts.stoppedContainers);
+	const runningContainers = $derived(containerStatusCounts.runningContainers);
+	const totalContainers = $derived(containerStatusCounts.totalContainers);
 	const currentStats = $derived(dashboardStates.systemStats || liveSystemStats);
 
 	function addToHistoricalData(stats: SystemStats) {
@@ -268,7 +270,8 @@
 		class="block"
 		dockerInfo={dashboardStates.dockerInfo}
 		{stoppedContainers}
-		totalContainers={containers.pagination.totalItems}
+		{runningContainers}
+		{totalContainers}
 		loadingDockerInfo={isLoading.loadingDockerInfo}
 		isLoading={{ starting: isLoading.starting, stopping: isLoading.stopping, pruning: isLoading.pruning }}
 		onStartAll={handleStartAll}

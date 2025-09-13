@@ -17,6 +17,7 @@
 		dockerInfo,
 		stoppedContainers,
 		totalContainers,
+		runningContainers,
 		loadingDockerInfo = false,
 		isLoading,
 		onStartAll,
@@ -27,6 +28,7 @@
 		dockerInfo: DockerInfo;
 		stoppedContainers: number;
 		totalContainers: number;
+		runningContainers: number;
 		loadingDockerInfo?: boolean;
 		isLoading: IsLoadingFlags;
 		onStartAll: () => void;
@@ -107,7 +109,7 @@
 					<div class="flex-1 text-left">
 						<div class="text-sm font-medium">{m.quick_actions_stop_all()}</div>
 						<div class="text-muted-foreground text-xs">
-							<span class="rounded-full border px-1.5 py-0.5">{m.quick_actions_containers({ count: totalContainers })}</span>
+							<span class="rounded-full border px-1.5 py-0.5">{m.quick_actions_containers({ count: runningContainers })}</span>
 						</div>
 					</div>
 				</button>

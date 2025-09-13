@@ -26,6 +26,7 @@ export const load: PageLoad = async () => {
 
 	const containers = await environmentAPI.getContainers(containerRequestOptions);
 	const images = await environmentAPI.getImages(imageRequestOptions);
+	const containerStatusCounts = await environmentAPI.getContainerStatusCounts();
 
 	const [dockerInfoResult, settingsResult] = await Promise.allSettled([systemAPI.getDockerInfo(), settingsAPI.getSettings()]);
 
@@ -38,6 +39,7 @@ export const load: PageLoad = async () => {
 		images,
 		settings,
 		containerRequestOptions,
-		imageRequestOptions
+		imageRequestOptions,
+		containerStatusCounts
 	};
 };
