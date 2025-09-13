@@ -17,8 +17,14 @@ func initializeScheduler() (*job.Scheduler, error) {
 }
 
 func registerJobs(appCtx context.Context, scheduler *job.Scheduler, appServices *Services) {
-	if err := job.RegisterAutoUpdateJob(appCtx, scheduler, appServices.Updater, appServices.Settings); err != nil {
+	autoUpdateJob := job.NewAutoUpdateJob(scheduler, appServices.Updater, appServices.Settings)
+	if err := autoUpdateJob.Register(appCtx); err != nil {
 		slog.ErrorContext(appCtx, "Failed to register auto-update job", slog.Any("error", err))
+	}
+
+	imagePollingJob := job.NewImagePollingJob(scheduler, appServices.ImageUpdate, appServices.Settings)
+	if err := imagePollingJob.Register(appCtx); err != nil {
+		slog.ErrorContext(appCtx, "Failed to register image polling job", slog.Any("error", err))
 	}
 
 	if err := job.RegisterEventCleanupJob(appCtx, scheduler, appServices.Event); err != nil {
@@ -29,7 +35,17 @@ func registerJobs(appCtx context.Context, scheduler *job.Scheduler, appServices 
 		slog.ErrorContext(appCtx, "Failed to register filesystem watcher job", slog.Any("error", err))
 	}
 
-	if err := job.RegisterImagePollingJob(appCtx, scheduler, appServices.ImageUpdate, appServices.Settings); err != nil {
-		slog.ErrorContext(appCtx, "Failed to register image polling job", slog.Any("error", err))
+	appServices.Settings.OnImagePollingSettingsChanged = func(ctx context.Context) {
+		if err := imagePollingJob.Reschedule(ctx); err != nil {
+			slog.WarnContext(ctx, "Failed to reschedule image-polling job", slog.Any("error", err))
+		}
+		if err := autoUpdateJob.Reschedule(ctx); err != nil {
+			slog.WarnContext(ctx, "Failed to reschedule auto-update job", slog.Any("error", err))
+		}
+	}
+	appServices.Settings.OnAutoUpdateSettingsChanged = func(ctx context.Context) {
+		if err := autoUpdateJob.Reschedule(ctx); err != nil {
+			slog.WarnContext(ctx, "Failed to reschedule auto-update job", slog.Any("error", err))
+		}
 	}
 }

@@ -12,42 +12,52 @@ import (
 type AutoUpdateJob struct {
 	updaterService  *services.UpdaterService
 	settingsService *services.SettingsService
+	scheduler       *Scheduler
 }
 
-func NewAutoUpdateJob(updaterService *services.UpdaterService, settingsService *services.SettingsService) *AutoUpdateJob {
+func NewAutoUpdateJob(scheduler *Scheduler, updaterService *services.UpdaterService, settingsService *services.SettingsService) *AutoUpdateJob {
 	return &AutoUpdateJob{
 		updaterService:  updaterService,
 		settingsService: settingsService,
+		scheduler:       scheduler,
 	}
 }
 
 func RegisterAutoUpdateJob(ctx context.Context, scheduler *Scheduler, updaterService *services.UpdaterService, settingsService *services.SettingsService) error {
-	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdate", false)
-	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 1440)
+	j := NewAutoUpdateJob(scheduler, updaterService, settingsService)
+	return j.Register(ctx)
+}
 
-	if !autoUpdateEnabled {
-		slog.InfoContext(ctx, "auto-update disabled; job not registered")
+func (j *AutoUpdateJob) Register(ctx context.Context) error {
+	autoUpdateEnabled := j.settingsService.GetBoolSetting(ctx, "autoUpdate", false)
+	pollingEnabled := j.settingsService.GetBoolSetting(ctx, "pollingEnabled", true)
+	autoUpdateInterval := j.settingsService.GetIntSetting(ctx, "autoUpdateInterval", 1440)
+
+	if !autoUpdateEnabled || !pollingEnabled {
+		slog.InfoContext(ctx, "auto-update disabled or polling disabled; job not registered",
+			"autoUpdate", autoUpdateEnabled, "pollingEnabled", pollingEnabled)
 		return nil
 	}
 
 	interval := time.Duration(autoUpdateInterval) * time.Minute
 	if interval < 5*time.Minute {
 		slog.WarnContext(ctx, "auto-update interval too low; using default",
-			"requested_seconds", autoUpdateInterval,
+			"requested_minutes", autoUpdateInterval,
 			"effective_interval", "60m")
 		interval = 60 * time.Minute
 	}
 
 	slog.InfoContext(ctx, "registering auto-update job", "interval", interval.String())
 
-	job := NewAutoUpdateJob(updaterService, settingsService)
-	jobDefinition := gocron.DurationJob(interval)
+	// ensure single instance
+	j.scheduler.RemoveJobByName("auto-update")
 
-	return scheduler.RegisterJob(
+	jobDefinition := gocron.DurationJob(interval)
+	return j.scheduler.RegisterJob(
 		ctx,
 		"auto-update",
 		jobDefinition,
-		job.Execute,
+		j.Execute,
 		false,
 	)
 }
@@ -56,8 +66,10 @@ func (j *AutoUpdateJob) Execute(ctx context.Context) error {
 	slog.InfoContext(ctx, "auto-update run started")
 
 	enabled := j.settingsService.GetBoolSetting(ctx, "autoUpdate", false)
-	if !enabled {
-		slog.InfoContext(ctx, "auto-update disabled; skipping run")
+	pollingEnabled := j.settingsService.GetBoolSetting(ctx, "pollingEnabled", true)
+	if !enabled || !pollingEnabled {
+		slog.InfoContext(ctx, "auto-update disabled or polling disabled; skipping run",
+			"autoUpdate", enabled, "pollingEnabled", pollingEnabled)
 		return nil
 	}
 
@@ -78,16 +90,32 @@ func (j *AutoUpdateJob) Execute(ctx context.Context) error {
 }
 
 func UpdateAutoUpdateJobSchedule(ctx context.Context, scheduler *Scheduler, updaterService *services.UpdaterService, settingsService *services.SettingsService) error {
-	autoUpdateEnabled := settingsService.GetBoolSetting(ctx, "autoUpdate", false)
-	autoUpdateInterval := settingsService.GetIntSetting(ctx, "autoUpdateInterval", 300)
+	j := NewAutoUpdateJob(scheduler, updaterService, settingsService)
+	return j.Reschedule(ctx)
+}
 
-	if !autoUpdateEnabled {
-		slog.InfoContext(ctx, "auto-update disabled; job will be skipped")
+func (j *AutoUpdateJob) Reschedule(ctx context.Context) error {
+	autoUpdateEnabled := j.settingsService.GetBoolSetting(ctx, "autoUpdate", false)
+	pollingEnabled := j.settingsService.GetBoolSetting(ctx, "pollingEnabled", true)
+	autoUpdateInterval := j.settingsService.GetIntSetting(ctx, "autoUpdateInterval", 1440)
+
+	if !autoUpdateEnabled || !pollingEnabled {
+		j.scheduler.RemoveJobByName("auto-update")
+		slog.InfoContext(ctx, "auto-update disabled or polling disabled; removed job if present",
+			"autoUpdate", autoUpdateEnabled, "pollingEnabled", pollingEnabled)
 		return nil
 	}
 
-	interval := time.Duration(autoUpdateInterval) * time.Second
-	slog.InfoContext(ctx, "auto-update settings changed", "interval", interval.String())
+	interval := time.Duration(autoUpdateInterval) * time.Minute
+	if interval < 5*time.Minute {
+		interval = 60 * time.Minute
+	}
+	slog.InfoContext(ctx, "auto-update settings changed; rescheduling", "interval", interval.String())
 
-	return nil
+	return j.scheduler.RescheduleDurationJobByName(ctx, "auto-update", interval, j.Execute, false)
+}
+
+func (j *AutoUpdateJob) Remove(ctx context.Context) {
+	j.scheduler.RemoveJobByName("auto-update")
+	slog.InfoContext(ctx, "auto-update job removed")
 }

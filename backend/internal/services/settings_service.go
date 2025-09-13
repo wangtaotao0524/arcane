@@ -22,6 +22,9 @@ import (
 type SettingsService struct {
 	db     *database.DB
 	config *config.Config
+
+	OnImagePollingSettingsChanged func(ctx context.Context)
+	OnAutoUpdateSettingsChanged   func(ctx context.Context)
 }
 
 func NewSettingsService(db *database.DB, cfg *config.Config) *SettingsService {
@@ -165,6 +168,9 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.Update
 	rv := reflect.ValueOf(updates)
 	valuesToUpdate := make([]models.SettingVariable, 0)
 
+	changedPolling := false
+	changedAutoUpdate := false
+
 	// Iterate through fields using reflection
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
@@ -209,6 +215,13 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.Update
 			Key:   key,
 			Value: valueToSave,
 		})
+
+		switch key {
+		case "pollingEnabled", "pollingInterval":
+			changedPolling = true
+		case "autoUpdate", "autoUpdateInterval":
+			changedAutoUpdate = true
+		}
 	}
 
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -219,7 +232,6 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.Update
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +268,13 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, updates dto.Update
 		if err := s.UpdateSetting(ctx, "authOidcConfig", string(mergedBytes)); err != nil {
 			return nil, fmt.Errorf("failed to update authOidcConfig: %w", err)
 		}
+	}
+
+	if changedPolling && s.OnImagePollingSettingsChanged != nil {
+		s.OnImagePollingSettingsChanged(ctx)
+	}
+	if changedAutoUpdate && s.OnAutoUpdateSettingsChanged != nil {
+		s.OnAutoUpdateSettingsChanged(ctx)
 	}
 
 	settings, err := s.GetSettings(ctx)

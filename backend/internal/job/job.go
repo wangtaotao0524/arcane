@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time" // added
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
@@ -48,6 +49,7 @@ func (s *Scheduler) RegisterJob(
 ) error {
 	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
+		gocron.WithName(name),
 		gocron.WithEventListeners(
 			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
 				slog.InfoContext(ctx, "Job starting", slog.String("name", name), slog.String("id", jobID.String()))
@@ -79,4 +81,24 @@ func (s *Scheduler) RegisterJob(
 
 	slog.InfoContext(ctx, "Job registered successfully", slog.String("name", name))
 	return nil
+}
+
+func (s *Scheduler) RemoveJobByName(name string) {
+	for _, j := range s.scheduler.Jobs() {
+		if j.Name() == name {
+			_ = s.scheduler.RemoveJob(j.ID())
+		}
+	}
+}
+
+func (s *Scheduler) RescheduleDurationJobByName(
+	ctx context.Context,
+	name string,
+	interval time.Duration,
+	taskFunc func(ctx context.Context) error,
+	runImmediately bool,
+) error {
+	s.RemoveJobByName(name)
+	definition := gocron.DurationJob(interval)
+	return s.RegisterJob(ctx, name, definition, taskFunc, runImmediately)
 }
