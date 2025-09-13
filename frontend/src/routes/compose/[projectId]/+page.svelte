@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Project, ProjectService, ProjectPort } from '$lib/types/project.type';
+	import type { Project } from '$lib/types/project.type';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
@@ -8,7 +8,6 @@
 	import FileStackIcon from '@lucide/svelte/icons/file-stack';
 	import LayersIcon from '@lucide/svelte/icons/layers';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import TerminalIcon from '@lucide/svelte/icons/terminal';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
@@ -34,7 +33,7 @@
 	import { m } from '$lib/paraglide/messages';
 
 	let { data }: { data: PageData } = $props();
-	let { project, editorState, servicePorts, settings } = $derived(data);
+	let { project, editorState, settings } = $derived(data);
 
 	let isLoading = $state({
 		deploying: false,
@@ -75,7 +74,7 @@
 			$inputs.envContent.value !== originalEnvContent
 	);
 
-	const baseServerUrl = $derived(settings?.baseServerUrl || 'localhost');
+	// removed: service port host resolution
 
 	let activeSection = $state<string>('overview');
 	let autoScrollStackLogs = $state(true);
@@ -117,49 +116,6 @@
 				await invalidateAll();
 			}
 		});
-	}
-
-	function getHostForService(service: ProjectService): string {
-		if (!service?.networkSettings?.Networks) return baseServerUrl;
-
-		const networks = service.networkSettings.Networks;
-		for (const networkName in networks) {
-			const network = networks[networkName];
-			if (network.Driver === 'macvlan' || network.Driver === 'ipvlan') {
-				if (network.IPAddress) return network.IPAddress;
-			}
-		}
-
-		return baseServerUrl;
-	}
-
-	function getServicePortUrl(service: ProjectService, port: string | number | ProjectPort, protocol = 'http'): string {
-		const host = getHostForService(service);
-
-		if (typeof port === 'string') {
-			const parts = port.split('/');
-			const portNumber = parseInt(parts[0], 10);
-
-			if (parts.length > 1 && parts[1] === 'udp') {
-				protocol = 'udp';
-			}
-
-			return `${protocol}://${host}:${portNumber}`;
-		}
-
-		if (typeof port === 'number') {
-			return `${protocol}://${host}:${port}`;
-		}
-
-		if (port && typeof port === 'object') {
-			const portNumber = port.PublicPort || port.PrivatePort || 80;
-			if (port.Type) {
-				protocol = port.Type.toLowerCase() === 'tcp' ? 'http' : 'https';
-			}
-			return `${protocol}://${host}:${portNumber}`;
-		}
-
-		return `${protocol}://${host}:80`;
 	}
 
 	function handleStackLogStart() {
@@ -350,81 +306,7 @@
 										</div>
 									</Card.Content>
 								</Card.Root>
-
-								{#if servicePorts && Object.keys(servicePorts).length > 0}
-									{@const allUniquePorts = [...new Set((Object.values(servicePorts) as any).flat())] as (
-										| string
-										| number
-										| ProjectPort
-									)[]}
-									<Card.Root class="border">
-										<Card.Header class="pb-4">
-											<Card.Title>{m.compose_exposed_ports()}</Card.Title>
-										</Card.Header>
-										<Card.Content>
-											<div class="flex flex-wrap gap-2">
-												{#each allUniquePorts as port (port)}
-													{@const portValue =
-														typeof port === 'string' || typeof port === 'number' || (typeof port === 'object' && port !== null)
-															? port
-															: String(port)}
-													{@const serviceWithPort = project.services?.find((s) => s.ports?.includes(String(port))) || {
-														container_id: '',
-														name: '',
-														status: ''
-													}}
-													<a
-														href={getServicePortUrl(serviceWithPort, portValue)}
-														target="_blank"
-														rel="noopener noreferrer"
-														class="inline-flex items-center rounded-md bg-blue-500/10 px-3 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
-													>
-														{m.compose_port_label({ port: String(port) })}
-														<ExternalLinkIcon class="ml-2 size-4" />
-													</a>
-												{/each}
-											</div>
-										</Card.Content>
-									</Card.Root>
-								{/if}
 							</div>
-
-							{#if servicePorts && Object.keys(servicePorts).length > 0}
-								{@const allUniquePorts = [...new Set((Object.values(servicePorts) as any).flat())] as (
-									| string
-									| number
-									| ProjectPort
-								)[]}
-								<Card.Root class="border">
-									<Card.Header class="pb-4">
-										<Card.Title>{m.compose_exposed_ports()}</Card.Title>
-									</Card.Header>
-									<Card.Content>
-										<div class="flex flex-wrap gap-2">
-											{#each allUniquePorts as port (port)}
-												{@const portValue =
-													typeof port === 'string' || typeof port === 'number' || (typeof port === 'object' && port !== null)
-														? port
-														: String(port)}
-												{@const serviceWithPort = project.services?.find((s) => s.ports?.includes(String(port))) || {
-													container_id: '',
-													name: '',
-													status: ''
-												}}
-												<a
-													href={getServicePortUrl(serviceWithPort, portValue)}
-													target="_blank"
-													rel="noopener noreferrer"
-													class="inline-flex items-center rounded-md bg-blue-500/10 px-3 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
-												>
-													{m.compose_port_label({ port: String(port) })}
-													<ExternalLinkIcon class="ml-2 size-4" />
-												</a>
-											{/each}
-										</div>
-									</Card.Content>
-								</Card.Root>
-							{/if}
 						</section>
 
 						<section id="services" class="scroll-mt-20">
