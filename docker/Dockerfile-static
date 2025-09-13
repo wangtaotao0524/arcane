@@ -15,6 +15,8 @@ COPY ./backend/.bin/arcane-linux-${TARGETARCH} ./arcane
 
 COPY --chmod=755 ../scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
+LABEL com.ofkm.arcane.updater="false"
+
 EXPOSE 3552
 ENV ENVIRONMENT=production
 
