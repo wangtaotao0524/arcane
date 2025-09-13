@@ -64,6 +64,7 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 	apiGroup := router.Group("/api")
 
 	if cfg.AgentMode {
+		api.NewHealthHandler(apiGroup)
 		api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Container, appServices.Image, appServices.ImageUpdate, appServices.Updater, appServices.Network, appServices.Volume, appServices.Stack, appServices.Settings, authMiddleware, cfg)
 		return router
 	}

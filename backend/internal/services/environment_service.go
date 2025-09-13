@@ -125,7 +125,8 @@ func (s *EnvironmentService) TestConnection(ctx context.Context, id string) (str
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, environment.ApiUrl+"/health", nil)
+	url := strings.TrimRight(environment.ApiUrl, "/") + "/api/health"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		_ = s.updateEnvironmentStatus(ctx, id, string(models.EnvironmentStatusOffline))
 		return "offline", fmt.Errorf("failed to create request: %w", err)
