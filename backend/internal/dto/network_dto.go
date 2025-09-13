@@ -14,6 +14,7 @@ type NetworkSummaryDto struct {
 	Created time.Time         `json:"created"`
 	Options map[string]string `json:"options"`
 	Labels  map[string]string `json:"labels"`
+	InUse   bool              `json:"inUse"`
 }
 
 type NetworkUsageCounts struct {
@@ -48,6 +49,8 @@ type NetworkPruneReportDto struct {
 }
 
 func NewNetworkSummaryDto(s network.Summary) NetworkSummaryDto {
+	iu := len(s.Containers) > 1
+
 	return NetworkSummaryDto{
 		ID:      s.ID,
 		Name:    s.Name,
@@ -56,5 +59,6 @@ func NewNetworkSummaryDto(s network.Summary) NetworkSummaryDto {
 		Created: s.Created,
 		Options: s.Options,
 		Labels:  s.Labels,
+		InUse:   iu,
 	}
 }

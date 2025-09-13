@@ -124,6 +124,18 @@
 			cell: IdCell
 		},
 		{
+			accessorKey: 'inUse',
+			title: m.common_status(),
+			sortable: true,
+			cell: StatusCell,
+			filterFn: (row, columnId, filterValue) => {
+				const selected = Array.isArray(filterValue) ? (filterValue as boolean[]) : [];
+				if (selected.length === 0) return true;
+				const value = Boolean(row.getValue<boolean>(columnId));
+				return selected.includes(value);
+			}
+		},
+		{
 			accessorKey: 'driver',
 			title: m.common_driver(),
 			sortable: true,
@@ -163,6 +175,14 @@
 
 {#snippet ScopeCell({ item }: { item: NetworkSummaryDto })}
 	<StatusBadge variant={item.scope === 'local' ? 'green' : 'amber'} text={capitalizeFirstLetter(item.scope)} />
+{/snippet}
+
+{#snippet StatusCell({ item }: { item: NetworkSummaryDto })}
+	{#if item.inUse}
+		<StatusBadge text={m.common_in_use()} variant="green" />
+	{:else}
+		<StatusBadge text={m.common_unused()} variant="amber" />
+	{/if}
 {/snippet}
 
 {#snippet RowActions({ item }: { item: NetworkSummaryDto })}

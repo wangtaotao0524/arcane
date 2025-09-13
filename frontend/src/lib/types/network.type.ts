@@ -126,6 +126,7 @@ export interface NetworkSummaryDto {
 	created: string; // ISO RFC3339 string
 	options?: Record<string, string> | null;
 	labels?: Record<string, string> | null;
+	inUse: boolean;
 }
 
 export interface NetworkInspectDto {
