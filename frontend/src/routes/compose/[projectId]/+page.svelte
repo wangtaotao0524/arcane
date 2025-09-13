@@ -511,7 +511,6 @@
 										disabled={!hasChanges}
 										customLabel={m.common_save()}
 										loadingLabel={m.common_saving()}
-										class="bg-green-600 text-white hover:bg-green-700"
 									/>
 								{/if}
 							</div>
