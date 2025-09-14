@@ -38,8 +38,8 @@ COPY --from=agent-builder /out/docker-compose /usr/local/bin/docker-compose
 COPY --chmod=755 ../scripts/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
-ARG VERSION="1.0.2"
-ARG REVISION="ffeb4c6"
+ARG VERSION="1.1.0"
+ARG REVISION="4f1c9a9d"
 
 ENV GIN_MODE=release \
     PORT=3553 \
