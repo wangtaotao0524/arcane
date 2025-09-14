@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -517,73 +516,38 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 		return nil, fmt.Errorf("template is not remote")
 	}
 
-	// Determine safe folder name from template name or public ID
-	base := s.slugify(remoteTemplate.Name)
-	if base == "" {
-		parts := strings.Split(remoteTemplate.ID, ":")
-		if len(parts) > 0 {
-			base = s.slugify(parts[len(parts)-1])
-		}
-		if base == "" {
-			base = "template-" + uuid.NewString()
-		}
-	}
+	base := s.templateBaseFromRemote(remoteTemplate)
 
-	// Ensure directory: data/templates/<base>
-	tplDir := filepath.Join("data", "templates", base)
-	if err := os.MkdirAll(tplDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create template directory: %w", err)
+	dir, composePath, envPath, err := appfs.EnsureTemplateDir(ctx, base)
+	if err != nil {
+		return nil, err
 	}
-	composePath := filepath.Join(tplDir, "compose.yaml")
-	envPath := filepath.Join(tplDir, ".env.example")
-	srcDesc := fmt.Sprintf("Imported from data/templates/%s/compose.yaml", base)
+	srcDesc := appfs.ImportedComposeDescription(dir)
 
 	var existing models.ComposeTemplate
 	if err := s.db.WithContext(ctx).
 		Where("is_remote = ? AND registry_id IS NULL AND (description = ? OR name = ?)", false, srcDesc, base).
-		First(&existing).Error; err == nil {
+		First(&existing).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check existing template: %w", err)
+	} else if err == nil {
 		composeContent, envContent, err := s.FetchTemplateContent(ctx, remoteTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch template content for existing local template: %w", err)
 		}
 
-		// Write compose file and handle errors
-		if err := os.WriteFile(composePath, []byte(composeContent), 0600); err != nil {
-			return nil, fmt.Errorf("failed to write compose file: %w", err)
+		envPtr, werr := appfs.WriteTemplateFiles(composePath, envPath, composeContent, envContent)
+		if werr != nil {
+			return nil, werr
 		}
 
-		// Write env file if present and handle errors
-		hasEnv := strings.TrimSpace(envContent) != ""
-		if hasEnv {
-			if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
-				return nil, fmt.Errorf("failed to write env file: %w", err)
-			}
-		}
-
-		// Only set fields after successful writes
 		existing.Content = composeContent
-		if hasEnv {
-			existing.EnvContent = &envContent
-		}
-
-		if remoteTemplate.Metadata != nil {
-			existing.Metadata = &models.ComposeTemplateMetadata{
-				Version:          remoteTemplate.Metadata.Version,
-				Author:           remoteTemplate.Metadata.Author,
-				Tags:             remoteTemplate.Metadata.Tags,
-				RemoteURL:        remoteTemplate.Metadata.RemoteURL,
-				EnvURL:           remoteTemplate.Metadata.EnvURL,
-				DocumentationURL: remoteTemplate.Metadata.DocumentationURL,
-				IconURL:          remoteTemplate.Metadata.IconURL,
-			}
-		}
+		existing.EnvContent = envPtr
+		existing.Metadata = cloneTemplateMetadata(remoteTemplate.Metadata)
 
 		if err := s.db.WithContext(ctx).Save(&existing).Error; err != nil {
 			return nil, fmt.Errorf("failed to update existing local template: %w", err)
 		}
 		return &existing, nil
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("failed to check existing template: %w", err)
 	}
 
 	composeContent, envContent, err := s.FetchTemplateContent(ctx, remoteTemplate)
@@ -591,15 +555,9 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 		return nil, fmt.Errorf("failed to fetch template content for download: %w", err)
 	}
 
-	if err := os.WriteFile(composePath, []byte(composeContent), 0600); err != nil {
-		return nil, fmt.Errorf("failed to write compose file: %w", err)
-	}
-	var envPtr *string
-	if strings.TrimSpace(envContent) != "" {
-		if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
-			return nil, fmt.Errorf("failed to write env file: %w", err)
-		}
-		envPtr = &envContent
+	envPtr, werr := appfs.WriteTemplateFiles(composePath, envPath, composeContent, envContent)
+	if werr != nil {
+		return nil, werr
 	}
 
 	localTemplate := &models.ComposeTemplate{
@@ -612,18 +570,7 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 		IsRemote:    false,
 		RegistryID:  nil,
 		Registry:    nil,
-	}
-
-	if remoteTemplate.Metadata != nil {
-		localTemplate.Metadata = &models.ComposeTemplateMetadata{
-			Version:          remoteTemplate.Metadata.Version,
-			Author:           remoteTemplate.Metadata.Author,
-			Tags:             remoteTemplate.Metadata.Tags,
-			RemoteURL:        remoteTemplate.Metadata.RemoteURL,
-			EnvURL:           remoteTemplate.Metadata.EnvURL,
-			DocumentationURL: remoteTemplate.Metadata.DocumentationURL,
-			IconURL:          remoteTemplate.Metadata.IconURL,
-		}
+		Metadata:    cloneTemplateMetadata(remoteTemplate.Metadata),
 	}
 
 	if err := s.db.WithContext(ctx).Create(localTemplate).Error; err != nil {
@@ -633,17 +580,34 @@ func (s *TemplateService) DownloadTemplate(ctx context.Context, remoteTemplate *
 	return localTemplate, nil
 }
 
-// slugify produces a filesystem-safe name.
-func (s *TemplateService) slugify(in string) string {
-	in = strings.TrimSpace(strings.ToLower(in))
-	if in == "" {
-		return ""
+func (s *TemplateService) templateBaseFromRemote(remoteTemplate *models.ComposeTemplate) string {
+	base := appfs.Slugify(remoteTemplate.Name)
+	if base != "" {
+		return base
 	}
-	in = strings.ReplaceAll(in, " ", "-")
-	re := regexp.MustCompile(`[^a-z0-9\-_]+`)
-	in = re.ReplaceAllString(in, "-")
-	in = regexp.MustCompile(`-+`).ReplaceAllString(in, "-")
-	return strings.Trim(in, "-")
+	parts := strings.Split(remoteTemplate.ID, ":")
+	if len(parts) > 0 {
+		base = appfs.Slugify(parts[len(parts)-1])
+	}
+	if base == "" {
+		base = "template-" + uuid.NewString()
+	}
+	return base
+}
+
+func cloneTemplateMetadata(meta *models.ComposeTemplateMetadata) *models.ComposeTemplateMetadata {
+	if meta == nil {
+		return nil
+	}
+	return &models.ComposeTemplateMetadata{
+		Version:          meta.Version,
+		Author:           meta.Author,
+		Tags:             meta.Tags,
+		RemoteURL:        meta.RemoteURL,
+		EnvURL:           meta.EnvURL,
+		DocumentationURL: meta.DocumentationURL,
+		IconURL:          meta.IconURL,
+	}
 }
 
 func (s *TemplateService) invalidateRemoteCache() {
@@ -654,7 +618,6 @@ func (s *TemplateService) SyncLocalTemplatesFromFilesystem(ctx context.Context) 
 	return s.syncFilesystemTemplatesInternal(ctx)
 }
 
-// upsertFilesystemTemplate centralizes insert/update logic for filesystem templates.
 func (s *TemplateService) upsertFilesystemTemplate(ctx context.Context, name, desc, compose string, envPtr *string) error {
 	var existing models.ComposeTemplate
 	q := s.db.WithContext(ctx).
