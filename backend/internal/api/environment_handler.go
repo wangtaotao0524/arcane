@@ -1019,6 +1019,10 @@ func (h *EnvironmentHandler) GetStatsWS(c *gin.Context) {
 			hdr.Set("Authorization", "Bearer "+cookieToken)
 		}
 
+		if h.cfg != nil && h.cfg.AgentMode && h.cfg.AgentToken != "" {
+			hdr.Set("X-Arcane-Agent-Token", h.cfg.AgentToken)
+		}
+
 		_ = wsutil.ProxyHTTP(c.Writer, c.Request, u.String(), hdr)
 		return
 	}
