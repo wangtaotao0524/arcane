@@ -6,7 +6,7 @@ services:
       dockerfile: docker/Dockerfile.dev
       target: frontend-dev
       args:
-        NODE_VERSION: "24"
+        NODE_VERSION: '24'
     container_name: arcane-frontend-dev
     ports:
       - '3000:3000'
@@ -41,7 +41,7 @@ services:
       dockerfile: docker/Dockerfile.dev
       target: backend-dev
       args:
-        GO_VERSION: "1.25"
+        GO_VERSION: '1.25'
     container_name: arcane-backend-dev
     ports:
       - '3552:3552'
@@ -72,6 +72,21 @@ services:
       retries: 3
       start_period: 40s
 
+  arcane-agent:
+    image: ghcr.io/ofkm/arcane-headless:latest
+    container_name: arcane-agent
+    ports:
+      - '3553:3553'
+    environment:
+      - AGENT_MODE=true
+      - AGENT_BOOTSTRAP_TOKEN=development-bootstrap-token
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agent-dev-data:/app/data
+    networks:
+      - arcane-dev
+    restart: unless-stopped
+
 networks:
   arcane-dev:
     driver: bridge
@@ -79,4 +94,6 @@ networks:
 
 volumes:
   arcane-dev-data:
-    name: arcane-dev-data
+    name: arcane-dev-data-
+  agent-dev-data:
+    name: agent-dev-data
