@@ -99,10 +99,8 @@
 	async function handleTemplateSelect(template: Template) {
 		showTemplateDialog = false;
 
-		$inputs.composeContent.value = template.content;
-		if (template.envContent) {
-			$inputs.envContent.value = template.envContent;
-		}
+		$inputs.composeContent.value = template.content ?? '';
+		$inputs.envContent.value = template.envContent ?? '';
 
 		if (!$inputs.name.value?.trim()) {
 			$inputs.name.value = template.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
@@ -137,7 +135,7 @@
 		<div class="max-w-full px-4 py-3">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
-					<Button variant="ghost" size="sm" href="/compose" class="gap-2">
+					<Button variant="ghost" size="sm" href="/projects" class="gap-2">
 						<ArrowLeftIcon class="size-4" />
 						{m.common_back()}
 					</Button>
