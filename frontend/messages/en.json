@@ -1050,6 +1050,7 @@
 	"language": "Language",
 	"bridge": "Bridge",
 	"ports": "Ports",
+	"common_show": "Show",
 	"custom": "Custom",
 	"weekly": "Weekly",
 	"daily": "Daily",
