@@ -672,14 +672,6 @@ func (s *TemplateService) processFolderEntry(ctx context.Context, baseDir, folde
 	return s.upsertFilesystemTemplate(ctx, folder, desc, compose, envPtr)
 }
 
-func (s *TemplateService) processRootFile(ctx context.Context, baseDir, file string) error {
-	base, compose, envPtr, desc, err := appfs.ReadRootComposeTemplate(baseDir, file)
-	if err != nil {
-		return err
-	}
-	return s.upsertFilesystemTemplate(ctx, base, desc, compose, envPtr)
-}
-
 func (s *TemplateService) syncFilesystemTemplatesInternal(ctx context.Context) error {
 	dir, err := appfs.GetTemplatesDirectory(ctx)
 	if err != nil {
@@ -695,18 +687,12 @@ func (s *TemplateService) syncFilesystemTemplatesInternal(ctx context.Context) e
 	}
 
 	for _, ent := range entries {
-		if ent.IsDir() {
-			if err := s.processFolderEntry(ctx, dir, ent.Name()); err != nil {
-				fmt.Printf("Warning: failed to read folder template %s: %v\n", ent.Name(), err)
-			}
+		// Only process directories; root-level compose files are ignored to prevent duplication.
+		if !ent.IsDir() {
 			continue
 		}
-		ext := strings.ToLower(filepath.Ext(ent.Name()))
-		if ext != ".yml" && ext != ".yaml" {
-			continue
-		}
-		if err := s.processRootFile(ctx, dir, ent.Name()); err != nil {
-			fmt.Printf("Warning: failed to read file template %s: %v\n", ent.Name(), err)
+		if err := s.processFolderEntry(ctx, dir, ent.Name()); err != nil {
+			fmt.Printf("Warning: failed to read folder template %s: %v\n", ent.Name(), err)
 		}
 	}
 	return nil
