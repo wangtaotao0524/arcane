@@ -37,12 +37,17 @@ build_platform() {
   local ext=""
   local output_path=".bin/${BINARY_BASENAME}-${target}${ext}"
 
+  local cgo_enabled=0
+  if [ "$os" = "darwin" ]; then
+    cgo_enabled="${CGO_ENABLED_DARWIN_OVERRIDE:-1}"
+  fi
+
   if [ -n "$arm_version" ]; then
-    printf "Building %s (GOOS=%s GOARCH=%s GOARM=%s)%s ... " \
-      "$output_path" "$os" "$arch" "$arm_version" "${BUILD_TAGS:+ tags=$BUILD_TAGS}"
+    printf "Building %s (GOOS=%s GOARCH=%s GOARM=%s CGO_ENABLED=%s)%s ... " \
+      "$output_path" "$os" "$arch" "$arm_version" "$cgo_enabled" "${BUILD_TAGS:+ tags=$BUILD_TAGS}"
   else
-    printf "Building %s (GOOS=%s GOARCH=%s)%s ... " \
-      "$output_path" "$os" "$arch" "${BUILD_TAGS:+ tags=$BUILD_TAGS}"
+    printf "Building %s (GOOS=%s GOARCH=%s CGO_ENABLED=%s)%s ... " \
+      "$output_path" "$os" "$arch" "$cgo_enabled" "${BUILD_TAGS:+ tags=$BUILD_TAGS}"
   fi
 
   local build_flags=()
@@ -51,10 +56,10 @@ build_platform() {
   fi
 
   if [ -n "$arm_version" ]; then
-    GOARM="$arm_version" CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+    GOARM="$arm_version" CGO_ENABLED="$cgo_enabled" GOOS="$os" GOARCH="$arch" \
       go build "${build_flags[@]}" -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
   else
-    CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+    CGO_ENABLED="$cgo_enabled" GOOS="$os" GOARCH="$arch" \
       go build "${build_flags[@]}" -ldflags="$LDFLAGS" -trimpath -o "$output_path" ./cmd/main.go
   fi
 
