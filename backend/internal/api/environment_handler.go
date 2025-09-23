@@ -1013,6 +1013,7 @@ func (h *EnvironmentHandler) GetContainerLogsWS(c *gin.Context) {
 	_ = wsutil.ProxyHTTP(c.Writer, c.Request, u.String(), hdr)
 }
 
+//nolint:gocognit
 func (h *EnvironmentHandler) GetStatsWS(c *gin.Context) {
 	envID := c.Param("id")
 	if envID == "" {
