@@ -30,6 +30,7 @@ type App struct {
 	CancelApp context.CancelFunc
 }
 
+//nolint:gocognit
 func InitializeApp() (*App, error) {
 	ctx := context.Background()
 	loadErr := godotenv.Load()
