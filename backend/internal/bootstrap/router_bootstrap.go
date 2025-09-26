@@ -70,6 +70,7 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 	api.NewEventHandler(apiGroup, appServices.Event, authMiddleware)
 	api.NewOidcHandler(apiGroup, appServices.Auth, appServices.Oidc, cfg)
 	api.NewSettingsHandler(apiGroup, appServices.Settings, authMiddleware)
+	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Settings, authMiddleware, cfg, appServices.ContainerRegistry)
 
 	apiGroup.Use(middleware.NewEnvProxyMiddleware(api.LOCAL_DOCKER_ENVIRONMENT_ID, func(ctx context.Context, id string) (string, *string, bool, error) {
 		env, err := appServices.Environment.GetEnvironmentByID(ctx, id)
@@ -83,7 +84,6 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 
 	api.NewContainerHandler(apiGroup, appServices.Docker, appServices.Container, appServices.Image, authMiddleware)
 	api.NewContainerRegistryHandler(apiGroup, appServices.ContainerRegistry, authMiddleware)
-	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Settings, authMiddleware, cfg)
 	api.NewImageHandler(apiGroup, appServices.Docker, appServices.Image, appServices.ImageUpdate, authMiddleware)
 	api.NewImageUpdateHandler(apiGroup, appServices.ImageUpdate, authMiddleware)
 	api.NewNetworkHandler(apiGroup, appServices.Docker, appServices.Network, authMiddleware)
