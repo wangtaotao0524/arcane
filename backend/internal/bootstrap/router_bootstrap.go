@@ -70,7 +70,7 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 	api.NewEventHandler(apiGroup, appServices.Event, authMiddleware)
 	api.NewOidcHandler(apiGroup, appServices.Auth, appServices.Oidc, cfg)
 	api.NewSettingsHandler(apiGroup, appServices.Settings, authMiddleware)
-	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Settings, authMiddleware, cfg, appServices.ContainerRegistry)
+	api.NewEnvironmentHandler(apiGroup, appServices.Environment, appServices.Settings, authMiddleware, cfg)
 
 	apiGroup.Use(middleware.NewEnvProxyMiddleware(api.LOCAL_DOCKER_ENVIRONMENT_ID, func(ctx context.Context, id string) (string, *string, bool, error) {
 		env, err := appServices.Environment.GetEnvironmentByID(ctx, id)
