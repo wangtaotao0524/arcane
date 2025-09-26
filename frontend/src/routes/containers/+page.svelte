@@ -9,6 +9,8 @@
 	import ContainerTable from './container-table.svelte';
 	import { ArcaneButton } from '$lib/components/arcane-button/index.js';
 	import { m } from '$lib/paraglide/messages';
+    import { environmentStore } from '$lib/stores/environment.store';
+    import type { Environment } from '$lib/types/environment.type';
 	import { imageService } from '$lib/services/image-service';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
@@ -35,10 +37,10 @@
 		isLoading.checking = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(imageService.runAutoUpdate()),
-			message: 'Failed to Check Containers for Updates',
+			message: m.containers_check_updates_failed(),
 			setLoadingState: (value) => (isLoading.checking = value),
 			async onSuccess() {
-				toast.success('Containers Updated Successfully.');
+				toast.success(m.containers_check_updates_success());
 				containers = await containerService.getContainers(requestOptions);
 			}
 		});
@@ -46,15 +48,48 @@
 
 	async function refreshContainers() {
 		isLoading.refreshing = true;
+		let refreshingContainerList = true;
+		let refreshingContainerCounts = true;
 		handleApiResultWithCallbacks({
 			result: await tryCatch(containerService.getContainers(requestOptions)),
-			message: 'Failed to Refresh Containers',
-			setLoadingState: (value) => (isLoading.refreshing = value),
+			message: m.containers_refresh_failed(),
+			setLoadingState: (value) => {
+				refreshingContainerList = value;
+				isLoading.refreshing = refreshingContainerCounts || refreshingContainerList;
+			},
 			async onSuccess(newContainers) {
 				containers = newContainers;
 			}
 		});
+		handleApiResultWithCallbacks({
+			result: await tryCatch(containerService.getContainerStatusCounts()),
+			message: m.containers_refresh_failed(),
+			setLoadingState: (value) => {
+				refreshingContainerCounts = value;
+				isLoading.refreshing = refreshingContainerCounts || refreshingContainerList;
+			},
+			async onSuccess(newStatusCounts) {
+				containerStatusCounts = newStatusCounts;
+			}
+		});
 	}
+
+	// React to environment changes
+	const selectedEnvStore = environmentStore.selected;
+	let lastEnvId: string | null = null;
+	$effect(() => {
+		const env = $selectedEnvStore as Environment | null;
+		if (!env) return;
+		// Skip initial page load
+		if (lastEnvId === null) {
+			lastEnvId = env.id;
+			return;
+		}
+		if (env.id !== lastEnvId) {
+			lastEnvId = env.id;
+			refreshContainers();
+		}
+	});
 </script>
 
 <div class="space-y-6">
