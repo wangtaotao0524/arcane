@@ -86,6 +86,9 @@ func LoadComposeProject(ctx context.Context, composeFile, projectName string) (*
 		s.CustomLabels[api.ServiceLabel] = s.Name
 		s.CustomLabels[api.VersionLabel] = api.ComposeVersion
 		s.CustomLabels[api.OneoffLabel] = "False"
+		s.CustomLabels[api.WorkingDirLabel] = workdir
+		s.CustomLabels[api.ConfigFilesLabel] = composeFile
+
 		project.Services[i] = s
 	}
 
