@@ -140,7 +140,7 @@
 		const { name, composeContent, envContent } = validated;
 
 		handleApiResultWithCallbacks({
-			result: await tryCatch(projectService.updateProject(projectId, composeContent, envContent)),
+			result: await tryCatch(projectService.updateProject(projectId, name, composeContent, envContent)),
 			message: 'Failed to Save Project',
 			setLoadingState: (value) => (isLoading.saving = value),
 			onSuccess: async (updatedStack: Project) => {

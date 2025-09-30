@@ -48,13 +48,14 @@ export class ProjectService extends BaseAPIService {
 		return res.data.data;
 	}
 
-	async updateProject(projectName: string, composeContent: string, envContent?: string): Promise<Project> {
+	async updateProject(projectId: string, name: string, composeContent: string, envContent?: string): Promise<Project> {
 		const envId = await environmentStore.getCurrentEnvironmentId();
 		const payload = {
+			name,
 			composeContent,
 			envContent
 		};
-		return this.handleResponse(this.api.put(`/environments/${envId}/projects/${projectName}`, payload));
+		return this.handleResponse(this.api.put(`/environments/${envId}/projects/${projectId}`, payload));
 	}
 
 	async restartProject(projectId: string): Promise<Project> {
