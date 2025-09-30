@@ -754,6 +754,31 @@ func (s *ImageUpdateService) saveUpdateResult(ctx context.Context, imageRef stri
 }
 
 func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID string, result *dto.ImageUpdateResponse) error {
+	dockerClient, err := s.dockerService.CreateConnection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Docker: %w", err)
+	}
+	defer dockerClient.Close()
+
+	dockerImage, err := dockerClient.ImageInspect(ctx, imageID)
+	if err != nil {
+		return fmt.Errorf("failed to inspect image: %w", err)
+	}
+
+	var repo, tag string
+	if len(dockerImage.RepoTags) > 0 && dockerImage.RepoTags[0] != "<none>:<none>" {
+		parts := strings.SplitN(dockerImage.RepoTags[0], ":", 2)
+		repo = parts[0]
+		if len(parts) > 1 {
+			tag = parts[1]
+		} else {
+			tag = "latest"
+		}
+	} else {
+		repo = "<none>"
+		tag = "<none>"
+	}
+
 	var lastError *string
 	if result.Error != "" {
 		lastError = &result.Error
@@ -771,14 +796,9 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 		latestDigest = &result.LatestDigest
 	}
 
-	var image models.Image
-	if err := s.db.WithContext(ctx).Where("id = ?", imageID).First(&image).Error; err != nil {
-		return fmt.Errorf("image not found: %w", err)
-	}
-
 	currentVersion := result.CurrentVersion
 	if currentVersion == "" {
-		currentVersion = image.Tag
+		currentVersion = tag
 	}
 
 	var authMethod, authUsername, authRegistry *string
@@ -794,8 +814,8 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 
 	updateRecord := &models.ImageUpdateRecord{
 		ID:             imageID,
-		Repository:     image.Repo,
-		Tag:            image.Tag,
+		Repository:     repo,
+		Tag:            tag,
 		HasUpdate:      result.HasUpdate,
 		UpdateType:     result.UpdateType,
 		CurrentVersion: currentVersion,
@@ -805,7 +825,6 @@ func (s *ImageUpdateService) saveUpdateResultByID(ctx context.Context, imageID s
 		CheckTime:      result.CheckTime,
 		ResponseTimeMs: result.ResponseTimeMs,
 		LastError:      lastError,
-
 		AuthMethod:     authMethod,
 		AuthUsername:   authUsername,
 		AuthRegistry:   authRegistry,
