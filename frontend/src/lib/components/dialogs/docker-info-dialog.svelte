@@ -36,8 +36,8 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="sm:max-w-[720px]">
-		<Dialog.Header class="border-b pb-3">
+	<Dialog.Content class="flex max-h-[90vh] flex-col sm:max-w-[720px]">
+		<Dialog.Header class="flex-shrink-0 border-b pb-3">
 			<Dialog.Title class="flex items-center gap-2">
 				<InfoIcon class="size-5 text-blue-500" />
 				{m.docker_info_dialog_title()}
@@ -45,7 +45,7 @@
 			<Dialog.Description>{m.docker_info_dialog_description()}</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="space-y-4 py-4">
+		<div class="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
 			<div>
 				<h3 class="mb-2 flex items-center gap-2 text-sm font-semibold">
 					<ServerIcon class="size-4" />
@@ -179,7 +179,7 @@
 			</div>
 		</div>
 
-		<Dialog.Footer class="border-t pt-3">
+		<Dialog.Footer class="flex-shrink-0 border-t pt-3">
 			<Button variant="outline" onclick={() => (open = false)}>{m.common_close()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
