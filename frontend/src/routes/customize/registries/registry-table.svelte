@@ -209,11 +209,7 @@
 					<PencilIcon class="size-4" />
 					{m.common_edit()}
 				</DropdownMenu.Item>
-				<DropdownMenu.Item
-					class="focus:text-red-700! text-red-500"
-					onclick={() => handleDeleteOne(item.id, item.url)}
-					disabled={isLoading.removing}
-				>
+				<DropdownMenu.Item variant="destructive" onclick={() => handleDeleteOne(item.id, item.url)} disabled={isLoading.removing}>
 					<Trash2Icon class="size-4" />
 					{m.common_remove()}
 				</DropdownMenu.Item>
