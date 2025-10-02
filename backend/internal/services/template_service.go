@@ -51,12 +51,11 @@ func makeRemoteID(registryID, slug string) string {
 	return fmt.Sprintf("%s:%s:%s", remoteIDPrefix, registryID, slug)
 }
 
-func NewTemplateService(db *database.DB, httpClient *http.Client) *TemplateService {
+func NewTemplateService(ctx context.Context, db *database.DB, httpClient *http.Client) *TemplateService {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
 
-	ctx := context.Background()
 	if err := appfs.EnsureDefaultTemplates(ctx); err != nil {
 		slog.WarnContext(ctx, "failed to ensure default templates", "error", err)
 	}
