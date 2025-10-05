@@ -58,7 +58,10 @@
 		mobileFieldVisibility = $bindable<Record<string, boolean>>({}),
 		selectedIds = $bindable<string[]>([]),
 		onRemoveSelected,
-		persistKey
+		persistKey,
+		customViewOptions,
+		customTableView,
+		customSettings = $bindable<Record<string, unknown>>({})
 	}: {
 		items: Paginated<TData>;
 		requestOptions: SearchPaginationSortRequest;
@@ -74,6 +77,9 @@
 		selectedIds?: string[];
 		onRemoveSelected?: (ids: string[]) => void;
 		persistKey?: string;
+		customViewOptions?: Snippet;
+		customTableView?: Snippet<[{ table: TableType<TData> }]>;
+		customSettings?: Record<string, unknown>;
 	} = $props();
 
 	let rowSelection = $state<RowSelectionState>({});
@@ -165,6 +171,10 @@
 		const initialMobileVisibility = buildInitialMobileVisibility(mobileFields, mobileFieldVisibility, snapshot.mobileHidden);
 		if (initialMobileVisibility) {
 			mobileFieldVisibility = initialMobileVisibility;
+		}
+
+		if (snapshot.customSettings && Object.keys(snapshot.customSettings).length > 0) {
+			customSettings = { ...snapshot.customSettings };
 		}
 	});
 
@@ -405,6 +415,11 @@
 			sorting = [{ id: s.column, desc }];
 		}
 	});
+
+	$effect(() => {
+		if (!enablePersist || !prefs) return;
+		prefs.current = { ...prefs.current, c: customSettings };
+	});
 </script>
 
 {#snippet TextCell({ value }: { value: unknown })}
@@ -530,55 +545,59 @@
 			{onRemoveSelected}
 			mobileFields={mobileFieldsForOptions}
 			{onToggleMobileField}
+			{customViewOptions}
 		/>
 	{/if}
 
-	<!-- Desktop Table View -->
-	<div class="hidden rounded-md md:block">
-		<Table.Root>
-			<Table.Header>
-				{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
-					<Table.Row>
-						{#each headerGroup.headers as header (header.id)}
-							<Table.Head colspan={header.colSpan}>
-								{#if !header.isPlaceholder}
-									<FlexRender content={header.column.columnDef.header} context={header.getContext()} />
-								{/if}
-							</Table.Head>
-						{/each}
-					</Table.Row>
-				{/each}
-			</Table.Header>
-			<Table.Body>
-				{#each table.getRowModel().rows as row (row.id)}
-					<Table.Row data-state={(selectedIds ?? []).includes((row.original as TData).id) && 'selected'}>
-						{#each row.getVisibleCells() as cell (cell.id)}
-							<Table.Cell>
-								<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
-							</Table.Cell>
-						{/each}
-					</Table.Row>
-				{:else}
-					<Table.Row>
-						<Table.Cell colspan={columnsDef.length} class="h-24 text-center">{m.common_no_results_found()}</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-	</div>
+	{#if customTableView}
+		{@render customTableView({ table })}
+	{:else}
+		<div class="hidden rounded-md md:block">
+			<Table.Root>
+				<Table.Header>
+					{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
+						<Table.Row>
+							{#each headerGroup.headers as header (header.id)}
+								<Table.Head colspan={header.colSpan}>
+									{#if !header.isPlaceholder}
+										<FlexRender content={header.column.columnDef.header} context={header.getContext()} />
+									{/if}
+								</Table.Head>
+							{/each}
+						</Table.Row>
+					{/each}
+				</Table.Header>
+				<Table.Body>
+					{#each table.getRowModel().rows as row (row.id)}
+						<Table.Row data-state={(selectedIds ?? []).includes((row.original as TData).id) && 'selected'}>
+							{#each row.getVisibleCells() as cell (cell.id)}
+								<Table.Cell>
+									<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+								</Table.Cell>
+							{/each}
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell colspan={columnsDef.length} class="h-24 text-center">{m.common_no_results_found()}</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
 
-	<!-- Mobile Card View -->
-	<div class="space-y-3 md:hidden">
-		{#each table.getRowModel().rows as row (row.id)}
-			{@render MobileCard({ row, item: row.original as TData })}
-		{:else}
-			<div class="h-24 flex items-center justify-center text-center text-muted-foreground">
-				{m.common_no_results_found()}
-			</div>
-		{/each}
-	</div>
+		<!-- Mobile Card View -->
+		<div class="space-y-3 md:hidden">
+			{#each table.getRowModel().rows as row (row.id)}
+				{@render MobileCard({ row, item: row.original as TData })}
+			{:else}
+				<div class="h-24 flex items-center justify-center text-center text-muted-foreground">
+					{m.common_no_results_found()}
+				</div>
+			{/each}
+		</div>
 
-	{#if !withoutPagination}
-		{@render Pagination({ table })}
+		{#if !withoutPagination}
+			{@render Pagination({ table })}
+		{/if}
 	{/if}
 </div>

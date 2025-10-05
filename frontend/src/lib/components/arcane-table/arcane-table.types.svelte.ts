@@ -32,6 +32,7 @@ export type CompactTablePrefs = {
 	l?: number;
 	// m: list of hidden mobile field ids
 	m?: string[];
+	c?: Record<string, unknown>;
 };
 
 export function encodeHidden(visibility: VisibilityState): string[] {
