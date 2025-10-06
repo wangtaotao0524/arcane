@@ -75,7 +75,6 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 
 	state := utils.GenerateRandomString(32)
 	codeVerifier := utils.GenerateRandomString(128)
-	codeChallenge := utils.GenerateCodeChallenge(codeVerifier)
 
 	scopes := strings.Fields(config.Scopes)
 	if len(scopes) == 0 {
@@ -91,8 +90,7 @@ func (s *OidcService) GenerateAuthURL(ctx context.Context, redirectTo string) (s
 	}
 
 	authURL := oauth2Config.AuthCodeURL(state,
-		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
-		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.S256ChallengeOption(codeVerifier),
 	)
 
 	stateData := OidcState{
@@ -131,7 +129,7 @@ func (s *OidcService) exchangeToken(ctx context.Context, cfg *models.OidcConfig,
 		Scopes:       strings.Fields(cfg.Scopes),
 	}
 	providerCtx := oidc.ClientContext(ctx, s.httpClient)
-	token, err := oauth2Config.Exchange(providerCtx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
+	token, err := oauth2Config.Exchange(providerCtx, code, oauth2.VerifierOption(verifier))
 	if err != nil {
 		slog.Error("exchangeToken: token exchange failed", "token_endpoint", oauth2Config.Endpoint.TokenURL, "error", err)
 		return nil, fmt.Errorf("failed to exchange code for tokens: %w", err)
