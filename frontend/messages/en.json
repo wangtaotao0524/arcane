@@ -1256,5 +1256,6 @@
 	"customize_registry_credentials": "Registry Credentials",
 	"customize_registry_mirrors": "Registry Mirrors",
 	"customize_secret_variables": "Secret Variables",
-	"customize_variable_templates": "Variable Templates"
+	"customize_variable_templates": "Variable Templates",
+	"duplicate": "Duplicate"
 }
