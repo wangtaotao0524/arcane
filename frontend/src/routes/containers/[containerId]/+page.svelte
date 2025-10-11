@@ -33,7 +33,7 @@
 	import ContainerLogsPanel from '../components/ContainerLogsPanel.svelte';
 	import ContainerShell from '../components/ContainerShell.svelte';
 	import { createContainerStatsWebSocket, type ReconnectingWebSocket } from '$lib/utils/ws';
-	import { environmentStore } from '$lib/stores/environment.store';
+	import { environmentStore } from '$lib/stores/environment.store.svelte';
 
 	let { data } = $props();
 	let container = $derived(data?.container as ContainerDetailsDto);
