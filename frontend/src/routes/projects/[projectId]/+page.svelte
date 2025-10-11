@@ -230,6 +230,7 @@
 				{/if}
 				<ActionButtons
 					id={project.id}
+					name={project.name}
 					type="project"
 					itemState={project.status}
 					bind:startLoading={isLoading.deploying}

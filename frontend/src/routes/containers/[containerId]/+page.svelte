@@ -292,6 +292,7 @@
 		{#snippet headerActions()}
 			<ActionButtons
 				id={container.id}
+				name={containerDisplayName}
 				type="container"
 				itemState={container.state?.running ? 'running' : 'stopped'}
 				loading={{ start: starting, stop: stopping, restart: restarting, remove: removing }}
