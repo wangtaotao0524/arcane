@@ -16,13 +16,10 @@
 	import { settingsService } from '$lib/services/settings-service';
 	import { SettingsPageLayout } from '$lib/layouts';
 	import AccentColorPicker from '$lib/components/accent-color/accent-color-picker.svelte';
-	import { Label } from '$lib/components/ui/label/index.js';
+	import { applyAccentColor } from '$lib/utils/accent-color-util';
 
 	let { data } = $props();
-	let currentSettings = $state({
-		...data.settings,
-		accentColor: data.settings.accentColor || 'default'
-	});
+	let currentSettings = $state(data.settings);
 	let hasChanges = $state(false);
 	let isLoading = $state(false);
 
@@ -83,10 +80,11 @@
 	}
 
 	function resetForm() {
-		$formInputs.projectsDirectory.value = currentSettings.projectsDirectory;
-		$formInputs.baseServerUrl.value = currentSettings.baseServerUrl;
-		$formInputs.enableGravatar.value = currentSettings.enableGravatar;
-		$formInputs.accentColor.value = currentSettings.accentColor;
+		$formInputs.projectsDirectory.value = data.settings.projectsDirectory;
+		$formInputs.baseServerUrl.value = data.settings.baseServerUrl;
+		$formInputs.enableGravatar.value = data.settings.enableGravatar;
+		$formInputs.accentColor.value = data.settings.accentColor;
+		applyAccentColor(data.settings.accentColor);
 	}
 
 	onMount(() => {
