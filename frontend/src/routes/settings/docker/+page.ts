@@ -1,7 +1,5 @@
-import { settingsService } from '$lib/services/settings-service';
-
-export const load = async () => {
-	const settings = await settingsService.getSettings();
+export const load = async ({ parent }) => {
+	const { settings } = await parent();
 
 	return {
 		settings

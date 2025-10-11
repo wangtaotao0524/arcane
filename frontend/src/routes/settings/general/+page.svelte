@@ -19,9 +19,10 @@
 	import { applyAccentColor } from '$lib/utils/accent-color-util';
 
 	let { data } = $props();
-	let currentSettings = $state(data.settings);
 	let hasChanges = $state(false);
 	let isLoading = $state(false);
+
+	const settings = $state(data.settings!);
 
 	const isReadOnly = $derived.by(() => $settingsStore.uiConfigDisabled);
 	const formState = getContext('settingsFormState') as any;
@@ -32,14 +33,15 @@
 		accentColor: z.string()
 	});
 
-	let { inputs: formInputs, ...form } = $derived(createForm<typeof formSchema>(formSchema, currentSettings));
+	// Create form once with initial data
+	const { inputs: formInputs, ...form } = createForm<typeof formSchema>(formSchema, settings);
 
 	const formHasChanges = $derived.by(
 		() =>
-			$formInputs.projectsDirectory.value !== currentSettings.projectsDirectory ||
-			$formInputs.baseServerUrl.value !== currentSettings.baseServerUrl ||
-			$formInputs.enableGravatar.value !== currentSettings.enableGravatar ||
-			$formInputs.accentColor.value !== currentSettings.accentColor
+			$formInputs.projectsDirectory.value !== settings.projectsDirectory ||
+			$formInputs.baseServerUrl.value !== settings.baseServerUrl ||
+			$formInputs.enableGravatar.value !== settings.enableGravatar ||
+			$formInputs.accentColor.value !== settings.accentColor
 	);
 
 	$effect(() => {
@@ -53,9 +55,7 @@
 	async function updateSettingsConfig(updatedSettings: Partial<Settings>) {
 		try {
 			await settingsService.updateSettings(updatedSettings as any);
-			currentSettings = { ...currentSettings, ...updatedSettings };
-			settingsStore.set(currentSettings);
-			settingsStore.reload();
+			settingsStore.set({ ...settings, ...updatedSettings } as Settings);
 		} catch (error) {
 			console.error('Error updating settings:', error);
 			throw error;
@@ -80,11 +80,11 @@
 	}
 
 	function resetForm() {
-		$formInputs.projectsDirectory.value = data.settings.projectsDirectory;
-		$formInputs.baseServerUrl.value = data.settings.baseServerUrl;
-		$formInputs.enableGravatar.value = data.settings.enableGravatar;
-		$formInputs.accentColor.value = data.settings.accentColor;
-		applyAccentColor(data.settings.accentColor);
+		$formInputs.projectsDirectory.value = settings.projectsDirectory;
+		$formInputs.baseServerUrl.value = settings.baseServerUrl;
+		$formInputs.enableGravatar.value = settings.enableGravatar;
+		$formInputs.accentColor.value = settings.accentColor;
+		applyAccentColor(settings.accentColor);
 	}
 
 	onMount(() => {
@@ -160,7 +160,7 @@
 					<Card.Content class="px-3 py-4 sm:px-6">
 						<div class="space-y-5">
 							<AccentColorPicker
-								previousColor={currentSettings.accentColor}
+								previousColor={settings.accentColor}
 								bind:selectedColor={$formInputs.accentColor.value}
 								disabled={isReadOnly}
 							/>
