@@ -16,6 +16,7 @@
 	import { format } from 'date-fns';
 	import bytes from 'bytes';
 	import { onDestroy, untrack } from 'svelte';
+	import { page } from '$app/state';
 	import type {
 		ContainerDetailsDto,
 		ContainerNetworkSettings,
@@ -259,10 +260,21 @@
 	const baseServerUrl = $derived(
 		(data?.settings as any)?.serverBaseUrl ?? (data?.settings as any)?.baseServerUrl ?? (data?.settings as any)?.baseUrl ?? ''
 	);
+
+	const backUrl = $derived.by(() => {
+		const from = page.url.searchParams.get('from');
+		const projectId = page.url.searchParams.get('projectId');
+		
+		if (from === 'project' && projectId) {
+			return `/projects/${projectId}`;
+		}
+		
+		return '/containers';
+	});
 </script>
 
 {#if container}
-	<TabbedPageLayout backUrl="/containers" backLabel={m.common_back()} {tabItems} {selectedTab} {onTabChange}>
+	<TabbedPageLayout {backUrl} backLabel={m.common_back()} {tabItems} {selectedTab} {onTabChange}>
 		{#snippet headerInfo()}
 			<div class="flex items-center gap-2">
 				<h1 class="max-w-[300px] truncate text-lg font-semibold" title={containerDisplayName}>
