@@ -369,7 +369,7 @@
 	});
 </script>
 
-<div class={cn('log-viewer rounded-b-xl rounded-t-none border bg-black text-white', className)}>
+<div class={cn('log-viewer rounded-t-none rounded-b-xl border bg-black text-white', className)}>
 	{#if error}
 		<div class="border-b border-red-700 bg-red-900/20 p-3 text-sm text-red-200">
 			{error}
@@ -378,7 +378,7 @@
 
 	<div
 		bind:this={logContainer}
-		class="log-viewer overflow-y-auto rounded-b-xl rounded-t-none border bg-black font-mono text-xs text-white sm:text-sm"
+		class="log-viewer overflow-y-auto rounded-t-none rounded-b-xl border bg-black font-mono text-xs text-white sm:text-sm"
 		style="height: {height}; min-height: 300px;"
 		role="log"
 		aria-live={isStreaming ? 'polite' : 'off'}
@@ -419,7 +419,7 @@
 							</span>
 						{/if}
 					</div>
-					<div class="whitespace-pre-wrap break-words text-sm text-gray-300">
+					<div class="text-sm break-words whitespace-pre-wrap text-gray-300">
 						{log.message}
 					</div>
 				</div>
@@ -430,7 +430,7 @@
 				>
 					{#if type === 'project' && log.service}
 						<span
-							class="mr-3 min-w-[120px] max-w-[120px] shrink-0 truncate text-xs font-semibold {getServiceColor(log.service)}"
+							class="mr-3 max-w-[120px] min-w-[120px] shrink-0 truncate text-xs font-semibold {getServiceColor(log.service)}"
 							title={log.service}
 						>
 							{log.service}
@@ -444,7 +444,7 @@
 					<span class="mr-2 shrink-0 text-xs {getLevelClass(log.level)} min-w-fit">
 						{log.level.toUpperCase()}
 					</span>
-					<span class="flex-1 whitespace-pre-wrap break-words text-gray-300">
+					<span class="flex-1 break-words whitespace-pre-wrap text-gray-300">
 						{log.message}
 					</span>
 				</div>
