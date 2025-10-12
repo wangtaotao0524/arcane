@@ -24,6 +24,7 @@
 		autoScroll?: boolean;
 		showTimestamps?: boolean;
 		height?: string;
+		tailLines?: number;
 		onClear?: () => void;
 		onToggleAutoScroll?: () => void;
 		onStart?: () => void;
@@ -39,6 +40,7 @@
 		autoScroll = $bindable(true),
 		showTimestamps = true,
 		height = '400px',
+		tailLines = 100,
 		onClear,
 		onToggleAutoScroll,
 		onStart,
@@ -146,13 +148,20 @@
 			type === 'project'
 				? `/api/environments/${envId}/projects/${projectId}/logs/ws`
 				: `/api/environments/${envId}/containers/${containerId}/logs/ws`;
-		return buildWebSocketEndpoint(`${basePath}?follow=true&tail=100&timestamps=${showTimestamps}&format=json&batched=true`);
+		return buildWebSocketEndpoint(
+			`${basePath}?follow=true&tail=${tailLines}&timestamps=${showTimestamps}&format=json&batched=true`
+		);
 	}
 
 	export async function startLogStream() {
 		const targetId = type === 'project' ? projectId : containerId;
 
-		if (!targetId) return;
+		if (!targetId) {
+			error = type === 'project' ? m.log_stream_no_project_selected() : m.log_stream_no_container_selected();
+			isStreaming = false;
+			shouldBeStreaming = false;
+			return;
+		}
 
 		// Prevent starting if already streaming
 		if (shouldBeStreaming && wsClient) {
