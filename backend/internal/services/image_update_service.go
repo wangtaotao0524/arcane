@@ -765,7 +765,7 @@ func (s *ImageUpdateService) buildRegistryAuthMap(ctx context.Context, rc *regis
 			regAuthMap[regHost] = regAuth{token: "", auth: &authDetails{Method: "none", Registry: regHost}}
 			continue
 		}
-		
+
 		// Credential attempt first (if available)
 		host := normalizeHost(regHost)
 		slog.DebugContext(ctx, "Looking up credentials for registry",
@@ -795,7 +795,7 @@ func (s *ImageUpdateService) buildRegistryAuthMap(ctx context.Context, rc *regis
 					}()))
 			}
 		}
-		
+
 		// Anonymous multi-scope fallback
 		if anonToken, anonErr := rc.GetTokenMulti(ctx, authURL, repos, nil); anonErr == nil && anonToken != "" {
 			slog.DebugContext(ctx, "Using anonymous auth for registry",
@@ -902,7 +902,7 @@ func (s *ImageUpdateService) CheckMultipleImages(ctx context.Context, imageRefs 
 	}
 
 	credMap, enabledRegs := s.buildCredentialMap(ctx, externalCreds)
-	
+
 	slog.DebugContext(ctx, "Built credential map",
 		slog.Int("credMapSize", len(credMap)),
 		slog.Int("enabledRegsCount", len(enabledRegs)))
