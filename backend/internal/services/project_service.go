@@ -822,7 +822,7 @@ func (s *ProjectService) ListProjects(ctx context.Context, params pagination.Que
 	for _, project := range projectsArray {
 		displayServiceCount := project.ServiceCount
 		displayRunningCount := project.RunningCount
-		displayStatus := string(project.Status)
+		var displayStatus string
 		var statusReason *string
 
 		// Get live status from Docker
