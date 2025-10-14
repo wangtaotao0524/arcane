@@ -49,6 +49,10 @@
 		updating: false
 	});
 
+	function getStatusTooltip(project: Project): string | undefined {
+		return project.status.toLowerCase() === 'unknown' && project.statusReason ? project.statusReason : undefined;
+	}
+
 	async function performProjectAction(action: string, id: string) {
 		isLoading[action as keyof typeof isLoading] = true;
 
@@ -161,7 +165,7 @@
 
 {#snippet StatusCell({ item }: { item: Project })}
 	{@const stateVariant = getStatusVariant(item.status)}
-	<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.status)} />
+	<StatusBadge variant={stateVariant} text={capitalizeFirstLetter(item.status)} tooltip={getStatusTooltip(item)} />
 {/snippet}
 
 {#snippet CreatedCell({ value }: { value: unknown })}
@@ -190,7 +194,8 @@
 				(mobileFieldVisibility.status ?? true)
 					? {
 							variant: getStatusVariant(item.status),
-							text: capitalizeFirstLetter(item.status)
+							text: capitalizeFirstLetter(item.status),
+							tooltip: getStatusTooltip(item)
 						}
 					: null
 		]}
