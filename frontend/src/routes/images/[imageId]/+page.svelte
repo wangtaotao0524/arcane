@@ -10,7 +10,6 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { goto } from '$app/navigation';
-	import { Separator } from '$lib/components/ui/separator';
 	import { Badge } from '$lib/components/ui/badge';
 	import { format } from 'date-fns';
 	import bytes from 'bytes';
