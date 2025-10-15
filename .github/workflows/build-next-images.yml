@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-manager:
-    runs-on: release-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -82,7 +82,7 @@ jobs:
           push-to-registry: true
 
   build-agent:
-    runs-on: release-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
