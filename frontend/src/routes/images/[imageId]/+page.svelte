@@ -86,7 +86,7 @@
 				</Breadcrumb.List>
 			</Breadcrumb.Root>
 			<div class="mt-2 flex items-center gap-2">
-				<h1 class="text-2xl font-bold tracking-tight break-all">
+				<h1 class="break-all text-2xl font-bold tracking-tight">
 					{image?.repoTags?.[0] || shortId()}
 				</h1>
 			</div>
@@ -121,10 +121,10 @@
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">{m.common_id()}</p>
 								<p
-									class="mt-1 cursor-pointer font-mono text-xs font-semibold break-all select-all sm:text-sm"
+									class="mt-1 cursor-pointer select-all break-all font-mono text-xs font-semibold sm:text-sm"
 									title="Click to select"
 								>
-									{shortId()}
+									{image?.id || m.common_na()}
 								</p>
 							</div>
 						</div>
@@ -135,7 +135,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">{m.common_size()}</p>
-								<p class="mt-1 cursor-pointer text-sm font-semibold select-all sm:text-base" title="Click to select">
+								<p class="mt-1 cursor-pointer select-all text-sm font-semibold sm:text-base" title="Click to select">
 									{imageSize()}
 								</p>
 							</div>
@@ -147,7 +147,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">{m.common_created()}</p>
-								<p class="mt-1 cursor-pointer text-sm font-semibold select-all sm:text-base" title="Click to select">
+								<p class="mt-1 cursor-pointer select-all text-sm font-semibold sm:text-base" title="Click to select">
 									{createdDate()}
 								</p>
 							</div>
@@ -159,7 +159,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">{m.common_architecture()}</p>
-								<p class="mt-1 cursor-pointer text-sm font-semibold select-all sm:text-base" title="Click to select">
+								<p class="mt-1 cursor-pointer select-all text-sm font-semibold sm:text-base" title="Click to select">
 									{architecture()}
 								</p>
 							</div>
@@ -171,7 +171,7 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<p class="text-muted-foreground text-sm font-medium">{m.images_os()}</p>
-								<p class="mt-1 cursor-pointer text-sm font-semibold select-all sm:text-base" title="Click to select">
+								<p class="mt-1 cursor-pointer select-all text-sm font-semibold sm:text-base" title="Click to select">
 									{osName()}
 								</p>
 							</div>
@@ -184,7 +184,7 @@
 								</div>
 								<div class="min-w-0 flex-1">
 									<p class="text-muted-foreground text-sm font-medium">{m.common_docker_version()}</p>
-									<p class="mt-1 cursor-pointer text-sm font-semibold select-all sm:text-base" title="Click to select">
+									<p class="mt-1 cursor-pointer select-all text-sm font-semibold sm:text-base" title="Click to select">
 										{image.dockerVersion}
 									</p>
 								</div>
@@ -198,7 +198,7 @@
 								</div>
 								<div class="min-w-0 flex-1">
 									<p class="text-muted-foreground text-sm font-medium">{m.common_author()}</p>
-									<p class="mt-1 cursor-pointer text-sm font-semibold break-all select-all sm:text-base" title="Click to select">
+									<p class="mt-1 cursor-pointer select-all break-all text-sm font-semibold sm:text-base" title="Click to select">
 										{image.author}
 									</p>
 								</div>
@@ -213,7 +213,7 @@
 								<div class="min-w-0 flex-1">
 									<p class="text-muted-foreground text-sm font-medium">{m.common_working_dir()}</p>
 									<p
-										class="mt-1 cursor-pointer font-mono text-xs font-semibold break-all select-all sm:text-sm"
+										class="mt-1 cursor-pointer select-all break-all font-mono text-xs font-semibold sm:text-sm"
 										title="Click to select"
 									>
 										{image.config.workingDir}
@@ -236,7 +236,7 @@
 					<Card.Content class="p-4">
 						<div class="flex flex-wrap gap-2">
 							{#each image.repoTags as tag (tag)}
-								<Badge variant="secondary" class="cursor-pointer text-sm select-all" title="Click to select">{tag}</Badge>
+								<Badge variant="secondary" class="cursor-pointer select-all text-sm" title="Click to select">{tag}</Badge>
 							{/each}
 						</div>
 					</Card.Content>
@@ -259,9 +259,9 @@
 									{@const value = valueParts.join('=')}
 									<Card.Root variant="subtle">
 										<Card.Content class="flex flex-col gap-2 p-4">
-											<div class="text-muted-foreground text-xs font-semibold tracking-wide break-all uppercase">{key}</div>
+											<div class="text-muted-foreground break-all text-xs font-semibold uppercase tracking-wide">{key}</div>
 											<div
-												class="text-foreground cursor-pointer font-mono text-sm font-medium break-all select-all"
+												class="text-foreground cursor-pointer select-all break-all font-mono text-sm font-medium"
 												title="Click to select"
 											>
 												{value}
@@ -271,9 +271,9 @@
 								{:else}
 									<Card.Root variant="subtle">
 										<Card.Content class="flex flex-col gap-2 p-4">
-											<div class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">ENV_VAR</div>
+											<div class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">ENV_VAR</div>
 											<div
-												class="text-foreground cursor-pointer font-mono text-sm font-medium break-all select-all"
+												class="text-foreground cursor-pointer select-all break-all font-mono text-sm font-medium"
 												title="Click to select"
 											>
 												{env}
