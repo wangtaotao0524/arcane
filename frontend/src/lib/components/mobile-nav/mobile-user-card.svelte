@@ -107,7 +107,7 @@
 				<div class="bg-background/50 border-border/20 rounded-2xl border p-4">
 					<div class="space-y-3">
 						<div class="flex items-start gap-3">
-							<div class="bg-primary/10 text-primary flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
+							<div class="bg-primary/10 text-primary flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg">
 								{#if environmentStore.selected?.isLocal}
 									<ServerIcon class="size-4" />
 								{:else}
@@ -130,7 +130,7 @@
 						</div>
 						{#if environmentStore.available.length > 1}
 							<Select.Root type="single" value={selectedValue} onValueChange={handleEnvSelect}>
-								<Select.Trigger class="bg-background/50 border-border/30 text-foreground w-full h-9 text-sm font-medium">
+								<Select.Trigger class="bg-background/50 border-border/30 text-foreground h-9 w-full text-sm font-medium">
 									<span class="truncate">{m.sidebar_select_environment()}</span>
 								</Select.Trigger>
 								<Select.Content class="min-w-[160px] max-w-[280px]">
@@ -153,7 +153,9 @@
 							<LanguagesIcon class="size-4" />
 						</div>
 						<div class="min-w-0 flex-1">
-							<div class="text-muted-foreground/70 mb-1 text-xs font-medium uppercase tracking-widest">{m.common_select_locale()}</div>
+							<div class="text-muted-foreground/70 mb-1 text-xs font-medium uppercase tracking-widest">
+								{m.common_select_locale()}
+							</div>
 							<div class="text-foreground text-sm font-medium"></div>
 						</div>
 						<LocalePicker
@@ -174,7 +176,9 @@
 							{/if}
 						</div>
 						<div class="flex min-w-0 flex-1 flex-col justify-center">
-							<div class="text-muted-foreground/70 mb-1 text-xs font-medium uppercase tracking-widest">{m.common_toggle_theme()}</div>
+							<div class="text-muted-foreground/70 mb-1 text-xs font-medium uppercase tracking-widest">
+								{m.common_toggle_theme()}
+							</div>
 							<div class="text-foreground text-sm font-medium">
 								{isDarkMode ? m.sidebar_dark_mode() : m.sidebar_light_mode()}
 							</div>
