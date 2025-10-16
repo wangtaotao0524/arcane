@@ -98,7 +98,7 @@
 		};
 	});
 
-	// Swipe gesture detector for opening menu
+	// Swipe gesture detector for opening menu (touch devices swipe UP on nav bar)
 	const swipeDetector = new SwipeGestureDetector(
 		(direction: SwipeDirection) => {
 			if (direction === 'up') {
@@ -112,9 +112,11 @@
 		}
 	);
 
-	// Trackpad scroll wheel handling to open menu
-	let wheelScrollAccumulator = $state(0);
-	let wheelScrollTimeout: ReturnType<typeof setTimeout> | null = null;
+	// Trackpad flick detection - ONLY super fast velocity flicks trigger the menu
+	let lastWheelTime = $state(0);
+	let lastWheelDelta = $state(0);
+	let flickDetectTimeout: ReturnType<typeof setTimeout> | null = null;
+	let wheelVelocityHistory: number[] = $state([]);
 
 	// Improved scroll-to-hide using native scroll events with passive listeners
 	$effect(() => {
@@ -160,50 +162,62 @@
 			}
 		};
 
-		// Global wheel handler for trackpad scrolling to open menu
-		const handleGlobalWheel = (e: WheelEvent) => {
+		// Wheel handler for detecting ONLY super fast trackpad flicks
+		const handleWheel = (e: WheelEvent) => {
 			if (menuOpen || !scrollToHideEnabled) return;
 
-			// Only respond to upward scrolls (negative deltaY)
-			if (e.deltaY < 0) {
-				// Accumulate scroll distance
-				wheelScrollAccumulator += Math.abs(e.deltaY);
+			// Only respond to downward scrolls (positive deltaY)
+			if (e.deltaY <= 0) return;
 
-				// Clear previous timeout
-				if (wheelScrollTimeout) {
-					clearTimeout(wheelScrollTimeout);
-				}
+			const now = Date.now();
+			const timeSinceLastWheel = now - lastWheelTime;
 
-				// If accumulated scroll is enough, open menu
-				if (wheelScrollAccumulator > 60) {
-					menuOpen = true;
-					wheelScrollAccumulator = 0;
-				}
+			// Calculate velocity: deltaY per millisecond
+			const velocity = e.deltaY / Math.max(1, timeSinceLastWheel);
 
-				// Reset accumulator after scroll ends
-				wheelScrollTimeout = setTimeout(() => {
-					wheelScrollAccumulator = 0;
-				}, 300);
-			} else {
-				// Reset on downward scroll
-				wheelScrollAccumulator = 0;
-				if (wheelScrollTimeout) {
-					clearTimeout(wheelScrollTimeout);
+			// Only trigger on EXTREME velocity (> 5 pixels per ms = very fast flick)
+			// Normal scrolling is typically 0.1-0.5 px/ms
+			// Fast flicks are 2+ px/ms
+			// Super fast flicks are 5+ px/ms
+			const isSuperFastFlick = velocity > 5;
+
+			if (isSuperFastFlick) {
+				menuOpen = true;
+				wheelVelocityHistory = [];
+
+				if (flickDetectTimeout) {
+					clearTimeout(flickDetectTimeout);
 				}
 			}
+
+			// Update tracking for next event
+			lastWheelTime = now;
+			lastWheelDelta = e.deltaY;
+			wheelVelocityHistory.push(velocity);
+			wheelVelocityHistory = wheelVelocityHistory.slice(-3); // Keep last 3 velocities
+
+			// Reset after 200ms of inactivity
+			if (flickDetectTimeout) {
+				clearTimeout(flickDetectTimeout);
+			}
+			flickDetectTimeout = setTimeout(() => {
+				lastWheelTime = 0;
+				lastWheelDelta = 0;
+				wheelVelocityHistory = [];
+			}, 200);
 		};
 
 		window.addEventListener('scroll', handleScroll, { passive: true });
-		window.addEventListener('wheel', handleGlobalWheel, { passive: true });
+		window.addEventListener('wheel', handleWheel, { passive: true });
 
 		return () => {
 			window.removeEventListener('scroll', handleScroll);
-			window.removeEventListener('wheel', handleGlobalWheel);
+			window.removeEventListener('wheel', handleWheel);
 			if (scrollTimeout) {
 				clearTimeout(scrollTimeout);
 			}
-			if (wheelScrollTimeout) {
-				clearTimeout(wheelScrollTimeout);
+			if (flickDetectTimeout) {
+				clearTimeout(flickDetectTimeout);
 			}
 		};
 	});
@@ -220,47 +234,8 @@
 		if (navElement) {
 			swipeDetector.setElement(navElement);
 
-			// Handle trackpad/mouse wheel scrolling to open menu
-			const handleWheel = (e: WheelEvent) => {
-				if (menuOpen || !scrollToHideEnabled) return;
-
-				// Only respond to upward scrolls
-				if (e.deltaY < 0) {
-					// Accumulate scroll distance
-					wheelScrollAccumulator += Math.abs(e.deltaY);
-
-					// Clear previous timeout
-					if (wheelScrollTimeout) {
-						clearTimeout(wheelScrollTimeout);
-					}
-
-					// If accumulated scroll is enough, open menu
-					if (wheelScrollAccumulator > 60) {
-						menuOpen = true;
-						wheelScrollAccumulator = 0;
-					}
-
-					// Reset accumulator after scroll ends
-					wheelScrollTimeout = setTimeout(() => {
-						wheelScrollAccumulator = 0;
-					}, 300);
-				} else {
-					// Reset on downward scroll
-					wheelScrollAccumulator = 0;
-					if (wheelScrollTimeout) {
-						clearTimeout(wheelScrollTimeout);
-					}
-				}
-			};
-
-			navElement.addEventListener('wheel', handleWheel, { passive: true });
-
 			return () => {
 				swipeDetector.setElement(null);
-				navElement.removeEventListener('wheel', handleWheel);
-				if (wheelScrollTimeout) {
-					clearTimeout(wheelScrollTimeout);
-				}
 			};
 		}
 	});

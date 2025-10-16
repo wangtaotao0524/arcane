@@ -403,11 +403,11 @@
 				menuElement.style.overflowY = 'auto';
 				menuElement.style.touchAction = 'pan-y';
 				(menuElement.style as any).webkitOverflowScrolling = 'touch';
-				
+
 				// Multiple layout recalculations to ensure content renders
 				// First recalculation
 				void menuElement.offsetHeight;
-				
+
 				// Second recalculation after a frame
 				requestAnimationFrame(() => {
 					if (menuElement && open) {
@@ -467,7 +467,7 @@
 			interaction.isDragging && !isClosing ? 'transition-none' : 'transition-opacity duration-200'
 		)}
 		style={`
-			${interaction.isDragging && !isClosing ? `opacity: ${Math.max(0.1, 1 - interaction.dragDistance / 400)};` : ''}
+			opacity: ${interaction.isDragging && !isClosing ? Math.max(0.1, 1 - interaction.dragDistance / 400) : '1'};
 			touch-action: none;
 			-webkit-user-select: none;
 			user-select: none;
@@ -495,17 +495,18 @@
 		class={cn(
 			'bg-background/60 border-border/30 fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t shadow-sm backdrop-blur-xl',
 			'max-h-[85vh] overflow-y-auto',
-			interaction.isDragging && !isClosing ? 'transition-none' : ''
+			interaction.isDragging && !isClosing ? 'transition-none' : 'transition-transform duration-200 ease-out'
 		)}
 		style={`
 			touch-action: pan-y; 
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior: contain;
 			scroll-behavior: smooth;
+			transform-origin: bottom center;
 			${
 				interaction.isDragging && !isClosing
 					? `transform: translateY(${interaction.dragDistance}px); opacity: ${Math.max(0.3, 1 - interaction.dragDistance / 300)};`
-					: ''
+					: 'transform: translateY(0); opacity: 1;'
 			}
 		`}
 		data-testid="mobile-nav-sheet"
