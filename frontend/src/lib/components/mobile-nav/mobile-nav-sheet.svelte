@@ -403,12 +403,19 @@
 				menuElement.style.overflowY = 'auto';
 				menuElement.style.touchAction = 'pan-y';
 				(menuElement.style as any).webkitOverflowScrolling = 'touch';
-				// Force layout recalculation
+				
+				// Multiple layout recalculations to ensure content renders
+				// First recalculation
 				void menuElement.offsetHeight;
-
-				// Focus for accessibility
+				
+				// Second recalculation after a frame
 				requestAnimationFrame(() => {
 					if (menuElement && open) {
+						// Force reflow to ensure proper rendering
+						void menuElement.offsetHeight;
+						// Reset scroll to top to ensure all content is visible
+						menuElement.scrollTop = 0;
+						// Focus for accessibility
 						menuElement.focus();
 					}
 				});
@@ -494,6 +501,7 @@
 			touch-action: pan-y; 
 			-webkit-overflow-scrolling: touch;
 			overscroll-behavior: contain;
+			scroll-behavior: smooth;
 			${
 				interaction.isDragging && !isClosing
 					? `transform: translateY(${interaction.dragDistance}px); opacity: ${Math.max(0.3, 1 - interaction.dragDistance / 300)};`
@@ -750,10 +758,24 @@
 		/* Force GPU acceleration */
 		transform: translateZ(0);
 		will-change: transform, opacity;
+		/* Ensure proper stacking context for content */
+		position: fixed;
+		/* Ensure the container doesn't collapse */
+		display: flex;
+		flex-direction: column;
+		/* Fix potential layout issues when scrolled far down page */
+		pointer-events: auto;
+		contain: layout;
 	}
 
 	/* Remove focus outline from dialog container since it's focused for accessibility */
 	div[data-testid='mobile-nav-sheet']:focus {
 		outline: none;
+	}
+
+	/* Ensure content scrolls properly inside the container */
+	div[data-testid='mobile-nav-sheet'] > * {
+		/* Ensure child elements don't cause layout issues */
+		min-height: 0;
 	}
 </style>

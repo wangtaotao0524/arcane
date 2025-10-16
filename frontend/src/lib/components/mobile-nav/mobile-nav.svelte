@@ -112,6 +112,10 @@
 		}
 	);
 
+	// Trackpad scroll wheel handling to open menu
+	let wheelScrollAccumulator = $state(0);
+	let wheelScrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
 	// Improved scroll-to-hide using native scroll events with passive listeners
 	$effect(() => {
 		if (typeof window === 'undefined') return;
@@ -156,12 +160,50 @@
 			}
 		};
 
+		// Global wheel handler for trackpad scrolling to open menu
+		const handleGlobalWheel = (e: WheelEvent) => {
+			if (menuOpen || !scrollToHideEnabled) return;
+
+			// Only respond to upward scrolls (negative deltaY)
+			if (e.deltaY < 0) {
+				// Accumulate scroll distance
+				wheelScrollAccumulator += Math.abs(e.deltaY);
+
+				// Clear previous timeout
+				if (wheelScrollTimeout) {
+					clearTimeout(wheelScrollTimeout);
+				}
+
+				// If accumulated scroll is enough, open menu
+				if (wheelScrollAccumulator > 60) {
+					menuOpen = true;
+					wheelScrollAccumulator = 0;
+				}
+
+				// Reset accumulator after scroll ends
+				wheelScrollTimeout = setTimeout(() => {
+					wheelScrollAccumulator = 0;
+				}, 300);
+			} else {
+				// Reset on downward scroll
+				wheelScrollAccumulator = 0;
+				if (wheelScrollTimeout) {
+					clearTimeout(wheelScrollTimeout);
+				}
+			}
+		};
+
 		window.addEventListener('scroll', handleScroll, { passive: true });
+		window.addEventListener('wheel', handleGlobalWheel, { passive: true });
 
 		return () => {
 			window.removeEventListener('scroll', handleScroll);
+			window.removeEventListener('wheel', handleGlobalWheel);
 			if (scrollTimeout) {
 				clearTimeout(scrollTimeout);
+			}
+			if (wheelScrollTimeout) {
+				clearTimeout(wheelScrollTimeout);
 			}
 		};
 	});
@@ -177,8 +219,48 @@
 	$effect(() => {
 		if (navElement) {
 			swipeDetector.setElement(navElement);
+
+			// Handle trackpad/mouse wheel scrolling to open menu
+			const handleWheel = (e: WheelEvent) => {
+				if (menuOpen || !scrollToHideEnabled) return;
+
+				// Only respond to upward scrolls
+				if (e.deltaY < 0) {
+					// Accumulate scroll distance
+					wheelScrollAccumulator += Math.abs(e.deltaY);
+
+					// Clear previous timeout
+					if (wheelScrollTimeout) {
+						clearTimeout(wheelScrollTimeout);
+					}
+
+					// If accumulated scroll is enough, open menu
+					if (wheelScrollAccumulator > 60) {
+						menuOpen = true;
+						wheelScrollAccumulator = 0;
+					}
+
+					// Reset accumulator after scroll ends
+					wheelScrollTimeout = setTimeout(() => {
+						wheelScrollAccumulator = 0;
+					}, 300);
+				} else {
+					// Reset on downward scroll
+					wheelScrollAccumulator = 0;
+					if (wheelScrollTimeout) {
+						clearTimeout(wheelScrollTimeout);
+					}
+				}
+			};
+
+			navElement.addEventListener('wheel', handleWheel, { passive: true });
+
 			return () => {
 				swipeDetector.setElement(null);
+				navElement.removeEventListener('wheel', handleWheel);
+				if (wheelScrollTimeout) {
+					clearTimeout(wheelScrollTimeout);
+				}
 			};
 		}
 	});
