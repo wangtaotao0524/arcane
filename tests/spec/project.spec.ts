@@ -289,7 +289,7 @@ test.describe('Project Detail Page', () => {
     await expect(logsTab).toBeEnabled();
     await logsTab.click();
 
-    await expect(page.getByText(/Logs/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Project Logs' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Start|Stop/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Clear/i })).toBeVisible();
   });
