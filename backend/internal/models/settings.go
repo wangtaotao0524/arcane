@@ -17,7 +17,7 @@ const (
 )
 
 type SettingVariable struct {
-	Key   string `gorm:"primaryKey;not null"`
+	Key   string `gorm:"primaryKey"`
 	Value string
 }
 
@@ -44,14 +44,22 @@ func (s SettingVariable) AsDurationSeconds() time.Duration {
 
 type Settings struct {
 	// General category
-	ProjectsDirectory   SettingVariable `key:"projectsDirectory" meta:"label=Projects Directory;type=text;keywords=projects,directory,path,folder,location,storage,files,compose,docker-compose;category=general;description=Configure where project files are stored" catmeta:"id=general;title=General;icon=settings;url=/settings/general;description=Core application settings and configuration"`
-	DiskUsagePath       SettingVariable `key:"diskUsagePath" meta:"label=Disk Usage Path;type=text;keywords=disk,usage,path,storage,folder,files;category=general;description=Path used for disk usage calculations"`
-	BaseServerURL       SettingVariable `key:"baseServerUrl" meta:"label=Base Server URL;type=text;keywords=base,url,server,domain,host,endpoint,address,link;category=general;description=Set the base URL for the application"`
-	EnableGravatar      SettingVariable `key:"enableGravatar" meta:"label=Enable Gravatar;type=boolean;keywords=gravatar,avatar,profile,picture,image,user,photo;category=general;description=Enable Gravatar profile pictures for users"`
-	DefaultShell        SettingVariable `key:"defaultShell" meta:"label=Default Shell;type=text;keywords=shell,default,shellpath,path,login;category=general;description=Default shell to use for commands"`
-	AccentColor         SettingVariable `key:"accentColor,public" meta:"label=Accent Color;type=text;keywords=color,accent,theme,css,appearance,ui;category=general;description=Primary accent color for UI"`
+	ProjectsDirectory SettingVariable `key:"projectsDirectory" meta:"label=Projects Directory;type=text;keywords=projects,directory,path,folder,location,storage,files,compose,docker-compose;category=general;description=Configure where project files are stored" catmeta:"id=general;title=General;icon=settings;url=/settings/general;description=Core application settings and configuration"`
+	DiskUsagePath     SettingVariable `key:"diskUsagePath" meta:"label=Disk Usage Path;type=text;keywords=disk,usage,path,storage,folder,files;category=general;description=Path used for disk usage calculations"`
+	BaseServerURL     SettingVariable `key:"baseServerUrl" meta:"label=Base Server URL;type=text;keywords=base,url,server,domain,host,endpoint,address,link;category=general;description=Set the base URL for the application"`
+	EnableGravatar    SettingVariable `key:"enableGravatar" meta:"label=Enable Gravatar;type=boolean;keywords=gravatar,avatar,profile,picture,image,user,photo;category=general;description=Enable Gravatar profile pictures for users"`
+	DefaultShell      SettingVariable `key:"defaultShell" meta:"label=Default Shell;type=text;keywords=shell,default,shellpath,path,login;category=general;description=Default shell to use for commands"`
+	AccentColor       SettingVariable `key:"accentColor,public,local" meta:"label=Accent Color;type=text;keywords=color,accent,theme,css,appearance,ui;category=general;description=Primary accent color for UI"`
+
+	// Deprecated: OnboardingCompleted is no longer used as of the onboarding removal.
+	// This field is kept for backward compatibility and is automatically set to true on startup.
+	// This will be removed in a future release.
 	OnboardingCompleted SettingVariable `key:"onboardingCompleted,public" meta:"label=Onboarding Completed;type=boolean;keywords=onboarding,completed,setup,first-run;category=general;description=Whether onboarding has been completed"`
-	OnboardingSteps     SettingVariable `key:"onboardingSteps" meta:"label=Onboarding Steps;type=text;keywords=onboarding,steps,progress,guide;category=general;description=Serialized onboarding steps"`
+
+	// Deprecated: OnboardingSteps is no longer used as of the onboarding removal.
+	// This field is kept for backward compatibility only.
+	// This will be removed in a future release.
+	OnboardingSteps SettingVariable `key:"onboardingSteps" meta:"label=Onboarding Steps;type=text;keywords=onboarding,steps,progress,guide;category=general;description=Serialized onboarding steps"`
 
 	// Docker category
 	AutoUpdate         SettingVariable `key:"autoUpdate" meta:"label=Auto Update;type=boolean;keywords=auto,update,automatic,upgrade,refresh,restart,deploy;category=docker;description=Automatically update containers when new images are available" catmeta:"id=docker;title=Docker;icon=database;url=/settings/docker;description=Configure Docker settings, polling, and auto-updates"`
@@ -69,11 +77,11 @@ type Settings struct {
 	AuthOidcConfig     SettingVariable `key:"authOidcConfig,sensitive" meta:"label=OIDC Config;type=text;keywords=oidc,config,client,id,issuer,secret,oauth;category=security;description=OIDC provider configuration"`
 
 	// Navigation category
-	MobileNavigationMode         SettingVariable `key:"mobileNavigationMode,public" meta:"label=Mobile Navigation Mode;type=select;keywords=mode,style,type,floating,docked,position,layout,design,appearance,bottom;category=navigation;description=Choose between floating or docked navigation on mobile" catmeta:"id=navigation;title=Navigation;icon=navigation;url=/settings/navigation;description=Customize navigation and interface behavior"`
-	MobileNavigationShowLabels   SettingVariable `key:"mobileNavigationShowLabels,public" meta:"label=Show Navigation Labels;type=boolean;keywords=labels,text,icons,display,show,hide,names,captions,titles,visible,toggle;category=navigation;description=Display text labels alongside navigation icons"`
-	MobileNavigationScrollToHide SettingVariable `key:"mobileNavigationScrollToHide,public" meta:"label=Scroll to Hide;type=boolean;keywords=scroll,hide,auto-hide,behavior,down,up,automatic,disappear,vanish,minimize,collapse;category=navigation;description=Automatically hide navigation when scrolling down"`
-	SidebarHoverExpansion        SettingVariable `key:"sidebarHoverExpansion,public" meta:"label=Sidebar Hover Expansion;type=boolean;keywords=sidebar,hover,expansion,expand,desktop,mouse,over,collapsed,collapsible,icon,labels,text,preview,peek,tooltip,overlay,temporary,quick,access,navigation,menu,items,submenu,nested;category=navigation;description=Expand sidebar on hover in desktop mode"`
-	GlassEffectEnabled           SettingVariable `key:"glassEffectEnabled,public" meta:"label=Glass Effect;type=boolean;keywords=glass,glassmorphism,blur,backdrop,frosted,effect,gradient,ambient,design,ui,appearance,modern,visual,style,theme,transparency,translucent;category=navigation;description=Enable modern glassmorphism design with blur, gradients, and ambient effects"`
+	MobileNavigationMode         SettingVariable `key:"mobileNavigationMode,public,local" meta:"label=Mobile Navigation Mode;type=select;keywords=mode,style,type,floating,docked,position,layout,design,appearance,bottom;category=navigation;description=Choose between floating or docked navigation on mobile" catmeta:"id=navigation;title=Navigation;icon=navigation;url=/settings/navigation;description=Customize navigation and interface behavior"`
+	MobileNavigationShowLabels   SettingVariable `key:"mobileNavigationShowLabels,public,local" meta:"label=Show Navigation Labels;type=boolean;keywords=labels,text,icons,display,show,hide,names,captions,titles,visible,toggle;category=navigation;description=Display text labels alongside navigation icons"`
+	MobileNavigationScrollToHide SettingVariable `key:"mobileNavigationScrollToHide,public,local" meta:"label=Scroll to Hide;type=boolean;keywords=scroll,hide,auto-hide,behavior,down,up,automatic,disappear,vanish,minimize,collapse;category=navigation;description=Automatically hide navigation when scrolling down"`
+	SidebarHoverExpansion        SettingVariable `key:"sidebarHoverExpansion,public,local" meta:"label=Sidebar Hover Expansion;type=boolean;keywords=sidebar,hover,expansion,expand,desktop,mouse,over,collapsed,collapsible,icon,labels,text,preview,peek,tooltip,overlay,temporary,quick,access,navigation,menu,items,submenu,nested;category=navigation;description=Expand sidebar on hover in desktop mode"`
+	GlassEffectEnabled           SettingVariable `key:"glassEffectEnabled,public,local" meta:"label=Glass Effect;type=boolean;keywords=glass,glassmorphism,blur,backdrop,frosted,effect,gradient,ambient,design,ui,appearance,modern,visual,style,theme,transparency,translucent;category=navigation;description=Enable modern glassmorphism design with blur, gradients, and ambient effects"`
 
 	InstanceID SettingVariable `key:"instanceId,internal" meta:"label=Instance ID;type=text;keywords=instance,id,uuid,identifier;category=internal;description=Unique instance identifier"`
 }
@@ -96,7 +104,7 @@ func (s *Settings) ToSettingVariableSlice(showAll bool, redactSensitiveValues bo
 			continue
 		}
 
-		if !showAll && attrs != "public" {
+		if !showAll && !strings.Contains(attrs, "public") {
 			continue
 		}
 
@@ -134,6 +142,21 @@ func (s *Settings) FieldByKey(key string) (defaultValue string, isPublic bool, i
 	return "", false, false, SettingKeyNotFoundError{field: key}
 }
 
+func (s *Settings) IsLocalSetting(key string) bool {
+	rt := reflect.TypeOf(s).Elem()
+
+	for i := 0; i < rt.NumField(); i++ {
+		tagValue := strings.Split(rt.Field(i).Tag.Get("key"), ",")
+		keyFromTag := tagValue[0]
+
+		if keyFromTag == key {
+			return slices.Contains(tagValue, "local")
+		}
+	}
+
+	return false
+}
+
 func (s *Settings) UpdateField(key string, value string, noSensitive bool) error {
 	rv := reflect.ValueOf(s).Elem()
 	rt := rv.Type()
@@ -145,7 +168,7 @@ func (s *Settings) UpdateField(key string, value string, noSensitive bool) error
 		}
 
 		// If the field is sensitive and noSensitive is true, we skip that
-		if noSensitive && attrs == "sensitive" {
+		if noSensitive && strings.Contains(attrs, "sensitive") {
 			return SettingSensitiveForbiddenError{field: key}
 		}
 
@@ -163,7 +186,7 @@ func (s *Settings) UpdateField(key string, value string, noSensitive bool) error
 
 // helper keeps redaction logic in one place; behavior unchanged
 func redactSettingValue(key, value, attrs string, redact bool) string {
-	if value == "" || !redact || attrs != "sensitive" {
+	if value == "" || !redact || !strings.Contains(attrs, "sensitive") {
 		return value
 	}
 
