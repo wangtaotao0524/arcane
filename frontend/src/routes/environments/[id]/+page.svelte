@@ -8,6 +8,7 @@
 	import TerminalIcon from '@lucide/svelte/icons/terminal';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import ServerIcon from '@lucide/svelte/icons/server';
 	import { goto, invalidateAll } from '$app/navigation';
 	import StatusBadge from '$lib/components/badges/status-badge.svelte';
 	import { toast } from 'svelte-sonner';
@@ -15,6 +16,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { environmentManagementService } from '$lib/services/env-mgmt-service.js';
 	import { environmentStore } from '$lib/stores/environment.store.svelte';
+	import { SSHConnectionManager } from '$lib/components/ssh-terminal';
 
 	let { data } = $props();
 	let { environment, settings } = $derived(data);
@@ -32,6 +34,7 @@
 
 	const sections = [
 		{ id: 'overview', Label: m.environments_section_overview, icon: MonitorIcon },
+		{ id: 'ssh', Label: 'SSH Terminal', icon: TerminalIcon },
 		{ id: 'connection', Label: m.environments_section_connection, icon: GlobeIcon },
 		{ id: 'pairing', Label: m.environments_section_pairing, icon: SettingsIcon }
 	];
@@ -377,6 +380,25 @@
 									{/if}
 								</div>
 							{/if}
+						</Card.Content>
+					</Card.Root>
+				</div>
+			{:else if activeSection === 'ssh'}
+				<div class="space-y-6">
+					<Card.Root class="flex flex-col gap-6 py-3">
+						<Card.Header
+							class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6"
+						>
+							<Card.Title class="flex items-center gap-2">
+								<TerminalIcon class="h-5 w-5" />
+								SSH Terminal
+							</Card.Title>
+							<Card.Description>
+								Connect to environment nodes via SSH for direct management
+							</Card.Description>
+						</Card.Header>
+						<Card.Content class="px-6">
+							<SSHConnectionManager environmentId={environment.id} />
 						</Card.Content>
 					</Card.Root>
 				</div>

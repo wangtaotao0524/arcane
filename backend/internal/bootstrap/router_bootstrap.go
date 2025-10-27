@@ -107,6 +107,7 @@ func setupRouter(cfg *config.Config, appServices *Services) *gin.Engine {
 	api.NewVolumeHandler(apiGroup, appServices.Docker, appServices.Volume, authMiddleware)
 	api.NewSettingsHandler(apiGroup, appServices.Settings, appServices.SettingsSearch, authMiddleware)
 	api.NewCustomizeHandler(apiGroup, appServices.CustomizeSearch, authMiddleware)
+	api.NewSSHHandler(apiGroup, appServices.SSH, authMiddleware)
 
 	if cfg.Environment != "production" {
 		for _, registerFunc := range registerPlaywrightRoutes {
