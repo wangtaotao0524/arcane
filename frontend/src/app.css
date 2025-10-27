@@ -273,6 +273,12 @@ body:not(.glass-enabled) {
 		-webkit-backdrop-filter: none !important;
 		backdrop-filter: none !important;
 	}
+
+	.glass-medium {
+		background: var(--card) !important;
+		backdrop-filter: none !important;
+		-webkit-backdrop-filter: none !important;
+	}
 }
 
 body.glass-enabled {
@@ -440,6 +446,13 @@ body::after {
 		100% {
 			transform: translate3d(2%, 1%, 0) scale(1.05);
 		}
+	}
+
+	/* Glass variants for cards/components */
+	.glass-medium {
+		background: color-mix(in oklch, var(--glass-base, var(--bg-surface)) var(--glass-medium-alpha), transparent);
+		backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+		-webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
 	}
 }
 
