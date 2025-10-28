@@ -69,7 +69,7 @@ jobs:
           push: false
           tags: ${{ env.DOCKER_IMAGE_NAME }}:next
           file: docker/Dockerfile-static
-          outputs: type=docker,dest=/tmp/arcane-manager.tar
+          outputs: type=oci,dest=/tmp/arcane-manager.tar
 
       - name: Save container image as tar
         run: |
@@ -121,7 +121,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: false
           tags: ${{ env.DOCKER_IMAGE_NAME }}:next
-          outputs: type=docker,dest=/tmp/arcane-agent.tar
+          outputs: type=oci,dest=/tmp/arcane-agent.tar
 
       - name: Save agent image as tar
         run: |
