@@ -12,7 +12,7 @@ on:
 jobs:
   label:
     name: Labeling
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     if: ${{ github.repository == 'ofkm/arcane' }}
     permissions:
       contents: read
