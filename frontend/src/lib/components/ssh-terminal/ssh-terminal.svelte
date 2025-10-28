@@ -152,7 +152,7 @@
 			<button on:click={disconnect} class="btn btn-sm btn-danger">Disconnect</button>
 		</div>
 	</div>
-	<div class="terminal-container" bind:this={terminalContainer} />
+	<div class="terminal-container" bind:this={terminalContainer}></div>
 </div>
 
 <style>

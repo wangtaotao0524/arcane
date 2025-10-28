@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { SSHTerminal } from './ssh-terminal.svelte';
+	import SSHTerminal from './ssh-terminal.svelte';
 	import sshService, { type SSHConnection, type SSHConnectRequest } from '$lib/services/ssh-service';
 
 	interface SSHConnectionManagerProps {
@@ -178,23 +178,25 @@
 				<p class="text-muted">Create a new connection to start managing your environment nodes</p>
 			</div>
 		{:else}
-			<div class="connection-tabs">
-				{#each connections as connection (connection.id)}
-					<button 
-						class="tab {activeSessionId === connection.id ? 'active' : ''}"
-						on:click={() => activeSessionId = connection.id}
-					>
-						{connection.username}@{connection.host}:{connection.port}
-						<span class="status {connection.status}"></span>
-						<button 
-							on:click={() => disconnect(connection.id)}
-							class="btn btn-sm btn-danger"
-						>
-							Disconnect
-						</button>
-					</button>
-				{/each}
-			</div>
+				<div class="connection-tabs">
+					{#each connections as connection (connection.id)}
+						<div class="tab-container {activeSessionId === connection.id ? 'active' : ''}">
+							<button 
+								class="tab"
+								on:click={() => activeSessionId = connection.id}
+							>
+								{connection.username}@{connection.host}:{connection.port}
+								<span class="status {connection.status}"></span>
+							</button>
+							<button 
+								on:click={() => disconnect(connection.id)}
+								class="btn btn-sm btn-danger"
+							>
+								Disconnect
+							</button>
+						</div>
+					{/each}
+				</div>
 
 			{#each connections as connection (connection.id)}
 				{#if activeSessionId === connection.id}
@@ -276,6 +278,19 @@
 		padding: 0 16px;
 	}
 
+	.tab-container {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0;
+		border-bottom: 2px solid transparent;
+		transition: all 0.2s;
+	}
+
+	.tab-container.active {
+		border-bottom-color: #3b82f6;
+	}
+
 	.tab {
 		display: flex;
 		align-items: center;
@@ -283,14 +298,13 @@
 		padding: 8px 16px;
 		background: transparent;
 		border: none;
-		border-bottom: 2px solid transparent;
 		cursor: pointer;
 		font-size: 14px;
+		color: inherit;
 		transition: all 0.2s;
 	}
 
-	.tab.active {
-		border-bottom-color: #3b82f6;
+	.tab-container.active .tab {
 		color: #3b82f6;
 	}
 
