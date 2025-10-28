@@ -15,9 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
     name: Build Next Image (Manager)
     steps:
       - name: Checkout code
@@ -44,16 +41,8 @@ jobs:
 
       - name: Set DOCKER_IMAGE_NAME
         run: |
-          REPO_OWNER=${{ github.repository_owner }}
-          DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER,,}/arcane"
+          DOCKER_IMAGE_NAME="arcane"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >>${GITHUB_ENV}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install frontend dependencies
         run: pnpm --filter arcane-frontend install --frozen-lockfile
@@ -71,30 +60,26 @@ jobs:
           VERSION: next
           REVISION: ${{ steps.sha.outputs.short }}
 
-      - name: Build and push container image
-        id: build-push-image
+      - name: Build container image
+        id: build-image
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: false
           tags: ${{ env.DOCKER_IMAGE_NAME }}:next
           file: docker/Dockerfile-static
+          outputs: type=docker,dest=/tmp/arcane-manager.tar
 
-      - name: Container image attestation
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
-          subject-digest: ${{ steps.build-push-image.outputs.digest }}
-          push-to-registry: true
+      - name: Save container image as tar
+        run: |
+          echo "Docker image saved as tar file: /tmp/arcane-manager.tar"
+          ls -la /tmp/arcane-manager.tar
 
   build-agent:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
     name: Build Next Image (Agent)
     needs: build-manager
     steps:
@@ -114,16 +99,8 @@ jobs:
 
       - name: Set DOCKER_IMAGE_NAME
         run: |
-          REPO_OWNER=${{ github.repository_owner }}
-          DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER,,}/arcane-headless"
+          DOCKER_IMAGE_NAME="arcane-headless"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >>${GITHUB_ENV}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get short SHA
         id: sha
@@ -135,19 +112,18 @@ jobs:
           VERSION: next
           REVISION: ${{ steps.sha.outputs.short }}
 
-      - name: Build and push agent image
-        id: build-push-image
+      - name: Build agent image
+        id: build-image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile-agent-static
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: false
           tags: ${{ env.DOCKER_IMAGE_NAME }}:next
+          outputs: type=docker,dest=/tmp/arcane-agent.tar
 
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
-          subject-digest: ${{ steps.build-push-image.outputs.digest }}
-          push-to-registry: true
+      - name: Save agent image as tar
+        run: |
+          echo "Docker image saved as tar file: /tmp/arcane-agent.tar"
+          ls -la /tmp/arcane-agent.tar
