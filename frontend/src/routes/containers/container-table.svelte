@@ -137,7 +137,7 @@
 	const isAnyLoading = $derived(Object.values(isLoading).some((loading) => loading));
 
 	const columns = [
-		{ accessorKey: 'names', title: m.common_name(), sortable: true, cell: NameCell },
+		{ accessorKey: 'names', id: 'name', title: m.common_name(), sortable: true, cell: NameCell },
 		{ accessorKey: 'id', title: m.common_id(), cell: IdCell },
 		{ accessorKey: 'state', title: m.common_state(), sortable: true, cell: StateCell },
 		{ accessorKey: 'image', title: m.common_image(), sortable: true },
