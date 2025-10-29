@@ -324,6 +324,41 @@ func (s *EventService) LogNetworkEvent(ctx context.Context, eventType models.Eve
 	return err
 }
 
+func (s *EventService) LogErrorEvent(ctx context.Context, eventType models.EventType, resourceType, resourceID, resourceName, userID, username, environmentID string, err error, metadata models.JSON) {
+	if err == nil {
+		return
+	}
+
+	if metadata == nil {
+		metadata = models.JSON{}
+	}
+	metadata["error"] = err.Error()
+
+	title := fmt.Sprintf("%s error", strings.Title(resourceType))
+	if resourceName != "" {
+		title = fmt.Sprintf("%s error: %s", strings.Title(resourceType), resourceName)
+	}
+
+	description := fmt.Sprintf("Failed to perform operation on %s: %s", resourceType, err.Error())
+
+	_, logErr := s.CreateEvent(ctx, CreateEventRequest{
+		Type:          eventType,
+		Severity:      models.EventSeverityError,
+		Title:         title,
+		Description:   description,
+		ResourceType:  &resourceType,
+		ResourceID:    &resourceID,
+		ResourceName:  &resourceName,
+		UserID:        &userID,
+		Username:      &username,
+		EnvironmentID: &environmentID,
+		Metadata:      metadata,
+	})
+	if logErr != nil {
+		fmt.Printf("Failed to log error event: %v\n", logErr)
+	}
+}
+
 func (s *EventService) toEventDto(event *models.Event) *dto.EventDto {
 	var metadata map[string]interface{}
 	if event.Metadata != nil {
