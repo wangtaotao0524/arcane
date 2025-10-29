@@ -24,7 +24,7 @@
 	let hasChanges = $state(false);
 	let isLoading = $state(false);
 
-	let currentSettings = $state(data.settings!);
+	const currentSettings = $derived($settingsStore || data.settings!);
 	const isReadOnly = $derived.by(() => $settingsStore.uiConfigDisabled);
 	const formState = getContext('settingsFormState') as any;
 	const formSchema = z.object({
@@ -57,8 +57,8 @@
 	async function updateSettingsConfig(updatedSettings: Partial<Settings>) {
 		try {
 			await settingsService.updateSettings(updatedSettings as any);
-			currentSettings = { ...currentSettings, ...updatedSettings };
-			settingsStore.set(currentSettings);
+			const updated = { ...currentSettings, ...updatedSettings };
+			settingsStore.set(updated);
 			settingsStore.reload();
 		} catch (error) {
 			console.error('Error updating settings:', error);
@@ -84,12 +84,12 @@
 	}
 
 	function resetForm() {
-		$formInputs.projectsDirectory.value = data.settings!.projectsDirectory;
-		$formInputs.baseServerUrl.value = data.settings!.baseServerUrl;
-		$formInputs.enableGravatar.value = data.settings!.enableGravatar;
-		$formInputs.accentColor.value = data.settings!.accentColor;
-		$formInputs.glassEffectEnabled.value = data.settings!.glassEffectEnabled;
-		applyAccentColor(data.settings!.accentColor);
+		$formInputs.projectsDirectory.value = currentSettings.projectsDirectory;
+		$formInputs.baseServerUrl.value = currentSettings.baseServerUrl;
+		$formInputs.enableGravatar.value = currentSettings.enableGravatar;
+		$formInputs.accentColor.value = currentSettings.accentColor;
+		$formInputs.glassEffectEnabled.value = currentSettings.glassEffectEnabled;
+		applyAccentColor(currentSettings.accentColor);
 	}
 
 	onMount(() => {

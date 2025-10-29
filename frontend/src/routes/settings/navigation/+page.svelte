@@ -19,7 +19,7 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 
 	let { data } = $props();
-	let currentSettings = $state(data.settings!);
+	const currentSettings = $derived($settingsStore || data.settings!);
 	let hasChanges = $state(false);
 	let isLoading = $state(false);
 
@@ -91,8 +91,8 @@
 	async function updateSettingsConfig(updatedSettings: Partial<Settings>) {
 		try {
 			await settingsService.updateSettings(updatedSettings as any);
-			currentSettings = { ...currentSettings, ...updatedSettings };
-			settingsStore.set(currentSettings);
+			const updated = { ...currentSettings, ...updatedSettings };
+			settingsStore.set(updated);
 			settingsStore.reload();
 		} catch (error) {
 			console.error('Error updating navigation settings:', error);

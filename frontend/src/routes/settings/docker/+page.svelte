@@ -21,7 +21,7 @@
 	import { SettingsPageLayout } from '$lib/layouts';
 
 	let { data } = $props();
-	let currentSettings = $state<Settings>(data.settings!);
+	const currentSettings = $derived<Settings>($settingsStore || data.settings!);
 	let hasChanges = $state(false);
 	let isLoading = $state(false);
 
@@ -140,8 +140,8 @@
 	async function updateSettingsConfig(updatedSettings: Partial<Settings>) {
 		try {
 			await settingsService.updateSettings(updatedSettings as any);
-			currentSettings = { ...currentSettings, ...updatedSettings };
-			settingsStore.set(currentSettings);
+			const updated = { ...currentSettings, ...updatedSettings };
+			settingsStore.set(updated);
 			settingsStore.reload();
 		} catch (error) {
 			console.error('Error updating settings:', error);
