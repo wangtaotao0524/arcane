@@ -195,62 +195,11 @@ git add .revision
 # Generate changelog for ONLY the fixes in this release branch
 echo -e "${BLUE}Generating changelog for hotfix...${NC}"
 
-# Create a temporary cliff config that only includes fix commits
-TEMP_CLIFF_CONFIG=$(mktemp)
-cat > "$TEMP_CLIFF_CONFIG" << 'EOF'
-[remote.github]
-owner = "ofkm"
-repo = "arcane"
-
-[git]
-conventional_commits = true
-filter_unconventional = true
-commit_preprocessors = [{ pattern = '\((\w+\s)?#([0-9]+)\)', replace = "" }]
-commit_parsers = [
-    { message = "^fix", group = "<!-- 0 --> Bug fixes" },
-    { message = "^hotfix", group = "<!-- 0 --> Bug fixes" },
-    { message = ".*", skip = true },
-]
-filter_commits = true
-
-[changelog]
-trim = true
-body = """
-## {{ version | default(value="Unknown Version") }} (Hotfix)
-{% for group, commits in commits | group_by(attribute="group") %}
-### {{ group | striptags | trim | upper_first }}
-{% for commit in commits %}
-  * {{ commit.message }} \
-    {%- if commit.remote.pr_number -%}
-      ([#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.username | default(value=commit.author.name) }})
-    {%- else -%}
-      ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}) by @{{ commit.remote.username | default(value=commit.author.name) }})
-    {%- endif -%}
-{% endfor %}
-{% endfor %}
-{% if version %}
-    {% if previous.version %}
-      **Full Changelog**: {{ self::remote_url() }}/compare/{{ previous.version }}...{{ version }}
-    {% endif %}
-{% else -%}
-  {% raw %}\n{% endraw %}
-{% endif %}
-
-{%- macro remote_url() -%}
-  https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
-{%- endmacro -%}
-"""
-EOF
-
-# Generate changelog using the temporary config
-git cliff --config "$TEMP_CLIFF_CONFIG" \
+git-cliff \
     --github-token=$(gh auth token) \
     --prepend CHANGELOG.md \
     --tag "$NEW_TAG" \
     --unreleased
-
-# Clean up temp config
-rm "$TEMP_CLIFF_CONFIG"
 
 git add CHANGELOG.md
 
