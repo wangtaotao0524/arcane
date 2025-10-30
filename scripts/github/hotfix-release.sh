@@ -268,8 +268,11 @@ jq --arg new_version "$NEW_VERSION" '.version = $new_version' frontend/package.j
 # Update .revision file
 echo "$LATEST_REVISION" > .revision
 
+# Copy the updated CHANGELOG.md from the release branch
+git checkout "${RELEASE_BRANCH}" -- CHANGELOG.md
+
 # Commit the version updates to main
-git add .version frontend/package.json .revision
+git add .version frontend/package.json .revision CHANGELOG.md
 git commit -m "chore: bump version to ${NEW_VERSION} after hotfix release"
 git push origin main
 
