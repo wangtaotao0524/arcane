@@ -221,48 +221,57 @@ See CHANGELOG.md for details."
 echo ""
 echo -e "${GREEN}✅ Hotfix release ${NEW_TAG} created successfully!${NC}"
 echo ""
-echo -e "${YELLOW}=== Next Steps ===${NC}"
-echo ""
-echo "1. Review the changes:"
-echo -e "   ${BLUE}git show HEAD${NC}"
-echo -e "   ${BLUE}git log ${BASE_TAG}..${NEW_TAG}${NC}"
-echo ""
-echo "2. Push the release branch and tag:"
-echo -e "   ${GREEN}git push origin ${RELEASE_BRANCH}${NC}"
-echo -e "   ${GREEN}git push origin ${NEW_TAG}${NC}"
-echo ""
-echo "3. Create GitHub release:"
-echo -e "   ${GREEN}gh release create ${NEW_TAG} --title '${NEW_TAG} (Hotfix)' --generate-notes --draft${NC}"
-echo ""
-echo "   Or with changelog:"
-read -p "Create GitHub draft release now? (y/n) " CREATE_RELEASE
-if [[ "$CREATE_RELEASE" == "y" ]]; then
-    # Extract the changelog content for the latest release
-    echo "Extracting changelog content for version $NEW_TAG..."
-    CHANGELOG=$(awk '/^## v[0-9]/ { if (found) exit; found=1; next } found' CHANGELOG.md)
-    
-    if [ -z "$CHANGELOG" ]; then
-        echo -e "${YELLOW}Warning: Could not extract changelog. Using generate-notes instead.${NC}"
-        gh release create "$NEW_TAG" --title "${NEW_TAG} (Hotfix)" --generate-notes --draft
-    else
-        gh release create "$NEW_TAG" --title "${NEW_TAG} (Hotfix)" --notes "$CHANGELOG" --draft
-    fi
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}GitHub draft release created successfully!${NC}"
-        echo ""
-        echo "Review the draft at: https://github.com/ofkm/arcane/releases"
-    else
-        echo -e "${RED}Failed to create GitHub release.${NC}"
-    fi
-else
-    echo ""
-    echo "Skipped GitHub release creation."
+
+# Push the commit and the tag to the repository
+git push
+git push --tags
+
+# Extract the changelog content for the latest release
+echo "Extracting changelog content for version $NEW_TAG..."
+CHANGELOG=$(awk '/^## v[0-9]/ { if (found) exit; found=1; next } found' CHANGELOG.md)
+
+if [ -z "$CHANGELOG" ]; then
+    echo -e "${RED}Error: Could not extract changelog for version $NEW_TAG.${NC}"
+    exit 1
 fi
 
+# Create the draft release on GitHub
+echo "Creating GitHub draft release..."
+gh release create "$NEW_TAG" --title "${NEW_TAG} (Hotfix)" --notes "$CHANGELOG" --draft
+
+if [ $? -eq 0 ]; then
+    echo "GitHub draft release created successfully."
+else
+    echo -e "${RED}Error: Failed to create GitHub release.${NC}"
+    exit 1
+fi
+
+echo "Release process complete. New version: $NEW_TAG"
 echo ""
-echo "4. (Optional) Merge fixes back to main:"
-echo -e "   ${BLUE}git checkout main${NC}"
-echo -e "   ${BLUE}git merge ${RELEASE_BRANCH} --no-ff -m 'chore: merge hotfix ${NEW_TAG} to main'${NC}"
-echo -e "   ${BLUE}git push origin main${NC}"
+echo -e "${YELLOW}Note: Hotfix release created from ${BASE_TAG} on ${RELEASE_BRANCH}${NC}"
+echo "The fix commits are already on main, this release just tags them without unreleased features."
+echo ""
+echo "Review the draft at: https://github.com/ofkm/arcane/releases"
+echo ""
+
+# Update main branch with the new version files
+echo -e "${BLUE}Updating main branch with version ${NEW_VERSION}...${NC}"
+git checkout main
+git pull origin main --quiet
+
+# Update .version file
+echo "$NEW_VERSION" > .version
+
+# Update version in frontend/package.json
+jq --arg new_version "$NEW_VERSION" '.version = $new_version' frontend/package.json > frontend/package_tmp.json && mv frontend/package_tmp.json frontend/package.json
+
+# Update .revision file
+echo "$LATEST_REVISION" > .revision
+
+# Commit the version updates to main
+git add .version frontend/package.json .revision
+git commit -m "chore: bump version to ${NEW_VERSION} after hotfix release"
+git push origin main
+
+echo -e "${GREEN}✅ Main branch updated with version ${NEW_VERSION}${NC}"
 echo ""
