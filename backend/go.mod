@@ -8,7 +8,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.16.0
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v28.5.1+incompatible
-	github.com/docker/compose/v2 v2.40.2
+	github.com/docker/compose/v2 v2.40.3
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v28.5.1+incompatible
 	github.com/docker/go-connections v0.6.0
