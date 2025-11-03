@@ -1,6 +1,6 @@
 import BaseAPIService from './api-service';
 import { environmentStore } from '$lib/stores/environment.store.svelte';
-import type { NetworkSummaryDto, NetworkUsageCounts } from '$lib/types/network.type';
+import type { NetworkSummaryDto, NetworkUsageCounts, NetworkCreateRequest } from '$lib/types/network.type';
 import type { SearchPaginationSortRequest, Paginated } from '$lib/types/pagination.type';
 import type { NetworkCreateOptions } from 'dockerode';
 import { transformPaginationParams } from '$lib/utils/params.util';
@@ -26,7 +26,21 @@ export class NetworkService extends BaseAPIService {
 
 	async createNetwork(options: NetworkCreateOptions): Promise<any> {
 		const envId = await environmentStore.getCurrentEnvironmentId();
-		return this.handleResponse(this.api.post(`/environments/${envId}/networks`, options));
+		const request: NetworkCreateRequest = {
+			name: options.Name || '',
+			options: {
+				Driver: options.Driver,
+				CheckDuplicate: options.CheckDuplicate,
+				Internal: options.Internal,
+				Attachable: options.Attachable,
+				Ingress: options.Ingress,
+				IPAM: options.IPAM,
+				EnableIPv6: options.EnableIPv6,
+				Options: options.Options,
+				Labels: options.Labels
+			}
+		};
+		return this.handleResponse(this.api.post(`/environments/${envId}/networks`, request));
 	}
 
 	async deleteNetwork(networkId: string): Promise<any> {

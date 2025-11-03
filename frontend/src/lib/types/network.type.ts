@@ -11,6 +11,21 @@ export interface NetworkCreateOptions {
 	checkDuplicate?: boolean;
 }
 
+export interface NetworkCreateRequest {
+	name: string;
+	options: {
+		Driver?: string;
+		CheckDuplicate?: boolean;
+		Internal?: boolean;
+		Attachable?: boolean;
+		Ingress?: boolean;
+		IPAM?: IPAMConfig;
+		EnableIPv6?: boolean;
+		Options?: Record<string, string>;
+		Labels?: Record<string, string>;
+	};
+}
+
 export interface NetworkUsageCounts {
 	networksInuse: number;
 	networksUnused: number;
