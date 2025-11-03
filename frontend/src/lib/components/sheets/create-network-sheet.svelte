@@ -255,32 +255,32 @@
 								<p class="text-muted-foreground text-xs">{m.network_labels_description()}</p>
 							</div>
 						</div>
-				</Accordion.Content>
-			</Accordion.Item>
+					</Accordion.Content>
+				</Accordion.Item>
 
-			<Accordion.Item value="options">
-				<Accordion.Trigger class="text-sm font-medium">{m.common_driver_options()}</Accordion.Trigger>
-				<Accordion.Content class="pt-4">
-					<div class="space-y-2">
-						<Label for="driver-options" class="text-sm font-medium">{m.common_driver_options()}</Label>
-						<Textarea
-							id="driver-options"
-							placeholder={m.network_driver_options_placeholder()}
-							disabled={isLoading}
-							rows={3}
-							bind:value={$inputs.driverOptions.value}
-							class={$inputs.driverOptions.error ? 'border-destructive' : ''}
-						/>
-						{#if $inputs.driverOptions.error}
-							<p class="text-destructive text-xs">{$inputs.driverOptions.error}</p>
-						{/if}
-						<p class="text-muted-foreground text-xs">{m.network_driver_options_description()}</p>
-					</div>
-				</Accordion.Content>
-			</Accordion.Item>
+				<Accordion.Item value="options">
+					<Accordion.Trigger class="text-sm font-medium">{m.common_driver_options()}</Accordion.Trigger>
+					<Accordion.Content class="pt-4">
+						<div class="space-y-2">
+							<Label for="driver-options" class="text-sm font-medium">{m.common_driver_options()}</Label>
+							<Textarea
+								id="driver-options"
+								placeholder={m.network_driver_options_placeholder()}
+								disabled={isLoading}
+								rows={3}
+								bind:value={$inputs.driverOptions.value}
+								class={$inputs.driverOptions.error ? 'border-destructive' : ''}
+							/>
+							{#if $inputs.driverOptions.error}
+								<p class="text-destructive text-xs">{$inputs.driverOptions.error}</p>
+							{/if}
+							<p class="text-muted-foreground text-xs">{m.network_driver_options_description()}</p>
+						</div>
+					</Accordion.Content>
+				</Accordion.Item>
 
-			<Accordion.Item value="ipam">
-				<Accordion.Trigger class="text-sm font-medium">{m.networks_ipam_title()}</Accordion.Trigger>
+				<Accordion.Item value="ipam">
+					<Accordion.Trigger class="text-sm font-medium">{m.networks_ipam_title()}</Accordion.Trigger>
 					<Accordion.Content class="pt-4">
 						<div class="space-y-4">
 							<div class="flex items-center space-x-2">
