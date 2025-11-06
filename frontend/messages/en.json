@@ -176,6 +176,7 @@
 	"common_action_confirming": "Confirming…",
 	"common_action_cancelling": "Cancelling…",
 	"common_action_fetching_logs": "Fetching…",
+	"common_action_saving": "Saving…",
 	"common_action_failed": "Action Failed",
 	"common_action_failed_with_type": "Failed to {action} {type}",
 
@@ -1010,6 +1011,7 @@
 	"templates_use_now": "Use Now",
 	"templates_load_failed": "Failed to load template content",
 	"templates_download_failed": "Failed to download template",
+	"templates_create_template": "Create Template",
 	"templates_delete_template": "Delete Template",
 	"templates_browse_templates": "Browse Templates",
 	"templates_manage_registries": "Manage Registries",
