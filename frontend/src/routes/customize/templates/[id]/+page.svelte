@@ -216,7 +216,6 @@
 		<div class="flex min-w-0 flex-col gap-6 lg:col-span-1">
 			{#if services?.length}
 				<Card.Root class="min-w-0 flex-shrink-0">
-
 					<Card.Header icon={BoxIcon}>
 						<div class="flex flex-col space-y-1.5">
 							<Card.Title>
