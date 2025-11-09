@@ -54,6 +54,11 @@ func (s *NotificationService) GetSettingsByProvider(ctx context.Context, provide
 func (s *NotificationService) CreateOrUpdateSettings(ctx context.Context, provider models.NotificationProvider, enabled bool, config models.JSON) (*models.NotificationSettings, error) {
 	var setting models.NotificationSettings
 
+	// Clear config if provider is disabled
+	if !enabled {
+		config = models.JSON{}
+	}
+
 	err := s.db.WithContext(ctx).Where("provider = ?", provider).First(&setting).Error
 	if err != nil {
 		setting = models.NotificationSettings{
