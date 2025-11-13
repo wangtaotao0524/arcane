@@ -410,7 +410,7 @@ func (h *SystemHandler) Stats(c *gin.Context) {
 			memTotal = memInfo.Total
 		}
 
-		diskUsagePath := h.getDiskUsagePath(c.Request.Context())
+		diskUsagePath := h.getDiskUsagePath(ctx)
 		diskInfo, err := disk.Usage(diskUsagePath)
 		if err != nil || diskInfo == nil || diskInfo.Total == 0 {
 			if diskUsagePath != "/" {
