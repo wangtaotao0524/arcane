@@ -15,6 +15,7 @@ type NetworkSummaryDto struct {
 	Options map[string]string `json:"options"`
 	Labels  map[string]string `json:"labels"`
 	InUse   bool              `json:"inUse"`
+	IsDefault bool            `json:"isDefault"`
 }
 
 type NetworkUsageCounts struct {
